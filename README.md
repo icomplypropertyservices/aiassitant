@@ -27,6 +27,90 @@ Admin login: **admin@local / admin123**
 
 ---
 
+## Deploy frontend on Vercel
+
+The **React SPA** deploys to Vercel. The **FastAPI backend does not** run on Vercel (long-lived WebSockets + Python app server). Host the API on Railway, Render, Fly.io, a VPS, etc., then point the SPA at it.
+
+### 1. Host the API first
+
+Example (any host with HTTPS):
+
+```bash
+cd backend
+# set production env — see backend/.env.example
+export APP_ENV=production
+export JWT_SECRET="$(openssl rand -hex 32)"
+export FRONTEND_URL="https://your-app.vercel.app"
+export CORS_ORIGINS="https://your-app.vercel.app"
+# DATABASE_URL, Stripe, LLM keys, etc.
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Ensure:
+
+| Backend env | Value |
+|-------------|--------|
+| `APP_ENV` | `production` |
+| `FRONTEND_URL` | Your Vercel URL (and custom domain if any) |
+| `CORS_ORIGINS` | Same origin(s), comma-separated (not `*`) |
+| `JWT_SECRET` | Long random secret |
+
+WebSockets must be supported on the API host (`/ws/chat`, `/agents/.../ws/chat`, `/agents/ws`, `/billing/ws/tokens`).
+
+### 2. Deploy to Vercel
+
+**Option A — GitHub (recommended)**  
+1. Push this repo (already on GitHub).  
+2. [vercel.com](https://vercel.com) → **Add New Project** → import `aiassitant` (or this repo).  
+3. Framework: Vite (auto via root `vercel.json`).  
+4. Set environment variable:
+
+| Name | Example |
+|------|---------|
+| `VITE_API_URL` | `https://api.yourdomain.com` |
+
+**No trailing slash.** This is baked in at **build** time — redeploy after changing it.
+
+5. Deploy. Root config:
+
+- Install: `cd frontend && npm install`  
+- Build: `cd frontend && npm run build`  
+- Output: `frontend/dist`  
+- SPA rewrites: all non-asset routes → `index.html`
+
+**Option B — CLI**
+
+```bash
+npm i -g vercel
+cd /path/to/ai-business-assistant
+vercel env add VITE_API_URL   # production value
+vercel --prod
+```
+
+### 3. Local frontend against remote API
+
+```bash
+cd frontend
+echo "VITE_API_URL=https://api.yourdomain.com" > .env
+npm run dev
+```
+
+See also `frontend/.env.example`.
+
+### Architecture
+
+```
+Browser (Vercel SPA)
+   │  HTTPS REST + WSS
+   ▼
+FastAPI (Railway / Render / Fly / VPS)
+   │
+   ▼
+Postgres / Ollama / Stripe / LLM APIs
+```
+
+---
+
 ## Production APIs & keys you need
 
 You do **not** need every service on day one. Minimum for a real product: **JWT + domain + one LLM path**.

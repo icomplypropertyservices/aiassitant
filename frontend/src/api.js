@@ -1,5 +1,11 @@
-export const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-export const WS = API.replace(/^http/, 'ws')
+/** Normalize API base URL (no trailing slash). Set VITE_API_URL for Vercel/production. */
+function normalizeApiBase(url) {
+  const raw = (url || 'http://localhost:8000').trim()
+  return raw.replace(/\/+$/, '')
+}
+
+export const API = normalizeApiBase(import.meta.env.VITE_API_URL)
+export const WS = API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'))
 
 export function getToken() { return localStorage.getItem('token') }
 export function getUser() {

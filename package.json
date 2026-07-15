@@ -1,0 +1,14 @@
+{
+  "name": "ai-business-assistant-monorepo",
+  "private": true,
+  "version": "1.4.0",
+  "description": "Vercel builds the frontend SPA; FastAPI backend is hosted separately.",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
