@@ -1,3 +1,4 @@
+# Root requirements for Vercel Python runtime (api/index.py → backend app)
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
@@ -7,4 +8,5 @@ httpx>=0.27.0
 pydantic==2.10.4
 anthropic>=0.42.0
 cryptography>=42.0.0
+# Postgres on Vercel (required — SQLite is not durable on serverless)
 psycopg2-binary>=2.9.9

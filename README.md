@@ -27,86 +27,82 @@ Admin login: **admin@local / admin123**
 
 ---
 
-## Deploy frontend on Vercel
+## Deploy complete app on Vercel (frontend + API)
 
-The **React SPA** deploys to Vercel. The **FastAPI backend does not** run on Vercel (long-lived WebSockets + Python app server). Host the API on Railway, Render, Fly.io, a VPS, etc., then point the SPA at it.
+This monorepo deploys **both** the React SPA and the FastAPI backend on Vercel:
 
-### 1. Host the API first
+- **Static:** `frontend/dist` (Vite)
+- **Serverless:** `api/index.py` → FastAPI (`backend/app`)
 
-Example (any host with HTTPS):
+Chat/agent live WebSockets are **not reliable** on Vercel serverless; the UI already **falls back to REST** so the product still works.
 
-```bash
-cd backend
-# set production env — see backend/.env.example
-export APP_ENV=production
-export JWT_SECRET="$(openssl rand -hex 32)"
-export FRONTEND_URL="https://your-app.vercel.app"
-export CORS_ORIGINS="https://your-app.vercel.app"
-# DATABASE_URL, Stripe, LLM keys, etc.
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+### 1. Create a Postgres database (required)
 
-Ensure:
+SQLite does not survive serverless. Use free [Neon](https://neon.tech), Supabase, or Vercel Postgres.
 
-| Backend env | Value |
-|-------------|--------|
-| `APP_ENV` | `production` |
-| `FRONTEND_URL` | Your Vercel URL (and custom domain if any) |
-| `CORS_ORIGINS` | Same origin(s), comma-separated (not `*`) |
-| `JWT_SECRET` | Long random secret |
+Copy the connection string, e.g.:
 
-WebSockets must be supported on the API host (`/ws/chat`, `/agents/.../ws/chat`, `/agents/ws`, `/billing/ws/tokens`).
+`postgresql+psycopg2://user:pass@host/db?sslmode=require`
 
-### 2. Deploy to Vercel
+### 2. Vercel project (GitHub)
 
-**Option A — GitHub (recommended)**  
-1. Push this repo (already on GitHub).  
-2. [vercel.com](https://vercel.com) → **Add New Project** → import `aiassitant` (or this repo).  
-3. Framework: Vite (auto via root `vercel.json`).  
-4. Set environment variable:
+1. Import **https://github.com/icomplypropertyservices/aiassitant**
+2. Root directory: **repository root** (uses `vercel.json`)
+3. Add **Environment Variables** (Production + Preview):
 
-| Name | Example |
-|------|---------|
-| `VITE_API_URL` | `https://api.yourdomain.com` |
+| Variable | Required | Example |
+|----------|----------|---------|
+| `APP_ENV` | yes | `production` |
+| `JWT_SECRET` | yes | long random (`openssl rand -hex 32`) |
+| `ENCRYPTION_KEY` | recommended | Fernet key or long secret |
+| `DATABASE_URL` | yes | Postgres URL (see above) |
+| `FRONTEND_URL` | yes | `https://your-app.vercel.app` |
+| `CORS_ORIGINS` | yes | `https://your-app.vercel.app` |
+| `VITE_API_URL` | **leave empty** for same-origin full stack | (empty) |
+| `ANTHROPIC_API_KEY` / `XAI_API_KEY` | optional | platform LLM keys |
+| `STRIPE_*` | optional | payments |
 
-**No trailing slash.** This is baked in at **build** time — redeploy after changing it.
+4. Deploy. First request runs DB `create_all` + seed (admin user).
 
-5. Deploy. Root config:
+**Demo login after deploy:** `admin@local` / `admin123` — change immediately.
 
-- Install: `cd frontend && npm install`  
-- Build: `cd frontend && npm run build`  
-- Output: `frontend/dist`  
-- SPA rewrites: all non-asset routes → `index.html`
+### 3. How routing works
 
-**Option B — CLI**
+| Request | Handled by |
+|---------|------------|
+| `/`, `/login`, `/agents/…` | Static SPA |
+| `/auth/*`, `/agents/*`, `/billing/*`, `/org/*`, `/keys/*`, … | Python `api/index.py` (FastAPI) |
+| `/assets/*` | Static JS/CSS |
 
-```bash
-npm i -g vercel
-cd /path/to/ai-business-assistant
-vercel env add VITE_API_URL   # production value
-vercel --prod
-```
+### 4. Limits on Vercel
 
-### 3. Local frontend against remote API
+| Topic | Notes |
+|-------|--------|
+| Function timeout | `maxDuration: 60` (Pro); Hobby may be lower — long LLM calls can time out |
+| WebSockets | Prefer REST chat (auto-fallback) |
+| Cold starts | First request after idle is slower |
+| Background jobs | Agent tasks are **awaited** on serverless so they finish before freeze |
+
+### 5. Local full stack (unchanged)
 
 ```bash
-cd frontend
-echo "VITE_API_URL=https://api.yourdomain.com" > .env
-npm run dev
+# terminal 1
+cd backend && .venv\Scripts\activate && uvicorn app.main:app --reload --port 8000
+# terminal 2
+cd frontend && npm run dev
 ```
 
-See also `frontend/.env.example`.
-
-### Architecture
+### Architecture (Vercel complete)
 
 ```
-Browser (Vercel SPA)
-   │  HTTPS REST + WSS
+Browser
+   │  same origin
    ▼
-FastAPI (Railway / Render / Fly / VPS)
-   │
-   ▼
-Postgres / Ollama / Stripe / LLM APIs
+Vercel ──► SPA (frontend/dist)
+       └──► Serverless FastAPI (api/index.py → backend)
+                  │
+                  ▼
+             Postgres (Neon) + LLM APIs
 ```
 
 ---

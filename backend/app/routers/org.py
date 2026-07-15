@@ -1,5 +1,4 @@
 """Companies → Projects → Tasks hierarchy for subscribers."""
-import asyncio
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -7,6 +6,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models
 from ..auth_utils import get_current_user, ensure_credits
+from ..async_jobs import schedule as schedule_job
 from ..plans import plan_limits
 from ..task_status import normalize_status
 
@@ -368,7 +368,7 @@ async def run_org_task(
     db.commit()
     db.refresh(t)
     await log_activity(a.id, user.id, "info", f"Running org task: {(t.title or t.description)[:80]}")
-    asyncio.create_task(_run_task(a.id, user.id, t.id, t.description, a.name))
+    await schedule_job(_run_task(a.id, user.id, t.id, t.description, a.name))
     return task_out(t)
 
 

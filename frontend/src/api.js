@@ -1,11 +1,37 @@
-/** Normalize API base URL (no trailing slash). Set VITE_API_URL for Vercel/production. */
+/**
+ * API base URL:
+ * - Local: default http://localhost:8000 (or VITE_API_URL)
+ * - Vercel full-stack: leave VITE_API_URL empty → same origin (rewrites → /api Python)
+ */
 function normalizeApiBase(url) {
-  const raw = (url || 'http://localhost:8000').trim()
+  // Explicit empty string = same-origin (Vercel)
+  if (url === '') return ''
+  if (url === undefined || url === null) {
+    // PROD without VITE_API_URL → same origin for Vercel monorepo deploy
+    if (import.meta.env.PROD) return ''
+    return 'http://localhost:8000'
+  }
+  const raw = String(url).trim()
+  if (!raw) return import.meta.env.PROD ? '' : 'http://localhost:8000'
   return raw.replace(/\/+$/, '')
 }
 
 export const API = normalizeApiBase(import.meta.env.VITE_API_URL)
-export const WS = API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'))
+
+/** WebSocket base. On Vercel serverless, WS often fails — chat falls back to REST. */
+export function getWsBase() {
+  if (API) {
+    return API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'))
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    return `${proto}://${window.location.host}`
+  }
+  return 'ws://localhost:8000'
+}
+
+// Back-compat for existing imports (lazy-ish: may be empty until first page load)
+export const WS = typeof window !== 'undefined' ? getWsBase() : (API ? API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws')) : 'ws://localhost:8000')
 
 export function getToken() { return localStorage.getItem('token') }
 export function getUser() {

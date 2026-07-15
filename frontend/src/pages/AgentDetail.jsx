@@ -10,7 +10,7 @@ import {
   ReloadOutlined, CrownOutlined, TeamOutlined, RobotOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, getToken, WS } from '../api'
+import { api, getToken, getWsBase } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import { modelLabel } from '../models'
@@ -97,7 +97,7 @@ export default function AgentDetail() {
     api('/agents/').then(setAllAgents).catch(() => setAllAgents([]))
 
     // Live activity feed
-    const aws = new WebSocket(`${WS}/agents/ws?token=${getToken()}`)
+    const aws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
     aws.onmessage = (e) => {
       const m = JSON.parse(e.data)
       if (m.event === 'activity' && String(m.agent_id) === String(id)) {
@@ -112,7 +112,7 @@ export default function AgentDetail() {
     activityWs.current = aws
 
     // Streaming chat socket
-    const cws = new WebSocket(`${WS}/agents/${id}/ws/chat?token=${getToken()}`)
+    const cws = new WebSocket(`${getWsBase()}/agents/${id}/ws/chat?token=${getToken()}`)
     cws.onopen = () => setLive(true)
     cws.onclose = () => setLive(false)
     cws.onerror = () => setLive(false)

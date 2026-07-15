@@ -3,8 +3,34 @@
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/health", "destination": "/api" },
+    { "source": "/docs", "destination": "/api" },
+    { "source": "/openapi.json", "destination": "/api" },
+    { "source": "/auth/(.*)", "destination": "/api" },
+    { "source": "/agents/(.*)", "destination": "/api" },
+    { "source": "/agents", "destination": "/api" },
+    { "source": "/billing/(.*)", "destination": "/api" },
+    { "source": "/org/(.*)", "destination": "/api" },
+    { "source": "/keys/(.*)", "destination": "/api" },
+    { "source": "/keys", "destination": "/api" },
+    { "source": "/dashboard/(.*)", "destination": "/api" },
+    { "source": "/dashboard", "destination": "/api" },
+    { "source": "/templates/(.*)", "destination": "/api" },
+    { "source": "/templates", "destination": "/api" },
+    { "source": "/admin/(.*)", "destination": "/api" },
+    { "source": "/admin", "destination": "/api" },
+    { "source": "/conversations/(.*)", "destination": "/api" },
+    { "source": "/conversations", "destination": "/api" },
+    { "source": "/system/(.*)", "destination": "/api" },
+    { "source": "/ws/(.*)", "destination": "/api" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

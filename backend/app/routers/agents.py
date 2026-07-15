@@ -13,6 +13,7 @@ from ..pricing import estimate_tokens
 from ..plans import plan_limits
 from ..usage_billing import charge_usage
 from ..user_keys import credentials_for_user
+from ..async_jobs import schedule as schedule_job
 from ..task_status import ALLOWED as TASK_STATUSES, normalize_status
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -558,7 +559,7 @@ async def delegate_task(agent_id: int, data: DelegateIn, db: Session = Depends(g
             t.status = "todo"
             db.commit()
             raise HTTPException(400, f"{target.name} is paused — task saved as todo")
-        asyncio.create_task(_run_task(target.id, user.id, t.id, t.description, target.name))
+        await schedule_job(_run_task(target.id, user.id, t.id, t.description, target.name))
     return {"task": task_dict(t, db), "from_lead": lead.name, "to_agent": target.name}
 
 @router.post("/{agent_id}/pause")
@@ -719,7 +720,7 @@ async def assign_task(agent_id: int, data: TaskIn, db: Session = Depends(get_db)
     db.refresh(t)
     await log_activity(a.id, user.id, "info", f"Task received: {data.description[:80]}")
     if data.run_now:
-        asyncio.create_task(_run_task(a.id, user.id, t.id, data.description, a.name))
+        await schedule_job(_run_task(a.id, user.id, t.id, data.description, a.name))
     return task_dict(t, db)
 
 
@@ -784,7 +785,7 @@ async def run_task(task_id: int, db: Session = Depends(get_db), user=Depends(get
     t.result = ""
     db.commit()
     await log_activity(a.id, user.id, "info", f"Re-running task: {(t.title or t.description)[:80]}")
-    asyncio.create_task(_run_task(a.id, user.id, t.id, t.description, a.name))
+    await schedule_job(_run_task(a.id, user.id, t.id, t.description, a.name))
     return task_dict(t, db)
 
 

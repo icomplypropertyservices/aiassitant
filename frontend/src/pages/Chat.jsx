@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import { SendOutlined, ThunderboltOutlined, PlusOutlined, MessageOutlined } from '@ant-design/icons'
 import { useLocation } from 'react-router-dom'
-import { api, getToken, WS } from '../api'
+import { api, getToken, getWsBase } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 
@@ -66,7 +66,7 @@ export default function Chat() {
     if (convRef.current) {
       loadConversation(convRef.current)
     }
-    const ws = new WebSocket(`${WS}/ws/chat?token=${getToken()}`)
+    const ws = new WebSocket(`${getWsBase()}/ws/chat?token=${getToken()}`)
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
       if (m.type === 'conversation') {

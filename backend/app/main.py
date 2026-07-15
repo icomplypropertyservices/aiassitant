@@ -161,13 +161,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     seed_db()
-    task = asyncio.create_task(orchestrator())
+    # Background idle loop is not useful on Vercel serverless cold starts
+    from .async_jobs import is_serverless
+    orch_task = None
+    if not is_serverless():
+        orch_task = asyncio.create_task(orchestrator())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    if orch_task:
+        orch_task.cancel()
+        try:
+            await orch_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -196,6 +201,7 @@ def health():
         "service": "ai-business-assistant",
         "version": "1.4.0",
         "environment": config.APP_ENV,
+        "serverless": bool(__import__("os").getenv("VERCEL")),
     }
 
 

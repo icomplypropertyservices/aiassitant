@@ -9,7 +9,7 @@ import {
   CheckCircleOutlined, InfoCircleOutlined, ThunderboltOutlined, RightOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { api, getToken, WS } from '../api'
+import { api, getToken, getWsBase } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import { modelLabel } from '../models'
 
@@ -46,7 +46,7 @@ export default function Agents() {
         form.setFieldsValue({ template_id: loc.state.templateId })
       }
     }).catch(() => {})
-    const ws = new WebSocket(`${WS}/agents/ws?token=${getToken()}`)
+    const ws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
       if (m.event === 'activity') {

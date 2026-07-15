@@ -6,7 +6,7 @@ import {
   LogoutOutlined, ApartmentOutlined, CheckSquareOutlined, ClusterOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Navigate, Link } from 'react-router-dom'
-import { api, getUser, getToken, clearAuth, setAuth, WS } from '../api'
+import { api, getUser, getToken, clearAuth, setAuth, getWsBase } from '../api'
 import TokenMeter from './TokenMeter'
 
 const { Header, Sider, Content } = Layout
@@ -28,7 +28,7 @@ export default function AppLayout() {
     }).catch(() => {})
 
     api('/billing/meter').then(setMeter).catch(() => {})
-    const ws = new WebSocket(`${WS}/billing/ws/tokens?token=${getToken()}`)
+    const ws = new WebSocket(`${getWsBase()}/billing/ws/tokens?token=${getToken()}`)
     ws.onmessage = e => {
       const m = JSON.parse(e.data)
       if (m.event === 'usage') {
