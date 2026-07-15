@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pip install -r requirements.txt && cd frontend && npm ci",
+  "framework": null,
+  "installCommand": "python -m pip install -r requirements.txt && cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "memory": 1024,
       "excludeFiles": "{frontend/node_modules/**,frontend/dist/**,**/.git/**,**/.venv/**,**/__pycache__/**,**/node_modules/**}"
     }
   },

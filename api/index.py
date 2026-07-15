@@ -6,6 +6,7 @@ This module strips the `/api` prefix and dispatches to backend routers.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import traceback
@@ -20,33 +21,78 @@ if str(_BACKEND) not in sys.path:
 os.environ.setdefault("VERCEL", "1")
 
 
-def _build_error_app(exc: BaseException):
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-
-    err_app = FastAPI(title="AI Assistant — startup error")
+def _pure_asgi_error_app(exc: BaseException):
+    """Fallback ASGI app with zero third-party deps (works even if fastapi missing)."""
     detail = f"{type(exc).__name__}: {exc}"
-    tb = traceback.format_exc()
+    tb = traceback.format_exc()[-3500:]
+    body = json.dumps(
+        {
+            "ok": False,
+            "error": "startup_failed",
+            "detail": detail,
+            "hint": (
+                "Build must run: python -m pip install -r requirements.txt. "
+                "Also set JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS "
+                "in Vercel Project Settings → Environment Variables, then redeploy."
+            ),
+            "traceback": tb,
+        }
+    ).encode("utf-8")
 
-    @err_app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
-    @err_app.api_route("/", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
-    async def startup_failed(full_path: str = ""):
-        return JSONResponse(
-            status_code=500,
-            content={
-                "ok": False,
-                "error": "startup_failed",
-                "detail": detail,
-                "hint": (
-                    "In Vercel Project Settings → Environment Variables set at least: "
-                    "JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS. "
-                    "Redeploy after changing env. Check Function logs for full traceback."
-                ),
-                "traceback": tb[-3500:],
-            },
+    async def app(scope, receive, send):
+        if scope["type"] != "http":
+            return
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                    [b"content-length", str(len(body)).encode()],
+                ],
+            }
         )
+        await send({"type": "http.response.body", "body": body})
 
-    return err_app
+    return app
+
+
+def _build_error_app(exc: BaseException):
+    try:
+        from fastapi import FastAPI
+        from fastapi.responses import JSONResponse
+
+        err_app = FastAPI(title="AI Assistant — startup error")
+        detail = f"{type(exc).__name__}: {exc}"
+        tb = traceback.format_exc()
+
+        @err_app.api_route(
+            "/{full_path:path}",
+            methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+        )
+        @err_app.api_route(
+            "/",
+            methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+        )
+        async def startup_failed(full_path: str = ""):
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "ok": False,
+                    "error": "startup_failed",
+                    "detail": detail,
+                    "hint": (
+                        "In Vercel Project Settings → Environment Variables set at least: "
+                        "JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS. "
+                        "Redeploy after changing env. Check Function logs for full traceback."
+                    ),
+                    "traceback": tb[-3500:],
+                },
+            )
+
+        return err_app
+    except Exception:  # noqa: BLE001
+        return _pure_asgi_error_app(exc)
 
 
 try:
@@ -56,18 +102,13 @@ try:
 
     def _resolve_path(scope: Scope) -> str:
         path = scope.get("path") or "/"
-        # Recover original path if a rewrite collapsed it to /api
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers") or []}
-        for key in ("x-forwarded-uri", "x-invoke-path", "x-matched-path", "x-vercel-forwarded-for"):
-            # x-forwarded-uri may be full path
-            pass
         raw = headers.get("x-forwarded-uri") or headers.get("x-url") or ""
         if raw:
             if raw.startswith("http"):
                 path = urlparse(raw).path or path
             elif raw.startswith("/"):
                 path = raw
-        # Also check query url= (unlikely)
         return path
 
     class StripApiPrefix:
@@ -81,7 +122,7 @@ try:
                 path = _resolve_path(scope)
                 if path == "/api":
                     scope = dict(scope)
-                    scope["path"] = "/health"  # bare /api → health
+                    scope["path"] = "/health"
                     if "raw_path" in scope:
                         scope["raw_path"] = b"/health"
                 elif path.startswith("/api/"):
