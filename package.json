@@ -6,7 +6,9 @@
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
-    "preview": "npm --prefix frontend run preview"
+    "preview": "npm --prefix frontend run preview",
+    "build:ios": "npm --prefix frontend run build:ios",
+    "ios": "npm --prefix frontend run ios"
   },
   "engines": {
     "node": ">=18"

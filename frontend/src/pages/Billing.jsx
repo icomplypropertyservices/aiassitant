@@ -3,7 +3,7 @@ import {
   Card, Row, Col, Statistic, Button, InputNumber, Space, message, Tag, List, Alert, Table, Typography,
 } from 'antd'
 import { useSearchParams } from 'react-router-dom'
-import { api } from '../api'
+import { api, IS_NATIVE } from '../api'
 import TokenMeter from '../components/TokenMeter'
 
 export default function Billing() {
@@ -35,6 +35,11 @@ export default function Billing() {
   }, [])
 
   const topup = async () => {
+    if (IS_NATIVE) {
+      message.info('On iOS, open Billing on the website to top up (App Store rules).')
+      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      return
+    }
     setBusy(true)
     try {
       const r = await api('/billing/topup', { method: 'POST', body: { amount } })
@@ -52,6 +57,11 @@ export default function Billing() {
   }
 
   const choose = async (plan) => {
+    if (IS_NATIVE) {
+      message.info('Change plans on the website to comply with App Store rules.')
+      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      return
+    }
     try {
       const r = await api('/billing/plan', { method: 'POST', body: { plan } })
       if (r.checkout_url) {
@@ -69,6 +79,20 @@ export default function Billing() {
 
   return (
     <div>
+      {IS_NATIVE && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Subscriptions & top-ups"
+          description="On the iOS app, manage payments on the website. Token meters and usage still work here."
+          action={
+            <Button size="small" type="primary" onClick={() => window.open('https://aiassitant-nu.vercel.app/billing', '_blank')}>
+              Open web billing
+            </Button>
+          }
+        />
+      )}
       {balance && !balance.stripe_live && (
         <Alert
           type="warning"

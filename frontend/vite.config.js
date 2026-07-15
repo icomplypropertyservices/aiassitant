@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     base: '/',
+    // Capacitor native builds use mode "native" (.env.native)
+    envDir: '.',
     build: {
       outDir: 'dist',
       sourcemap: false,

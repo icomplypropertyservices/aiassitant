@@ -4,7 +4,7 @@ import {
 } from 'antd'
 import { CheckOutlined, RobotOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, getUser, setAuth, clearAuth } from '../api'
+import { api, getToken, getUser, setAuth, clearAuth, IS_NATIVE } from '../api'
 
 export default function Subscribe() {
   const nav = useNavigate()
@@ -28,6 +28,12 @@ export default function Subscribe() {
   }, [])
 
   const choose = async (planKey) => {
+    if (IS_NATIVE) {
+      // App Store guideline 3.1: digital subscriptions — prefer web account management for multi-platform SaaS
+      message.info('Complete subscription on the web for your account, then return to the app.')
+      window.open('https://aiassitant-nu.vercel.app/subscribe', '_blank')
+      return
+    }
     setBusy(planKey)
     try {
       const r = await api('/billing/plan', {

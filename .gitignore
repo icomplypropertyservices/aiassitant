@@ -45,5 +45,6 @@ tmp/
 temp/
 .cache/
 
-public/
+# Vercel SPA copy output (repo root only — not frontend/public assets)
+/public/
 
