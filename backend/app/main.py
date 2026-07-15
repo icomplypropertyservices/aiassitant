@@ -119,10 +119,15 @@ async def orchestrator():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Never let startup kill the whole serverless function hard
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[startup] create_all failed: {e}")
     # Light migrations for existing SQLite DBs
     try:
-        if config.DATABASE_URL.startswith("sqlite"):
+        db_url = str(engine.url)
+        if db_url.startswith("sqlite"):
             with engine.begin() as conn:
                 def cols(table):
                     return [r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()]
@@ -144,7 +149,6 @@ async def lifespan(app: FastAPI):
                     add("tasks", "priority", "TEXT DEFAULT 'medium'")
                     add("tasks", "labels", "TEXT DEFAULT ''")
                     add("tasks", "updated_at", "DATETIME")
-                    # agent_id may already exist
                 add("users", "subscription_active", "BOOLEAN DEFAULT 0")
                 add("balances", "tokens_included", "INTEGER DEFAULT 0")
                 add("balances", "tokens_used_period", "INTEGER DEFAULT 0")
@@ -158,9 +162,12 @@ async def lifespan(app: FastAPI):
                 add("token_usage", "project_id", "INTEGER")
                 add("token_usage", "bill_source", "TEXT DEFAULT 'included'")
                 add("conversations", "project_id", "INTEGER")
-    except Exception:
-        pass
-    seed_db()
+    except Exception as e:
+        print(f"[startup] migrations failed: {e}")
+    try:
+        seed_db()
+    except Exception as e:
+        print(f"[startup] seed_db failed: {e}")
     # Background idle loop is not useful on Vercel serverless cold starts
     from .async_jobs import is_serverless
     orch_task = None

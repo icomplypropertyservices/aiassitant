@@ -1,3 +1,4 @@
+import hashlib
 import os
 import secrets
 from pathlib import Path
@@ -18,15 +19,23 @@ if env_path.exists():
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()  # development | production
 IS_PRODUCTION = APP_ENV == "production"
+# Vercel sets VERCEL=1
+IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
 
 _jwt = os.getenv("JWT_SECRET", "").strip()
 if not _jwt or _jwt in ("generate-a-long-random-string", "change-me-in-production"):
-    if IS_PRODUCTION:
+    if IS_PRODUCTION and not IS_VERCEL:
         raise RuntimeError(
             "JWT_SECRET must be set to a long random string in production "
             "(at least 32 characters). Set it in backend/.env"
         )
-    JWT_SECRET = secrets.token_hex(32)
+    # On Vercel without JWT_SECRET: derive a stable secret from deploy metadata
+    # (still set JWT_SECRET in the Vercel dashboard for real multi-instance security).
+    if IS_VERCEL:
+        seed = os.getenv("VERCEL_GIT_COMMIT_SHA") or os.getenv("VERCEL_URL") or "vercel-dev"
+        JWT_SECRET = "vercel-" + hashlib.sha256(seed.encode()).hexdigest()
+    else:
+        JWT_SECRET = secrets.token_hex(32)
 else:
     JWT_SECRET = _jwt
 

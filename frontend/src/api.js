@@ -4,16 +4,12 @@
  * - Vercel full-stack: leave VITE_API_URL empty → same origin (rewrites → /api Python)
  */
 function normalizeApiBase(url) {
-  // Explicit empty string = same-origin (Vercel)
-  if (url === '') return ''
-  if (url === undefined || url === null) {
-    // PROD without VITE_API_URL → same origin for Vercel monorepo deploy
-    if (import.meta.env.PROD) return ''
+  // Explicit empty / unset in production → same-origin /api (Vercel full stack)
+  if (url === undefined || url === null || String(url).trim() === '') {
+    if (import.meta.env.PROD) return '/api'
     return 'http://localhost:8000'
   }
-  const raw = String(url).trim()
-  if (!raw) return import.meta.env.PROD ? '' : 'http://localhost:8000'
-  return raw.replace(/\/+$/, '')
+  return String(url).trim().replace(/\/+$/, '')
 }
 
 export const API = normalizeApiBase(import.meta.env.VITE_API_URL)
