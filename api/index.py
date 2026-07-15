@@ -3,6 +3,9 @@ Vercel Python serverless entry for FastAPI.
 
 Browser calls:  /api/auth/login, /api/health, …
 This module strips the `/api` prefix and dispatches to backend routers.
+
+IMPORTANT: `app` must remain a FastAPI instance (not a plain ASGI wrapper)
+so Vercel's FastAPI framework detector accepts this entrypoint.
 """
 from __future__ import annotations
 
@@ -22,7 +25,7 @@ os.environ.setdefault("VERCEL", "1")
 
 
 def _pure_asgi_error_app(exc: BaseException):
-    """Fallback ASGI app with zero third-party deps (works even if fastapi missing)."""
+    """Fallback ASGI app with zero third-party deps."""
     detail = f"{type(exc).__name__}: {exc}"
     tb = traceback.format_exc()[-3500:]
     body = json.dumps(
@@ -31,15 +34,14 @@ def _pure_asgi_error_app(exc: BaseException):
             "error": "startup_failed",
             "detail": detail,
             "hint": (
-                "Build must run: python -m pip install -r requirements.txt. "
-                "Also set JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS "
-                "in Vercel Project Settings → Environment Variables, then redeploy."
+                "Build must install requirements (uv pip install --system -r requirements.txt). "
+                "Set JWT_SECRET, DATABASE_URL, FRONTEND_URL, CORS_ORIGINS in Vercel env."
             ),
             "traceback": tb,
         }
     ).encode("utf-8")
 
-    async def app(scope, receive, send):
+    async def _app(scope, receive, send):
         if scope["type"] != "http":
             return
         await send(
@@ -54,7 +56,7 @@ def _pure_asgi_error_app(exc: BaseException):
         )
         await send({"type": "http.response.body", "body": body})
 
-    return app
+    return _app
 
 
 def _build_error_app(exc: BaseException):
@@ -82,9 +84,8 @@ def _build_error_app(exc: BaseException):
                     "error": "startup_failed",
                     "detail": detail,
                     "hint": (
-                        "In Vercel Project Settings → Environment Variables set at least: "
-                        "JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS. "
-                        "Redeploy after changing env. Check Function logs for full traceback."
+                        "Set JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS "
+                        "in Vercel Environment Variables, then redeploy."
                     ),
                     "traceback": tb[-3500:],
                 },
@@ -96,44 +97,67 @@ def _build_error_app(exc: BaseException):
 
 
 try:
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
 
-    from app.main import app as _backend_app
+    from app.main import app  # FastAPI instance — required name for Vercel detection
 
-    def _resolve_path(scope: Scope) -> str:
-        path = scope.get("path") or "/"
-        headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers") or []}
-        raw = headers.get("x-forwarded-uri") or headers.get("x-url") or ""
-        if raw:
-            if raw.startswith("http"):
-                path = urlparse(raw).path or path
-            elif raw.startswith("/"):
-                path = raw
-        return path
+    class StripApiPrefixMiddleware(BaseHTTPMiddleware):
+        """/api/auth/login → /auth/login for backend routers."""
 
-    class StripApiPrefix:
-        """ASGI middleware: /api/auth/login → /auth/login for FastAPI routers."""
+        async def dispatch(self, request: Request, call_next):
+            path = request.scope.get("path") or "/"
+            headers = {
+                k.decode().lower(): v.decode()
+                for k, v in (request.scope.get("headers") or [])
+            }
+            raw = headers.get("x-forwarded-uri") or headers.get("x-url") or ""
+            if raw:
+                if raw.startswith("http"):
+                    path = urlparse(raw).path or path
+                elif raw.startswith("/"):
+                    path = raw
 
-        def __init__(self, app: ASGIApp):
-            self.app = app
+            if path == "/api":
+                request.scope["path"] = "/health"
+                if "raw_path" in request.scope:
+                    request.scope["raw_path"] = b"/health"
+            elif path.startswith("/api/"):
+                new_path = path[4:] or "/"
+                request.scope["path"] = new_path
+                if "raw_path" in request.scope:
+                    request.scope["raw_path"] = new_path.encode("utf-8")
 
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] in ("http", "websocket"):
-                path = _resolve_path(scope)
-                if path == "/api":
-                    scope = dict(scope)
-                    scope["path"] = "/health"
-                    if "raw_path" in scope:
-                        scope["raw_path"] = b"/health"
-                elif path.startswith("/api/"):
-                    new_path = path[4:] or "/"
-                    scope = dict(scope)
-                    scope["path"] = new_path
-                    if "raw_path" in scope:
-                        scope["raw_path"] = new_path.encode("utf-8")
-            await self.app(scope, receive, send)
+            return await call_next(request)
 
-    app = StripApiPrefix(_backend_app)
+    # Keeps `app` typed as FastAPI (add_middleware, not ASGI reassignment)
+    app.add_middleware(StripApiPrefixMiddleware)
+
+    # Serve Vite SPA from public/ (built into public during Vercel buildCommand)
+    _public = _ROOT / "public"
+    if not _public.is_dir():
+        # Fallback: frontend/dist if present in the bundle
+        _public = _ROOT / "frontend" / "dist"
+    _index = _public / "index.html"
+    _assets = _public / "assets"
+    if _assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets)), name="assets")
+
+    if _index.is_file():
+
+        @app.get("/")
+        async def spa_root():
+            return FileResponse(str(_index))
+
+        @app.get("/{full_path:path}")
+        async def spa_fallback(full_path: str):
+            # Prefer real static files when present (favicon, etc.)
+            candidate = _public / full_path
+            if candidate.is_file() and _public in candidate.resolve().parents:
+                return FileResponse(str(candidate))
+            return FileResponse(str(_index))
 
 except Exception as _exc:  # noqa: BLE001
     app = _build_error_app(_exc)

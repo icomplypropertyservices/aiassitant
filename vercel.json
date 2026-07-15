@@ -1,15 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "installCommand": "python -m pip install -r requirements.txt && cd frontend && npm ci",
-  "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{frontend/node_modules/**,frontend/dist/**,**/.git/**,**/.venv/**,**/__pycache__/**,**/node_modules/**}"
-    }
-  },
+  "framework": "fastapi",
+  "installCommand": "uv pip install --python .vercel/python/.venv/bin/python -r requirements.txt && cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run build && rm -rf ../public && mkdir -p ../public && cp -R dist/. ../public/",
   "rewrites": [
     {
       "source": "/api/(.*)",
