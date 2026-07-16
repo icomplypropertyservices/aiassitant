@@ -3,21 +3,14 @@
   "framework": "fastapi",
   "installCommand": "uv pip install --python .vercel/python/.venv/bin/python -r requirements.txt && cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build && rm -rf ../public && mkdir -p ../public && cp -R dist/. ../public/",
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api"
     },
     {
-      "source": "/privacy",
-      "destination": "/privacy.html"
-    },
-    {
-      "source": "/support",
-      "destination": "/support.html"
-    },
-    {
-      "source": "/((?!api(?:/|$)|assets/|privacy(?:\\.html)?$|support(?:\\.html)?$|icons/|manifest\\.webmanifest$).*)",
+      "source": "/((?!api(?:/|$)|assets/|privacy(?:\\.html)?$|support(?:\\.html)?$|icons/|manifest\\.webmanifest$|favicon\\.ico$).*)",
       "destination": "/index.html"
     }
   ],
