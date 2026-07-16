@@ -169,14 +169,14 @@ Change production API URL in `frontend/.env.native` if the Vercel domain changes
 
 ---
 
-## 8. Android later
+## 8. Android
 
-Same Capacitor project:
+Android platform is in `frontend/android`. Full Play Store guide:
+
+→ **[STORE_READY.md](./STORE_READY.md)**
 
 ```bash
-npm install @capacitor/android -D
-npx cap add android
-npm run build:native && npx cap sync android
+npm run build:android:sandbox   # Test / internal
+npm run build:android           # Store-oriented web bundle
+npx cap open android            # Android Studio
 ```
-
-Play Console is a separate listing process.

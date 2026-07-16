@@ -27,6 +27,35 @@ Admin login: **admin@local / admin123**
 
 ---
 
+## Mobile (iOS + Android) — sandbox & stores
+
+Capacitor shells live under `frontend/ios` and `frontend/android`.
+
+```bash
+# Sandbox / internal testing (API = production Vercel; Stripe test mode on server)
+npm run build:mobile:sandbox
+
+# Store-oriented native web bundle
+npm run build:mobile
+
+# Open IDE (Android Studio / Xcode on Mac)
+npm run android:sandbox
+npm run ios:sandbox
+```
+
+| Docs | |
+|------|--|
+| Full store checklist | [docs/STORE_READY.md](docs/STORE_READY.md) |
+| iOS details | [docs/APP_STORE_IOS.md](docs/APP_STORE_IOS.md) |
+| Stripe test cards | [docs/STRIPE_SANDBOX.md](docs/STRIPE_SANDBOX.md) |
+
+Privacy / Support URLs for listings:
+
+- https://aiassitant-nu.vercel.app/privacy  
+- https://aiassitant-nu.vercel.app/support  
+
+---
+
 ## Deploy complete app on Vercel (frontend + API)
 
 This monorepo deploys **both** the React SPA and the FastAPI backend on Vercel:

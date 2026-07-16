@@ -1,0 +1,5 @@
+# Copy to key.properties (gitignored) for release signing
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=aiba
+storeFile=../aiba-upload.jks

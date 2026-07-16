@@ -8,7 +8,13 @@
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "build:ios": "npm --prefix frontend run build:ios",
-    "ios": "npm --prefix frontend run ios"
+    "build:android": "npm --prefix frontend run build:android",
+    "build:mobile": "npm --prefix frontend run build:mobile",
+    "build:mobile:sandbox": "npm --prefix frontend run build:mobile:sandbox",
+    "ios": "npm --prefix frontend run ios",
+    "android": "npm --prefix frontend run android",
+    "ios:sandbox": "npm --prefix frontend run ios:sandbox",
+    "android:sandbox": "npm --prefix frontend run android:sandbox"
   },
   "engines": {
     "node": ">=18"

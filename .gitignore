@@ -57,3 +57,9 @@ temp/
 
 backend/uploads/
 
+
+# Mobile signing
+*.jks
+*.keystore
+frontend/android/key.properties
+frontend/android/app/release/

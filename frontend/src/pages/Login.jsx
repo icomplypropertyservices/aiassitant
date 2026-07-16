@@ -87,6 +87,9 @@ export default function Login() {
             Run companies, projects and AI agents in one workspace — with a clear token meter
             and fair public pricing.
           </Typography.Paragraph>
+          {import.meta.env.VITE_SANDBOX === '1' && (
+            <Tag color="gold" style={{ marginBottom: 8 }}>Sandbox build · test payments only</Tag>
+          )}
           <Space wrap style={{ justifyContent: 'center' }}>
             <span className="aba-feature-pill"><TeamOutlined /> Company → Projects → Tasks</span>
             <span className="aba-feature-pill"><ThunderboltOutlined /> Live token meter</span>

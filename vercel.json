@@ -9,7 +9,15 @@
       "destination": "/api"
     },
     {
-      "source": "/((?!api(?:/|$)|assets/).*)",
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/support.html"
+    },
+    {
+      "source": "/((?!api(?:/|$)|assets/|privacy(?:\\.html)?$|support(?:\\.html)?$|icons/|manifest\\.webmanifest$).*)",
       "destination": "/index.html"
     }
   ],

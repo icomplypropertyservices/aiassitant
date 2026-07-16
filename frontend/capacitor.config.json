@@ -7,7 +7,9 @@
     "iosScheme": "https",
     "allowNavigation": [
       "aiassitant-nu.vercel.app",
-      "*.vercel.app"
+      "*.vercel.app",
+      "checkout.stripe.com",
+      "*.stripe.com"
     ]
   },
   "plugins": {
@@ -34,5 +36,10 @@
     "preferredContentMode": "mobile",
     "scheme": "AI Business Assistant",
     "limitsNavigationsToAppBoundDomains": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0b1f3a",
+    "webContentsDebuggingEnabled": false
   }
 }
