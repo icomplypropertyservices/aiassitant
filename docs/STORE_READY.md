@@ -6,8 +6,8 @@
 | **App ID** | `com.icomply.aibusinessassistant` | `com.icomply.aibusinessassistant` |
 | **Version** | 1.4.0 | 1.4.0 (`versionCode` 10400) |
 | **API** | `https://aiassitant-nu.vercel.app/api` | same |
-| **Privacy** | https://aiassitant-nu.vercel.app/privacy | same |
-| **Support** | https://aiassitant-nu.vercel.app/support | same |
+| **Privacy** | https://aiassitant-nu.vercel.app/privacy.html | same |
+| **Support** | https://aiassitant-nu.vercel.app/support.html | same |
 
 Payments: **web Stripe (sandbox `sk_test`) + crypto**. Mobile billing buttons open the website where required by store rules (`IS_NATIVE` paths already do this).
 
