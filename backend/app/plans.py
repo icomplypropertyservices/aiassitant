@@ -108,7 +108,8 @@ PLANS = {
             "1 company · 5 projects · 10 agents",
             "All models at public rates",
         ],
-        "public": True,
+        # Hidden from public plan lists / marketing (not offered at launch)
+        "public": False,
         "requires_payment": False,
         "highlight": False,
     },

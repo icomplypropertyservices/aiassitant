@@ -58,7 +58,11 @@ export default function Login() {
     }
   }
 
-  const planList = Object.entries(plans).filter(([, p]) => p.public !== false)
+  const planList = Object.entries(plans).filter(
+    ([key, p]) => p.public !== false && key !== 'pay_as_you_go' && key !== 'none',
+  )
+
+  const unit = (n, singular) => `${n} ${singular}${Number(n) === 1 ? '' : 's'}`
 
   return (
     <div className="aba-auth-shell">
@@ -131,7 +135,7 @@ export default function Login() {
                 </Button>
               </Form>
               <Typography.Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0, fontSize: 12, textAlign: 'center' }}>
-                After sign-up you pick a plan (trial, starter, pro…). Card or crypto (ETH / SOL / XRP).
+                After sign-up, choose a plan. Pay with card or crypto (ETH / SOL / XRP).
               </Typography.Paragraph>
             </Card>
           </Col>
@@ -139,13 +143,8 @@ export default function Login() {
           <Col xs={24} md={14}>
             <Card
               className="aba-auth-card aba-soft-card"
-              title={
-                <Space>
-                  <span>Plans for launch</span>
-                  <Tag color="blue">Public</Tag>
-                </Space>
-              }
-              extra={<Link to="/subscribe">Compare all →</Link>}
+              title="Plans"
+              extra={<Link to="/subscribe">View plans →</Link>}
               style={{ borderRadius: 16, height: '100%' }}
             >
               <List
@@ -168,7 +167,10 @@ export default function Login() {
                         <div>
                           <div style={{ marginBottom: 4, color: '#475569' }}>{p.blurb}</div>
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {(p.tokens_included || 0).toLocaleString()} tokens/mo · {p.companies} company · {p.projects} projects · {p.agents} agents
+                            {(p.tokens_included || 0).toLocaleString()} tokens/mo
+                            {' · '}{unit(p.companies, 'company')}
+                            {' · '}{unit(p.projects, 'project')}
+                            {' · '}{unit(p.agents, 'agent')}
                           </Typography.Text>
                         </div>
                       }
