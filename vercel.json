@@ -3,11 +3,6 @@
   "framework": "fastapi",
   "installCommand": "uv pip install --python .vercel/python/.venv/bin/python -r requirements.txt && cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build && rm -rf ../public && mkdir -p ../public && cp -R dist/. ../public/",
-  "cleanUrls": true,
-  "redirects": [
-    { "source": "/privacy", "destination": "/privacy.html", "permanent": false },
-    { "source": "/support", "destination": "/support.html", "permanent": false }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
