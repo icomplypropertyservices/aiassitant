@@ -26,20 +26,21 @@ os.environ.setdefault("VERCEL", "1")
 
 def _pure_asgi_error_app(exc: BaseException):
     """Fallback ASGI app with zero third-party deps."""
-    detail = f"{type(exc).__name__}: {exc}"
+    is_prod = (os.getenv("APP_ENV") or "").lower() == "production"
+    detail = f"{type(exc).__name__}: {exc}" if not is_prod else "Server failed to start"
     tb = traceback.format_exc()[-3500:]
-    body = json.dumps(
-        {
-            "ok": False,
-            "error": "startup_failed",
-            "detail": detail,
-            "hint": (
-                "Build must install requirements (uv pip install --system -r requirements.txt). "
-                "Set JWT_SECRET, DATABASE_URL, FRONTEND_URL, CORS_ORIGINS in Vercel env."
-            ),
-            "traceback": tb,
-        }
-    ).encode("utf-8")
+    payload = {
+        "ok": False,
+        "error": "startup_failed",
+        "detail": detail,
+        "hint": (
+            "Install requirements; set JWT_SECRET, DATABASE_URL, FRONTEND_URL, "
+            "CORS_ORIGINS, APP_ENV=production in Vercel env."
+        ),
+    }
+    if not is_prod:
+        payload["traceback"] = tb
+    body = json.dumps(payload).encode("utf-8")
 
     async def _app(scope, receive, send):
         if scope["type"] != "http":
@@ -77,19 +78,20 @@ def _build_error_app(exc: BaseException):
             methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
         )
         async def startup_failed(full_path: str = ""):
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "ok": False,
-                    "error": "startup_failed",
-                    "detail": detail,
-                    "hint": (
-                        "Set JWT_SECRET, DATABASE_URL (Postgres), FRONTEND_URL, CORS_ORIGINS "
-                        "in Vercel Environment Variables, then redeploy."
-                    ),
-                    "traceback": tb[-3500:],
-                },
-            )
+            # Never leak full tracebacks in production
+            is_prod = (os.getenv("APP_ENV") or "").lower() == "production"
+            body = {
+                "ok": False,
+                "error": "startup_failed",
+                "detail": detail if not is_prod else "Server failed to start. Check environment variables.",
+                "hint": (
+                    "Set JWT_SECRET (≥32 chars), DATABASE_URL (Postgres), "
+                    "FRONTEND_URL, CORS_ORIGINS, APP_ENV=production in Vercel, then redeploy."
+                ),
+            }
+            if not is_prod:
+                body["traceback"] = tb[-3500:]
+            return JSONResponse(status_code=500, content=body)
 
         return err_app
     except Exception:  # noqa: BLE001
@@ -153,6 +155,19 @@ try:
 
         @app.get("/{full_path:path}")
         async def spa_fallback(full_path: str):
+            # Never serve SPA HTML for API paths (login/register must stay JSON)
+            api_prefixes = (
+                "auth/", "billing/", "agents/", "conversations/", "ws/",
+                "keys/", "org/", "admin/", "integrations/", "training/",
+                "templates/", "dashboard/", "system/", "health", "api/",
+            )
+            low = (full_path or "").lstrip("/").lower()
+            if low == "health" or any(low.startswith(p) for p in api_prefixes):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    {"ok": False, "error": "not_found", "path": full_path},
+                    status_code=404,
+                )
             # Prefer real static files when present (favicon, etc.)
             candidate = _public / full_path
             if candidate.is_file() and _public in candidate.resolve().parents:

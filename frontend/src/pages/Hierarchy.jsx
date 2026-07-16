@@ -8,27 +8,44 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import OrchestratorBanner from '../components/OrchestratorBanner'
+import { isOrchestrator, isLead } from '../agents/roles'
 
 function toTreeData(nodes) {
-  return (nodes || []).map(n => ({
-    key: String(n.id),
-    title: (
-      <Space wrap size={4}>
-        {n.is_lead || n.hierarchy_role === 'lead' ? (
-          <CrownOutlined style={{ color: '#faad14' }} />
-        ) : (
-          <RobotOutlined style={{ color: '#1668dc' }} />
-        )}
-        <span style={{ fontWeight: 600 }}>{n.name}</span>
-        <Tag>{n.template_type}</Tag>
-        <Tag color={n.status === 'active' ? 'green' : 'orange'}>{n.status}</Tag>
-        {(n.is_lead || n.hierarchy_role === 'lead') && <Tag color="gold">Lead</Tag>}
-        {n.hierarchy_role === 'specialist' && <Tag color="purple">Specialist</Tag>}
-        {n.reports_count > 0 && <Tag color="blue">{n.reports_count} reports</Tag>}
-      </Space>
-    ),
-    children: n.children?.length ? toTreeData(n.children) : undefined,
-  }))
+  return (nodes || []).map(n => {
+    const isOrch = isOrchestrator(n)
+    return {
+      key: String(n.id),
+      title: (
+        <Space
+          wrap
+          size={4}
+          style={isOrch ? {
+            background: '#fffbe6',
+            border: '1px solid #faad14',
+            borderRadius: 8,
+            padding: '4px 8px',
+          } : undefined}
+        >
+          {isOrch || isLead(n) ? (
+            <CrownOutlined style={{ color: isOrch ? '#d48806' : '#faad14', fontSize: isOrch ? 18 : 14 }} />
+          ) : (
+            <RobotOutlined style={{ color: '#1668dc' }} />
+          )}
+          <span style={{ fontWeight: isOrch ? 800 : 600, fontSize: isOrch ? 15 : 14 }}>{n.name}</span>
+          {isOrch && <Tag color="gold">MAIN ORCHESTRATOR</Tag>}
+          <Tag>{n.template_type}</Tag>
+          <Tag color={n.status === 'active' ? 'green' : 'orange'}>{n.status}</Tag>
+          {!isOrch && isLead(n) && <Tag color="gold">Lead</Tag>}
+          {n.hierarchy_role === 'specialist' && <Tag color="purple">Specialist</Tag>}
+          {n.company_name && <Tag color="blue">{n.company_name}</Tag>}
+          {n.project_name && <Tag color="cyan">{n.project_name}</Tag>}
+          {n.reports_count > 0 && <Tag color="blue">{n.reports_count} reports</Tag>}
+        </Space>
+      ),
+      children: n.children?.length ? toTreeData(n.children) : undefined,
+    }
+  })
 }
 
 export default function Hierarchy() {
@@ -54,8 +71,8 @@ export default function Hierarchy() {
     if (!a) return
     setSelected(a)
     form.setFieldsValue({
-      is_lead: a.is_lead || a.hierarchy_role === 'lead',
-      hierarchy_role: a.hierarchy_role || (a.is_lead ? 'lead' : 'member'),
+      is_lead: a.is_lead || a.hierarchy_role === 'lead' || a.hierarchy_role === 'orchestrator',
+      hierarchy_role: a.hierarchy_role || (a.is_orchestrator ? 'orchestrator' : (a.is_lead ? 'lead' : 'member')),
       parent_id: a.parent_id || undefined,
       report_ids: (data?.flat || []).filter(x => x.parent_id === a.id).map(x => x.id),
     })
@@ -112,8 +129,10 @@ export default function Hierarchy() {
         showIcon
         style={{ marginBottom: 16 }}
         message="How hierarchy works"
-        description="Create a Lead Agent (or mark any agent as Lead), then attach members underneath. Leads can delegate tasks to their reports from the agent workspace. Chat with a lead includes team context automatically."
+        description="Main AI Orchestrator is always at the top (gold). Under it: lead agents and project teams. Allocate agents to projects in Workspace. Leads can delegate tasks from the agent workspace."
       />
+
+      <OrchestratorBanner orchestrator={data?.orchestrator} onChanged={load} />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col xs={8}><Card><Statistic title="Agents" value={data?.total || 0} prefix={<TeamOutlined />} /></Card></Col>
@@ -152,9 +171,13 @@ export default function Hierarchy() {
                 onClick={() => nav(`/agents/${a.id}`)}
               >
                 <Space wrap>
-                  {(a.is_lead || a.hierarchy_role === 'lead') && <CrownOutlined style={{ color: '#faad14' }} />}
-                  <strong>{a.name}</strong>
+                  {(isOrchestrator(a) || isLead(a)) && (
+                    <CrownOutlined style={{ color: isOrchestrator(a) ? '#d48806' : '#faad14' }} />
+                  )}
+                  <strong style={isOrchestrator(a) ? { color: '#d48806' } : undefined}>{a.name}</strong>
+                  {isOrchestrator(a) && <Tag color="gold">MAIN</Tag>}
                   <Tag>{a.hierarchy_role || 'member'}</Tag>
+                  {a.project_name && <Tag color="cyan">{a.project_name}</Tag>}
                   {a.parent_name && <Tag color="default">→ {a.parent_name}</Tag>}
                 </Space>
                 <Button size="small" onClick={(e) => { e.stopPropagation(); openEdit(a.id) }}>
@@ -182,6 +205,7 @@ export default function Hierarchy() {
           </Form.Item>
           <Form.Item name="hierarchy_role" label="Role">
             <Select options={[
+              { value: 'orchestrator', label: 'Main AI Orchestrator — always at the top' },
               { value: 'lead', label: 'Lead — orchestrates team' },
               { value: 'member', label: 'Member — reports to a lead' },
               { value: 'specialist', label: 'Specialist — deep skill, optional lead' },

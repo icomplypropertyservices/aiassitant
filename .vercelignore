@@ -1,0 +1,26 @@
+# Never upload local secrets or dev state to Vercel
+.env
+.env.*
+!.env.example
+!.env.*.example
+backend/.env
+backend/.env.*
+backend/*.db
+backend/app.db
+**/.venv
+**/venv
+**/node_modules
+frontend/node_modules
+frontend/dist
+.git
+.pytest_cache
+__pycache__
+*.pyc
+.DS_Store
+docs
+scripts
+*.md
+!README.md
+.env.production.local
+.env.local
+.env.vercel.check

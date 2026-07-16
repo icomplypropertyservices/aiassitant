@@ -2,6 +2,15 @@
 
 # (name, type, description, unique_fields, est_cost)
 SEED_TEMPLATES = [
+    # ── Main orchestrator (always pin to top of hierarchy) ─────────
+    ("Main AI Orchestrator", "orchestrator",
+     "Top-level commander for your whole workspace: routes work to leads and project agents, "
+     "keeps company priorities aligned, and is always listed first so you can find it instantly.",
+     [{"name": "mission", "label": "Workspace mission", "placeholder": "e.g. Grow all client brands profitably"},
+      {"name": "priorities", "label": "Top priorities", "placeholder": "Sales, support quality, compliance"},
+      {"name": "escalation", "label": "Escalate to human when…", "placeholder": "Refunds > £500, legal risk, VIP complaints"}],
+     "~$2.00 / day"),
+
     # ── Leadership / hierarchy ────────────────────────────────────
     ("Lead Agent / Team Lead", "lead",
      "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",

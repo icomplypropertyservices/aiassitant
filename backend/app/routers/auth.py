@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models
 from ..auth_utils import hash_password, verify_password, create_token, get_current_user
 from ..usage_billing import meter_snapshot
+from ..rate_limit import check_rate_limit, client_ip
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -26,24 +29,39 @@ class ProfileIn(BaseModel):
     password: str | None = None
 
 
+def _subscription_live(u: models.User) -> bool:
+    """True when plan is active and not past subscription_expires_at."""
+    if u.role == "admin":
+        return True
+    if not u.subscription_active or u.plan in (None, "", "none"):
+        return False
+    exp = getattr(u, "subscription_expires_at", None)
+    if exp is not None and exp < datetime.utcnow():
+        return False
+    return True
+
+
 def user_out(u: models.User):
+    live = _subscription_live(u)
+    exp = getattr(u, "subscription_expires_at", None)
     return {
         "id": u.id,
         "email": u.email,
         "name": u.name,
         "role": u.role,
-        "plan": u.plan,
-        "subscription_active": bool(u.subscription_active or u.role == "admin"),
-        "needs_subscription": (
-            u.role != "admin"
-            and (not u.subscription_active or u.plan in (None, "", "none"))
-        ),
+        "plan": u.plan if live or u.role == "admin" else (u.plan or "none"),
+        "subscription_active": live,
+        "subscription_expires_at": exp.isoformat() + "Z" if exp else None,
+        "needs_subscription": u.role != "admin" and not live,
     }
 
 
 @router.post("/register")
-def register(data: RegisterIn, db: Session = Depends(get_db)):
+def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    check_rate_limit(f"register:{ip}", limit=10, window_sec=300)
     email = data.email.strip().lower()
+    check_rate_limit(f"register-email:{email}", limit=5, window_sec=3600)
     if "@" not in email or "." not in email.split("@")[-1]:
         raise HTTPException(400, "Enter a valid email address")
     if db.query(models.User).filter_by(email=email).first():
@@ -73,11 +91,29 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(data: LoginIn, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(email=data.email.strip().lower()).first()
-    if not user or not verify_password(data.password, user.password_hash):
+def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
+    ip = client_ip(request)
+    check_rate_limit(f"login:{ip}", limit=30, window_sec=60)
+    email = (data.email or "").strip().lower()
+    password = data.password or ""
+    if not email or not password:
+        raise HTTPException(400, "Email and password are required")
+    check_rate_limit(f"login-email:{email}", limit=15, window_sec=300)
+    try:
+        user = db.query(models.User).filter_by(email=email).first()
+    except Exception as e:
+        # e.g. missing tables / DB unreachable on cold start
+        raise HTTPException(
+            503,
+            f"Database unavailable. Ensure DATABASE_URL is set and the app finished startup. ({type(e).__name__})",
+        ) from e
+    if not user or not verify_password(password, user.password_hash):
         raise HTTPException(401, "Incorrect email or password")
-    return {"token": create_token(user.id, user.role), "user": user_out(user)}
+    try:
+        token = create_token(user.id, user.role)
+    except Exception as e:
+        raise HTTPException(500, f"Could not issue session token: {type(e).__name__}") from e
+    return {"token": token, "user": user_out(user)}
 
 
 @router.get("/me")

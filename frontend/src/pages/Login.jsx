@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react'
 import {
   Card, Form, Input, Button, Tabs, message, Typography, Row, Col, Tag, List, Space,
 } from 'antd'
-import { RobotOutlined, CheckOutlined } from '@ant-design/icons'
+import {
+  RobotOutlined, CheckOutlined, ThunderboltOutlined,
+  TeamOutlined, SafetyCertificateOutlined,
+} from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import { api, setAuth, getToken, getUser } from '../api'
 
@@ -23,22 +26,33 @@ export default function Login() {
   const submit = async (values) => {
     setLoading(true)
     try {
+      const payload = {
+        email: (values.email || '').trim(),
+        password: values.password,
+      }
+      if (tab === 'register') {
+        payload.name = (values.name || '').trim()
+        payload.company_name = (values.company_name || '').trim()
+      }
       const data = await api(`/auth/${tab === 'login' ? 'login' : 'register'}`, {
         method: 'POST',
-        body: values,
+        body: payload,
       })
+      if (!data?.token || !data?.user) {
+        throw new Error('Login response missing token — check API deployment')
+      }
       setAuth(data.token, data.user)
       if (data.preferred_company_name) {
         localStorage.setItem('preferred_company_name', data.preferred_company_name)
       }
+      message.success(tab === 'login' ? 'Signed in' : 'Account created')
       if (data.user.needs_subscription) {
-        message.success('Account ready — choose a plan to continue')
-        nav('/subscribe')
+        nav('/subscribe', { replace: true })
       } else {
-        nav('/')
+        nav('/', { replace: true })
       }
     } catch (e) {
-      message.error(e.message)
+      message.error(e?.message || 'Sign-in failed')
     } finally {
       setLoading(false)
     }
@@ -47,22 +61,42 @@ export default function Login() {
   const planList = Object.entries(plans).filter(([, p]) => p.public !== false)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg,#0b1f3a 0%,#1668dc 55%,#f0f2f5 55%)', padding: '32px 16px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', color: '#fff', marginBottom: 28 }}>
-          <RobotOutlined style={{ fontSize: 40 }} />
-          <Typography.Title level={2} style={{ color: '#fff', marginTop: 8 }}>
+    <div className="aba-auth-shell">
+      <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              margin: '0 auto 12px',
+              display: 'grid',
+              placeItems: 'center',
+              background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+              boxShadow: '0 8px 24px rgba(37,99,235,0.35)',
+              color: '#fff',
+              fontSize: 26,
+            }}
+          >
+            <RobotOutlined />
+          </div>
+          <Typography.Title level={2} style={{ color: '#fff', margin: '0 0 8px', letterSpacing: '-0.03em' }}>
             AI Business Assistant
           </Typography.Title>
-          <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.85)', maxWidth: 560, margin: '0 auto' }}>
-            Subscribers organise work as <strong>Company → Projects → Tasks</strong>,
-            with a clear monthly token meter and fair public pricing.
+          <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.88)', maxWidth: 560, margin: '0 auto 14px' }}>
+            Run companies, projects and AI agents in one workspace — with a clear token meter
+            and fair public pricing.
           </Typography.Paragraph>
+          <Space wrap style={{ justifyContent: 'center' }}>
+            <span className="aba-feature-pill"><TeamOutlined /> Company → Projects → Tasks</span>
+            <span className="aba-feature-pill"><ThunderboltOutlined /> Live token meter</span>
+            <span className="aba-feature-pill"><SafetyCertificateOutlined /> Card &amp; crypto pay</span>
+          </Space>
         </div>
 
         <Row gutter={[24, 24]} align="stretch">
           <Col xs={24} md={10}>
-            <Card style={{ borderRadius: 12 }}>
+            <Card className="aba-auth-card" style={{ borderRadius: 16 }}>
               <Tabs
                 activeKey={tab}
                 onChange={setTab}
@@ -72,67 +106,74 @@ export default function Login() {
                   { key: 'register', label: 'Create account' },
                 ]}
               />
-              <Form layout="vertical" onFinish={submit}>
+              <Form layout="vertical" onFinish={submit} requiredMark={false} size="large">
                 {tab === 'register' && (
                   <>
                     <Form.Item name="name" label="Your name">
-                      <Input placeholder="Jane Smith" />
+                      <Input placeholder="Jane Smith" autoComplete="name" />
                     </Form.Item>
                     <Form.Item name="company_name" label="Company name">
-                      <Input placeholder="Acme Electrical Ltd" />
+                      <Input placeholder="Acme Electrical Ltd" autoComplete="organization" />
                     </Form.Item>
                   </>
                 )}
                 <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-                  <Input placeholder="you@business.com" />
+                  <Input placeholder="you@business.com" autoComplete="email" />
                 </Form.Item>
                 <Form.Item name="password" label="Password" rules={[{ required: true, min: 6 }]}>
-                  <Input.Password placeholder="At least 6 characters" />
+                  <Input.Password placeholder="At least 6 characters" autoComplete={tab === 'login' ? 'current-password' : 'new-password'} />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" block size="large" loading={loading}>
                   {tab === 'login' ? 'Sign in' : 'Create account & choose plan'}
                 </Button>
               </Form>
-              <Typography.Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0, fontSize: 12 }}>
-                After sign-up you’ll pick a subscription (trial, starter, pro…). Demo admin: admin@local / admin123
+              <Typography.Paragraph type="secondary" style={{ marginTop: 16, marginBottom: 0, fontSize: 12, textAlign: 'center' }}>
+                After sign-up you pick a plan (trial, starter, pro…). Card or crypto (ETH / SOL / XRP).
               </Typography.Paragraph>
             </Card>
           </Col>
 
           <Col xs={24} md={14}>
             <Card
-              title="Plans for public launch"
-              extra={<Link to="/subscribe">Compare →</Link>}
-              style={{ borderRadius: 12, height: '100%' }}
+              className="aba-auth-card aba-soft-card"
+              title={
+                <Space>
+                  <span>Plans for launch</span>
+                  <Tag color="blue">Public</Tag>
+                </Space>
+              }
+              extra={<Link to="/subscribe">Compare all →</Link>}
+              style={{ borderRadius: 16, height: '100%' }}
             >
               <List
                 dataSource={planList}
                 locale={{ emptyText: 'Loading plans…' }}
+                split
                 renderItem={([key, p]) => (
-                  <List.Item>
+                  <List.Item style={{ padding: '14px 0' }}>
                     <List.Item.Meta
                       title={
-                        <Space>
-                          <span>{p.name}</span>
+                        <Space wrap size={6}>
+                          <Typography.Text strong>{p.name}</Typography.Text>
                           {p.highlight && <Tag color="blue">Popular</Tag>}
-                          <Tag color="green">
+                          <Tag color={p.price ? 'geekblue' : 'green'}>
                             {p.price ? `$${p.price}/mo` : 'Free'}
                           </Tag>
                         </Space>
                       }
                       description={
                         <div>
-                          <div>{p.blurb}</div>
+                          <div style={{ marginBottom: 4, color: '#475569' }}>{p.blurb}</div>
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                             {(p.tokens_included || 0).toLocaleString()} tokens/mo · {p.companies} company · {p.projects} projects · {p.agents} agents
                           </Typography.Text>
                         </div>
                       }
                     />
-                    <div>
+                    <div style={{ minWidth: 160 }}>
                       {(p.features || []).slice(0, 2).map(f => (
-                        <div key={f} style={{ fontSize: 12, color: '#595959' }}>
-                          <CheckOutlined style={{ color: '#52c41a', marginRight: 6 }} />{f}
+                        <div key={f} style={{ fontSize: 12, color: '#64748b', lineHeight: 1.55 }}>
+                          <CheckOutlined style={{ color: '#16a34a', marginRight: 6 }} />{f}
                         </div>
                       ))}
                     </div>

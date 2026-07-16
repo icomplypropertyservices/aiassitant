@@ -79,8 +79,12 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
     user = db.get(models.User, user_id)
     if user and user.role == "admin":
         return 999.0
-    if user and (not user.subscription_active or user.plan in (None, "", "none")):
-        raise HTTPException(402, "Choose a subscription plan to continue.")
+    if user:
+        if not user.subscription_active or user.plan in (None, "", "none"):
+            raise HTTPException(402, "Choose a subscription plan to continue.")
+        exp = getattr(user, "subscription_expires_at", None)
+        if exp is not None and exp < datetime.utcnow():
+            raise HTTPException(402, "Your access period has ended. Renew on Billing to continue.")
     bal = db.query(models.Balance).filter_by(user_id=user_id).first()
     if not bal:
         raise HTTPException(402, "No billing account. Choose a plan or top up credits.")

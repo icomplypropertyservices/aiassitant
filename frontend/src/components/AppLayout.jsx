@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Space, Typography, Alert } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Typography, Alert, Tag } from 'antd'
 import {
   DashboardOutlined, MessageOutlined, RobotOutlined, AppstoreOutlined,
   BarChartOutlined, CreditCardOutlined, SettingOutlined, CrownOutlined,
   LogoutOutlined, ApartmentOutlined, CheckSquareOutlined, ClusterOutlined,
+  BookOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Navigate, Link } from 'react-router-dom'
 import { api, getUser, getToken, clearAuth, setAuth, getWsBase } from '../api'
@@ -28,29 +29,38 @@ export default function AppLayout() {
     }).catch(() => {})
 
     api('/billing/meter').then(setMeter).catch(() => {})
-    const ws = new WebSocket(`${getWsBase()}/billing/ws/tokens?token=${getToken()}`)
-    ws.onmessage = e => {
-      const m = JSON.parse(e.data)
-      if (m.event === 'usage') {
-        setMeter(prev => {
-          if (!prev) return prev
-          const used = (prev.tokens_used_period || 0) + (m.tokens || 0)
-          const included = prev.tokens_included || 0
-          const usage_percent = included ? Math.min(100, ((m.tokens_used_period ?? used) / included) * 100) : 0
-          return {
-            ...prev,
-            tokens_used_period: m.tokens_used_period ?? used,
-            tokens_remaining_included: Math.max(0, included - (m.tokens_used_period ?? used)),
-            credits: m.credits != null ? m.credits : prev.credits,
-            usage_percent,
-            warn: m.warn != null ? m.warn : (usage_percent >= 80 && usage_percent < 100),
-            hard_block: m.hard_block != null ? m.hard_block : usage_percent >= 100,
+    let ws
+    try {
+      ws = new WebSocket(`${getWsBase()}/billing/ws/tokens?token=${getToken()}`)
+      ws.onmessage = e => {
+        try {
+          const m = JSON.parse(e.data)
+          if (m.event === 'usage') {
+            setMeter(prev => {
+              if (!prev) return prev
+              const used = (prev.tokens_used_period || 0) + (m.tokens || 0)
+              const included = prev.tokens_included || 0
+              const usage_percent = included
+                ? Math.min(100, ((m.tokens_used_period ?? used) / included) * 100)
+                : 0
+              return {
+                ...prev,
+                tokens_used_period: m.tokens_used_period ?? used,
+                tokens_remaining_included: Math.max(0, included - (m.tokens_used_period ?? used)),
+                credits: m.credits != null ? m.credits : prev.credits,
+                usage_percent,
+                warn: m.warn != null ? m.warn : (usage_percent >= 80 && usage_percent < 100),
+                hard_block: m.hard_block != null ? m.hard_block : usage_percent >= 100,
+              }
+            })
           }
-        })
+        } catch { /* ignore bad frames */ }
       }
+      wsRef.current = ws
+    } catch { /* WS optional on serverless */ }
+    return () => {
+      try { ws?.close() } catch { /* ignore */ }
     }
-    wsRef.current = ws
-    return () => ws.close()
   }, [])
 
   if (user?.needs_subscription) {
@@ -69,47 +79,96 @@ export default function AppLayout() {
     { key: '/hierarchy', icon: <ClusterOutlined />, label: 'Hierarchy' },
     { key: '/chat', icon: <MessageOutlined />, label: 'AI Chat' },
     { key: '/templates', icon: <AppstoreOutlined />, label: 'Templates' },
+    { key: '/training', icon: <BookOutlined />, label: 'Training' },
     { key: '/analytics', icon: <BarChartOutlined />, label: 'Analytics' },
     { key: '/billing', icon: <CreditCardOutlined />, label: 'Billing' },
     { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
     ...(user?.role === 'admin' ? [{ key: '/admin', icon: <CrownOutlined />, label: 'Staff Admin' }] : []),
   ]
 
+  const pageLabel = items.find(i => i.key === path)?.label
+    || (loc.pathname.startsWith('/agents/') ? 'Agent workspace' : '')
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme="dark">
-        <div style={{ color: '#fff', padding: 16, fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-          <RobotOutlined /> {!collapsed && ' AI Business Assistant'}
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        theme="dark"
+        width={232}
+        breakpoint="lg"
+      >
+        <div className="aba-brand">
+          <div className="aba-brand-mark"><RobotOutlined /></div>
+          {!collapsed && (
+            <div className="aba-brand-text">
+              <strong>AI Business Assistant</strong>
+              <span>Companies · Agents · Chat</span>
+            </div>
+          )}
         </div>
-        <Menu theme="dark" mode="inline" selectedKeys={[path]} items={items} onClick={e => nav(e.key)} />
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[path]}
+          items={items}
+          onClick={e => nav(e.key)}
+          style={{ borderInlineEnd: 'none', paddingBottom: 48 }}
+        />
       </Sider>
       <Layout>
-        <Header style={{
-          background: '#fff', padding: '0 24px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          borderBottom: '1px solid #f0f0f0', gap: 16, flexWrap: 'wrap', height: 'auto', minHeight: 64,
-        }}>
-          <Typography.Text strong>
-            {items.find(i => i.key === path)?.label || (loc.pathname.startsWith('/agents/') ? 'Agent workspace' : '')}
-          </Typography.Text>
-          <Space size="middle" wrap>
+        <Header className="aba-header">
+          <div>
+            <div className="aba-header-title">{pageLabel}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <TokenMeter meter={meter} />
-            <Dropdown menu={{
-              items: [{
-                key: 'logout',
-                icon: <LogoutOutlined />,
-                label: 'Sign out',
-                onClick: () => { clearAuth(); nav('/login') },
-              }],
-            }}>
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar style={{ background: '#1668dc' }}>
+            {user?.plan && user.plan !== 'none' && (
+              <Tag color="blue" style={{ margin: 0, textTransform: 'capitalize' }}>
+                {user.plan.replace(/_/g, ' ')}
+              </Tag>
+            )}
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'billing',
+                    icon: <CreditCardOutlined />,
+                    label: 'Billing',
+                    onClick: () => nav('/billing'),
+                  },
+                  {
+                    key: 'settings',
+                    icon: <SettingOutlined />,
+                    label: 'Settings',
+                    onClick: () => nav('/settings'),
+                  },
+                  { type: 'divider' },
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: 'Sign out',
+                    onClick: () => { clearAuth(); nav('/login') },
+                  },
+                ],
+              }}
+            >
+              <div className="aba-user-chip">
+                <Avatar
+                  size={28}
+                  style={{
+                    background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
                   {(user?.name || user?.email || '?')[0].toUpperCase()}
                 </Avatar>
-                <span>{user?.name || user?.email}</span>
-              </Space>
+                <span className="name">{user?.name || user?.email}</span>
+              </div>
             </Dropdown>
-          </Space>
+          </div>
         </Header>
         {(showTokenHard || showTokenWarn) && (
           <Alert
@@ -124,7 +183,7 @@ export default function AppLayout() {
             style={{ borderRadius: 0 }}
           />
         )}
-        <Content style={{ padding: 24, background: '#f5f5f5' }}>
+        <Content className="aba-content">
           <Outlet />
         </Content>
       </Layout>

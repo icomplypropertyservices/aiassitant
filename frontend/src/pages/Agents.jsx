@@ -7,11 +7,14 @@ import {
   PlusOutlined, MessageOutlined, EditOutlined, PauseCircleOutlined,
   PlayCircleOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, BulbOutlined,
   CheckCircleOutlined, InfoCircleOutlined, ThunderboltOutlined, RightOutlined,
+  CrownOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, getToken, getWsBase } from '../api'
 import ModelSelect from '../components/ModelSelect'
+import OrchestratorBanner from '../components/OrchestratorBanner'
 import { modelLabel } from '../models'
+import { isOrchestrator, isLead } from '../agents/roles'
 
 const ICONS = {
   thinking: <BulbOutlined style={{ color: '#faad14' }} />,
@@ -28,11 +31,14 @@ export default function Agents() {
   const loc = useLocation()
   const [agents, setAgents] = useState([])
   const [templates, setTemplates] = useState([])
+  const [companies, setCompanies] = useState([])
+  const [projects, setProjects] = useState([])
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [form] = Form.useForm()
   const selectedTemplate = Form.useWatch('template_id', form)
   const watchIsLead = Form.useWatch('is_lead', form)
+  const watchCompany = Form.useWatch('company_id', form)
   const wsRef = useRef(null)
 
   const load = () => api('/agents/').then(setAgents).catch(e => message.error(e.message))
@@ -46,6 +52,8 @@ export default function Agents() {
         form.setFieldsValue({ template_id: loc.state.templateId })
       }
     }).catch(() => {})
+    api('/org/companies').then(setCompanies).catch(() => setCompanies([]))
+    api('/org/projects').then(setProjects).catch(() => setProjects([]))
     const ws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
@@ -64,7 +72,8 @@ export default function Agents() {
     const config = {}
     ;(tpl?.unique_fields || []).forEach(f => { config[f.name] = values[`field_${f.name}`] || '' })
     try {
-      const isLead = values.is_lead || tpl?.type === 'lead'
+      const isOrch = tpl?.type === 'orchestrator' || values.hierarchy_role === 'orchestrator'
+      const asLead = isOrch || values.is_lead || tpl?.type === 'lead'
       const a = await api('/agents/', {
         method: 'POST',
         body: {
@@ -74,9 +83,11 @@ export default function Agents() {
           model: values.model,
           idle_mode: values.never_idle ? 'never_idle' : 'allow_idle',
           config,
-          is_lead: !!isLead,
-          hierarchy_role: isLead ? 'lead' : (values.hierarchy_role || 'member'),
-          parent_id: values.parent_id || null,
+          is_lead: !!asLead,
+          hierarchy_role: isOrch ? 'orchestrator' : (asLead ? 'lead' : (values.hierarchy_role || 'member')),
+          parent_id: isOrch ? null : (values.parent_id || null),
+          company_id: values.company_id || null,
+          project_id: values.project_id || null,
         },
       })
       message.success('Agent created — opening live workspace')
@@ -99,7 +110,9 @@ export default function Agents() {
   }
 
   const filtered = agents.filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
+  // API already sorts orchestrator first; keep stable
   const tpl = templates.find(t => t.id === selectedTemplate)
+  const orch = agents.find(a => isOrchestrator(a))
 
   return (
     <div>
@@ -112,12 +125,15 @@ export default function Agents() {
             onChange={e => setSearch(e.target.value)}
           />
           <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
+          <Button onClick={() => nav('/workspace')}>Workspace</Button>
           <Button onClick={() => nav('/tasks')}>Tasks board</Button>
         </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
           Create New Agent
         </Button>
       </Space>
+
+      <OrchestratorBanner orchestrator={orch} onChanged={load} compact />
 
       {filtered.length === 0 && (
         <Empty description="No agents yet — create one from a template">
@@ -126,7 +142,7 @@ export default function Agents() {
       )}
 
       <Row gutter={[16, 16]}>
-        {filtered.map(a => (
+        {filtered.filter(a => a.id !== orch?.id).map(a => (
           <Col xs={24} lg={12} xl={8} key={a.id}>
             <Card
               hoverable
@@ -136,7 +152,9 @@ export default function Agents() {
                   {a.name}
                   <Tag>{a.template_type}</Tag>
                   <Tag color={a.status === 'active' ? 'green' : 'orange'}>{a.status}</Tag>
-                  {(a.is_lead || a.hierarchy_role === 'lead') && <Tag color="gold">Lead</Tag>}
+                  {isLead(a) && !isOrchestrator(a) && <Tag color="gold">Lead</Tag>}
+                  {a.company_name && <Tag color="blue">{a.company_name}</Tag>}
+                  {a.project_name && <Tag color="cyan">{a.project_name}</Tag>}
                   {a.parent_name && <Tag>→ {a.parent_name}</Tag>}
                 </Space>
               }
@@ -222,12 +240,20 @@ export default function Agents() {
             <Select
               options={templates.map(t => ({
                 value: t.id,
-                label: `${t.name} (${t.type})${t.type === 'lead' ? ' ★' : ''}`,
+                label: `${t.type === 'orchestrator' ? '👑 ' : ''}${t.name} (${t.type})${t.type === 'lead' ? ' ★' : ''}`,
               }))}
-              placeholder="Choose a template — pick Lead Agent for hierarchy"
+              placeholder="Choose a template — Main AI Orchestrator sits at the top"
               onChange={(tid) => {
                 const t = templates.find(x => x.id === tid)
-                if (t?.type === 'lead') form.setFieldsValue({ is_lead: true, hierarchy_role: 'lead' })
+                if (t?.type === 'orchestrator') {
+                  form.setFieldsValue({
+                    is_lead: true,
+                    hierarchy_role: 'orchestrator',
+                    name: form.getFieldValue('name') || 'Main AI Orchestrator',
+                  })
+                } else if (t?.type === 'lead') {
+                  form.setFieldsValue({ is_lead: true, hierarchy_role: 'lead' })
+                }
               }}
             />
           </Form.Item>
@@ -236,24 +262,42 @@ export default function Agents() {
               <Input placeholder={f.placeholder} />
             </Form.Item>
           ))}
+          <Form.Item name="company_id" label="Company (optional)">
+            <Select
+              allowClear
+              placeholder="Assign to a company"
+              options={companies.map(c => ({ value: c.id, label: c.name }))}
+              onChange={() => form.setFieldsValue({ project_id: undefined })}
+            />
+          </Form.Item>
+          <Form.Item name="project_id" label="Project (optional)">
+            <Select
+              allowClear
+              placeholder="Assign to a project"
+              options={projects
+                .filter(p => !watchCompany || p.company_id === watchCompany)
+                .map(p => ({ value: p.id, label: p.name }))}
+            />
+          </Form.Item>
           <Form.Item name="is_lead" label="Lead agent (can have a team)" valuePropName="checked">
             <Switch checkedChildren="Lead" unCheckedChildren="Member" />
           </Form.Item>
           <Form.Item name="hierarchy_role" label="Hierarchy role">
             <Select options={[
+              { value: 'orchestrator', label: 'Main AI Orchestrator (top)' },
               { value: 'lead', label: 'Lead' },
               { value: 'member', label: 'Member' },
               { value: 'specialist', label: 'Specialist' },
             ]} />
           </Form.Item>
           {!watchIsLead && (
-            <Form.Item name="parent_id" label="Reports to (lead)" extra="Optional — set later on Hierarchy page">
+            <Form.Item name="parent_id" label="Reports to (lead)" extra="Optional — defaults under Main Orchestrator">
               <Select
                 allowClear
-                placeholder="No parent"
-                options={agents.filter(a => a.is_lead || a.hierarchy_role === 'lead').map(a => ({
+                placeholder="No parent (or Main Orchestrator)"
+                options={agents.filter(a => isLead(a)).map(a => ({
                   value: a.id,
-                  label: a.name,
+                  label: `${a.name}${isOrchestrator(a) ? ' ★' : ''}`,
                 }))}
               />
             </Form.Item>

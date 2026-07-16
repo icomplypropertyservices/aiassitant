@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api'
+import PageHeader from '../components/PageHeader'
 
 export default function Dashboard() {
   const nav = useNavigate()
@@ -127,16 +128,24 @@ export default function Dashboard() {
       {error && (
         <Alert type="warning" showIcon closable message={error} style={{ marginBottom: 16 }} onClose={() => setError(null)} />
       )}
-      <Typography.Title level={4}>
-        Welcome back{getUser()?.name ? `, ${getUser().name}` : ''}
-      </Typography.Title>
+      <PageHeader
+        title={`Welcome back${getUser()?.name ? `, ${getUser().name}` : ''}`}
+        subtitle="Your workspace overview — companies, agents, tasks and token usage in one place."
+        extra={
+          <Space wrap>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/agents')}>Create agent</Button>
+            <Button icon={<MessageOutlined />} onClick={() => nav('/chat')}>AI Chat</Button>
+          </Space>
+        }
+      />
 
       {showChecklist && (
         <Card
+          className="aba-soft-card"
           title={
             <Space>
               Getting started
-              <Tag>{requiredDone}/4 required</Tag>
+              <Tag color="blue">{requiredDone}/4 required</Tag>
               <Progress type="circle" percent={Math.round((requiredDone / 4) * 100)} width={28} />
             </Space>
           }
@@ -176,33 +185,32 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <Row gutter={16}>
+      <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <Card><Statistic title="Messages today" value={data?.messages_today ?? 0} prefix={<MessageOutlined />} /></Card>
+          <Card className="aba-stat-card"><Statistic title="Messages today" value={data?.messages_today ?? 0} prefix={<MessageOutlined style={{ color: '#1668dc' }} />} /></Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card><Statistic title="Tokens used" value={data?.tokens_used ?? 0} prefix={<ThunderboltOutlined />} /></Card>
+          <Card className="aba-stat-card"><Statistic title="Tokens used" value={data?.tokens_used ?? 0} prefix={<ThunderboltOutlined style={{ color: '#d97706' }} />} /></Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card><Statistic title="Active agents" value={data?.active_agents ?? 0} prefix={<RobotOutlined />} /></Card>
+          <Card className="aba-stat-card"><Statistic title="Active agents" value={data?.active_agents ?? 0} prefix={<RobotOutlined style={{ color: '#7c3aed' }} />} /></Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card>
+          <Card className="aba-stat-card">
             <Statistic
               title="Open tasks"
               value={(board?.counts?.todo || 0) + (board?.counts?.queued || 0) + (board?.counts?.in_progress || 0)}
-              prefix={<CheckSquareOutlined />}
+              prefix={<CheckSquareOutlined style={{ color: '#16a34a' }} />}
             />
           </Card>
         </Col>
       </Row>
 
       <Space wrap style={{ margin: '16px 0' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/agents')}>Create agent</Button>
         <Button icon={<CheckSquareOutlined />} onClick={() => nav('/tasks')}>Tasks board</Button>
         <Button icon={<ApartmentOutlined />} onClick={() => nav('/workspace')}>Workspace</Button>
-        <Button onClick={() => nav('/chat')}>General AI chat</Button>
         <Button onClick={() => nav('/templates')}>Templates</Button>
+        <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
       </Space>
 
       <Row gutter={16}>

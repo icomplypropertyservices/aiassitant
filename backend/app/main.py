@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import random
 from contextlib import asynccontextmanager
 
@@ -10,7 +11,7 @@ from .database import Base, engine, SessionLocal
 from . import models, config
 from .auth_utils import hash_password, get_current_user
 from .ws import manager
-from .routers import auth, templates, agents, chat, billing, dashboard, admin, org, keys
+from .routers import auth, templates, agents, chat, billing, dashboard, admin, org, keys, integrations, training
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
 IDLE_WORK = [
@@ -45,8 +46,10 @@ def seed_db():
             else:
                 db.add(models.AgentTemplate(name=name, **payload))
         db.commit()
+        # Never seed weak demo admin in production
+        allow_demo = not config.IS_PRODUCTION and os.getenv("SEED_DEMO_ADMIN", "1") not in ("0", "false", "no")
         admin = db.query(models.User).filter_by(email="admin@local").first()
-        if not admin:
+        if allow_demo and not admin:
             u = models.User(
                 email="admin@local", name="Staff Admin",
                 password_hash=hash_password("admin123"), role="admin",
@@ -61,8 +64,8 @@ def seed_db():
             ))
             db.add(models.Company(owner_user_id=u.id, name="Demo Company", industry="Technology"))
             db.commit()
-        else:
-            # Ensure legacy admin can use the app without re-subscribing
+        elif admin and not config.IS_PRODUCTION:
+            # Dev only: keep legacy admin usable
             if admin.role == "admin":
                 admin.subscription_active = True
                 admin.plan = "business"
@@ -72,31 +75,32 @@ def seed_db():
                 if db.query(models.Company).filter_by(owner_user_id=admin.id).count() == 0:
                     db.add(models.Company(owner_user_id=admin.id, name="Demo Company", industry="Technology"))
                 db.commit()
-            # Backfill subscription flags / balance for existing users
-            from .plans import plan_limits
-            for u in db.query(models.User).all():
-                bal = db.query(models.Balance).filter_by(user_id=u.id).first()
-                if not bal:
-                    bal = models.Balance(user_id=u.id, credits=5.0)
-                    db.add(bal)
-                    db.flush()
-                if u.plan and u.plan not in ("none", ""):
-                    u.subscription_active = True
-                    lim = plan_limits(u.plan)
-                    if not bal.tokens_included:
-                        bal.tokens_included = int(lim.get("tokens_included") or 0)
-                # Legacy free-credit users without plan → treat as pay_as_you_go
-                if u.plan in ("pay_as_you_go",) or (u.role != "admin" and not u.plan):
-                    if not u.plan or u.plan == "":
-                        u.plan = "pay_as_you_go"
-                    u.subscription_active = True
-            db.commit()
+        # Backfill balances only (do not auto-activate paid plans in production)
+        from .plans import plan_limits
+        for u in db.query(models.User).all():
+            bal = db.query(models.Balance).filter_by(user_id=u.id).first()
+            if not bal:
+                bal = models.Balance(user_id=u.id, credits=0.0 if config.IS_PRODUCTION else 5.0)
+                db.add(bal)
+                db.flush()
+            if config.IS_PRODUCTION:
+                continue  # never mass-activate subscriptions in production
+            if u.plan and u.plan not in ("none", ""):
+                u.subscription_active = True
+                lim = plan_limits(u.plan)
+                if not bal.tokens_included:
+                    bal.tokens_included = int(lim.get("tokens_included") or 0)
+            if u.plan in ("pay_as_you_go",) or (u.role != "admin" and not u.plan):
+                if not u.plan or u.plan == "":
+                    u.plan = "pay_as_you_go"
+                u.subscription_active = True
+        db.commit()
     finally:
         db.close()
 
 
-async def orchestrator():
-    """Never-be-idle logic: active never_idle agents get work assigned automatically."""
+async def idle_activity_loop():
+    """Never-be-idle logic: active never_idle agents get cosmetic activity ticks."""
     while True:
         await asyncio.sleep(30)
         db = SessionLocal()
@@ -150,6 +154,7 @@ async def lifespan(app: FastAPI):
                     add("tasks", "labels", "TEXT DEFAULT ''")
                     add("tasks", "updated_at", "DATETIME")
                 add("users", "subscription_active", "BOOLEAN DEFAULT 0")
+                add("users", "subscription_expires_at", "DATETIME")
                 add("balances", "tokens_included", "INTEGER DEFAULT 0")
                 add("balances", "tokens_used_period", "INTEGER DEFAULT 0")
                 add("balances", "period_start", "DATETIME")
@@ -172,7 +177,7 @@ async def lifespan(app: FastAPI):
     from .async_jobs import is_serverless
     orch_task = None
     if not is_serverless():
-        orch_task = asyncio.create_task(orchestrator())
+        orch_task = asyncio.create_task(idle_activity_loop())
     yield
     if orch_task:
         orch_task.cancel()
@@ -197,6 +202,7 @@ app.add_middleware(
 for r in (
     auth.router, templates.router, agents.router, chat.router,
     billing.router, dashboard.router, admin.router, org.router, keys.router,
+    integrations.router, training.router,
 ):
     app.include_router(r)
 

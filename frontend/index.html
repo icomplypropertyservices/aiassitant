@@ -12,7 +12,10 @@
     <meta name="apple-mobile-web-app-title" content="AI Assistant" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
-    <meta name="description" content="AI Business Assistant — companies, projects, agents, and chat for teams." />
+    <meta name="description" content="AI Business Assistant — companies, projects, agents, and chat for teams. Card and crypto billing." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>AI Business Assistant</title>
@@ -20,9 +23,8 @@
       html, body, #root { height: 100%; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f5f5f5;
-        /* iOS notch / home indicator safe areas */
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f1f5f9;
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
@@ -32,11 +34,9 @@
         overscroll-behavior-y: none;
       }
       html.is-native body {
-        /* Status bar handled by Capacitor; keep content clear of home indicator */
         padding-top: max(env(safe-area-inset-top), 0px);
       }
       html.keyboard-open body {
-        /* Reduce bottom padding when keyboard covers home indicator */
         padding-bottom: 0;
       }
     </style>

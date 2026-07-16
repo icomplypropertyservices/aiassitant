@@ -4,7 +4,7 @@ import secrets
 from pathlib import Path
 
 # Load .env sitting next to the backend folder (no external dep needed).
-# Non-empty .env values win over empty process env so local keys always apply.
+# Process / platform env (Vercel) always wins — only fill missing or empty keys.
 env_path = Path(__file__).resolve().parent.parent / ".env"
 if env_path.exists():
     for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -14,26 +14,34 @@ if env_path.exists():
             k, v = k.strip(), v.strip()
             if not k:
                 continue
-            if v or k not in os.environ or not os.environ.get(k):
+            existing = os.environ.get(k)
+            if existing is None or str(existing).strip() == "":
                 os.environ[k] = v
 
-APP_ENV = os.getenv("APP_ENV", "development").lower()  # development | production
+# Prefer explicit APP_ENV; on Vercel production deploys default to production.
+_raw_env = (os.getenv("APP_ENV") or "").strip().lower()
+if not _raw_env and (os.getenv("VERCEL_ENV") or "").lower() == "production":
+    _raw_env = "production"
+APP_ENV = _raw_env or "development"  # development | production
 IS_PRODUCTION = APP_ENV == "production"
 # Vercel sets VERCEL=1
 IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
 
 _jwt = os.getenv("JWT_SECRET", "").strip()
-if not _jwt or _jwt in ("generate-a-long-random-string", "change-me-in-production"):
-    if IS_PRODUCTION and not IS_VERCEL:
+_WEAK_JWT = ("", "generate-a-long-random-string", "change-me-in-production", "change-me")
+if not _jwt or _jwt in _WEAK_JWT or len(_jwt) < 32:
+    if IS_PRODUCTION:
+        # Production (including Vercel) must set an explicit long secret — no commit-hash fallback.
         raise RuntimeError(
-            "JWT_SECRET must be set to a long random string in production "
-            "(at least 32 characters). Set it in backend/.env"
+            "JWT_SECRET must be set in production to a random string ≥32 characters. "
+            "Set it in Vercel Environment Variables or backend/.env "
+            "(e.g. openssl rand -hex 32)."
         )
-    # On Vercel without JWT_SECRET: derive a stable secret from deploy metadata
-    # (still set JWT_SECRET in the Vercel dashboard for real multi-instance security).
+    # Development only: ephemeral secret (sessions reset on restart if not in .env)
     if IS_VERCEL:
+        # Preview without production flag — still prefer env, else deploy-stable derive
         seed = os.getenv("VERCEL_GIT_COMMIT_SHA") or os.getenv("VERCEL_URL") or "vercel-dev"
-        JWT_SECRET = "vercel-" + hashlib.sha256(seed.encode()).hexdigest()
+        JWT_SECRET = "vercel-dev-" + hashlib.sha256(seed.encode()).hexdigest()
     else:
         JWT_SECRET = secrets.token_hex(32)
 else:
@@ -73,6 +81,17 @@ STRIPE_PRICE_STARTER = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_BUSINESS = os.getenv("STRIPE_PRICE_BUSINESS", "")
 
+# Crypto payments (self-custody receive addresses — never put private keys here)
+CRYPTO_ETH_ADDRESS = os.getenv("CRYPTO_ETH_ADDRESS", "").strip()
+CRYPTO_SOL_ADDRESS = os.getenv("CRYPTO_SOL_ADDRESS", "").strip()
+CRYPTO_XRP_ADDRESS = os.getenv("CRYPTO_XRP_ADDRESS", "").strip()
+# Optional public RPC overrides
+CRYPTO_ETH_RPC = os.getenv("CRYPTO_ETH_RPC", "https://ethereum.publicnode.com").strip()
+CRYPTO_SOL_RPC = os.getenv("CRYPTO_SOL_RPC", "https://api.mainnet-beta.solana.com").strip()
+CRYPTO_XRP_RPC = os.getenv("CRYPTO_XRP_RPC", "https://xrplcluster.com").strip()
+# Invoice lifetime minutes
+CRYPTO_INVOICE_TTL_MIN = int(os.getenv("CRYPTO_INVOICE_TTL_MIN", "60") or "60")
+
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM = os.getenv("RESEND_FROM", "assistant@yourdomain.com")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -89,6 +108,13 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "").strip()
 def integration_status() -> dict:
     """Which third-party services are configured (not a live ping)."""
     twilio_ok = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
+    oauth_apps = {
+        "shopify": bool(os.getenv("SHOPIFY_CLIENT_ID") and os.getenv("SHOPIFY_CLIENT_SECRET")),
+        "google": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
+        "slack": bool(os.getenv("SLACK_CLIENT_ID") and os.getenv("SLACK_CLIENT_SECRET")),
+        "hubspot": bool(os.getenv("HUBSPOT_CLIENT_ID") and os.getenv("HUBSPOT_CLIENT_SECRET")),
+        "notion": bool(os.getenv("NOTION_CLIENT_ID") and os.getenv("NOTION_CLIENT_SECRET")),
+    }
     return {
         "environment": APP_ENV,
         "llm": {
@@ -121,10 +147,21 @@ def integration_status() -> dict:
         },
         "billing": {
             "stripe": bool(STRIPE_SECRET_KEY),
+            "stripe_mode": (
+                "test" if (STRIPE_SECRET_KEY or "").startswith("sk_test")
+                else ("live" if (STRIPE_SECRET_KEY or "").startswith("sk_live") else None)
+            ),
+            "stripe_sandbox": (STRIPE_SECRET_KEY or "").startswith("sk_test"),
             "stripe_webhook": bool(STRIPE_WEBHOOK_SECRET),
             "price_starter": bool(STRIPE_PRICE_STARTER),
             "price_pro": bool(STRIPE_PRICE_PRO),
             "price_business": bool(STRIPE_PRICE_BUSINESS),
+            "crypto": bool(CRYPTO_ETH_ADDRESS or CRYPTO_SOL_ADDRESS or CRYPTO_XRP_ADDRESS),
+            "crypto_chains": {
+                "eth": bool(CRYPTO_ETH_ADDRESS),
+                "sol": bool(CRYPTO_SOL_ADDRESS),
+                "xrp": bool(CRYPTO_XRP_ADDRESS),
+            },
         },
         "channels": {
             "email_resend": bool(RESEND_API_KEY),
@@ -132,6 +169,7 @@ def integration_status() -> dict:
             "sms_twilio": twilio_ok,
             "voice_twilio": twilio_ok,
         },
+        "oauth": oauth_apps,
         "database": {
             "driver": "postgresql" if DATABASE_URL.startswith("postgres") else "sqlite",
             "configured": True,

@@ -10,3 +10,4 @@ anthropic>=0.42.0
 cryptography>=42.0.0
 # Postgres on Vercel (required — SQLite is not durable on serverless)
 psycopg2-binary>=2.9.9
+python-multipart>=0.0.9

@@ -5,6 +5,8 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import { api, IS_NATIVE } from '../api'
 import TokenMeter from '../components/TokenMeter'
+import CryptoPay from '../components/CryptoPay'
+import PageHeader from '../components/PageHeader'
 
 export default function Billing() {
   const [params, setParams] = useSearchParams()
@@ -14,19 +16,40 @@ export default function Billing() {
   const [rates, setRates] = useState([])
   const [amount, setAmount] = useState(25)
   const [busy, setBusy] = useState(false)
+  const [cryptoOpen, setCryptoOpen] = useState(false)
+  const [cryptoCtx, setCryptoCtx] = useState({ kind: 'topup' })
+  const [payOpts, setPayOpts] = useState(null)
 
   const load = () => {
     api('/billing/balance').then(setBalance).catch(() => {})
     api('/billing/plans').then(setPlans).catch(() => {})
     api('/billing/usage').then(setUsage).catch(() => {})
     api('/billing/rates').then(r => setRates(r.rates || [])).catch(() => {})
+    api('/billing/payment-options').then(setPayOpts).catch(() => {})
   }
   useEffect(() => {
     load()
+    api('/billing/payment-options').then(setPayOpts).catch(() => {})
     const checkout = params.get('checkout')
+    const sessionId = params.get('session_id')
     if (checkout === 'success') {
-      message.success('Payment received — your account has been updated')
-      setParams({})
+      const finish = async () => {
+        try {
+          if (sessionId) {
+            await api(`/billing/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
+              method: 'POST',
+            })
+          }
+          message.success('Payment received — your account has been updated')
+          load()
+        } catch (e) {
+          message.warning(e.message || 'Checkout returned but fulfillment needs a moment — refresh Billing')
+          load()
+        } finally {
+          setParams({})
+        }
+      }
+      finish()
     }
     if (checkout === 'cancelled') {
       message.info('Checkout cancelled')
@@ -79,6 +102,10 @@ export default function Billing() {
 
   return (
     <div>
+      <PageHeader
+        title="Billing"
+        subtitle="Manage your plan, credit wallet, and crypto or card top-ups. Token usage stays visible in the header."
+      />
       {IS_NATIVE && (
         <Alert
           type="info"
@@ -93,7 +120,31 @@ export default function Billing() {
           }
         />
       )}
-      {balance && !balance.stripe_live && (
+      {(payOpts?.stripe?.sandbox || balance?.stripe_sandbox) && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Stripe sandbox (test mode) ready"
+          description={
+            <>
+              Card payments use Stripe <strong>test</strong> keys. Test card:{' '}
+              <Typography.Text code>4242 4242 4242 4242</Typography.Text>, any future expiry, any CVC.
+              No real money is charged.
+            </>
+          }
+        />
+      )}
+      {payOpts && !payOpts.stripe?.enabled && !payOpts.crypto?.enabled && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="No payment providers configured"
+          description="Set STRIPE_SECRET_KEY=sk_test_… for card sandbox, and/or CRYPTO_*_ADDRESS for crypto."
+        />
+      )}
+      {balance && !balance.stripe_live && !balance.stripe_enabled && !balance.crypto_enabled && !payOpts && (
         <Alert
           type="warning"
           showIcon
@@ -101,8 +152,30 @@ export default function Billing() {
           message="Stripe is not configured — plan changes and top-ups apply instantly in dev mode."
         />
       )}
+      {(balance?.crypto_enabled || payOpts?.crypto?.enabled) && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Payment options"
+          description={
+            <>
+              {(balance?.stripe_enabled || payOpts?.stripe?.enabled) && (
+                <div>
+                  <Tag color="blue">{payOpts?.stripe?.label || 'Card (Stripe)'}</Tag>
+                  {payOpts?.stripe?.sandbox && <Tag color="gold">Sandbox</Tag>}
+                </div>
+              )}
+              <div style={{ marginTop: 6 }}>
+                <Tag color="purple">Crypto ETH / SOL / XRP</Tag>
+                Send from your wallet, then verify the transaction hash.
+              </div>
+            </>
+          }
+        />
+      )}
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card className="aba-soft-card" style={{ marginBottom: 16 }}>
         <TokenMeter meter={meter} compact={false} />
         <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
           <strong>How billing works:</strong> your plan includes a monthly token pool (best for VPS/Qwen).
@@ -111,13 +184,27 @@ export default function Billing() {
         </Typography.Paragraph>
       </Card>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
-          <Card title="Credit wallet">
+          <Card className="aba-stat-card" title="Credit wallet">
             <Statistic prefix="$" precision={2} value={balance?.credits ?? 0} />
-            <Space style={{ marginTop: 12 }}>
+            <Space style={{ marginTop: 12 }} wrap>
               <InputNumber min={5} max={1000} prefix="$" value={amount} onChange={setAmount} />
-              <Button type="primary" onClick={topup} loading={busy}>Top up</Button>
+              <Button type="primary" onClick={topup} loading={busy} disabled={payOpts && !payOpts.stripe?.enabled}>
+                Top up with card{payOpts?.stripe?.sandbox ? ' (test)' : ''}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (IS_NATIVE) {
+                    window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+                    return
+                  }
+                  setCryptoCtx({ kind: 'topup', amount })
+                  setCryptoOpen(true)
+                }}
+              >
+                Top up (crypto)
+              </Button>
             </Space>
           </Card>
         </Col>
@@ -128,7 +215,7 @@ export default function Billing() {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="Current plan">
+          <Card className="aba-stat-card" title="Current plan">
             <Tag color="blue" style={{ fontSize: 14 }}>
               {plans[balance?.plan]?.name || balance?.plan}
             </Tag>
@@ -148,9 +235,9 @@ export default function Billing() {
           renderItem={([key, p]) => (
             <List.Item>
               <Card
+                className={`aba-plan-card${p.highlight ? ' is-highlight' : ''}`}
                 title={p.name}
                 extra={p.price ? `$${p.price}/mo` : 'Free'}
-                style={p.highlight ? { borderColor: '#1668dc' } : undefined}
               >
                 <p>{p.blurb}</p>
                 <Tag color="processing" style={{ marginBottom: 8 }}>
@@ -159,19 +246,52 @@ export default function Billing() {
                 <ul style={{ paddingLeft: 18, marginBottom: 12 }}>
                   {(p.features || []).map(f => <li key={f}>{f}</li>)}
                 </ul>
-                <Button
-                  type={balance?.plan === key ? 'default' : 'primary'}
-                  disabled={balance?.plan === key}
-                  onClick={() => choose(key)}
-                  block
-                >
-                  {balance?.plan === key ? 'Current plan' : (p.price ? 'Upgrade' : 'Select')}
-                </Button>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Button
+                    type={balance?.plan === key ? 'default' : 'primary'}
+                    disabled={balance?.plan === key}
+                    onClick={() => choose(key)}
+                    block
+                  >
+                    {balance?.plan === key
+                      ? 'Current plan'
+                      : (p.price
+                        ? `Upgrade with card${payOpts?.stripe?.sandbox ? ' (test)' : ''}`
+                        : 'Select')}
+                  </Button>
+                  {p.price > 0 && balance?.plan !== key && (
+                    <Button
+                      block
+                      onClick={() => {
+                        if (IS_NATIVE) {
+                          window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+                          return
+                        }
+                        setCryptoCtx({ kind: 'plan', plan: key })
+                        setCryptoOpen(true)
+                      }}
+                    >
+                      Pay with crypto (ETH / SOL / XRP)
+                    </Button>
+                  )}
+                </Space>
               </Card>
             </List.Item>
           )}
         />
       </Card>
+
+      <CryptoPay
+        open={cryptoOpen}
+        onClose={() => setCryptoOpen(false)}
+        kind={cryptoCtx.kind}
+        plan={cryptoCtx.plan}
+        amount={cryptoCtx.amount ?? amount}
+        onPaid={() => {
+          message.success('Crypto payment applied')
+          load()
+        }}
+      />
 
       <Card title="Public token rates (USD per 1M tokens)">
         <Table

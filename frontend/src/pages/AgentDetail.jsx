@@ -58,6 +58,8 @@ export default function AgentDetail() {
   const [speakReplies, setSpeakReplies] = useState(
     () => localStorage.getItem('voice_speak_replies') === '1',
   )
+  const [agentApps, setAgentApps] = useState([])
+  const [agentTraining, setAgentTraining] = useState([])
   const [hierForm] = Form.useForm()
   const [delegateForm] = Form.useForm()
   const wsRef = useRef(null)
@@ -86,6 +88,16 @@ export default function AgentDetail() {
           parent_id: a.parent_id || undefined,
           report_ids: (a.reports || []).map(r => r.id),
         })
+        // Load live app + training allocations
+        api(`/integrations/agents/${id}`)
+          .then((r) => setAgentApps(r.connections || []))
+          .catch(() => setAgentApps(a.integrations || []))
+        api(`/training/agents/${id}/access`)
+          .then((r) => {
+            setAgentTraining(r.resolved_files || [])
+            if (r.apps?.length) setAgentApps(r.apps)
+          })
+          .catch(() => setAgentTraining([]))
       })
       .catch(e => { message.error(e.message); nav('/agents') })
       .finally(() => setLoading(false))
@@ -321,6 +333,47 @@ export default function AgentDetail() {
       </Space>
 
       <RowStats agent={agent} />
+
+      <Card size="small" style={{ marginBottom: 12 }} title="Apps & training">
+        <Space direction="vertical" style={{ width: '100%' }} size={4}>
+          <Space wrap>
+            <Typography.Text type="secondary">Apps:</Typography.Text>
+            {(agentApps || []).length === 0 ? (
+              <Typography.Text type="secondary">none</Typography.Text>
+            ) : (
+              agentApps.map((c) => (
+                <Tag
+                  key={c.id || c.connection_id}
+                  color={c.status === 'connected' ? 'success' : c.status === 'error' ? 'error' : 'default'}
+                >
+                  {c.display_name || c.app_name || c.app_id}
+                </Tag>
+              ))
+            )}
+          </Space>
+          <Space wrap>
+            <Typography.Text type="secondary">Training files:</Typography.Text>
+            {(agentTraining || []).length === 0 ? (
+              <Typography.Text type="secondary">none allocated</Typography.Text>
+            ) : (
+              agentTraining.map((f) => (
+                <Tag key={f.id}>{f.name}</Tag>
+              ))
+            )}
+          </Space>
+          <Space wrap>
+            <Button type="link" size="small" onClick={() => nav('/settings?tab=apps')}>
+              Connected apps
+            </Button>
+            <Button type="link" size="small" onClick={() => nav('/training')}>
+              Training library
+            </Button>
+            <Button type="link" size="small" onClick={() => nav(`/training`)}>
+              Program this agent
+            </Button>
+          </Space>
+        </Space>
+      </Card>
 
       <Card styles={{ body: { paddingTop: 8 } }}>
         <Tabs

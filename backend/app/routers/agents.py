@@ -15,6 +15,16 @@ from ..usage_billing import charge_usage
 from ..user_keys import credentials_for_user
 from ..async_jobs import schedule as schedule_job
 from ..task_status import ALLOWED as TASK_STATUSES, normalize_status
+from ..agent_prompts import build_agent_system_prompt, build_task_prompt, team_context
+from ..agent_roles import (
+    agent_sort_key,
+    find_orchestrator,
+    is_orchestrator,
+    promote_orchestrator,
+    resolve_create_role,
+)
+from ..agent_serialize import agent_out, agents_out_list, task_dict
+from ..agent_hierarchy import build_hierarchy_payload, ensure_main_orchestrator
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -48,20 +58,8 @@ def _would_cycle(db: Session, agent_id: int, new_parent_id: int) -> bool:
 
 
 def _team_context(a: models.Agent, db: Session) -> str:
-    """Text for lead/member prompts describing hierarchy."""
-    parts = []
-    role = getattr(a, "hierarchy_role", None) or ("lead" if getattr(a, "is_lead", False) else "member")
-    parts.append(f"Hierarchy role: {role}.")
-    if a.parent_id:
-        lead = db.get(models.Agent, a.parent_id)
-        if lead:
-            parts.append(f"You report to lead agent: {lead.name} (id={lead.id}).")
-    reports = db.query(models.Agent).filter_by(parent_id=a.id).all()
-    if reports:
-        names = ", ".join(f"{r.name} [{r.template_type}/{r.status}]" for r in reports)
-        parts.append(f"You lead this team ({len(reports)}): {names}.")
-        parts.append("As lead you may recommend delegation, prioritise work, and summarise team status.")
-    return " ".join(parts)
+    """Back-compat wrapper — prefer agent_prompts.team_context."""
+    return team_context(a, db)
 
 
 class AgentIn(BaseModel):
@@ -122,84 +120,6 @@ class TaskStatusIn(BaseModel):
     description: str | None = None
     agent_id: int | None = None
 
-def task_dict(t: models.Task, db: Session | None = None):
-    agent_name = None
-    if t.agent_id and db:
-        a = db.get(models.Agent, t.agent_id)
-        agent_name = a.name if a else None
-    project_name = None
-    if t.project_id and db:
-        p = db.get(models.Project, t.project_id)
-        project_name = p.name if p else None
-    return {
-        "id": t.id,
-        "title": t.title or (t.description or "")[:60],
-        "description": t.description,
-        "status": t.status,
-        "priority": getattr(t, "priority", None) or "medium",
-        "labels": getattr(t, "labels", None) or "",
-        "result": t.result or "",
-        "agent_id": t.agent_id,
-        "agent_name": agent_name,
-        "project_id": t.project_id,
-        "project_name": project_name,
-        "company_id": t.company_id,
-        "tokens_used": t.tokens_used or 0,
-        "cost": t.cost or 0.0,
-        "created_at": t.created_at,
-        "completed_at": t.completed_at,
-        "updated_at": getattr(t, "updated_at", None),
-    }
-
-def agent_out(a: models.Agent, db: Session, activity_limit: int = 8, include_team: bool = False):
-    logs = (
-        db.query(models.ActivityLog)
-        .filter_by(agent_id=a.id)
-        .order_by(models.ActivityLog.id.desc())
-        .limit(activity_limit)
-        .all()
-    )
-    tasks = db.query(models.Task).filter_by(agent_id=a.id).count()
-    done = db.query(models.Task).filter_by(agent_id=a.id, status="completed").count()
-    open_tasks = db.query(models.Task).filter(
-        models.Task.agent_id == a.id,
-        models.Task.status.in_(["todo", "queued", "in_progress", "review"]),
-    ).count()
-    convs = db.query(models.Conversation).filter_by(agent_id=a.id, user_id=a.user_id).count()
-    reports = db.query(models.Agent).filter_by(parent_id=a.id).all()
-    parent = db.get(models.Agent, a.parent_id) if a.parent_id else None
-    is_lead = bool(getattr(a, "is_lead", False) or (getattr(a, "hierarchy_role", "") == "lead") or len(reports) > 0)
-    role = getattr(a, "hierarchy_role", None) or ("lead" if is_lead else "member")
-    out = {
-        "id": a.id, "name": a.name, "template_type": a.template_type, "personality": a.personality,
-        "model": a.model, "status": a.status, "idle_mode": a.idle_mode,
-        "company_id": a.company_id, "project_id": a.project_id,
-        "parent_id": a.parent_id,
-        "parent_name": parent.name if parent else None,
-        "is_lead": is_lead,
-        "hierarchy_role": role,
-        "reports_count": len(reports),
-        "config": json.loads(a.config or "{}"), "created_at": a.created_at,
-        "stats": {
-            "tasks": tasks, "completed": done, "open": open_tasks,
-            "conversations": convs, "reports": len(reports),
-        },
-        "activity": [{"id": l.id, "type": l.type, "message": l.message, "created_at": l.created_at} for l in reversed(logs)],
-    }
-    if include_team:
-        out["reports"] = [
-            {
-                "id": r.id, "name": r.name, "template_type": r.template_type,
-                "status": r.status, "model": r.model, "hierarchy_role": r.hierarchy_role or "member",
-                "open_tasks": db.query(models.Task).filter(
-                    models.Task.agent_id == r.id,
-                    models.Task.status.in_(["todo", "queued", "in_progress", "review"]),
-                ).count(),
-            }
-            for r in reports
-        ]
-        out["team_context"] = _team_context(a, db)
-    return out
 
 async def log_activity(agent_id: int, user_id: int, type_: str, message: str):
     db = SessionLocal()
@@ -214,36 +134,46 @@ async def log_activity(agent_id: int, user_id: int, type_: str, message: str):
         db.close()
 
 @router.get("/")
-def list_agents(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    agents = db.query(models.Agent).filter_by(user_id=user.id).order_by(models.Agent.id.desc()).all()
-    return [agent_out(a, db) for a in agents]
+def list_agents(
+    company_id: int | None = None,
+    project_id: int | None = None,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    q = db.query(models.Agent).filter_by(user_id=user.id)
+    if company_id is not None:
+        q = q.filter_by(company_id=company_id)
+    if project_id is not None:
+        q = q.filter_by(project_id=project_id)
+    agents = q.all()
+    agents.sort(key=agent_sort_key)
+    return agents_out_list(db, agents)
 
 
 @router.get("/hierarchy")
 def agent_hierarchy(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Full agent org tree: roots (leads / no parent) → nested reports."""
-    agents = db.query(models.Agent).filter_by(user_id=user.id).order_by(models.Agent.name).all()
-    by_parent: dict[int | None, list] = {}
-    for a in agents:
-        by_parent.setdefault(a.parent_id, []).append(a)
+    """Full agent org tree: Main Orchestrator always first, then leads → reports."""
+    return build_hierarchy_payload(db, user.id)
 
-    def node(a: models.Agent) -> dict:
-        kids = by_parent.get(a.id, [])
-        return {
-            **agent_out(a, db),
-            "children": [node(c) for c in kids],
-        }
 
-    roots = by_parent.get(None, [])
-    # Also treat leads with no parent as roots even if filtered above
-    tree = [node(a) for a in roots]
-    leads = [agent_out(a, db) for a in agents if getattr(a, "is_lead", False) or a.hierarchy_role == "lead" or a.id in by_parent]
-    return {
-        "tree": tree,
-        "leads": [agent_out(a, db) for a in agents if getattr(a, "is_lead", False) or (a.hierarchy_role or "") == "lead" or by_parent.get(a.id)],
-        "flat": [agent_out(a, db) for a in agents],
-        "total": len(agents),
-    }
+@router.post("/ensure-orchestrator")
+async def ensure_orchestrator(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Create the Main AI Orchestrator if missing — always sits at top of hierarchy."""
+    existing = find_orchestrator(db, user.id)
+    if existing:
+        promote_orchestrator(db, existing)
+        db.commit()
+        return agent_out(existing, db, include_team=True)
+
+    ensure_credits(db, user.id)
+    count = db.query(models.Agent).filter_by(user_id=user.id).count()
+    max_agents = int(plan_limits(user.plan).get("agents") or 0)
+    if user.role != "admin" and count >= max_agents:
+        raise HTTPException(400, f"Your plan allows up to {max_agents} agents. Upgrade on Billing.")
+
+    a = ensure_main_orchestrator(db, user)
+    await log_activity(a.id, user.id, "info", "Main AI Orchestrator created — pinned at top of hierarchy")
+    return agent_out(a, db, include_team=True)
 
 
 @router.get("/tasks/board")
@@ -366,17 +296,21 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
     if user.role != "admin" and count >= max_agents:
         raise HTTPException(400, f"Your plan allows up to {max_agents} agents. Upgrade on Billing.")
 
-    is_lead = bool(data.is_lead or data.hierarchy_role == "lead" or data.template_type == "lead")
-    role = data.hierarchy_role or ("lead" if is_lead else "member")
-    if is_lead:
-        role = "lead"
+    role, is_lead, make_orch = resolve_create_role(
+        hierarchy_role=data.hierarchy_role,
+        template_type=data.template_type,
+        is_lead=data.is_lead,
+    )
     parent_id = data.parent_id
-    if parent_id:
-        parent = _get_owned(parent_id, user, db)
-        if is_lead and parent_id:
-            pass  # leads can still report to a higher lead
-    if is_lead and parent_id is None:
+    if make_orch:
         parent_id = None
+    if parent_id:
+        _get_owned(parent_id, user, db)
+    # Default non-orchestrator agents without parent → hang under main orchestrator
+    if parent_id is None and not make_orch:
+        orch = find_orchestrator(db, user.id)
+        if orch:
+            parent_id = orch.id
 
     company_id = data.company_id
     project_id = data.project_id
@@ -403,8 +337,13 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
         company_id=company_id,
         project_id=project_id,
     )
-    db.add(a); db.commit(); db.refresh(a)
-    role_msg = " as Lead" if is_lead else (f" under lead #{parent_id}" if parent_id else "")
+    db.add(a)
+    db.flush()
+    if make_orch:
+        promote_orchestrator(db, a)
+    db.commit()
+    db.refresh(a)
+    role_msg = " as Main Orchestrator" if make_orch else (" as Lead" if is_lead else (f" under #{parent_id}" if parent_id else ""))
     await log_activity(a.id, user.id, "info", f"Agent '{a.name}' created{role_msg} and online")
     return agent_out(a, db, include_team=True)
 
@@ -440,10 +379,13 @@ def _apply_hierarchy(a: models.Agent, db: Session, user, *, parent_id=None, clea
         if not is_lead and a.hierarchy_role == "lead":
             a.hierarchy_role = "member"
     if hierarchy_role is not None:
-        if hierarchy_role not in ("lead", "member", "specialist"):
-            raise HTTPException(400, "hierarchy_role must be lead, member, or specialist")
-        a.hierarchy_role = hierarchy_role
-        a.is_lead = hierarchy_role == "lead" or a.is_lead
+        if hierarchy_role not in ("orchestrator", "lead", "member", "specialist"):
+            raise HTTPException(400, "hierarchy_role must be orchestrator, lead, member, or specialist")
+        if hierarchy_role == "orchestrator":
+            promote_orchestrator(db, a)
+        else:
+            a.hierarchy_role = hierarchy_role
+            a.is_lead = hierarchy_role == "lead" or a.is_lead
 
     if report_ids is not None:
         a.is_lead = True
@@ -594,25 +536,26 @@ async def _run_task(agent_id: int, user_id: int, task_id: int, description: str,
         t.status = "in_progress"
         db.commit()
         a = db.get(models.Agent, agent_id)
-        cfg = json.loads(a.config or "{}")
-        model, personality = a.model, a.personality
-        mode = mode_for_template(a.template_type)
-        # Prefer Qwen Coder on VPS for coding agents if they left default model
+        cfg = json.loads((a.config if a else None) or "{}")
+        model = a.model if a else "vps-fast"
+        mode = mode_for_template(a.template_type if a else "")
         if mode == "coding" and model in ("vps-fast", "vps-quality"):
             model = "vps-qwen-coder"
+        agent_snapshot_id = a.id if a else agent_id
     finally:
         db.close()
 
     try:
         await log_activity(agent_id, user_id, "thinking", f"Analysing task: {description[:80]}")
-        prompt = (
-            f"You are {agent_name}, an AI business agent. Personality: {personality}. "
-            f"Business context: {json.dumps(cfg)}. Complete this task and produce the final "
-            f"deliverable text (e.g. the email/message itself), no preamble:\n\n{description}"
-        )
         db = SessionLocal()
         try:
             creds = credentials_for_user(db, user_id)
+            agent_row = db.get(models.Agent, agent_snapshot_id)
+            prompt = (
+                build_task_prompt(db, agent_row, description, business_context=cfg)
+                if agent_row
+                else f"Complete this task:\n\n{description}"
+            )
         finally:
             db.close()
         output = await complete(
@@ -829,11 +772,7 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         .order_by(models.Message.id)
         .all()
     )
-    team = _team_context(a, db)
-    system = (
-        f"You are {a.name}, an AI business agent. Personality: {a.personality}. "
-        f"Template type: {a.template_type}. Config: {a.config}. {team}"
-    )
+    system = build_agent_system_prompt(db, a)
     llm_messages = [{"role": "user", "content": system}]
     for m in history[-16:]:
         llm_messages.append({"role": m.role if m.role in ("user", "assistant") else "user", "content": m.content})
@@ -940,10 +879,10 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
                 .all()
             )
             a_live = db.get(models.Agent, agent_id)
-            team = _team_context(a_live, db) if a_live else ""
             system = (
-                f"You are {agent_name}, an AI business agent. Personality: {personality}. "
-                f"Type: {template_type}. Config: {config_raw}. {team}"
+                build_agent_system_prompt(db, a_live)
+                if a_live
+                else f"You are {agent_name}. Personality: {personality}."
             )
             llm_messages = [{"role": "user", "content": system}]
             for m in history[-16:]:

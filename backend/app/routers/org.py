@@ -9,6 +9,13 @@ from ..auth_utils import get_current_user, ensure_credits
 from ..async_jobs import schedule as schedule_job
 from ..plans import plan_limits
 from ..task_status import normalize_status
+from ..org_templates import (
+    COMPANY_TEMPLATES,
+    PROJECT_TEMPLATES,
+    get_company_template,
+    get_project_template,
+)
+from ..agent_roles import is_orchestrator
 
 router = APIRouter(prefix="/org", tags=["org"])
 
@@ -35,22 +42,31 @@ def _project_owned(db, project_id: int, user) -> models.Project:
 
 
 class CompanyIn(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = ""
     industry: str = ""
     notes: str = ""
+    template_id: str | None = None
+    # When using a company template, optionally spawn suggested projects
+    create_suggested_projects: bool = True
 
 
 class ProjectIn(BaseModel):
     company_id: int
-    name: str = Field(min_length=1)
+    name: str = ""
     description: str = ""
     status: str = "active"
+    template_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     status: str | None = None
+
+
+class ProjectAgentsIn(BaseModel):
+    """Allocate agents to this project (sets company_id + project_id on each)."""
+    agent_ids: list[int] = Field(default_factory=list)
 
 
 class TaskIn(BaseModel):
@@ -74,6 +90,7 @@ class TaskRunIn(BaseModel):
 def company_out(c: models.Company, db: Session):
     projects = db.query(models.Project).filter_by(company_id=c.id).count()
     tasks = db.query(models.Task).filter_by(company_id=c.id).count()
+    agents = db.query(models.Agent).filter_by(company_id=c.id).count()
     return {
         "id": c.id,
         "name": c.name,
@@ -82,16 +99,23 @@ def company_out(c: models.Company, db: Session):
         "created_at": c.created_at,
         "project_count": projects,
         "task_count": tasks,
+        "agent_count": agents,
     }
 
 
-def project_out(p: models.Project, db: Session):
+def project_out(p: models.Project, db: Session, include_agents: bool = False):
     tasks = db.query(models.Task).filter_by(project_id=p.id).count()
     open_tasks = db.query(models.Task).filter(
         models.Task.project_id == p.id,
         models.Task.status.in_(["todo", "queued", "in_progress"]),
     ).count()
-    return {
+    agents = (
+        db.query(models.Agent)
+        .filter_by(project_id=p.id)
+        .order_by(models.Agent.name)
+        .all()
+    )
+    out = {
         "id": p.id,
         "company_id": p.company_id,
         "name": p.name,
@@ -100,7 +124,22 @@ def project_out(p: models.Project, db: Session):
         "created_at": p.created_at,
         "task_count": tasks,
         "open_tasks": open_tasks,
+        "agent_count": len(agents),
+        "agent_ids": [a.id for a in agents],
     }
+    if include_agents:
+        out["agents"] = [
+            {
+                "id": a.id,
+                "name": a.name,
+                "template_type": a.template_type,
+                "status": a.status,
+                "hierarchy_role": a.hierarchy_role or "member",
+                "is_orchestrator": is_orchestrator(a),
+            }
+            for a in agents
+        ]
+    return out
 
 
 def task_out(t: models.Task):
@@ -132,7 +171,7 @@ def org_tree(db: Session = Depends(get_db), user=Depends(get_current_user)):
             **company_out(c, db),
             "projects": [
                 {
-                    **project_out(p, db),
+                    **project_out(p, db, include_agents=True),
                     "tasks": [
                         task_out(t) for t in
                         db.query(models.Task).filter_by(project_id=p.id).order_by(models.Task.id.desc()).limit(50).all()
@@ -141,6 +180,8 @@ def org_tree(db: Session = Depends(get_db), user=Depends(get_current_user)):
                 for p in projects
             ],
         })
+    from ..agent_roles import find_orchestrator
+    orch = find_orchestrator(db, user.id)
     return {
         "subscriber": {
             "id": user.id,
@@ -149,7 +190,31 @@ def org_tree(db: Session = Depends(get_db), user=Depends(get_current_user)):
             "plan": user.plan,
             "subscription_active": user.subscription_active or user.role == "admin",
         },
+        "orchestrator": (
+            {
+                "id": orch.id,
+                "name": orch.name,
+                "status": orch.status,
+                "hierarchy_role": "orchestrator",
+            }
+            if orch
+            else None
+        ),
         "companies": tree,
+        "limits": plan_limits(user.plan),
+        "counts": {
+            "companies": len(tree),
+            "projects": sum(len(c["projects"]) for c in tree),
+        },
+    }
+
+
+@router.get("/templates")
+def list_org_templates(user=Depends(get_current_user)):
+    """Company + project templates for one-click setup."""
+    return {
+        "companies": COMPANY_TEMPLATES,
+        "projects": PROJECT_TEMPLATES,
     }
 
 
@@ -168,16 +233,54 @@ def create_company(data: CompanyIn, db: Session = Depends(get_db), user=Depends(
     max_c = int(limits.get("companies") or 0)
     if user.role != "admin" and count >= max_c:
         raise HTTPException(400, f"Your plan allows {max_c} companies. Upgrade on Billing.")
+
+    tpl = get_company_template(data.template_id)
+    name = data.name.strip()
+    industry = data.industry.strip()
+    notes = data.notes.strip()
+    if tpl and tpl["id"] != "blank":
+        if not name:
+            name = tpl["name"]
+        if not industry:
+            industry = tpl.get("industry") or ""
+        if not notes:
+            notes = tpl.get("notes") or ""
+    if not name:
+        raise HTTPException(400, "Company name is required (or pick a template)")
+
     c = models.Company(
         owner_user_id=user.id,
-        name=data.name.strip(),
-        industry=data.industry.strip(),
-        notes=data.notes.strip(),
+        name=name,
+        industry=industry,
+        notes=notes,
     )
     db.add(c)
     db.commit()
     db.refresh(c)
-    return company_out(c, db)
+
+    created_projects = []
+    if tpl and data.create_suggested_projects and tpl.get("suggested_projects"):
+        max_p = int(limits.get("projects") or 0)
+        pcount = db.query(models.Project).filter_by(owner_user_id=user.id).count()
+        for pname in tpl["suggested_projects"]:
+            if user.role != "admin" and pcount >= max_p:
+                break
+            p = models.Project(
+                company_id=c.id,
+                owner_user_id=user.id,
+                name=pname,
+                description=f"Suggested from company template: {tpl['name']}",
+                status="active",
+            )
+            db.add(p)
+            pcount += 1
+            created_projects.append(pname)
+        db.commit()
+
+    out = company_out(c, db)
+    out["created_from_template"] = data.template_id
+    out["created_projects"] = created_projects
+    return out
 
 
 @router.patch("/companies/{company_id}")
@@ -231,17 +334,92 @@ def create_project(data: ProjectIn, db: Session = Depends(get_db), user=Depends(
     max_p = int(limits.get("projects") or 0)
     if user.role != "admin" and count >= max_p:
         raise HTTPException(400, f"Your plan allows {max_p} projects. Upgrade on Billing.")
+
+    tpl = get_project_template(data.template_id)
+    name = data.name.strip()
+    description = data.description.strip()
+    status = data.status or "active"
+    if tpl and tpl["id"] != "blank":
+        if not name:
+            name = tpl["name"]
+        if not description:
+            description = tpl.get("description") or ""
+        if not data.status:
+            status = tpl.get("status") or "active"
+    if not name:
+        raise HTTPException(400, "Project name is required (or pick a template)")
+
     p = models.Project(
         company_id=data.company_id,
         owner_user_id=user.id,
-        name=data.name.strip(),
-        description=data.description.strip(),
-        status=data.status or "active",
+        name=name,
+        description=description,
+        status=status,
     )
     db.add(p)
     db.commit()
     db.refresh(p)
-    return project_out(p, db)
+    out = project_out(p, db, include_agents=True)
+    out["created_from_template"] = data.template_id
+    out["suggested_agent_roles"] = (tpl or {}).get("suggested_agent_roles") or []
+    return out
+
+
+@router.get("/projects/{project_id}")
+def get_project(project_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    p = _project_owned(db, project_id, user)
+    return project_out(p, db, include_agents=True)
+
+
+@router.put("/projects/{project_id}/agents")
+def allocate_project_agents(
+    project_id: int,
+    data: ProjectAgentsIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Assign agents to a project. Replaces previous project-only allocations."""
+    p = _project_owned(db, project_id, user)
+    # Clear agents currently only on this project that are not in the new set
+    wanted = set()
+    for raw in data.agent_ids or []:
+        try:
+            wanted.add(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    current = db.query(models.Agent).filter_by(user_id=user.id, project_id=p.id).all()
+    for a in current:
+        if a.id not in wanted:
+            a.project_id = None
+            # keep company_id if still useful
+
+    linked = []
+    global_only = []
+    for aid in wanted:
+        a = db.get(models.Agent, aid)
+        if not a or (a.user_id != user.id and user.role != "admin"):
+            continue
+        # Orchestrator stays global — company link only, never project-locked
+        if is_orchestrator(a):
+            a.company_id = p.company_id
+            a.project_id = None
+            global_only.append(a.id)
+            continue
+        a.company_id = p.company_id
+        a.project_id = p.id
+        linked.append(a)
+
+    db.commit()
+    msg = f"Allocated {len(linked)} agent(s) to project"
+    if global_only:
+        msg += f" · {len(global_only)} orchestrator(s) stay global (company-linked only)"
+    return {
+        **project_out(p, db, include_agents=True),
+        "allocated": len(linked),
+        "global_orchestrators": global_only,
+        "message": msg,
+    }
 
 
 @router.patch("/projects/{project_id}")
@@ -261,6 +439,8 @@ def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(g
 def delete_project(project_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     p = _project_owned(db, project_id, user)
     db.query(models.Task).filter_by(project_id=p.id).delete()
+    for a in db.query(models.Agent).filter_by(project_id=p.id).all():
+        a.project_id = None
     db.delete(p)
     db.commit()
     return {"ok": True}

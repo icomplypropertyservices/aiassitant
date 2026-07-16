@@ -9,41 +9,49 @@ PROVIDERS = {
         "label": "Anthropic (Claude)",
         "placeholder": "sk-ant-…",
         "help": "Used for Premium Claude models",
+        "category": "llm",
     },
     "xai": {
         "label": "xAI (Grok)",
         "placeholder": "xai-…",
         "help": "Used for Premium Grok models",
+        "category": "llm",
     },
     "openai": {
         "label": "OpenAI",
         "placeholder": "sk-…",
-        "help": "Optional — for future OpenAI models",
+        "help": "Optional — for OpenAI-compatible models",
+        "category": "llm",
     },
     "google": {
         "label": "Google AI (Gemini)",
         "placeholder": "AIza…",
-        "help": "Optional — for future Gemini models",
+        "help": "Gemini API key (also add Google apps under Connected apps)",
+        "category": "llm",
     },
     "resend": {
         "label": "Resend (email)",
         "placeholder": "re_…",
         "help": "Send agent emails from your own Resend account",
+        "category": "channels",
     },
     "twilio_sid": {
         "label": "Twilio Account SID",
         "placeholder": "AC…",
         "help": "SMS / voice from your Twilio account",
+        "category": "channels",
     },
     "twilio_token": {
         "label": "Twilio Auth Token",
         "placeholder": "your auth token",
         "help": "Paired with Twilio Account SID",
+        "category": "channels",
     },
     "twilio_from": {
         "label": "Twilio From number",
         "placeholder": "+447…",
         "help": "E.164 number on your Twilio account",
+        "category": "channels",
     },
 }
 

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Row, Col, Button, Modal, Form, Input, Select, Tag, Space, Typography,
-  List, Empty, message, Popconfirm, Collapse, Badge,
+  List, Empty, message, Popconfirm, Collapse, Badge, Switch, Alert, Divider,
 } from 'antd'
 import {
   PlusOutlined, BankOutlined, ProjectOutlined, CheckSquareOutlined, DeleteOutlined,
-  ThunderboltOutlined, RobotOutlined,
+  ThunderboltOutlined, RobotOutlined, CrownOutlined, ApartmentOutlined,
 } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import OrchestratorBanner from '../components/OrchestratorBanner'
+import { isOrchestrator } from '../agents/roles'
 
-/** Align with TasksBoard column colors */
 const STATUS_COLOR = {
   active: 'green',
   paused: 'orange',
@@ -23,26 +25,43 @@ const STATUS_COLOR = {
 }
 
 export default function Workspace() {
+  const nav = useNavigate()
   const [tree, setTree] = useState(null)
   const [agents, setAgents] = useState([])
+  const [templates, setTemplates] = useState({ companies: [], projects: [] })
   const [companyOpen, setCompanyOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(null) // company id
   const [taskOpen, setTaskOpen] = useState(null) // project
+  const [allocOpen, setAllocOpen] = useState(null) // project
+  const [allocIds, setAllocIds] = useState([])
   const [runningId, setRunningId] = useState(null)
   const [companyForm] = Form.useForm()
   const [projectForm] = Form.useForm()
   const [taskForm] = Form.useForm()
 
-  const load = () => api('/org/tree').then(setTree).catch(e => message.error(e.message))
+  const load = () => {
+    api('/org/tree').then(setTree).catch(e => message.error(e.message))
+    api('/agents/').then(setAgents).catch(() => setAgents([]))
+  }
   useEffect(() => {
     load()
-    api('/agents/').then(setAgents).catch(() => setAgents([]))
+    api('/org/templates').then(setTemplates).catch(() => {})
   }, [])
 
   const createCompany = async (v) => {
     try {
-      await api('/org/companies', { method: 'POST', body: v })
-      message.success('Company created')
+      const body = {
+        name: v.name || '',
+        industry: v.industry || '',
+        notes: v.notes || '',
+        template_id: v.template_id || null,
+        create_suggested_projects: v.create_suggested_projects !== false,
+      }
+      const r = await api('/org/companies', { method: 'POST', body })
+      const extra = r.created_projects?.length
+        ? ` · projects: ${r.created_projects.join(', ')}`
+        : ''
+      message.success(`Company created${extra}`)
       setCompanyOpen(false)
       companyForm.resetFields()
       load()
@@ -53,7 +72,13 @@ export default function Workspace() {
     try {
       await api('/org/projects', {
         method: 'POST',
-        body: { ...v, company_id: projectOpen },
+        body: {
+          name: v.name || '',
+          description: v.description || '',
+          status: v.status || 'active',
+          template_id: v.template_id || null,
+          company_id: projectOpen,
+        },
       })
       message.success('Project created')
       setProjectOpen(null)
@@ -64,18 +89,39 @@ export default function Workspace() {
 
   const createTask = async (v) => {
     try {
-      const body = {
-        title: v.title,
-        description: v.description,
-        project_id: taskOpen.id,
-        agent_id: v.agent_id || null,
-      }
-      await api('/org/tasks', { method: 'POST', body })
+      await api('/org/tasks', {
+        method: 'POST',
+        body: {
+          title: v.title,
+          description: v.description,
+          project_id: taskOpen.id,
+          agent_id: v.agent_id || null,
+        },
+      })
       message.success('Task added')
       setTaskOpen(null)
       taskForm.resetFields()
       load()
     } catch (e) { message.error(e.message) }
+  }
+
+  const openAlloc = (p) => {
+    setAllocOpen(p)
+    setAllocIds(p.agent_ids || (p.agents || []).map(a => a.id) || [])
+  }
+
+  const saveAlloc = async () => {
+    try {
+      const r = await api(`/org/projects/${allocOpen.id}/agents`, {
+        method: 'PUT',
+        body: { agent_ids: allocIds },
+      })
+      message.success(r.message || 'Agents allocated')
+      setAllocOpen(null)
+      load()
+    } catch (e) {
+      message.error(e.message)
+    }
   }
 
   const setTaskStatus = async (id, status) => {
@@ -106,29 +152,51 @@ export default function Workspace() {
   }
 
   const companies = tree?.companies || []
+  const limits = tree?.limits || {}
+  const projectAgents = (p) => p.agents || []
+  const agentsForProject = (p) => {
+    // Prefer agents allocated to project; fall back to company agents + global
+    const allocated = agents.filter(a => a.project_id === p.id)
+    if (allocated.length) return allocated
+    return agents.filter(a => !a.project_id || a.company_id === p.company_id || isOrchestrator(a))
+  }
 
   return (
     <div>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
         <div>
           <Typography.Title level={4} style={{ margin: 0 }}>
             Workspace
           </Typography.Title>
           <Typography.Text type="secondary">
-            Subscriber → Companies → Projects → Tasks
+            Multiple companies → multiple projects → agents & tasks
             {tree?.subscriber && (
-              <> · Plan <Tag color="blue">{tree.subscriber.plan}</Tag></>
+              <> · Plan <Tag color="blue">{tree.subscriber.plan}</Tag>
+                {limits.companies != null && (
+                  <Tag>
+                    {tree.counts?.companies || 0}/{limits.companies} companies · {tree.counts?.projects || 0}/{limits.projects} projects
+                  </Tag>
+                )}
+              </>
             )}
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCompanyOpen(true)}>
-          New company
-        </Button>
+        <Space wrap>
+          <Button icon={<ApartmentOutlined />} onClick={() => nav('/hierarchy')}>Hierarchy</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCompanyOpen(true)}>
+            New company
+          </Button>
+        </Space>
       </Space>
+
+      <OrchestratorBanner
+        orchestrator={tree?.orchestrator}
+        onChanged={load}
+      />
 
       {companies.length === 0 ? (
         <Card>
-          <Empty description="No companies yet — create one to organise projects and tasks">
+          <Empty description="No companies yet — create one (use a template for a head start)">
             <Button type="primary" onClick={() => setCompanyOpen(true)}>Create company</Button>
           </Empty>
         </Card>
@@ -138,15 +206,16 @@ export default function Workspace() {
             <Col xs={24} key={c.id}>
               <Card
                 title={
-                  <Space>
+                  <Space wrap>
                     <BankOutlined />
                     {c.name}
                     {c.industry && <Tag>{c.industry}</Tag>}
                   </Space>
                 }
                 extra={
-                  <Space>
+                  <Space wrap>
                     <Tag>{c.project_count} projects</Tag>
+                    <Tag>{c.agent_count || 0} agents</Tag>
                     <Tag>{c.task_count} tasks</Tag>
                     <Button size="small" icon={<PlusOutlined />} onClick={() => setProjectOpen(c.id)}>
                       Project
@@ -162,23 +231,38 @@ export default function Workspace() {
                   </Space>
                 }
               >
+                {c.notes && (
+                  <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+                    {c.notes}
+                  </Typography.Paragraph>
+                )}
                 {(c.projects || []).length === 0 ? (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No projects in this company" />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No projects in this company">
+                    <Button size="small" type="primary" onClick={() => setProjectOpen(c.id)}>
+                      Add project
+                    </Button>
+                  </Empty>
                 ) : (
                   <Collapse
                     items={(c.projects || []).map(p => ({
                       key: p.id,
                       label: (
-                        <Space>
+                        <Space wrap>
                           <ProjectOutlined />
                           <strong>{p.name}</strong>
                           <Tag color={STATUS_COLOR[p.status] || 'default'}>{p.status}</Tag>
                           <Badge count={p.open_tasks} overflowCount={99} style={{ background: '#1668dc' }} />
                           <Typography.Text type="secondary">{p.task_count} tasks</Typography.Text>
+                          <Tag icon={<RobotOutlined />} color="geekblue">
+                            {p.agent_count || 0} agents
+                          </Tag>
                         </Space>
                       ),
                       extra: (
                         <Space onClick={e => e.stopPropagation()}>
+                          <Button size="small" icon={<RobotOutlined />} onClick={() => openAlloc(p)}>
+                            Agents
+                          </Button>
                           <Button size="small" onClick={() => setTaskOpen(p)}>Add task</Button>
                           <Popconfirm title="Delete project?" onConfirm={async () => {
                             try {
@@ -191,54 +275,74 @@ export default function Workspace() {
                         </Space>
                       ),
                       children: (
-                        <List
-                          dataSource={p.tasks || []}
-                          locale={{ emptyText: 'No tasks yet' }}
-                          renderItem={t => (
-                            <List.Item
-                              actions={[
-                                t.agent_id && t.status !== 'completed' && (
-                                  <Button
-                                    key="run"
-                                    type="link"
-                                    icon={<ThunderboltOutlined />}
-                                    loading={runningId === t.id}
-                                    onClick={() => runTask(t)}
-                                  >
-                                    Run
-                                  </Button>
-                                ),
-                                t.status !== 'completed' && (
-                                  <Button key="done" type="link" onClick={() => setTaskStatus(t.id, 'completed')}>
-                                    Complete
-                                  </Button>
-                                ),
-                                <Button key="progress" type="link" onClick={() => setTaskStatus(t.id, 'in_progress')}>
-                                  In progress
-                                </Button>,
-                              ].filter(Boolean)}
-                            >
-                              <List.Item.Meta
-                                avatar={<CheckSquareOutlined />}
-                                title={
-                                  <Space wrap>
-                                    {t.title}
-                                    <Tag color={STATUS_COLOR[t.status] || 'default'}>{t.status}</Tag>
-                                    {t.agent_id && (
-                                      <Tag icon={<RobotOutlined />} color="geekblue">
-                                        {agents.find(a => a.id === t.agent_id)?.name || 'Agent'}
-                                      </Tag>
-                                    )}
-                                    {t.tokens_used > 0 && (
-                                      <Tag color="purple">{t.tokens_used} tok · ${Number(t.cost || 0).toFixed(4)}</Tag>
-                                    )}
-                                  </Space>
-                                }
-                                description={t.description}
-                              />
-                            </List.Item>
-                          )}
-                        />
+                        <div>
+                          <div style={{ marginBottom: 12 }}>
+                            <Typography.Text type="secondary">Allocated agents: </Typography.Text>
+                            <Space wrap size={[4, 4]}>
+                              {projectAgents(p).length === 0 ? (
+                                <Typography.Text type="secondary">None — click Agents to assign</Typography.Text>
+                              ) : projectAgents(p).map(a => (
+                                <Tag
+                                  key={a.id}
+                                  color={isOrchestrator(a) ? 'gold' : 'blue'}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => nav(`/agents/${a.id}`)}
+                                >
+                                  {isOrchestrator(a) && <CrownOutlined />} {a.name}
+                                </Tag>
+                              ))}
+                            </Space>
+                          </div>
+                          <Divider style={{ margin: '8px 0' }} />
+                          <List
+                            dataSource={p.tasks || []}
+                            locale={{ emptyText: 'No tasks yet' }}
+                            renderItem={t => (
+                              <List.Item
+                                actions={[
+                                  t.agent_id && t.status !== 'completed' && (
+                                    <Button
+                                      key="run"
+                                      type="link"
+                                      icon={<ThunderboltOutlined />}
+                                      loading={runningId === t.id}
+                                      onClick={() => runTask(t)}
+                                    >
+                                      Run
+                                    </Button>
+                                  ),
+                                  t.status !== 'completed' && (
+                                    <Button key="done" type="link" onClick={() => setTaskStatus(t.id, 'completed')}>
+                                      Complete
+                                    </Button>
+                                  ),
+                                  <Button key="progress" type="link" onClick={() => setTaskStatus(t.id, 'in_progress')}>
+                                    In progress
+                                  </Button>,
+                                ].filter(Boolean)}
+                              >
+                                <List.Item.Meta
+                                  avatar={<CheckSquareOutlined />}
+                                  title={
+                                    <Space wrap>
+                                      {t.title}
+                                      <Tag color={STATUS_COLOR[t.status] || 'default'}>{t.status}</Tag>
+                                      {t.agent_id && (
+                                        <Tag icon={<RobotOutlined />} color="geekblue">
+                                          {agents.find(a => a.id === t.agent_id)?.name || 'Agent'}
+                                        </Tag>
+                                      )}
+                                      {t.tokens_used > 0 && (
+                                        <Tag color="purple">{t.tokens_used} tok · ${Number(t.cost || 0).toFixed(4)}</Tag>
+                                      )}
+                                    </Space>
+                                  }
+                                  description={t.description}
+                                />
+                              </List.Item>
+                            )}
+                          />
+                        </div>
                       ),
                     }))}
                   />
@@ -249,9 +353,32 @@ export default function Workspace() {
         </Row>
       )}
 
-      <Modal title="New company" open={companyOpen} onCancel={() => setCompanyOpen(false)} footer={null} destroyOnClose>
-        <Form form={companyForm} layout="vertical" onFinish={createCompany}>
-          <Form.Item name="name" label="Company name" rules={[{ required: true }]}>
+      <Modal title="New company" open={companyOpen} onCancel={() => setCompanyOpen(false)} footer={null} destroyOnClose width={560}>
+        <Form
+          form={companyForm}
+          layout="vertical"
+          onFinish={createCompany}
+          initialValues={{ create_suggested_projects: true, template_id: 'blank' }}
+        >
+          <Form.Item name="template_id" label="Company template">
+            <Select
+              options={(templates.companies || []).map(t => ({
+                value: t.id,
+                label: `${t.name}${t.industry ? ` · ${t.industry}` : ''}`,
+              }))}
+              onChange={(id) => {
+                const t = (templates.companies || []).find(x => x.id === id)
+                if (t && id !== 'blank') {
+                  companyForm.setFieldsValue({
+                    name: t.name,
+                    industry: t.industry,
+                    notes: t.notes,
+                  })
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item name="name" label="Company name" rules={[{ required: true, message: 'Name or template required' }]}>
             <Input placeholder="Acme Ltd" />
           </Form.Item>
           <Form.Item name="industry" label="Industry">
@@ -260,19 +387,40 @@ export default function Workspace() {
           <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block>Create</Button>
+          <Form.Item name="create_suggested_projects" label="Create suggested projects from template" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block>Create company</Button>
         </Form>
       </Modal>
 
-      <Modal title="New project" open={!!projectOpen} onCancel={() => setProjectOpen(null)} footer={null} destroyOnClose>
-        <Form form={projectForm} layout="vertical" onFinish={createProject}>
+      <Modal title="New project" open={!!projectOpen} onCancel={() => setProjectOpen(null)} footer={null} destroyOnClose width={520}>
+        <Form form={projectForm} layout="vertical" onFinish={createProject} initialValues={{ status: 'active', template_id: 'blank' }}>
+          <Form.Item name="template_id" label="Project template">
+            <Select
+              options={(templates.projects || []).map(t => ({
+                value: t.id,
+                label: t.name,
+              }))}
+              onChange={(id) => {
+                const t = (templates.projects || []).find(x => x.id === id)
+                if (t && id !== 'blank') {
+                  projectForm.setFieldsValue({
+                    name: t.name,
+                    description: t.description,
+                    status: t.status || 'active',
+                  })
+                }
+              }}
+            />
+          </Form.Item>
           <Form.Item name="name" label="Project name" rules={[{ required: true }]}>
             <Input placeholder="Website relaunch / Q3 sales" />
           </Form.Item>
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="status" label="Status" initialValue="active">
+          <Form.Item name="status" label="Status">
             <Select options={[
               { value: 'active', label: 'Active' },
               { value: 'paused', label: 'Paused' },
@@ -281,6 +429,35 @@ export default function Workspace() {
           </Form.Item>
           <Button type="primary" htmlType="submit" block>Create project</Button>
         </Form>
+      </Modal>
+
+      <Modal
+        title={allocOpen ? `Allocate agents · ${allocOpen.name}` : 'Agents'}
+        open={!!allocOpen}
+        onCancel={() => setAllocOpen(null)}
+        onOk={saveAlloc}
+        okText="Save allocation"
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary">
+          Agents assigned here are scoped to this project (and its company). The Main Orchestrator stays global.
+        </Typography.Paragraph>
+        <Select
+          mode="multiple"
+          style={{ width: '100%' }}
+          placeholder="Select project agents (orchestrator stays global)"
+          value={allocIds.filter(id => {
+            const a = agents.find(x => x.id === id)
+            return a && !isOrchestrator(a)
+          })}
+          onChange={setAllocIds}
+          options={agents
+            .filter(a => !isOrchestrator(a))
+            .map(a => ({
+              value: a.id,
+              label: `${a.name} (${a.template_type})`,
+            }))}
+        />
       </Modal>
 
       <Modal
@@ -297,13 +474,13 @@ export default function Workspace() {
           <Form.Item name="description" label="Description" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="What needs doing?" />
           </Form.Item>
-          <Form.Item name="agent_id" label="Agent (optional)">
+          <Form.Item name="agent_id" label="Assign agent">
             <Select
               allowClear
-              placeholder="Assign agent to run later"
-              options={agents.map(a => ({
+              placeholder="Optional — prefer project agents"
+              options={agentsForProject(taskOpen || {}).map(a => ({
                 value: a.id,
-                label: `${a.name} (${a.status})`,
+                label: `${a.name}${a.project_id === taskOpen?.id ? ' · on project' : ''}`,
               }))}
             />
           </Form.Item>

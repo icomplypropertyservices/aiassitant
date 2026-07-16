@@ -49,3 +49,11 @@ temp/
 # Vercel SPA copy output (repo root only — not frontend/public assets)
 /public/
 
+
+.env.production.local
+
+.vercel
+.env*
+
+backend/uploads/
+
