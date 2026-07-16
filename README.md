@@ -27,6 +27,21 @@ Admin login: **admin@local / admin123**
 
 ---
 
+## Marketing website vs app
+
+| Host | What | Folder |
+|------|------|--------|
+| **aiassistant.xyz** | Landing / marketing | [`website/`](website/) |
+| **app.aiassistant.xyz** | Product app + API | monorepo root |
+
+```bash
+cd website && npm start   # http://localhost:5174
+```
+
+Domain setup: [docs/DOMAINS.md](docs/DOMAINS.md) · website deploy: [website/README.md](website/README.md)
+
+---
+
 ## Mobile (iOS + Android) — sandbox & stores
 
 Capacitor shells live under `frontend/ios` and `frontend/android`.
