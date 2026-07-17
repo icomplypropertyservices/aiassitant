@@ -63,11 +63,16 @@ def build_agent_system_prompt(
             cfg = f" Config: {json.dumps(parsed) if not isinstance(parsed, str) else parsed}."
         except Exception:
             cfg = f" Config: {raw}."
+    from .agent_skills import skills_prompt_block
+
+    skills = skills_prompt_block(agent, db)
     base = (
         f"You are {agent.name}, an AI business agent. "
         f"Personality: {agent.personality}. "
         f"Template type: {agent.template_type}.{cfg} {team}\n{train}"
     )
+    if skills:
+        base = f"{base}\n\n{skills}"
     if extra:
         return f"{base}\n{extra}".strip()
     return base.strip()

@@ -164,40 +164,64 @@ async def stream_completion(
     mode: str = "general",
     credentials: dict | None = None,
 ):
-    """credentials: optional subscriber keys {anthropic, xai, ...} — preferred over platform env."""
+    """
+    credentials: optional subscriber keys {anthropic, xai, ...} — preferred over platform env.
+
+    Order:
+      1) Selected premium stack (Claude / Grok) if keys exist
+      2) Local / VPS Ollama (for vps-* and as fallback)
+      3) Platform xAI Grok (always try if key set — works on Vercel without Ollama)
+      4) Platform Anthropic
+      5) Mock (dev only) or production error
+    """
     creds = credentials or {}
     anthropic_key = creds.get("anthropic") or config.ANTHROPIC_API_KEY
     xai_key = creds.get("xai") or config.XAI_API_KEY
+    m = (model or "").lower().strip() or "vps-fast"
 
     # Premium Claude — subscriber key first, then platform
-    if model.startswith("claude") and anthropic_key:
+    if m.startswith("claude") and anthropic_key:
         try:
             async for c in _anthropic_stream(messages, model, api_key=anthropic_key):
                 yield c
             return
         except Exception:
-            yield "[Claude unavailable — trying fallback] "
+            pass  # fall through to Ollama / Grok
 
-    # Premium xAI Grok
-    if model.startswith("grok") and xai_key:
+    # Premium xAI Grok (selected model)
+    if m.startswith("grok") and xai_key:
         try:
             async for c in _xai_stream(messages, model, api_key=xai_key):
                 yield c
             return
         except Exception:
-            yield "[Grok unavailable — trying fallback] "
+            pass
 
-    # VPS Ollama including full Qwen fleet
-    if model.startswith("vps") or not model.startswith(("claude", "grok")):
+    # Local / VPS Ollama (default for vps-* fleet; also after premium failure)
+    try:
+        ollama_model = model if (m.startswith("vps") or "qwen" in m) else "vps-fast"
+        async for c in _ollama_stream(messages, ollama_model):
+            yield c
+        return
+    except Exception:
+        pass
+
+    # Platform Grok fallback — use your xAI key even when UI selected a VPS model
+    # (common on Vercel serverless where localhost Ollama is unreachable)
+    if xai_key:
         try:
-            async for c in _ollama_stream(messages, model):
+            fallback = "grok-fast" if ("fast" in m or "mini" in m or m.startswith("vps")) else "grok-quality"
+            if m.startswith("grok"):
+                fallback = model
+            async for c in _xai_stream(messages, fallback, api_key=xai_key):
                 yield c
             return
         except Exception:
             pass
-    else:
+
+    if anthropic_key:
         try:
-            async for c in _ollama_stream(messages, "vps-fast"):
+            async for c in _anthropic_stream(messages, "claude-sonnet", api_key=anthropic_key):
                 yield c
             return
         except Exception:
@@ -206,9 +230,9 @@ async def stream_completion(
     # Fail closed in production — never invent business answers with mock LLM
     if config.IS_PRODUCTION or getattr(config, "APP_ENV", "").lower() == "production":
         yield (
-            "No live LLM is available for this request. Configure your API keys "
-            "(Anthropic / xAI) or ensure the VPS Ollama service is reachable. "
-            "Mock replies are disabled in production."
+            "No live LLM is available for this request. "
+            "Set XAI_API_KEY (or Anthropic), or start Ollama on OLLAMA_URL with a pulled model "
+            "(e.g. qwen2.5:3b). Mock replies are disabled in production."
         )
         return
 

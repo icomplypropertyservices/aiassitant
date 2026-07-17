@@ -121,6 +121,37 @@ class TaskStatusIn(BaseModel):
     agent_id: int | None = None
 
 
+class SkillsUpdateIn(BaseModel):
+    enabled: list[str] = []
+
+
+class SkillRunIn(BaseModel):
+    skill: str
+    args: dict = {}
+
+
+class MemoryIn(BaseModel):
+    title: str = ""
+    content: str
+    kind: str = "note"
+    tags: str = ""
+    save_to_training: bool = False
+
+
+class AgentMsgIn(BaseModel):
+    to_agent_id: int
+    message: str
+    expect_reply: bool = True
+
+
+class SpawnIn(BaseModel):
+    name: str
+    template_type: str = "custom"
+    personality: str = "Professional, friendly and concise."
+    hierarchy_role: str = "member"
+    parent_id: int | None = None
+
+
 async def log_activity(agent_id: int, user_id: int, type_: str, message: str):
     db = SessionLocal()
     try:
@@ -732,6 +763,132 @@ async def run_task(task_id: int, db: Session = Depends(get_db), user=Depends(get
     return task_dict(t, db)
 
 
+@router.get("/{agent_id}/skills")
+def get_skills(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import list_skills_for_agent, SKILL_CATALOG
+    a = _get_owned(agent_id, user, db)
+    return {
+        "agent_id": a.id,
+        "skills": list_skills_for_agent(a, db),
+        "catalog": SKILL_CATALOG,
+    }
+
+
+@router.put("/{agent_id}/skills")
+def put_skills(agent_id: int, data: SkillsUpdateIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import set_enabled_skills, list_skills_for_agent
+    a = _get_owned(agent_id, user, db)
+    enabled = set_enabled_skills(db, a, data.enabled or [])
+    return {"agent_id": a.id, "enabled": enabled, "skills": list_skills_for_agent(a, db)}
+
+
+@router.post("/{agent_id}/skills/run")
+async def run_skill(agent_id: int, data: SkillRunIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import execute_skill
+    a = _get_owned(agent_id, user, db)
+    ensure_credits(db, user.id)
+    result = await execute_skill(db, a, user, data.skill, data.args or {})
+    return result
+
+
+@router.post("/{agent_id}/spawn")
+async def spawn_child(agent_id: int, data: SpawnIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import execute_skill
+    a = _get_owned(agent_id, user, db)
+    return await execute_skill(db, a, user, "spawn_agent", data.model_dump())
+
+
+@router.post("/{agent_id}/message-agent")
+async def message_agent(agent_id: int, data: AgentMsgIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import execute_skill
+    a = _get_owned(agent_id, user, db)
+    ensure_credits(db, user.id)
+    return await execute_skill(db, a, user, "message_agent", data.model_dump())
+
+
+@router.get("/{agent_id}/messages")
+def list_agent_messages(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    a = _get_owned(agent_id, user, db)
+    rows = (
+        db.query(models.AgentMessage)
+        .filter(
+            models.AgentMessage.user_id == user.id,
+            ((models.AgentMessage.from_agent_id == a.id) | (models.AgentMessage.to_agent_id == a.id)),
+        )
+        .order_by(models.AgentMessage.id.desc())
+        .limit(80)
+        .all()
+    )
+    out = []
+    for m in rows:
+        fa = db.get(models.Agent, m.from_agent_id)
+        ta = db.get(models.Agent, m.to_agent_id)
+        out.append({
+            "id": m.id,
+            "from_agent_id": m.from_agent_id,
+            "from_name": fa.name if fa else "?",
+            "to_agent_id": m.to_agent_id,
+            "to_name": ta.name if ta else "?",
+            "thread_key": m.thread_key,
+            "content": m.content,
+            "status": m.status,
+            "created_at": m.created_at,
+        })
+    return {"messages": out}
+
+
+@router.get("/{agent_id}/memory")
+def list_memory(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    a = _get_owned(agent_id, user, db)
+    rows = (
+        db.query(models.AgentMemory)
+        .filter_by(agent_id=a.id)
+        .order_by(models.AgentMemory.id.desc())
+        .limit(100)
+        .all()
+    )
+    return {
+        "memories": [
+            {
+                "id": m.id,
+                "kind": m.kind,
+                "title": m.title,
+                "content": m.content,
+                "tags": m.tags,
+                "knowledge_file_id": m.knowledge_file_id,
+                "created_at": m.created_at,
+            }
+            for m in rows
+        ]
+    }
+
+
+@router.post("/{agent_id}/memory")
+async def save_memory(agent_id: int, data: MemoryIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_skills import execute_skill
+    a = _get_owned(agent_id, user, db)
+    if data.save_to_training:
+        return await execute_skill(
+            db, a, user, "save_training",
+            {"title": data.title, "content": data.content, "tags": data.tags},
+        )
+    return await execute_skill(
+        db, a, user, "save_memory",
+        {"title": data.title, "content": data.content, "kind": data.kind, "tags": data.tags},
+    )
+
+
+@router.delete("/{agent_id}/memory/{memory_id}")
+def delete_memory(agent_id: int, memory_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    a = _get_owned(agent_id, user, db)
+    m = db.get(models.AgentMemory, memory_id)
+    if not m or m.agent_id != a.id:
+        raise HTTPException(404, "Memory not found")
+    db.delete(m)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/{agent_id}/chat")
 async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     a = _get_owned(agent_id, user, db)
@@ -772,33 +929,57 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         .order_by(models.Message.id)
         .all()
     )
+    from ..agent_skills import run_skills_from_text
+    from ..live_ops import emit_ops
+
     system = build_agent_system_prompt(db, a)
     llm_messages = [{"role": "user", "content": system}]
     for m in history[-16:]:
         llm_messages.append({"role": m.role if m.role in ("user", "assistant") else "user", "content": m.content})
+
+    await emit_ops(
+        user.id, kind="action", status="running",
+        title=f"{a.name} thinking", detail=(text or "")[:200],
+        agent_id=a.id, db=db,
+    )
 
     creds = credentials_for_user(db, user.id)
     reply = ""
     async for chunk in stream_completion(llm_messages, model, mode, credentials=creds):
         reply += chunk
     reply = reply.strip()
-    db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
+
+    clean_reply, skill_results = await run_skills_from_text(db, a, user, reply)
+    if skill_results:
+        summary = "; ".join(
+            f"{r.get('skill')}: {r.get('message') or r.get('error')}" for r in skill_results
+        )
+        if summary:
+            clean_reply = (clean_reply + f"\n\n— Skills: {summary}").strip()
+
+    db.add(models.Message(conversation_id=conv.id, role="assistant", content=clean_reply or reply))
     db.commit()
 
     inp = sum(estimate_tokens(m["content"]) for m in llm_messages)
-    out = estimate_tokens(reply)
+    out = estimate_tokens(clean_reply or reply)
     charged = charge_usage(db, user, model, inp, out)
     await manager.broadcast(f"tokens:{user.id}", {
         "event": "usage", "tokens": charged["tokens"], "cost": charged["cost"], "model": model,
         "tokens_used_period": charged.get("tokens_used_period"),
     })
     await log_activity(a.id, user.id, "action", f"Replied to a direct chat message")
+    await emit_ops(
+        user.id, kind="action", status="done",
+        title=f"{a.name} replied",
+        detail=(clean_reply or reply)[:240],
+        agent_id=a.id, db=db,
+    )
     return {
-        "reply": reply,
+        "reply": clean_reply or reply,
         "tokens": charged["tokens"],
         "cost": charged["cost"],
         "conversation_id": conv.id,
-        # Best-effort from selected model + whether user/platform keys exist (not actual fallback path)
+        "skills": skill_results,
         "provider_hint": provider_hint(model, creds),
     }
 

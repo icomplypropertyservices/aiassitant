@@ -3,6 +3,7 @@ import {
   Card, Tabs, Button, Space, Tag, Typography, Input, List, Timeline, Form, Select,
   message, Spin, Empty, Modal, Descriptions, Switch, Popconfirm, Badge, Divider,
 } from 'antd'
+// Switch + Divider used by Skills / Data tabs
 import {
   ArrowLeftOutlined, SendOutlined, PauseCircleOutlined, PlayCircleOutlined,
   ThunderboltOutlined, CopyOutlined, DeleteOutlined, BulbOutlined, MailOutlined,
@@ -60,6 +61,14 @@ export default function AgentDetail() {
   )
   const [agentApps, setAgentApps] = useState([])
   const [agentTraining, setAgentTraining] = useState([])
+  const [skills, setSkills] = useState([])
+  const [memories, setMemories] = useState([])
+  const [agentMsgs, setAgentMsgs] = useState([])
+  const [humans, setHumans] = useState([])
+  const [skillBusy, setSkillBusy] = useState(false)
+  const [memForm] = Form.useForm()
+  const [a2aForm] = Form.useForm()
+  const [spawnForm] = Form.useForm()
   const [hierForm] = Form.useForm()
   const [delegateForm] = Form.useForm()
   const wsRef = useRef(null)
@@ -67,6 +76,13 @@ export default function AgentDetail() {
   const activityWs = useRef(null)
   const speakRepliesRef = useRef(speakReplies)
   speakRepliesRef.current = speakReplies
+
+  const loadSkillsExtra = () => {
+    api(`/agents/${id}/skills`).then((r) => setSkills(r.skills || [])).catch(() => setSkills([]))
+    api(`/agents/${id}/memory`).then((r) => setMemories(r.memories || [])).catch(() => setMemories([]))
+    api(`/agents/${id}/messages`).then((r) => setAgentMsgs(r.messages || [])).catch(() => setAgentMsgs([]))
+    api('/humans/').then((r) => setHumans(r.humans || [])).catch(() => setHumans([]))
+  }
 
   const load = () => {
     setLoading(true)
@@ -98,6 +114,7 @@ export default function AgentDetail() {
             if (r.apps?.length) setAgentApps(r.apps)
           })
           .catch(() => setAgentTraining([]))
+        loadSkillsExtra()
       })
       .catch(e => { message.error(e.message); nav('/agents') })
       .finally(() => setLoading(false))
@@ -443,6 +460,238 @@ export default function AgentDetail() {
                   <Typography.Text type="secondary" style={{ fontSize: 11, marginTop: 6, display: 'block' }}>
                     Voice: click the mic and speak — your words become a message. Turn on “Speak” to hear replies aloud (Chrome/Edge recommended).
                   </Typography.Text>
+                </div>
+              ),
+            },
+            {
+              key: 'skills',
+              label: 'Skills',
+              children: (
+                <div>
+                  <Typography.Paragraph type="secondary">
+                    Skills let this agent spawn teammates, message other agents, use connected apps, assign humans, and save data to training. Enable skills below; chat may emit <Typography.Text code>```skill</Typography.Text> blocks automatically.
+                  </Typography.Paragraph>
+                  <List
+                    dataSource={skills}
+                    locale={{ emptyText: 'Loading skills…' }}
+                    renderItem={(s) => (
+                      <List.Item
+                        actions={[
+                          <Switch
+                            key="en"
+                            checked={!!s.enabled}
+                            disabled={!s.role_allowed}
+                            onChange={async (checked) => {
+                              const enabled = skills
+                                .filter((x) => (x.id === s.id ? checked : x.enabled))
+                                .map((x) => x.id)
+                              try {
+                                const r = await api(`/agents/${id}/skills`, { method: 'PUT', body: { enabled } })
+                                setSkills(r.skills || [])
+                                message.success('Skills updated')
+                              } catch (e) { message.error(e.message) }
+                            }}
+                          />,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={<Space><ThunderboltOutlined /><span>{s.name}</span><Tag>{s.id}</Tag>{!s.role_allowed && <Tag color="orange">role blocked</Tag>}</Space>}
+                          description={s.description}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                  <Divider />
+                  <Typography.Title level={5}>Spawn agent</Typography.Title>
+                  <Form form={spawnForm} layout="inline" onFinish={async (v) => {
+                    setSkillBusy(true)
+                    try {
+                      const r = await api(`/agents/${id}/spawn`, { method: 'POST', body: v })
+                      message.success(r.message || 'Spawned')
+                      spawnForm.resetFields()
+                      load()
+                    } catch (e) { message.error(e.message) }
+                    finally { setSkillBusy(false) }
+                  }}>
+                    <Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Name" /></Form.Item>
+                    <Form.Item name="template_type" initialValue="custom"><Input placeholder="template type" /></Form.Item>
+                    <Form.Item name="hierarchy_role" initialValue="member">
+                      <Select style={{ width: 120 }} options={[
+                        { value: 'member', label: 'Member' },
+                        { value: 'specialist', label: 'Specialist' },
+                        { value: 'lead', label: 'Lead' },
+                      ]} />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" loading={skillBusy} icon={<RobotOutlined />}>Spawn</Button>
+                  </Form>
+                  <Divider />
+                  <Typography.Title level={5}>Use connected app</Typography.Title>
+                  <Space wrap>
+                    {(agentApps || []).map((c) => (
+                      <Button
+                        key={c.id}
+                        loading={skillBusy}
+                        onClick={async () => {
+                          setSkillBusy(true)
+                          try {
+                            const r = await api(`/agents/${id}/skills/run`, {
+                              method: 'POST',
+                              body: { skill: 'use_app', args: { app_id: c.app_id, action: 'status' } },
+                            })
+                            if (r.ok) message.success(r.message || `${c.app_name} OK`)
+                            else message.error(r.error || 'App action failed')
+                          } catch (e) { message.error(e.message) }
+                          finally { setSkillBusy(false) }
+                        }}
+                      >
+                        Test {c.app_name || c.app_id}
+                      </Button>
+                    ))}
+                    {!agentApps?.length && <Typography.Text type="secondary">Link apps in Settings → Connected apps, then allocate to this agent.</Typography.Text>}
+                  </Space>
+                  <Divider />
+                  <Typography.Title level={5}>Assign human</Typography.Title>
+                  <Space wrap>
+                    {humans.filter((h) => h.status === 'active').map((h) => (
+                      <Button
+                        key={h.id}
+                        onClick={async () => {
+                          const title = window.prompt(`Task title for ${h.name}`, 'Please handle this work item')
+                          if (!title) return
+                          setSkillBusy(true)
+                          try {
+                            const r = await api(`/agents/${id}/skills/run`, {
+                              method: 'POST',
+                              body: { skill: 'assign_human', args: { human_id: h.id, title, description: title } },
+                            })
+                            if (r.ok) message.success(r.message)
+                            else message.error(r.error)
+                          } catch (e) { message.error(e.message) }
+                          finally { setSkillBusy(false) }
+                        }}
+                      >
+                        <TeamOutlined /> {h.name}
+                      </Button>
+                    ))}
+                    {!humans.length && <Button type="link" onClick={() => nav('/humans')}>Add humans</Button>}
+                  </Space>
+                </div>
+              ),
+            },
+            {
+              key: 'memory',
+              label: `Data (${memories.length})`,
+              children: (
+                <div>
+                  <Typography.Paragraph type="secondary">
+                    Agent data vault — notes, facts, deliverables. Optionally promote into the Training library.
+                  </Typography.Paragraph>
+                  <Form
+                    form={memForm}
+                    layout="vertical"
+                    onFinish={async (v) => {
+                      try {
+                        const r = await api(`/agents/${id}/memory`, { method: 'POST', body: v })
+                        message.success(r.message || 'Saved')
+                        memForm.resetFields()
+                        loadSkillsExtra()
+                      } catch (e) { message.error(e.message) }
+                    }}
+                  >
+                    <Form.Item name="title" label="Title"><Input placeholder="Optional title" /></Form.Item>
+                    <Form.Item name="content" label="Content" rules={[{ required: true }]}>
+                      <Input.TextArea rows={4} placeholder="Data this agent should remember…" />
+                    </Form.Item>
+                    <Form.Item name="kind" label="Kind" initialValue="note">
+                      <Select options={[
+                        { value: 'note', label: 'Note' },
+                        { value: 'fact', label: 'Fact' },
+                        { value: 'deliverable', label: 'Deliverable' },
+                        { value: 'crm', label: 'CRM' },
+                      ]} />
+                    </Form.Item>
+                    <Form.Item name="tags" label="Tags"><Input placeholder="comma,separated" /></Form.Item>
+                    <Form.Item name="save_to_training" valuePropName="checked" initialValue={false}>
+                      <Switch checkedChildren="Also save to Training" unCheckedChildren="Vault only" />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit">Save data</Button>
+                  </Form>
+                  <Divider />
+                  <List
+                    dataSource={memories}
+                    locale={{ emptyText: 'No saved data yet' }}
+                    renderItem={(m) => (
+                      <List.Item
+                        actions={[
+                          <Popconfirm key="d" title="Delete?" onConfirm={async () => {
+                            await api(`/agents/${id}/memory/${m.id}`, { method: 'DELETE' })
+                            loadSkillsExtra()
+                          }}><Button size="small" danger>Delete</Button></Popconfirm>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={<Space><Tag>{m.kind}</Tag>{m.title || 'Untitled'}{m.knowledge_file_id && <Tag color="blue">in training</Tag>}</Space>}
+                          description={<div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: 'a2a',
+              label: 'Agent chat',
+              children: (
+                <div>
+                  <Typography.Paragraph type="secondary">
+                    Converse with other agents. Messages are stored and can trigger an auto-reply from the target agent.
+                  </Typography.Paragraph>
+                  <Form
+                    form={a2aForm}
+                    layout="vertical"
+                    onFinish={async (v) => {
+                      setSkillBusy(true)
+                      try {
+                        const r = await api(`/agents/${id}/message-agent`, { method: 'POST', body: { ...v, expect_reply: true } })
+                        if (r.ok) {
+                          message.success(r.message)
+                          if (r.reply) message.info(`Reply: ${String(r.reply).slice(0, 120)}…`)
+                        } else message.error(r.error)
+                        a2aForm.resetFields(['message'])
+                        loadSkillsExtra()
+                      } catch (e) { message.error(e.message) }
+                      finally { setSkillBusy(false) }
+                    }}
+                  >
+                    <Form.Item name="to_agent_id" label="To agent" rules={[{ required: true }]}>
+                      <Select
+                        showSearch
+                        optionFilterProp="label"
+                        options={allAgents.filter((a) => String(a.id) !== String(id)).map((a) => ({
+                          value: a.id,
+                          label: `${a.name} (${a.hierarchy_role || 'member'})`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <Form.Item name="message" label="Message" rules={[{ required: true }]}>
+                      <Input.TextArea rows={3} placeholder="Internal instruction or question…" />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" loading={skillBusy} icon={<MessageOutlined />}>Send to agent</Button>
+                  </Form>
+                  <Divider />
+                  <List
+                    dataSource={agentMsgs}
+                    locale={{ emptyText: 'No agent-to-agent messages yet' }}
+                    renderItem={(m) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={<Space><Tag color="blue">{m.from_name}</Tag>→<Tag color="purple">{m.to_name}</Tag></Space>}
+                          description={<div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>}
+                        />
+                      </List.Item>
+                    )}
+                  />
                 </div>
               ),
             },

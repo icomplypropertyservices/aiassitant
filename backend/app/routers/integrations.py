@@ -253,6 +253,38 @@ async def test_connection(connection_id: int, db: Session = Depends(get_db), use
     return {"probe": probe, "connection": connection_out(row, db)}
 
 
+class ActionIn(BaseModel):
+    action: str = "status"
+    payload: dict = Field(default_factory=dict)
+
+
+@router.post("/connections/{connection_id}/action")
+async def run_connection_action(
+    connection_id: int,
+    data: ActionIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Execute a live action against a connected app (fully wired handlers)."""
+    from ..integration_actions import run_app_action
+    from ..live_ops import emit_ops
+
+    row = db.get(models.IntegrationConnection, connection_id)
+    if not row or row.user_id != user.id:
+        raise HTTPException(404, "Connection not found")
+    result = await run_app_action(row, data.action, data.payload or {})
+    await emit_ops(
+        user.id,
+        kind="app",
+        status="done" if result.get("ok") else "failed",
+        title=f"{row.app_id}:{data.action}",
+        detail=result.get("message") or result.get("error") or "",
+        payload={"connection_id": row.id, "result": result},
+        db=db,
+    )
+    return result
+
+
 @router.delete("/connections/{connection_id}")
 def delete_connection(connection_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     row = db.get(models.IntegrationConnection, connection_id)
@@ -406,13 +438,30 @@ def oauth_start(
     }
     if scopes:
         params["scope"] = scopes
-    # Google extras
-    if "google" in app["id"] or app["id"] in ("gmail", "google_sheets", "google_business", "google"):
+    # Google / YouTube extras
+    if app["id"] in (
+        "gmail", "google_sheets", "google_business", "google", "youtube",
+    ) or "google" in app["id"]:
         params["access_type"] = "offline"
         params["prompt"] = "consent"
+        params["include_granted_scopes"] = "true"
     # Notion
     if app["id"] == "notion":
         params["owner"] = "user"
+    # Microsoft
+    if app["id"] == "microsoft":
+        params["response_mode"] = "query"
+    # LinkedIn
+    if app["id"] == "linkedin":
+        params["response_type"] = "code"
+    # Meta / Instagram use client_id as app id
+    if app["id"] in ("meta", "instagram"):
+        params["client_id"] = client_id
+    # X (Twitter) OAuth 2.0 with PKCE-ish: still send standard code flow when confidential client
+    if app["id"] == "x":
+        params["code_challenge"] = "challenge"
+        params["code_challenge_method"] = "plain"
+        params["scope"] = scopes.replace(",", " ") if scopes else params.get("scope")
 
     # Slack uses scope differently (user vs bot) — keep simple
     if app["id"] == "slack":
@@ -501,8 +550,21 @@ async def oauth_callback(
                         "redirect_uri": redirect_uri,
                     },
                 )
+            elif app_id == "x":
+                r = await client.post(
+                    token_url,
+                    data={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "code": code,
+                        "redirect_uri": redirect_uri,
+                        "grant_type": "authorization_code",
+                        "code_verifier": "challenge",
+                    },
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
             else:
-                # Google, HubSpot, etc. — form token exchange
+                # Google, HubSpot, LinkedIn, Meta, Microsoft, etc. — form token exchange
                 r = await client.post(
                     token_url,
                     data={

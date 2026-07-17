@@ -448,7 +448,7 @@ export default function Settings() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Connect business apps your agents can use"
+        message="Connect business & social apps your agents can use"
         description={
           <>
             Connect Shopify, Google, Slack, HubSpot, and more with <strong>OAuth</strong> (when configured on the server)

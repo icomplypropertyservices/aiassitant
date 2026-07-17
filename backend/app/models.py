@@ -118,12 +118,16 @@ class TokenUsage(Base):
 
 
 class Task(Base):
-    """Tasks under a project (optionally run by an agent)."""
+    """Tasks under a project (optionally run by an agent or assigned to a human)."""
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    # When set, work is allocated to a human teammate (agents may still assist)
+    human_id = Column(Integer, ForeignKey("humans.id"), nullable=True, index=True)
+    # agent | human | unassigned
+    assignee_type = Column(String, default="agent")
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     title = Column(String, default="")
     description = Column(Text)
@@ -293,3 +297,84 @@ class AgentProgram(Base):
     policy_json = Column(Text, default="{}")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Human(Base):
+    """Human teammates who can receive allocated work from agents/orchestrator."""
+    __tablename__ = "humans"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    email = Column(String, default="")
+    name = Column(String, nullable=False)
+    role_title = Column(String, default="")  # e.g. Sales Manager
+    skills = Column(Text, default="")  # free text / tags
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    # active | away | offline
+    status = Column(String, default="active")
+    capacity = Column(Integer, default=5)  # open work items preferred max
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentMemory(Base):
+    """Structured data agents save for themselves (facts, CRM notes, deliverables)."""
+    __tablename__ = "agent_memories"
+    id = Column(Integer, primary_key=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # note | fact | deliverable | training_candidate | crm | other
+    kind = Column(String, default="note")
+    title = Column(String, default="")
+    content = Column(Text, default="")
+    tags = Column(String, default="")
+    # optional link when promoted into training library
+    knowledge_file_id = Column(Integer, ForeignKey("knowledge_files.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentMessage(Base):
+    """Agent-to-agent conversation messages."""
+    __tablename__ = "agent_messages"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    from_agent_id = Column(Integer, ForeignKey("agents.id"), index=True, nullable=False)
+    to_agent_id = Column(Integer, ForeignKey("agents.id"), index=True, nullable=False)
+    # thread key = min(id)-max(id) pair or explicit thread id
+    thread_key = Column(String, index=True, default="")
+    content = Column(Text, default="")
+    # open | acknowledged | closed
+    status = Column(String, default="open")
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LiveOpsEvent(Base):
+    """Real-time plan/action stream for the live banner + ops visual."""
+    __tablename__ = "live_ops_events"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # plan | step | action | skill | agent | human | app | system
+    kind = Column(String, default="action", index=True)
+    # queued | running | done | failed | info
+    status = Column(String, default="info")
+    title = Column(String, default="")
+    detail = Column(Text, default="")
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    human_id = Column(Integer, ForeignKey("humans.id"), nullable=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    plan_id = Column(String, default="", index=True)  # groups steps
+    payload_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgentSkillState(Base):
+    """Per-agent enabled skills (JSON list). Missing row = all default skills enabled."""
+    __tablename__ = "agent_skill_states"
+    id = Column(Integer, primary_key=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), unique=True, nullable=False, index=True)
+    # JSON list of skill ids enabled
+    enabled_json = Column(Text, default="[]")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

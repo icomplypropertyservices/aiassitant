@@ -11,7 +11,10 @@ from .database import Base, engine, SessionLocal
 from . import models, config
 from .auth_utils import hash_password, get_current_user
 from .ws import manager
-from .routers import auth, templates, agents, chat, billing, dashboard, admin, org, keys, integrations, training
+from .routers import (
+    auth, templates, agents, chat, billing, dashboard, admin, org, keys,
+    integrations, training, humans, ops,
+)
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
 IDLE_WORK = [
@@ -153,6 +156,8 @@ async def lifespan(app: FastAPI):
                     add("tasks", "priority", "TEXT DEFAULT 'medium'")
                     add("tasks", "labels", "TEXT DEFAULT ''")
                     add("tasks", "updated_at", "DATETIME")
+                    add("tasks", "human_id", "INTEGER")
+                    add("tasks", "assignee_type", "TEXT DEFAULT 'agent'")
                 add("users", "subscription_active", "BOOLEAN DEFAULT 0")
                 add("users", "subscription_expires_at", "DATETIME")
                 add("balances", "tokens_included", "INTEGER DEFAULT 0")
@@ -202,7 +207,7 @@ app.add_middleware(
 for r in (
     auth.router, templates.router, agents.router, chat.router,
     billing.router, dashboard.router, admin.router, org.router, keys.router,
-    integrations.router, training.router,
+    integrations.router, training.router, humans.router, ops.router,
 ):
     app.include_router(r)
 

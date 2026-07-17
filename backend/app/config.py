@@ -54,26 +54,28 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 XAI_API_KEY = os.getenv("XAI_API_KEY", "")
 XAI_BASE_URL = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1")
-XAI_MODEL_FAST = os.getenv("XAI_MODEL_FAST", "grok-3-mini")
-XAI_MODEL_QUALITY = os.getenv("XAI_MODEL_QUALITY", "grok-3")
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL_FAST = os.getenv("OLLAMA_MODEL_FAST", "llama3.2")
-OLLAMA_MODEL_QUALITY = os.getenv("OLLAMA_MODEL_QUALITY", "llama3.1:8b")
-# Qwen fleet on VPS — set these to whatever you `ollama pull` on the box
-OLLAMA_MODEL_QWEN_FAST = os.getenv("OLLAMA_MODEL_QWEN_FAST", "qwen2.5:7b")
-OLLAMA_MODEL_QWEN_7B = os.getenv("OLLAMA_MODEL_QWEN_7B", "qwen2.5:7b")
-OLLAMA_MODEL_QWEN_14B = os.getenv("OLLAMA_MODEL_QWEN_14B", "qwen2.5:14b")
-OLLAMA_MODEL_QWEN_32B = os.getenv("OLLAMA_MODEL_QWEN_32B", "qwen2.5:32b")
-OLLAMA_MODEL_QWEN_CODER = os.getenv("OLLAMA_MODEL_QWEN_CODER", "qwen2.5-coder:32b")
+# xAI Grok model ids (must exist on https://api.x.ai/v1/models for your key)
+XAI_MODEL_FAST = os.getenv("XAI_MODEL_FAST", "grok-4.20-0309-non-reasoning")
+XAI_MODEL_QUALITY = os.getenv("XAI_MODEL_QUALITY", "grok-4.5")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+# Defaults match a basic local Ollama install (override on VPS tomorrow)
+OLLAMA_MODEL_FAST = os.getenv("OLLAMA_MODEL_FAST", "qwen2.5:3b")
+OLLAMA_MODEL_QUALITY = os.getenv("OLLAMA_MODEL_QUALITY", "deepseek-r1:8b")
+# Qwen fleet — map to tags you actually `ollama pull`
+OLLAMA_MODEL_QWEN_FAST = os.getenv("OLLAMA_MODEL_QWEN_FAST", "qwen2.5:3b")
+OLLAMA_MODEL_QWEN_7B = os.getenv("OLLAMA_MODEL_QWEN_7B", "qwen2.5:3b")
+OLLAMA_MODEL_QWEN_14B = os.getenv("OLLAMA_MODEL_QWEN_14B", "qwen2.5:3b")
+OLLAMA_MODEL_QWEN_32B = os.getenv("OLLAMA_MODEL_QWEN_32B", "qwen3-coder:30b")
+OLLAMA_MODEL_QWEN_CODER = os.getenv("OLLAMA_MODEL_QWEN_CODER", "qwen2.5-coder:7b")
 OLLAMA_MODEL_QWEN_CODER_7B = os.getenv("OLLAMA_MODEL_QWEN_CODER_7B", "qwen2.5-coder:7b")
-OLLAMA_MODEL_QWEN_CODER_14B = os.getenv("OLLAMA_MODEL_QWEN_CODER_14B", "qwen2.5-coder:14b")
-OLLAMA_MODEL_QWEN_CODER_32B = os.getenv("OLLAMA_MODEL_QWEN_CODER_32B", "qwen2.5-coder:32b")
+OLLAMA_MODEL_QWEN_CODER_14B = os.getenv("OLLAMA_MODEL_QWEN_CODER_14B", "qwen2.5-coder:7b")
+OLLAMA_MODEL_QWEN_CODER_32B = os.getenv("OLLAMA_MODEL_QWEN_CODER_32B", "qwen3-coder:30b")
 OLLAMA_MODEL_QWEN_LARGE = os.getenv("OLLAMA_MODEL_QWEN_LARGE", "qwen2.5:72b")
 OLLAMA_MODEL_QWEN_72B = os.getenv("OLLAMA_MODEL_QWEN_72B", "qwen2.5:72b")
 # xAI API model names (override if xAI renames)
-XAI_MODEL_GROK2 = os.getenv("XAI_MODEL_GROK2", "grok-2")
-XAI_MODEL_GROK3 = os.getenv("XAI_MODEL_GROK3", "grok-3")
-XAI_MODEL_GROK4 = os.getenv("XAI_MODEL_GROK4", "grok-4")
+XAI_MODEL_GROK2 = os.getenv("XAI_MODEL_GROK2", "grok-4.20-0309-non-reasoning")
+XAI_MODEL_GROK3 = os.getenv("XAI_MODEL_GROK3", "grok-4.3")
+XAI_MODEL_GROK4 = os.getenv("XAI_MODEL_GROK4", "grok-4.5")
 
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -111,9 +113,20 @@ def integration_status() -> dict:
     oauth_apps = {
         "shopify": bool(os.getenv("SHOPIFY_CLIENT_ID") and os.getenv("SHOPIFY_CLIENT_SECRET")),
         "google": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
+        "gmail": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
+        "google_sheets": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
+        "google_business": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
+        "youtube": bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
         "slack": bool(os.getenv("SLACK_CLIENT_ID") and os.getenv("SLACK_CLIENT_SECRET")),
         "hubspot": bool(os.getenv("HUBSPOT_CLIENT_ID") and os.getenv("HUBSPOT_CLIENT_SECRET")),
         "notion": bool(os.getenv("NOTION_CLIENT_ID") and os.getenv("NOTION_CLIENT_SECRET")),
+        "x": bool(os.getenv("X_CLIENT_ID") and os.getenv("X_CLIENT_SECRET")),
+        "linkedin": bool(os.getenv("LINKEDIN_CLIENT_ID") and os.getenv("LINKEDIN_CLIENT_SECRET")),
+        "meta": bool(os.getenv("META_APP_ID") and os.getenv("META_APP_SECRET")),
+        "instagram": bool(os.getenv("META_APP_ID") and os.getenv("META_APP_SECRET")),
+        "microsoft": bool(os.getenv("MICROSOFT_CLIENT_ID") and os.getenv("MICROSOFT_CLIENT_SECRET")),
+        "dropbox": bool(os.getenv("DROPBOX_APP_KEY") and os.getenv("DROPBOX_APP_SECRET")),
+        "tiktok": bool(os.getenv("TIKTOK_CLIENT_KEY") and os.getenv("TIKTOK_CLIENT_SECRET")),
     }
     return {
         "environment": APP_ENV,

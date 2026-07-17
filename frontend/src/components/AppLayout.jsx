@@ -4,11 +4,12 @@ import {
   DashboardOutlined, MessageOutlined, RobotOutlined, AppstoreOutlined,
   BarChartOutlined, CreditCardOutlined, SettingOutlined, CrownOutlined,
   LogoutOutlined, ApartmentOutlined, CheckSquareOutlined, ClusterOutlined,
-  BookOutlined,
+  BookOutlined, UserOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Navigate, Link } from 'react-router-dom'
 import { api, getUser, getToken, clearAuth, setAuth, getWsBase } from '../api'
 import TokenMeter from './TokenMeter'
+import LiveOpsBanner from './LiveOpsBanner'
 
 const { Header, Sider, Content } = Layout
 
@@ -77,6 +78,8 @@ export default function AppLayout() {
     { key: '/tasks', icon: <CheckSquareOutlined />, label: 'Tasks board' },
     { key: '/agents', icon: <RobotOutlined />, label: 'Agents' },
     { key: '/hierarchy', icon: <ClusterOutlined />, label: 'Hierarchy' },
+    { key: '/humans', icon: <UserOutlined />, label: 'Humans' },
+    { key: '/ops', icon: <ThunderboltOutlined />, label: 'Live ops' },
     { key: '/chat', icon: <MessageOutlined />, label: 'AI Chat' },
     { key: '/templates', icon: <AppstoreOutlined />, label: 'Templates' },
     { key: '/training', icon: <BookOutlined />, label: 'Training' },
@@ -170,6 +173,7 @@ export default function AppLayout() {
             </Dropdown>
           </div>
         </Header>
+        <LiveOpsBanner />
         {(showTokenHard || showTokenWarn) && (
           <Alert
             type={showTokenHard ? 'error' : 'warning'}

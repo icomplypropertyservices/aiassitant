@@ -16,6 +16,8 @@ import Analytics from './pages/Analytics'
 import Billing from './pages/Billing'
 import Settings from './pages/Settings'
 import Training from './pages/Training'
+import Humans from './pages/Humans'
+import Ops from './pages/Ops'
 import Admin from './pages/Admin'
 
 function Protected({ children }) {
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="hierarchy" element={<Hierarchy />} />
         <Route path="templates" element={<Templates />} />
         <Route path="training" element={<Training />} />
+        <Route path="humans" element={<Humans />} />
+        <Route path="ops" element={<Ops />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="billing" element={<Billing />} />
         <Route path="settings" element={<Settings />} />

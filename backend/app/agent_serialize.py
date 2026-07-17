@@ -14,6 +14,11 @@ def task_dict(t: models.Task, db: Session | None = None) -> dict:
     if t.agent_id and db:
         a = db.get(models.Agent, t.agent_id)
         agent_name = a.name if a else None
+    human_name = None
+    human_id = getattr(t, "human_id", None)
+    if human_id and db:
+        h = db.get(models.Human, human_id)
+        human_name = h.name if h else None
     project_name = None
     if t.project_id and db:
         p = db.get(models.Project, t.project_id)
@@ -28,6 +33,9 @@ def task_dict(t: models.Task, db: Session | None = None) -> dict:
         "result": t.result or "",
         "agent_id": t.agent_id,
         "agent_name": agent_name,
+        "human_id": human_id,
+        "human_name": human_name,
+        "assignee_type": getattr(t, "assignee_type", None) or ("human" if human_id else "agent"),
         "project_id": t.project_id,
         "project_name": project_name,
         "company_id": t.company_id,
