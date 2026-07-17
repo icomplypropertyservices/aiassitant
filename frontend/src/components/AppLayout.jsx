@@ -4,7 +4,7 @@ import {
   DashboardOutlined, MessageOutlined, RobotOutlined, AppstoreOutlined,
   BarChartOutlined, CreditCardOutlined, SettingOutlined, CrownOutlined,
   LogoutOutlined, ApartmentOutlined, CheckSquareOutlined, ClusterOutlined,
-  BookOutlined, UserOutlined, ThunderboltOutlined,
+  BookOutlined, UserOutlined, ThunderboltOutlined, ShopOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation, Navigate, Link } from 'react-router-dom'
 import { api, getUser, getToken, clearAuth, setAuth, getWsBase } from '../api'
@@ -68,13 +68,18 @@ export default function AppLayout() {
     return <Navigate to="/subscribe" replace />
   }
 
-  const path = loc.pathname.startsWith('/agents/') ? '/agents' : loc.pathname
+  const path = loc.pathname.startsWith('/agents/')
+    ? '/agents'
+    : loc.pathname.startsWith('/business')
+      ? '/business'
+      : loc.pathname
   const showTokenWarn = meter && (meter.warn || (meter.usage_percent != null && meter.usage_percent >= 80 && meter.usage_percent < 100))
   const showTokenHard = meter && (meter.hard_block || (meter.usage_percent != null && meter.usage_percent >= 100))
 
   const items = [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/workspace', icon: <ApartmentOutlined />, label: 'Workspace' },
+    { key: '/business', icon: <ShopOutlined />, label: 'Business' },
     { key: '/tasks', icon: <CheckSquareOutlined />, label: 'Tasks board' },
     { key: '/agents', icon: <RobotOutlined />, label: 'Agents' },
     { key: '/hierarchy', icon: <ClusterOutlined />, label: 'Hierarchy' },
@@ -91,6 +96,7 @@ export default function AppLayout() {
 
   const pageLabel = items.find(i => i.key === path)?.label
     || (loc.pathname.startsWith('/agents/') ? 'Agent workspace' : '')
+    || (loc.pathname.startsWith('/business/customers/') ? 'Customer' : '')
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

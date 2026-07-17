@@ -13,7 +13,7 @@ from .auth_utils import hash_password, get_current_user
 from .ws import manager
 from .routers import (
     auth, templates, agents, chat, billing, dashboard, admin, org, keys,
-    integrations, training, humans, ops,
+    integrations, training, humans, ops, business,
 )
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
@@ -207,7 +207,7 @@ app.add_middleware(
 for r in (
     auth.router, templates.router, agents.router, chat.router,
     billing.router, dashboard.router, admin.router, org.router, keys.router,
-    integrations.router, training.router, humans.router, ops.router,
+    integrations.router, training.router, humans.router, ops.router, business.router,
 ):
     app.include_router(r)
 

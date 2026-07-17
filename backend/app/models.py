@@ -378,3 +378,106 @@ class AgentSkillState(Base):
     # JSON list of skill ids enabled
     enabled_json = Column(Text, default="[]")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ── Business CRM ──────────────────────────────────────────────────────────
+
+class Pipeline(Base):
+    """Sales / delivery pipeline (kanban board)."""
+    __tablename__ = "pipelines"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    # sales | support | onboarding | custom
+    kind = Column(String, default="sales")
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PipelineStage(Base):
+    __tablename__ = "pipeline_stages"
+    id = Column(Integer, primary_key=True)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id"), index=True, nullable=False)
+    name = Column(String, nullable=False)
+    # open | won | lost
+    stage_type = Column(String, default="open")
+    color = Column(String, default="#1668dc")
+    position = Column(Integer, default=0)
+    probability = Column(Integer, default=0)  # 0-100 win likelihood
+
+
+class Customer(Base):
+    """Customer / contact / account record."""
+    __tablename__ = "customers"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    # Person
+    name = Column(String, nullable=False)
+    email = Column(String, default="", index=True)
+    phone = Column(String, default="")
+    job_title = Column(String, default="")
+    # Organisation they represent
+    account_name = Column(String, default="")
+    website = Column(String, default="")
+    industry = Column(String, default="")
+    address = Column(Text, default="")
+    city = Column(String, default="")
+    country = Column(String, default="")
+    # CRM fields
+    status = Column(String, default="active")  # active | inactive | churned
+    source = Column(String, default="")  # website | referral | cold | import | agent
+    tags = Column(String, default="")  # comma-separated
+    owner_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True, index=True)
+    owner_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    annual_value = Column(Float, default=0.0)
+    notes = Column(Text, default="")
+    meta_json = Column(Text, default="{}")
+    last_contacted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Deal(Base):
+    """Opportunity sitting in a pipeline stage, linked to a customer."""
+    __tablename__ = "deals"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id"), index=True, nullable=False)
+    stage_id = Column(Integer, ForeignKey("pipeline_stages.id"), index=True, nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    title = Column(String, nullable=False)
+    value = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
+    # open | won | lost
+    status = Column(String, default="open", index=True)
+    priority = Column(String, default="medium")
+    expected_close = Column(DateTime, nullable=True)
+    owner_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    owner_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    position = Column(Integer, default=0)
+    description = Column(Text, default="")
+    lost_reason = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class CustomerActivity(Base):
+    """Notes, calls, emails, stage changes on a customer."""
+    __tablename__ = "customer_activities"
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), index=True, nullable=False)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # note | call | email | meeting | stage | deal | system
+    kind = Column(String, default="note")
+    title = Column(String, default="")
+    body = Column(Text, default="")
+    deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

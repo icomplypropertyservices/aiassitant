@@ -18,6 +18,8 @@ import Settings from './pages/Settings'
 import Training from './pages/Training'
 import Humans from './pages/Humans'
 import Ops from './pages/Ops'
+import Business from './pages/Business'
+import CustomerDetail from './pages/CustomerDetail'
 import Admin from './pages/Admin'
 
 function Protected({ children }) {
@@ -56,6 +58,8 @@ export default function App() {
         <Route path="training" element={<Training />} />
         <Route path="humans" element={<Humans />} />
         <Route path="ops" element={<Ops />} />
+        <Route path="business" element={<Business />} />
+        <Route path="business/customers/:id" element={<CustomerDetail />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="billing" element={<Billing />} />
         <Route path="settings" element={<Settings />} />

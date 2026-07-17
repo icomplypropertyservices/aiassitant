@@ -160,7 +160,7 @@ try:
                 "auth/", "billing/", "agents/", "conversations/", "ws/",
                 "keys/", "org/", "admin/", "integrations/", "training/",
                 "templates/", "dashboard/", "system/", "health", "api/",
-                "humans/", "ops/",
+                "humans/", "ops/", "business/",
             )
             low = (full_path or "").lstrip("/").lower()
             if low == "health" or any(low.startswith(p) for p in api_prefixes):
