@@ -11,6 +11,15 @@ SEED_TEMPLATES = [
       {"name": "escalation", "label": "Escalate to human when…", "placeholder": "Refunds > £500, legal risk, VIP complaints"}],
      "~$2.00 / day"),
 
+    ("Master Designer", "designer",
+     "UI/UX polish guardian: reviews product screens for mobile quality, ChatGPT-like agent chat clarity, "
+     "spacing, hierarchy, and accessibility. Gate releases until polish is acceptable.",
+     [{"name": "brand", "label": "Brand / product name", "placeholder": "AI Business Assistant"},
+      {"name": "tone", "label": "Visual tone", "placeholder": "Clean SaaS, calm blues, high contrast"},
+      {"name": "mobile_first", "label": "Mobile priority", "placeholder": "Touch targets 44px, safe areas, bottom nav"},
+      {"name": "gates", "label": "Ship gates", "placeholder": "Chat must feel like ChatGPT; one agent per page"}],
+     "~$1.20 / day"),
+
     # ── Leadership / hierarchy ────────────────────────────────────
     ("Lead Agent / Team Lead", "lead",
      "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",

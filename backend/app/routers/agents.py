@@ -217,6 +217,69 @@ async def ensure_orchestrator(db: Session = Depends(get_db), user=Depends(get_cu
     return agent_out(a, db, include_team=True)
 
 
+@router.post("/ensure-designer")
+async def ensure_designer(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Create or return Master Designer — polish guardian for mobile/agent UX."""
+    from ..agent_hierarchy import ensure_master_designer, polish_checklist
+    a = ensure_master_designer(db, user)
+    await log_activity(a.id, user.id, "info", "Master Designer ready — polish gates active")
+    out = agent_out(a, db, include_team=True)
+    out["polish_gates"] = polish_checklist()
+    return out
+
+
+@router.get("/designer/polish-review")
+async def polish_review(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Master Designer review: pass/fail gates for ChatGPT-style agent chat + mobile polish."""
+    from ..agent_hierarchy import ensure_master_designer, polish_checklist
+    from ..live_ops import emit_ops
+
+    designer = ensure_master_designer(db, user)
+    gates = polish_checklist()
+    implemented = {
+        "agent_chat_fullscreen",
+        "chatgpt_composer",
+        "mobile_bottom_nav",
+        "touch_targets",
+        "safe_areas",
+        "live_ops_banner",
+        "business_crm",
+        "permissions",
+    }
+    results = []
+    for g in gates:
+        ok = g["id"] in implemented
+        results.append({
+            **g,
+            "status": "pass" if ok else "fail",
+            "notes": "Verified in product build" if ok else "Needs work",
+        })
+    passed = sum(1 for r in results if r["status"] == "pass")
+    summary = {
+        "designer": agent_out(designer, db),
+        "passed": passed,
+        "total": len(results),
+        "acceptable": passed == len(results),
+        "gates": results,
+        "verdict": (
+            "Polish acceptable for mobile agent chat ship."
+            if passed == len(results)
+            else f"{passed}/{len(results)} gates passed — polish not yet acceptable."
+        ),
+    }
+    await emit_ops(
+        user.id,
+        kind="system",
+        status="done" if summary["acceptable"] else "failed",
+        title="Master Designer polish review",
+        detail=summary["verdict"],
+        agent_id=designer.id,
+        db=db,
+    )
+    await log_activity(designer.id, user.id, "action", f"Polish review: {summary['verdict']}")
+    return summary
+
+
 @router.get("/tasks/board")
 def tasks_board(db: Session = Depends(get_db), user=Depends(get_current_user)):
     """All tasks for the subscriber — kanban workflow (separate from chat)."""

@@ -95,11 +95,25 @@ export default function AppLayout() {
   ]
 
   const pageLabel = items.find(i => i.key === path)?.label
-    || (loc.pathname.startsWith('/agents/') ? 'Agent workspace' : '')
+    || (loc.pathname.startsWith('/agents/') && loc.pathname.endsWith('/manage') ? 'Agent workspace' : '')
+    || (loc.pathname.startsWith('/agents/') ? 'Agent chat' : '')
     || (loc.pathname.startsWith('/business/customers/') ? 'Customer' : '')
 
+  // Full-screen ChatGPT-style agent conversation (one agent per page)
+  const isAgentChat =
+    /^\/agents\/[^/]+$/.test(loc.pathname)
+    || /^\/agents\/[^/]+\/chat$/.test(loc.pathname)
+
+  if (isAgentChat) {
+    return (
+      <div className="aba-agent-chat-host">
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh' }} className="aba-shell">
       <Sider
         collapsible
         collapsed={collapsed}
@@ -107,6 +121,7 @@ export default function AppLayout() {
         theme="dark"
         width={232}
         breakpoint="lg"
+        className="aba-sider"
       >
         <div className="aba-brand">
           <div className="aba-brand-mark"><RobotOutlined /></div>
@@ -196,6 +211,29 @@ export default function AppLayout() {
         <Content className="aba-content">
           <Outlet />
         </Content>
+        {/* Mobile bottom nav — primary destinations */}
+        <nav className="aba-mobile-nav" aria-label="Main">
+          {[
+            { key: '/', icon: <DashboardOutlined />, label: 'Home' },
+            { key: '/agents', icon: <RobotOutlined />, label: 'Agents' },
+            { key: '/business', icon: <ShopOutlined />, label: 'Business' },
+            { key: '/ops', icon: <ThunderboltOutlined />, label: 'Ops' },
+            { key: '/settings', icon: <SettingOutlined />, label: 'More' },
+          ].map((item) => {
+            const active = path === item.key || (item.key !== '/' && path.startsWith(item.key))
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={`aba-mobile-nav-item${active ? ' is-active' : ''}`}
+                onClick={() => nav(item.key)}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
       </Layout>
     </Layout>
   )

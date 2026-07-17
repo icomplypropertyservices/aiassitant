@@ -320,7 +320,8 @@ export default function AgentDetail() {
     <div>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
         <Space wrap>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => nav('/agents')}>Agents</Button>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => nav(`/agents/${id}`)}>Back to chat</Button>
+          <Button type="primary" icon={<MessageOutlined />} onClick={() => nav(`/agents/${id}`)}>Talk</Button>
           <Typography.Title level={4} style={{ margin: 0 }}>{agent.name}</Typography.Title>
           <Tag color={agent.status === 'active' ? 'green' : 'orange'}>{agent.status}</Tag>
           <Tag>{agent.template_type}</Tag>

@@ -9,6 +9,7 @@ import Workspace from './pages/Workspace'
 import Chat from './pages/Chat'
 import Agents from './pages/Agents'
 import AgentDetail from './pages/AgentDetail'
+import AgentChat from './pages/AgentChat'
 import TasksBoard from './pages/TasksBoard'
 import Hierarchy from './pages/Hierarchy'
 import Templates from './pages/Templates'
@@ -52,7 +53,9 @@ export default function App() {
         <Route path="tasks" element={<TasksBoard />} />
         <Route path="chat" element={<Chat />} />
         <Route path="agents" element={<Agents />} />
-        <Route path="agents/:id" element={<AgentDetail />} />
+        <Route path="agents/:id" element={<AgentChat />} />
+        <Route path="agents/:id/chat" element={<AgentChat />} />
+        <Route path="agents/:id/manage" element={<AgentDetail />} />
         <Route path="hierarchy" element={<Hierarchy />} />
         <Route path="templates" element={<Templates />} />
         <Route path="training" element={<Training />} />
