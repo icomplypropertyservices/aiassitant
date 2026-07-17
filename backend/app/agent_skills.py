@@ -198,6 +198,8 @@ async def execute_skill(
     skill_id: str,
     args: dict | None = None,
 ) -> dict[str, Any]:
+    from .permissions import can_execute, can_delegate, can_manage, normalize_permission
+
     args = args or {}
     enabled = enabled_skill_ids(agent, db)
     if skill_id not in enabled and not is_orchestrator(agent):
@@ -210,6 +212,14 @@ async def execute_skill(
     role = normalize_role(agent)
     if role not in (meta.get("roles") or []) and not is_orchestrator(agent):
         return {"ok": False, "error": f"Role '{role}' cannot use skill '{skill_id}'"}
+
+    perm = normalize_permission(getattr(agent, "permission_level", None))
+    if skill_id in ("spawn_agent", "assign_human", "create_task", "message_agent") and not (
+        can_delegate(perm) or is_orchestrator(agent)
+    ):
+        return {"ok": False, "error": f"Permission '{perm}' cannot delegate/spawn — need lead or admin"}
+    if skill_id in ("use_app", "save_memory", "save_training", "announce_plan") and not can_execute(perm):
+        return {"ok": False, "error": f"Permission '{perm}' cannot execute skills"}
 
     await emit_ops(
         user.id,

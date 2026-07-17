@@ -66,10 +66,20 @@ def build_agent_system_prompt(
     from .agent_skills import skills_prompt_block
 
     skills = skills_prompt_block(agent, db)
+    perm = getattr(agent, "permission_level", None) or "operator"
+    esc_when = getattr(agent, "escalate_when", None) or "on_failure"
+    esc_to = getattr(agent, "escalate_to", None) or "parent"
+    esc_reason = (getattr(agent, "escalate_reason", None) or "").strip()
+    policy = (
+        f" Permission level: {perm}. "
+        f"Escalate when: {esc_when}"
+        + (f" ({esc_reason})" if esc_reason else "")
+        + f". Escalate to: {esc_to}."
+    )
     base = (
         f"You are {agent.name}, an AI business agent. "
         f"Personality: {agent.personality}. "
-        f"Template type: {agent.template_type}.{cfg} {team}\n{train}"
+        f"Template type: {agent.template_type}.{cfg} {team}{policy}\n{train}"
     )
     if skills:
         base = f"{base}\n\n{skills}"

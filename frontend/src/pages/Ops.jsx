@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Typography, Tag, Timeline, Statistic, Space, Button, Empty, Spin, List, Form, Input, message,
+  Switch, InputNumber, Alert, Divider,
 } from 'antd'
 import {
   RobotOutlined, UserOutlined, ThunderboltOutlined, ReloadOutlined, ClusterOutlined,
-  CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined,
+  CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getToken, getWsBase } from '../api'
@@ -18,16 +19,50 @@ export default function Ops() {
   const [loading, setLoading] = useState(true)
   const [planForm] = Form.useForm()
   const [publishing, setPublishing] = useState(false)
+  const [autonomy, setAutonomy] = useState(null)
+  const [escalations, setEscalations] = useState([])
+  const [ticking, setTicking] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const r = await api('/ops/visual')
+      const [r, a, esc] = await Promise.all([
+        api('/ops/visual'),
+        api('/ops/autonomy').catch(() => null),
+        api('/ops/escalations').catch(() => ({ escalations: [] })),
+      ])
       setSnap(r)
+      setAutonomy(a)
+      setEscalations(esc.escalations || [])
     } catch (e) {
       message.error(e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const saveAutonomy = async (patch) => {
+    try {
+      const r = await api('/ops/autonomy', { method: 'PUT', body: patch })
+      setAutonomy((prev) => ({ ...prev, ...r }))
+      message.success('Autonomy settings saved')
+    } catch (e) {
+      message.error(e.message)
+    }
+  }
+
+  const runTick = async () => {
+    setTicking(true)
+    try {
+      const r = await api('/ops/autonomy/tick', { method: 'POST' })
+      message.success(r.result?.reason === 'autonomy_disabled'
+        ? 'Autonomy is off — enable the switch to self-run'
+        : `Cycle: started ${r.result?.tasks_started || 0}, escalated ${r.result?.escalated || 0}`)
+      load()
+    } catch (e) {
+      message.error(e.message)
+    } finally {
+      setTicking(false)
     }
   }
 
@@ -100,6 +135,45 @@ export default function Ops() {
         </div>
         <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
       </Space>
+
+      <Card style={{ marginBottom: 16, border: '1px solid #91caff', background: '#f0f5ff' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap align="start">
+          <div>
+            <Title level={5} style={{ margin: 0 }}>
+              <PlayCircleOutlined /> System autonomy — runs itself
+            </Title>
+            <Paragraph type="secondary" style={{ marginBottom: 0, maxWidth: 560 }}>
+              When enabled, the workspace processes queued tasks, feeds never-idle agents, and escalates
+              work according to each agent/human permission and “when to escalate” policy.
+            </Paragraph>
+            {autonomy?.last_autonomy_summary && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Last: {autonomy.last_autonomy_run ? new Date(autonomy.last_autonomy_run).toLocaleString() : '—'}
+                {' · '}{autonomy.last_autonomy_summary}
+              </Text>
+            )}
+          </div>
+          <Space wrap>
+            <span>Self-run</span>
+            <Switch
+              checked={!!autonomy?.autonomy_enabled}
+              onChange={(v) => saveAutonomy({ autonomy_enabled: v })}
+            />
+            <span>Stuck after</span>
+            <InputNumber
+              min={5}
+              max={1440}
+              value={autonomy?.task_stuck_minutes || 30}
+              onChange={(v) => v && saveAutonomy({ task_stuck_minutes: v })}
+              addonAfter="min"
+              style={{ width: 120 }}
+            />
+            <Button type="primary" icon={<ThunderboltOutlined />} loading={ticking} onClick={runTick}>
+              Run cycle now
+            </Button>
+          </Space>
+        </Space>
+      </Card>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}><Card><Statistic title="Agents active" value={counts.agents_active || 0} suffix={`/ ${counts.agents || 0}`} prefix={<RobotOutlined />} /></Card></Col>
@@ -229,7 +303,7 @@ export default function Ops() {
             </Form>
           </Card>
 
-          <Card title="Event stream">
+          <Card title="Event stream" style={{ marginBottom: 16 }}>
             <List
               size="small"
               dataSource={events}
@@ -251,6 +325,27 @@ export default function Ops() {
                       </Space>
                     }
                     description={e.detail}
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+
+          <Card title="Escalations">
+            <List
+              size="small"
+              dataSource={escalations}
+              locale={{ emptyText: 'No escalations yet' }}
+              renderItem={(e) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <Space wrap>
+                        <Tag color="orange">{e.reason_code}</Tag>
+                        <span>{e.from_agent || e.from_human || '?'} → {e.to_agent || e.to_human || 'owner'}</span>
+                      </Space>
+                    }
+                    description={e.reason_text}
                   />
                 </List.Item>
               )}

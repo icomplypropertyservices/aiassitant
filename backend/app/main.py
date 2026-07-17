@@ -168,6 +168,11 @@ async def lifespan(app: FastAPI):
                 add("agents", "parent_id", "INTEGER")
                 add("agents", "hierarchy_role", "TEXT DEFAULT 'member'")
                 add("agents", "is_lead", "BOOLEAN DEFAULT 0")
+                add("agents", "permission_level", "TEXT DEFAULT 'operator'")
+                add("agents", "escalate_when", "TEXT DEFAULT 'on_failure'")
+                add("agents", "escalate_reason", "TEXT DEFAULT ''")
+                add("agents", "escalate_to", "TEXT DEFAULT 'parent'")
+                add("agents", "escalate_human_id", "INTEGER")
                 add("token_usage", "company_id", "INTEGER")
                 add("token_usage", "project_id", "INTEGER")
                 add("token_usage", "bill_source", "TEXT DEFAULT 'included'")
@@ -178,16 +183,21 @@ async def lifespan(app: FastAPI):
         seed_db()
     except Exception as e:
         print(f"[startup] seed_db failed: {e}")
-    # Background idle loop is not useful on Vercel serverless cold starts
+    # Background loops: cosmetic idle ticks + full autonomy engine (local only)
     from .async_jobs import is_serverless
+    from .autonomy import autonomy_background_loop
     orch_task = None
+    autonomy_task = None
     if not is_serverless():
         orch_task = asyncio.create_task(idle_activity_loop())
+        autonomy_task = asyncio.create_task(autonomy_background_loop())
     yield
-    if orch_task:
-        orch_task.cancel()
+    for t in (orch_task, autonomy_task):
+        if not t:
+            continue
+        t.cancel()
         try:
-            await orch_task
+            await t
         except asyncio.CancelledError:
             pass
 

@@ -1,4 +1,4 @@
-"""Live ops feed + visual snapshot + WebSocket."""
+"""Live ops feed + visual snapshot + WebSocket + autonomy control."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
@@ -10,6 +10,13 @@ from ..auth_utils import get_current_user, user_from_ws_token
 from ..live_ops import list_ops, ops_snapshot, emit_ops
 from ..ws import manager
 from .. import models
+from ..permissions import catalog as permission_catalog
+from ..autonomy import (
+    get_or_create_settings,
+    settings_out,
+    run_user_cycle,
+    run_global_tick,
+)
 
 router = APIRouter(prefix="/ops", tags=["ops"])
 
@@ -18,6 +25,12 @@ class PlanIn(BaseModel):
     title: str
     steps: list[str] = Field(default_factory=list)
     agent_id: int | None = None
+
+
+class AutonomySettingsIn(BaseModel):
+    autonomy_enabled: bool | None = None
+    autonomy_interval_sec: int | None = None
+    task_stuck_minutes: int | None = None
 
 
 @router.get("/live")
@@ -73,6 +86,85 @@ async def publish_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends
         db, agent, user, "announce_plan",
         {"title": data.title, "steps": data.steps},
     )
+
+
+@router.get("/permissions")
+def permissions_catalog(user=Depends(get_current_user)):
+    """Permission levels + escalate-when options for agents and humans."""
+    return permission_catalog()
+
+
+@router.get("/autonomy")
+def get_autonomy(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    row = get_or_create_settings(db, user.id)
+    return {
+        **settings_out(row),
+        "permissions": permission_catalog(),
+    }
+
+
+@router.put("/autonomy")
+def put_autonomy(data: AutonomySettingsIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    row = get_or_create_settings(db, user.id)
+    if data.autonomy_enabled is not None:
+        row.autonomy_enabled = bool(data.autonomy_enabled)
+    if data.autonomy_interval_sec is not None:
+        row.autonomy_interval_sec = max(15, min(3600, int(data.autonomy_interval_sec)))
+    if data.task_stuck_minutes is not None:
+        row.task_stuck_minutes = max(5, min(24 * 60, int(data.task_stuck_minutes)))
+    db.commit()
+    db.refresh(row)
+    return settings_out(row)
+
+
+@router.post("/autonomy/tick")
+async def autonomy_tick(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Run one self-driving cycle for this workspace (also called by background loop)."""
+    result = await run_user_cycle(db, user)
+    return {"ok": True, "result": result}
+
+
+@router.post("/autonomy/tick-all")
+async def autonomy_tick_all(user=Depends(get_current_user)):
+    """Admin: tick all workspaces (or cron with admin token)."""
+    if user.role != "admin":
+        # Still allow self tick via tick endpoint; tick-all restricted
+        return await run_global_tick()
+    return await run_global_tick()
+
+
+@router.get("/escalations")
+def list_escalations(
+    limit: int = Query(40, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    rows = (
+        db.query(models.EscalationLog)
+        .filter_by(user_id=user.id)
+        .order_by(models.EscalationLog.id.desc())
+        .limit(limit)
+        .all()
+    )
+    out = []
+    for r in rows:
+        fa = db.get(models.Agent, r.from_agent_id) if r.from_agent_id else None
+        ta = db.get(models.Agent, r.to_agent_id) if r.to_agent_id else None
+        fh = db.get(models.Human, r.from_human_id) if r.from_human_id else None
+        th = db.get(models.Human, r.to_human_id) if r.to_human_id else None
+        out.append({
+            "id": r.id,
+            "task_id": r.task_id,
+            "reason_code": r.reason_code,
+            "reason_text": r.reason_text,
+            "status": r.status,
+            "from_agent": fa.name if fa else None,
+            "to_agent": ta.name if ta else None,
+            "from_human": fh.name if fh else None,
+            "to_human": th.name if th else None,
+            "created_at": r.created_at,
+        })
+    return {"escalations": out}
 
 
 @router.websocket("/ws")

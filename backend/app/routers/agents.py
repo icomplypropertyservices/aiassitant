@@ -74,6 +74,11 @@ class AgentIn(BaseModel):
     parent_id: int | None = None
     company_id: int | None = None
     project_id: int | None = None
+    permission_level: str = "operator"
+    escalate_when: str = "on_failure"
+    escalate_reason: str = ""
+    escalate_to: str = "parent"
+    escalate_human_id: int | None = None
 
 class AgentUpdate(BaseModel):
     name: str | None = None
@@ -86,6 +91,11 @@ class AgentUpdate(BaseModel):
     parent_id: int | None = None  # set null by sending 0 or use HierarchyIn
     company_id: int | None = None
     project_id: int | None = None
+    permission_level: str | None = None
+    escalate_when: str | None = None
+    escalate_reason: str | None = None
+    escalate_to: str | None = None
+    escalate_human_id: int | None = None
 
 class HierarchyIn(BaseModel):
     parent_id: int | None = None  # None / omit to clear? use clear_parent
@@ -310,6 +320,11 @@ async def duplicate_agent(agent_id: int, db: Session = Depends(get_db), user=Dep
         parent_id=a.parent_id,
         is_lead=False,
         hierarchy_role="member",
+        permission_level=getattr(a, "permission_level", None) or "operator",
+        escalate_when=getattr(a, "escalate_when", None) or "on_failure",
+        escalate_reason=getattr(a, "escalate_reason", None) or "",
+        escalate_to=getattr(a, "escalate_to", None) or "parent",
+        escalate_human_id=getattr(a, "escalate_human_id", None),
     )
     db.add(clone)
     db.commit()
@@ -358,6 +373,7 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
         if not c or (c.owner_user_id != user.id and user.role != "admin"):
             raise HTTPException(400, "Invalid company")
 
+    from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
     a = models.Agent(
         user_id=user.id, name=data.name, template_type=data.template_type,
         personality=data.personality, model=data.model, idle_mode=data.idle_mode,
@@ -365,6 +381,12 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
         is_lead=is_lead,
         hierarchy_role=role,
         parent_id=parent_id,
+        permission_level=normalize_permission(data.permission_level),
+        escalate_when=normalize_escalate_when(data.escalate_when),
+        escalate_reason=(data.escalate_reason or "").strip(),
+        escalate_to=normalize_escalate_to(data.escalate_to),
+        escalate_human_id=data.escalate_human_id,
+
         company_id=company_id,
         project_id=project_id,
     )
@@ -438,11 +460,22 @@ def _apply_hierarchy(a: models.Agent, db: Session, user, *, parent_id=None, clea
 
 @router.patch("/{agent_id}")
 def update_agent(agent_id: int, data: AgentUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
     a = _get_owned(agent_id, user, db)
     for field in ["name", "personality", "model", "idle_mode"]:
         v = getattr(data, field)
         if v is not None:
             setattr(a, field, v)
+    if data.permission_level is not None:
+        a.permission_level = normalize_permission(data.permission_level)
+    if data.escalate_when is not None:
+        a.escalate_when = normalize_escalate_when(data.escalate_when)
+    if data.escalate_reason is not None:
+        a.escalate_reason = (data.escalate_reason or "").strip()
+    if data.escalate_to is not None:
+        a.escalate_to = normalize_escalate_to(data.escalate_to)
+    if data.escalate_human_id is not None:
+        a.escalate_human_id = data.escalate_human_id or None
     if data.config is not None:
         a.config = json.dumps(data.config)
     if data.parent_id is not None or data.is_lead is not None or data.hierarchy_role is not None:

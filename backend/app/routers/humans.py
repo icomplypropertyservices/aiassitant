@@ -25,6 +25,10 @@ class HumanIn(BaseModel):
     status: str = "active"
     capacity: int = 5
     notes: str = ""
+    permission_level: str = "operator"
+    escalate_when: str = "on_blocked"
+    escalate_reason: str = ""
+    escalate_to: str = "orchestrator"
 
 
 class HumanUpdate(BaseModel):
@@ -37,6 +41,10 @@ class HumanUpdate(BaseModel):
     status: str | None = None
     capacity: int | None = None
     notes: str | None = None
+    permission_level: str | None = None
+    escalate_when: str | None = None
+    escalate_reason: str | None = None
+    escalate_to: str | None = None
 
 
 class AssignIn(BaseModel):
@@ -71,6 +79,10 @@ def _out(h: models.Human, db: Session) -> dict:
         "project_name": pr.name if pr else None,
         "status": h.status,
         "capacity": h.capacity or 5,
+        "permission_level": getattr(h, "permission_level", None) or "operator",
+        "escalate_when": getattr(h, "escalate_when", None) or "on_blocked",
+        "escalate_reason": getattr(h, "escalate_reason", None) or "",
+        "escalate_to": getattr(h, "escalate_to", None) or "orchestrator",
         "notes": h.notes or "",
         "open_tasks": open_n,
         "created_at": h.created_at,
@@ -94,6 +106,7 @@ async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depend
     name = (data.name or "").strip()
     if not name:
         raise HTTPException(400, "name required")
+    from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
     h = models.Human(
         owner_user_id=user.id,
         name=name,
@@ -105,6 +118,10 @@ async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depend
         status=data.status or "active",
         capacity=max(1, int(data.capacity or 5)),
         notes=(data.notes or "").strip(),
+        permission_level=normalize_permission(data.permission_level),
+        escalate_when=normalize_escalate_when(data.escalate_when),
+        escalate_reason=(data.escalate_reason or "").strip(),
+        escalate_to=normalize_escalate_to(data.escalate_to),
     )
     db.add(h)
     db.commit()
@@ -160,6 +177,7 @@ def update_human(
     h = db.get(models.Human, human_id)
     if not h or h.owner_user_id != user.id:
         raise HTTPException(404, "Human not found")
+    from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
     for field in ("name", "email", "role_title", "skills", "status", "notes"):
         val = getattr(data, field)
         if val is not None:
@@ -170,6 +188,14 @@ def update_human(
         h.project_id = data.project_id or None
     if data.capacity is not None:
         h.capacity = max(1, int(data.capacity))
+    if data.permission_level is not None:
+        h.permission_level = normalize_permission(data.permission_level)
+    if data.escalate_when is not None:
+        h.escalate_when = normalize_escalate_when(data.escalate_when)
+    if data.escalate_reason is not None:
+        h.escalate_reason = (data.escalate_reason or "").strip()
+    if data.escalate_to is not None:
+        h.escalate_to = normalize_escalate_to(data.escalate_to)
     h.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(h)

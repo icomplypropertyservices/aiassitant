@@ -79,6 +79,15 @@ class Agent(Base):
     model = Column(String, default="vps-fast")
     status = Column(String, default="active")
     idle_mode = Column(String, default="allow_idle")
+    # Permission: viewer | operator | lead | admin
+    permission_level = Column(String, default="operator")
+    # When to escalate: never | on_failure | on_blocked | high_priority | sla_breach |
+    # customer_vip | value_threshold | always_review | custom
+    escalate_when = Column(String, default="on_failure")
+    escalate_reason = Column(Text, default="")  # free-text / custom rule detail
+    # parent | orchestrator | human | owner
+    escalate_to = Column(String, default="parent")
+    escalate_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
     config = Column(Text, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -313,9 +322,52 @@ class Human(Base):
     # active | away | offline
     status = Column(String, default="active")
     capacity = Column(Integer, default=5)  # open work items preferred max
+    # Permission: viewer | operator | lead | admin
+    permission_level = Column(String, default="operator")
+    # When to escalate / re-escalate their work
+    escalate_when = Column(String, default="on_blocked")
+    escalate_reason = Column(Text, default="")
+    # parent | orchestrator | human | owner
+    escalate_to = Column(String, default="orchestrator")
     notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WorkspaceSettings(Base):
+    """Per-subscriber automation / self-running system settings."""
+    __tablename__ = "workspace_settings"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    # When true, autonomy loop processes tasks, escalations, idle agents
+    autonomy_enabled = Column(Boolean, default=True)
+    # Seconds between local loop ticks (serverless uses cron/tick endpoint)
+    autonomy_interval_sec = Column(Integer, default=45)
+    # Minutes a task may stay in_progress before escalate
+    task_stuck_minutes = Column(Integer, default=30)
+    last_autonomy_run = Column(DateTime, nullable=True)
+    last_autonomy_summary = Column(Text, default="")
+    # JSON extras
+    policy_json = Column(Text, default="{}")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EscalationLog(Base):
+    """Record of escalations between agents / humans / owner."""
+    __tablename__ = "escalation_logs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    from_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    from_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    to_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    to_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    # failure | blocked | high_priority | sla | vip | value | review | custom | autonomy
+    reason_code = Column(String, default="custom")
+    reason_text = Column(Text, default="")
+    status = Column(String, default="open")  # open | acknowledged | resolved
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class AgentMemory(Base):

@@ -97,6 +97,21 @@ export default function Humans() {
       ),
     },
     { title: 'Role', dataIndex: 'role_title', render: (v) => v || '—' },
+    {
+      title: 'Permission',
+      dataIndex: 'permission_level',
+      render: (v) => <Tag color="blue">{v || 'operator'}</Tag>,
+    },
+    {
+      title: 'Escalate when',
+      dataIndex: 'escalate_when',
+      render: (v, r) => (
+        <div>
+          <Tag color="orange">{v || 'on_blocked'}</Tag>
+          {r.escalate_reason && <div><Text type="secondary" style={{ fontSize: 11 }}>{r.escalate_reason}</Text></div>}
+        </div>
+      ),
+    },
     { title: 'Skills', dataIndex: 'skills', ellipsis: true, render: (v) => v || '—' },
     {
       title: 'Scope',
@@ -172,7 +187,10 @@ export default function Humans() {
         footer={null}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" onFinish={save} initialValues={{ status: 'active', capacity: 5 }}>
+        <Form form={form} layout="vertical" onFinish={save} initialValues={{
+          status: 'active', capacity: 5, permission_level: 'operator',
+          escalate_when: 'on_blocked', escalate_to: 'orchestrator',
+        }}>
           <Form.Item name="name" label="Name" rules={[{ required: true }]}>
             <Input placeholder="Jane Smith" />
           </Form.Item>
@@ -184,6 +202,36 @@ export default function Humans() {
           </Form.Item>
           <Form.Item name="skills" label="Skills">
             <Input placeholder="negotiation, CRM, onboarding" />
+          </Form.Item>
+          <Form.Item name="permission_level" label="Permission level" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'viewer', label: 'Viewer — read only' },
+              { value: 'operator', label: 'Operator — execute work' },
+              { value: 'lead', label: 'Lead — delegate & escalate' },
+              { value: 'admin', label: 'Admin — full control' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="escalate_when" label="When to escalate" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'never', label: 'Never auto-escalate' },
+              { value: 'on_failure', label: 'On failure' },
+              { value: 'on_blocked', label: 'When blocked' },
+              { value: 'high_priority', label: 'High / urgent priority' },
+              { value: 'sla_breach', label: 'SLA / stuck too long' },
+              { value: 'always_review', label: 'Always review' },
+              { value: 'custom', label: 'Custom (use reason)' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="escalate_reason" label="Escalation reason / rule">
+            <TextArea rows={2} placeholder="e.g. Escalate if customer asks for legal review" />
+          </Form.Item>
+          <Form.Item name="escalate_to" label="Escalate to">
+            <Select options={[
+              { value: 'orchestrator', label: 'Main orchestrator' },
+              { value: 'parent', label: 'Reporting lead' },
+              { value: 'human', label: 'Another human' },
+              { value: 'owner', label: 'Workspace owner' },
+            ]} />
           </Form.Item>
           <Form.Item name="company_id" label="Company">
             <Select allowClear options={companies.map((c) => ({ value: c.id, label: c.name }))} placeholder="Optional" />
