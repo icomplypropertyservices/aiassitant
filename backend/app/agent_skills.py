@@ -2116,34 +2116,84 @@ def get_comprehensive_skill_catalog():
     return legacy
 
 
-def skills_prompt_block(agent: models.Agent, db: Session) -> str:
+def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int = 48) -> str:
+    """Compact skill catalogue for the LLM system prompt.
+
+    Listing all 248 skills on every chat blows context (10k+ tokens) and makes
+    replies slow/empty in the UI. Keep a short always-on core + category summary.
+    """
     skills = [s for s in list_skills_for_agent(agent, db) if s.get("enabled")]
     if not skills:
         return ""
+
+    # High-value skills always listed first (orchestrator / daily ops)
+    priority_ids = [
+        "create_task", "message_agent", "spawn_agent", "list_team", "list_customers",
+        "save_memory", "save_training", "announce_plan", "draft_email", "generate_content",
+        "research", "summarize", "get_time", "search_memory", "escalate_to_human",
+        "log_customer_activity", "create_deal", "prioritize_list", "action_items",
+        "skill_recommend", "enable_skills_on", "configure_agent",
+    ]
+    by_id = {s["id"]: s for s in skills}
+    ordered: list[dict] = []
+    seen: set[str] = set()
+    for pid in priority_ids:
+        if pid in by_id and pid not in seen:
+            ordered.append(by_id[pid])
+            seen.add(pid)
+    # Fill remaining slots with non-premium skills, then premium
+    rest = sorted(
+        [s for s in skills if s["id"] not in seen],
+        key=lambda s: (1 if s.get("premium") else 0, s.get("category") or "", s["id"]),
+    )
+    for s in rest:
+        if len(ordered) >= max_skills:
+            break
+        ordered.append(s)
+        seen.add(s["id"])
+
+    # Category counts for the rest of the catalog
+    cat_counts: dict[str, int] = {}
+    for s in skills:
+        cat = s.get("category_label") or s.get("category") or "other"
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
     lines = [
         "You have SKILLS. When you need to act (not just answer), emit one or more blocks:",
-        '```skill',
+        "```skill",
         '{"skill":"<id>","args":{...}}',
         "```",
-        "Available skills (★ PREMIUM = real delivery via Email/SMS/WhatsApp/Voice or media, costs credits):",
+        f"Catalog: {len(skills)} skills enabled. Showing top {len(ordered)} for context "
+        "(★ = premium / costs credits). Prefer free skills unless paid delivery is required.",
+        "Core / listed skills:",
     ]
-    for s in skills:
-        prefix = "★ PREMIUM" if s.get("premium") else ""
-        lines.append(f"- {s['id']}: {prefix} {s['description']} args={s['args']}")
+    for s in ordered:
+        prefix = "★" if s.get("premium") else ""
+        args = s.get("args") or []
+        if isinstance(args, list):
+            args_s = ",".join(str(a) for a in args[:6])
+        else:
+            args_s = str(args)[:80]
+        desc = (s.get("description") or "")[:90]
+        lines.append(f"- {s['id']}{prefix}: {desc} args=[{args_s}]")
+
     lines.append(
-        "Also available apps context:\n"
-        + (integrations_context_for_agent(db, agent.id) or "(no apps linked)")
+        "Other skill categories available (use skill id when you know it): "
+        + ", ".join(f"{k}({v})" for k, v in sorted(cat_counts.items())[:16])
     )
-    humans = db.query(models.Human).filter_by(owner_user_id=agent.user_id, status="active").limit(20).all()
+    lines.append(
+        "Apps: " + (integrations_context_for_agent(db, agent.id) or "(no apps linked)")
+    )
+    humans = db.query(models.Human).filter_by(owner_user_id=agent.user_id, status="active").limit(12).all()
     if humans:
         lines.append(
-            "Humans you may assign: "
-            + ", ".join(f"{h.name}(id={h.id}, {h.role_title or 'teammate'})" for h in humans)
+            "Humans: "
+            + ", ".join(f"{h.name}(id={h.id})" for h in humans)
         )
     peers = (
         db.query(models.Agent)
         .filter(models.Agent.user_id == agent.user_id, models.Agent.id != agent.id)
-        .limit(30)
+        .limit(20)
         .all()
     )
     if peers:

@@ -312,7 +312,8 @@ async def _xai_stream(messages: list[dict], model: str, credentials: dict | None
         "max_tokens": 4096,
     }
     log.info("xai_chat model_in=%s xai_model=%s", model, xai_model)
-    async with httpx.AsyncClient(timeout=300) as client:
+    got_any = False
+    async with httpx.AsyncClient(timeout=120.0) as client:
         async with client.stream(
             "POST", f"{base}/chat/completions", headers=headers, json=payload,
         ) as r:
@@ -324,7 +325,7 @@ async def _xai_stream(messages: list[dict], model: str, credentials: dict | None
                     continue
                 data = line[6:].strip()
                 if data == "[DONE]":
-                    return
+                    break
                 try:
                     chunk = json.loads(data)
                 except json.JSONDecodeError:
@@ -332,7 +333,32 @@ async def _xai_stream(messages: list[dict], model: str, credentials: dict | None
                 delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
                 text = delta.get("content") or ""
                 if text:
+                    got_any = True
                     yield text
+
+    # Stream empty → one-shot non-stream retry (more reliable on some edge networks)
+    if not got_any:
+        payload_ns = {
+            "model": xai_model,
+            "messages": messages,
+            "stream": False,
+            "max_tokens": 2048,
+        }
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            r = await client.post(
+                f"{base}/chat/completions", headers=headers, json=payload_ns,
+            )
+            if r.status_code >= 400:
+                raise RuntimeError(f"xAI HTTP {r.status_code}: {r.text[:500]!r}")
+            data = r.json()
+            text = (
+                ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
+                or ""
+            )
+            if text:
+                yield text
+            else:
+                raise RuntimeError("xAI returned empty content")
 
 
 async def stream_completion(

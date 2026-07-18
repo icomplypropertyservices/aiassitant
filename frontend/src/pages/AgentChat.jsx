@@ -162,7 +162,8 @@ export default function AgentChat() {
     }
     try {
       const r = await api(`/agents/${id}/chat`, { method: 'POST', body: { message: msg } })
-      const text = (r.reply || '').trim() || 'No reply from the model. The GPU fleet may be offline — check RunPod / Ollama.'
+      const text = (r?.reply || r?.message || r?.content || '').toString().trim()
+        || 'No reply text returned. Try again — if it keeps failing, refresh and re-send.'
       setMessages((prev) => [...prev, { role: 'assistant', content: text }])
       setSessionTokens((t) => t + (r.tokens || 0))
       try {

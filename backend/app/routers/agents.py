@@ -1373,9 +1373,13 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     from ..live_ops import emit_ops
 
     system = build_agent_system_prompt(db, a)
-    llm_messages = [{"role": "user", "content": system}]
-    for m in history[-16:]:
-        llm_messages.append({"role": m.role if m.role in ("user", "assistant") else "user", "content": m.content})
+    # Proper system role + short history (long threads were blowing context / timeouts)
+    llm_messages: list[dict] = [{"role": "system", "content": system}]
+    for m in history[-10:]:
+        role = m.role if m.role in ("user", "assistant") else "user"
+        content = (m.content or "")[:4000]
+        if content.strip():
+            llm_messages.append({"role": role, "content": content})
 
     await emit_ops(
         user.id, kind="action", status="running",
@@ -1385,9 +1389,17 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
 
     creds = credentials_for_user(db, user.id)
     reply = ""
-    async for chunk in stream_completion(llm_messages, model, mode, credentials=creds):
-        reply += chunk
-    reply = reply.strip()
+    try:
+        async for chunk in stream_completion(llm_messages, model, mode, credentials=creds):
+            reply += chunk
+    except Exception as e:
+        reply = f"Chat backend error: {e}"
+    reply = (reply or "").strip()
+    if not reply:
+        reply = (
+            "No reply was generated. Please try again in a moment. "
+            "If this keeps happening, check Settings → API / Grok is configured."
+        )
 
     clean_reply, skill_results = await run_skills_from_text(db, a, user, reply)
     if skill_results:
@@ -1397,10 +1409,11 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         if summary:
             clean_reply = (clean_reply + f"\n\n— Skills: {summary}").strip()
 
-    db.add(models.Message(conversation_id=conv.id, role="assistant", content=clean_reply or reply))
+    final_text = (clean_reply or reply).strip()
+    db.add(models.Message(conversation_id=conv.id, role="assistant", content=final_text))
     db.commit()
 
-    charged = bill_llm_turn(db, user, model, llm_messages, clean_reply or reply)
+    charged = bill_llm_turn(db, user, model, llm_messages, final_text)
     await manager.broadcast(f"tokens:{user.id}", {
         "event": "usage",
         "tokens": charged["tokens"],
@@ -1413,11 +1426,11 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     await emit_ops(
         user.id, kind="action", status="done",
         title=f"{a.name} replied",
-        detail=(clean_reply or reply)[:240],
+        detail=final_text[:240],
         agent_id=a.id, db=db,
     )
     return {
-        "reply": clean_reply or reply,
+        "reply": final_text,
         "tokens": charged["tokens"],
         "cost": charged["cost"],
         "tokens_used_period": charged.get("tokens_used_period"),
@@ -1426,6 +1439,7 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         "conversation_id": conv.id,
         "skills": skill_results,
         "provider_hint": provider_hint(model, creds),
+        "ok": True,
     }
 
 
@@ -1517,20 +1531,25 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
                 if a_live
                 else f"You are {agent_name}. Personality: {personality}."
             )
-            llm_messages = [{"role": "user", "content": system}]
-            for m in history[-16:]:
-                llm_messages.append({
-                    "role": m.role if m.role in ("user", "assistant") else "user",
-                    "content": m.content,
-                })
+            llm_messages = [{"role": "system", "content": system}]
+            for m in history[-10:]:
+                role = m.role if m.role in ("user", "assistant") else "user"
+                content = (m.content or "")[:4000]
+                if content.strip():
+                    llm_messages.append({"role": role, "content": content})
 
             await ws.send_text(json.dumps({"type": "start"}))
             creds = credentials_for_user(db, user_id)
             reply = ""
-            async for chunk in stream_completion(llm_messages, use_model, mode, credentials=creds):
-                reply += chunk
-                await ws.send_text(json.dumps({"type": "chunk", "content": chunk}))
-            reply = reply.strip()
+            try:
+                async for chunk in stream_completion(llm_messages, use_model, mode, credentials=creds):
+                    reply += chunk
+                    await ws.send_text(json.dumps({"type": "chunk", "content": chunk}))
+            except Exception as e:
+                err = f"Chat backend error: {e}"
+                reply = err
+                await ws.send_text(json.dumps({"type": "chunk", "content": err}))
+            reply = (reply or "").strip() or "No reply generated — please try again."
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
