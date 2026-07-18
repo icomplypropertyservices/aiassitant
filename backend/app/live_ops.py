@@ -12,6 +12,18 @@ from .database import SessionLocal
 from .ws import manager
 
 
+def _json_default(obj: Any):
+    """Serialize datetimes and other common ORM leftovers for ops payloads."""
+    if isinstance(obj, datetime):
+        return obj.isoformat() + "Z"
+    if hasattr(obj, "isoformat"):
+        try:
+            return obj.isoformat()
+        except Exception:
+            pass
+    return str(obj)
+
+
 def _payload(row: models.LiveOpsEvent) -> dict:
     try:
         extra = json.loads(row.payload_json or "{}")
@@ -61,7 +73,7 @@ async def emit_ops(
             human_id=human_id,
             task_id=task_id,
             plan_id=plan_id or "",
-            payload_json=json.dumps(payload or {}),
+            payload_json=json.dumps(payload or {}, default=_json_default),
             created_at=datetime.utcnow(),
         )
         db.add(row)
