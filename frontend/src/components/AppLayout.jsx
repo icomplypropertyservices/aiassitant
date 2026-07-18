@@ -230,7 +230,9 @@ export default function AppLayout() {
         className="aba-sider"
       >
         <div className="aba-brand">
-          <div className="aba-brand-mark"><RobotOutlined /></div>
+          <div className="aba-brand-mark" aria-hidden="true">
+            <img src={`${import.meta.env.BASE_URL}logo-256.png`} alt="" width={36} height={36} />
+          </div>
           {!collapsed && (
             <div className="aba-brand-text">
               <strong>AI Business Agent</strong>

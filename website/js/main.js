@@ -25,7 +25,7 @@
       header.innerHTML = `
         <div class="container nav-inner">
           <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true">✦</span>
+            <span class="brand-mark" aria-hidden="true"><img src="/images/logo.png" alt="" width="36" height="36" /></span>
             <span>${SITE_NAME}</span>
           </a>
           <button class="nav-toggle" type="button" aria-label="Menu" data-nav-toggle>Menu</button>

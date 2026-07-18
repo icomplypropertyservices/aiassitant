@@ -138,11 +138,18 @@ export default function Subscribe() {
               margin: '0 auto 10px',
               display: 'grid',
               placeItems: 'center',
-              background: 'rgba(255,255,255,0.16)',
-              fontSize: 22,
+              background: 'transparent',
+              overflow: 'hidden',
+              boxShadow: '0 8px 24px rgba(15,23,42,0.35)',
             }}
           >
-            <RobotOutlined />
+            <img
+              src={`${import.meta.env.BASE_URL}logo-256.png`}
+              alt="AI Business Assistant"
+              width={48}
+              height={48}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </div>
           <Typography.Title level={2} style={{ margin: '0 0 6px', letterSpacing: '-0.03em' }}>
             {trialEnded

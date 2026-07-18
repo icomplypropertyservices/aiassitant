@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Form, Input, Button, Tabs, message, Typography, Row, Col, Tag, List, Space, Alert,
+  Card, Form, Input, Button, Tabs, message, Typography, Row, Col, Tag, Space, Alert,
 } from 'antd'
 import {
-  RobotOutlined, CheckOutlined, ThunderboltOutlined,
+  RobotOutlined, ThunderboltOutlined,
   TeamOutlined, SafetyCertificateOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import { api, setAuth, getToken, getUser } from '../api'
+import PlanCards from '../components/PlanCards'
 
 const PASSWORD_PLACEHOLDER = 'At least 8 characters, include a letter and number'
 
@@ -72,10 +73,11 @@ export default function Login() {
         method: 'POST',
         body: payload,
       })
-      if (!data?.token || !data?.user) {
-        throw new Error('Login response missing token — check API deployment')
+      const sessionKey = data?.api_key || data?.token
+      if (!sessionKey || !data?.user) {
+        throw new Error('Login response missing API key — check API deployment')
       }
-      setAuth(data.token, data.user)
+      setAuth(sessionKey, data.user)
       if (data.preferred_company_name) {
         localStorage.setItem('preferred_company_name', data.preferred_company_name)
       }
@@ -112,11 +114,9 @@ export default function Login() {
     }
   }
 
-  const planList = Object.entries(plans).filter(
-    ([key, p]) => p.public !== false && key !== 'pay_as_you_go' && key !== 'none',
-  )
-
-  const unit = (n, singular) => `${n} ${singular}${Number(n) === 1 ? '' : 's'}`
+  const planList = Object.entries(plans)
+    .filter(([key, p]) => p.public !== false && key !== 'pay_as_you_go' && key !== 'none')
+    .sort((a, b) => (a[1].sort ?? 50) - (b[1].sort ?? 50))
 
   return (
     <div className="aba-auth-shell">
@@ -130,13 +130,18 @@ export default function Login() {
               margin: '0 auto 12px',
               display: 'grid',
               placeItems: 'center',
-              background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
-              boxShadow: '0 8px 24px rgba(37,99,235,0.35)',
-              color: '#fff',
-              fontSize: 26,
+              background: 'transparent',
+              boxShadow: '0 8px 24px rgba(15,23,42,0.35)',
+              overflow: 'hidden',
             }}
           >
-            <RobotOutlined />
+            <img
+              src={`${import.meta.env.BASE_URL}logo-256.png`}
+              alt="AI Business Assistant"
+              width={48}
+              height={48}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </div>
           <Typography.Title level={2} style={{ color: '#fff', margin: '0 0 8px', letterSpacing: '-0.03em' }}>
             AI Business Assistant
@@ -172,8 +177,8 @@ export default function Login() {
           </Space>
         </div>
 
-        <Row gutter={[24, 24]} align="stretch">
-          <Col xs={24} md={10}>
+        <Row gutter={[24, 24]} align="stretch" justify="center">
+          <Col xs={24} md={10} lg={9}>
             <Card className="aba-auth-card" style={{ borderRadius: 16 }}>
               {mode === 'forgot' ? (
                 <>
@@ -185,7 +190,7 @@ export default function Login() {
                   >
                     Back to sign in
                   </Button>
-                  <Typography.Title level={4} style={{ marginTop: 0 }}>Forgot password</Typography.Title>
+                  <Typography.Title level={4} style={{ marginTop: 0, textAlign: 'center' }}>Forgot password</Typography.Title>
                   {forgotSent ? (
                     <Alert
                       type="success"
@@ -275,63 +280,30 @@ export default function Login() {
             </Card>
           </Col>
 
-          <Col xs={24} md={14}>
+          <Col xs={24} md={14} lg={13}>
             <Card
               className="aba-auth-card aba-soft-card"
-              title="Plans"
-              extra={<Link to="/subscribe">View plans →</Link>}
+              title={
+                <div style={{ textAlign: 'center', width: '100%' }}>
+                  {preorderOn ? 'Pre-order plans' : 'Plans'}
+                </div>
+              }
+              extra={<Link to="/subscribe">Full plans →</Link>}
               style={{ borderRadius: 16, height: '100%' }}
+              styles={{ header: { textAlign: 'center' }, body: { paddingTop: 12 } }}
             >
-              <List
-                dataSource={planList}
-                locale={{ emptyText: 'Loading plans…' }}
-                split
-                renderItem={([key, p]) => (
-                  <List.Item style={{ padding: '14px 0' }}>
-                    <List.Item.Meta
-                      title={
-                        <Space wrap size={6}>
-                          <Typography.Text strong>{p.name}</Typography.Text>
-                          {p.highlight && <Tag color="blue">Popular</Tag>}
-                          {preorderOn && p.price > 0 && (
-                            <Tag color="gold">{p.preorder_discount_percent || 10}% off</Tag>
-                          )}
-                          <Tag color={p.price ? 'geekblue' : 'green'}>
-                            {p.price
-                              ? (preorderOn && p.price_checkout != null
-                                ? <>
-                                    <span style={{ textDecoration: 'line-through', opacity: 0.65, marginRight: 6 }}>
-                                      ${p.price}
-                                    </span>
-                                    ${Number(p.price_checkout).toFixed(p.price_checkout % 1 ? 2 : 0)}/mo
-                                  </>
-                                : `$${p.price}/mo`)
-                              : 'Free'}
-                          </Tag>
-                        </Space>
-                      }
-                      description={
-                        <div>
-                          <div style={{ marginBottom: 4, color: '#475569' }}>{p.blurb}</div>
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {(p.tokens_included || 0).toLocaleString()} tokens/mo
-                            {' · '}{unit(p.companies, 'company')}
-                            {' · '}{unit(p.projects, 'project')}
-                            {' · '}{unit(p.agents, 'agent')}
-                          </Typography.Text>
-                        </div>
-                      }
-                    />
-                    <div style={{ minWidth: 160 }}>
-                      {(p.features || []).slice(0, 2).map(f => (
-                        <div key={f} style={{ fontSize: 12, color: '#64748b', lineHeight: 1.55 }}>
-                          <CheckOutlined style={{ color: '#16a34a', marginRight: 6 }} />{f}
-                        </div>
-                      ))}
-                    </div>
-                  </List.Item>
-                )}
+              <PlanCards
+                plans={planList}
+                preorderOn={preorderOn}
+                compact
               />
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {preorderOn
+                    ? '10% off · early access · launch 27 July 2026'
+                    : 'Stripe card or crypto at checkout'}
+                </Typography.Text>
+              </div>
             </Card>
           </Col>
         </Row>
