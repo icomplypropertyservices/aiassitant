@@ -74,25 +74,28 @@ export const WS =
       ? API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'))
       : 'ws://localhost:8000'
 
+/**
+ * Session credential is an API key (aba_…), not a JWT.
+ * Stored under `api_key` (preferred) and `token` (legacy key for older tabs).
+ */
+export function getApiKey() {
+  return localStorage.getItem('api_key') || localStorage.getItem('token') || ''
+}
+
+/** @deprecated use getApiKey — kept so existing imports keep working */
 export function getToken() {
-  return localStorage.getItem('token')
+  return getApiKey()
 }
 
 /**
- * Open a WebSocket and auth via first text frame (JWT not in URL).
- * Prefers header-safe path: connect without ?token=, then send
- * {"type":"auth","token":"..."}. Backend still accepts ?token= for mobile/legacy.
- *
- * @param {string} path  Absolute path under API/WS base, e.g. "/ops/ws" or "/agents/1/ws/chat"
- * @param {{ useQueryToken?: boolean }} [opts]  If useQueryToken true, put token in URL (mobile fallback)
- * @returns {WebSocket}
+ * Open a WebSocket and auth with API key (first message, not JWT).
+ * @param {string} path
+ * @param {{ useQueryToken?: boolean, force?: boolean }} [opts]
  */
 export function connectAuthedWs(path, opts = {}) {
-  // Vercel Python serverless does not support WebSocket upgrades (browser sees 403).
-  // Production uses REST for chat/ops; skip opening sockets that only spam console errors.
   if (import.meta.env.PROD && !opts.force) {
     return {
-      readyState: 3, // CLOSED
+      readyState: 3,
       send() {},
       close() {},
       addEventListener() {},
@@ -103,23 +106,23 @@ export function connectAuthedWs(path, opts = {}) {
       onmessage: null,
     }
   }
-  const token = getToken() || ''
+  const apiKey = getApiKey() || ''
   const p = path.startsWith('/') ? path : `/${path}`
   const base = getWsBase()
   let url
-  if (opts.useQueryToken && token) {
+  if (opts.useQueryToken && apiKey) {
     const sep = p.includes('?') ? '&' : '?'
-    url = `${base}${p}${sep}token=${encodeURIComponent(token)}`
+    url = `${base}${p}${sep}token=${encodeURIComponent(apiKey)}`
   } else {
     url = `${base}${p}`
   }
   const ws = new WebSocket(url)
-  if (!opts.useQueryToken && token) {
+  if (!opts.useQueryToken && apiKey) {
     ws.addEventListener(
       'open',
       () => {
         try {
-          ws.send(JSON.stringify({ type: 'auth', token }))
+          ws.send(JSON.stringify({ type: 'auth', api_key: apiKey, token: apiKey }))
         } catch {
           /* ignore */
         }
@@ -136,17 +139,22 @@ export function getUser() {
     return null
   }
 }
-export function setAuth(token, user) {
-  if (!token) {
+/** Persist session API key (+ optional user). Accepts login response field token or api_key. */
+export function setAuth(apiKeyOrToken, user) {
+  if (!apiKeyOrToken) {
     clearAuth()
     return
   }
-  localStorage.setItem('token', token)
+  localStorage.setItem('api_key', apiKeyOrToken)
+  localStorage.setItem('token', apiKeyOrToken) // legacy alias
   if (user) localStorage.setItem('user', JSON.stringify(user))
 }
 export function clearAuth() {
+  localStorage.removeItem('api_key')
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+  localStorage.removeItem('agentbay_token')
+  localStorage.removeItem('agentbay_user')
 }
 
 function formatDetail(detail) {
@@ -174,17 +182,29 @@ export async function api(path, options = {}) {
   const url = `${API}${path.startsWith('/') ? path : `/${path}`}`
   let res
   try {
+    const apiKey = getApiKey()
+    const { body, headers: optHeaders, signal, ...rest } = options
     res = await fetch(url, {
-      ...options,
+      ...rest,
+      signal,
       headers: {
         Accept: 'application/json',
-        ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-        ...(options.headers || {}),
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        // Site-wide API key auth (not JWT)
+        ...(apiKey
+          ? {
+              'X-API-Key': apiKey,
+              Authorization: `Bearer ${apiKey}`,
+            }
+          : {}),
+        ...(optHeaders || {}),
       },
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw err
+    }
     const msg = err?.message || 'Network error'
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
       throw new Error(

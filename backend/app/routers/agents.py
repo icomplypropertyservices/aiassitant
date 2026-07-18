@@ -1,4 +1,6 @@
-import asyncio, json
+import asyncio
+import json
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 from pydantic import BaseModel
@@ -26,7 +28,8 @@ from ..agent_roles import (
 from ..agent_serialize import agent_out, agents_out_list, task_dict
 from ..agent_hierarchy import build_hierarchy_payload, ensure_main_orchestrator, ensure_master_designer
 from ..seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
-from ..agent_roles import is_orchestrator
+
+log = logging.getLogger("app.agents")
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -738,15 +741,26 @@ def get_agent(agent_id: int, db: Session = Depends(get_db), user=Depends(get_cur
     )
     out["chat"] = None
     if conv:
+        # Cap history so mobile chat pages open quickly (full thread still used server-side for reply context)
         msgs = (
             db.query(models.Message)
             .filter_by(conversation_id=conv.id)
-            .order_by(models.Message.id)
+            .order_by(models.Message.id.desc())
+            .limit(40)
             .all()
         )
+        msgs = list(reversed(msgs))
         out["chat"] = {
             "conversation_id": conv.id,
-            "messages": [{"id": m.id, "role": m.role, "content": m.content, "created_at": m.created_at} for m in msgs],
+            "messages": [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": (m.content or "")[:8000],
+                    "created_at": m.created_at,
+                }
+                for m in msgs
+            ],
         }
     return out
 
@@ -1360,24 +1374,29 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         db.refresh(conv)
 
     text = (data.message or "").strip()
+    if not text:
+        raise HTTPException(400, "Message is required")
     db.add(models.Message(conversation_id=conv.id, role="user", content=text))
     db.commit()
 
+    # Only last N messages for LLM context (keeps mobile chat snappy)
     history = (
         db.query(models.Message)
         .filter_by(conversation_id=conv.id)
-        .order_by(models.Message.id)
+        .order_by(models.Message.id.desc())
+        .limit(12)
         .all()
     )
+    history = list(reversed(history))
     from ..agent_skills import run_skills_from_text
     from ..live_ops import emit_ops
 
     system = build_agent_system_prompt(db, a)
     # Proper system role + short history (long threads were blowing context / timeouts)
     llm_messages: list[dict] = [{"role": "system", "content": system}]
-    for m in history[-10:]:
+    for m in history:
         role = m.role if m.role in ("user", "assistant") else "user"
-        content = (m.content or "")[:4000]
+        content = (m.content or "")[:2500]
         if content.strip():
             llm_messages.append({"role": role, "content": content})
 
@@ -1393,6 +1412,7 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         async for chunk in stream_completion(llm_messages, model, mode, credentials=creds):
             reply += chunk
     except Exception as e:
+        log.exception("agent chat stream failed agent_id=%s", a.id)
         reply = f"Chat backend error: {e}"
     reply = (reply or "").strip()
     if not reply:
@@ -1401,10 +1421,22 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
             "If this keeps happening, check Settings → API / Grok is configured."
         )
 
-    clean_reply, skill_results = await run_skills_from_text(db, a, user, reply)
+    # Skill side-effects can hang on external integrations — hard-cap wait so chat always returns
+    skill_results: list = []
+    clean_reply = reply
+    try:
+        import asyncio as _asyncio
+        clean_reply, skill_results = await _asyncio.wait_for(
+            run_skills_from_text(db, a, user, reply),
+            timeout=45.0,
+        )
+    except Exception as e:
+        log.warning("skill post-process skipped/failed: %s", e)
+        clean_reply = reply
+        skill_results = []
     if skill_results:
         summary = "; ".join(
-            f"{r.get('skill')}: {r.get('message') or r.get('error')}" for r in skill_results
+            f"{r.get('skill')}: {r.get('message') or r.get('error')}" for r in skill_results[:8]
         )
         if summary:
             clean_reply = (clean_reply + f"\n\n— Skills: {summary}").strip()

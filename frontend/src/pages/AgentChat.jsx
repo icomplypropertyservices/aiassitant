@@ -152,19 +152,44 @@ export default function AgentChat() {
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
     setInput('')
     setBusy(true)
+    // Show thinking bubble immediately so mobile users don't only see a spinner
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true, pending: true }])
     if (taRef.current) taRef.current.style.height = 'auto'
     scrollBottom()
 
     // Prefer REST always in production; WS only if fully open (local)
     if (!import.meta.env.PROD && wsRef.current?.readyState === 1) {
+      // Remove pending bubble — WS path will emit start/chunk/done
+      setMessages((prev) => prev.filter((m) => !m.pending))
       wsRef.current.send(JSON.stringify({ message: msg }))
       return
     }
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    const timeoutMs = 120000
+    const timer = controller
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null
+
     try {
-      const r = await api(`/agents/${id}/chat`, { method: 'POST', body: { message: msg } })
-      const text = (r?.reply || r?.message || r?.content || '').toString().trim()
+      const r = await api(`/agents/${id}/chat`, {
+        method: 'POST',
+        body: { message: msg },
+        signal: controller?.signal,
+      })
+      const replyText = (r?.reply || r?.message || r?.content || '').toString().trim()
         || 'No reply text returned. Try again — if it keeps failing, refresh and re-send.'
-      setMessages((prev) => [...prev, { role: 'assistant', content: text }])
+      setMessages((prev) => {
+        const next = [...prev]
+        // Replace pending thinking bubble
+        const pi = next.findIndex((m) => m.pending || (m.streaming && m.role === 'assistant' && !m.content))
+        if (pi >= 0) {
+          next[pi] = { role: 'assistant', content: replyText }
+        } else {
+          next.push({ role: 'assistant', content: replyText })
+        }
+        return next
+      })
       setSessionTokens((t) => t + (r.tokens || 0))
       try {
         window.dispatchEvent(new CustomEvent('aba-usage', {
@@ -176,12 +201,20 @@ export default function AgentChat() {
           },
         }))
       } catch { /* ignore */ }
-      if (speakRef.current && text) speakText(text)
+      if (speakRef.current && replyText) speakText(replyText)
     } catch (e) {
-      const err = e.message || 'Chat failed'
+      const aborted = e?.name === 'AbortError' || /abort/i.test(String(e?.message || ''))
+      const err = aborted
+        ? 'Reply timed out (over 2 minutes). Check connection and try a shorter message.'
+        : (e.message || 'Chat failed')
       message.error(err)
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Sorry — ${err}` }])
+      setMessages((prev) => {
+        const next = prev.filter((m) => !m.pending)
+        next.push({ role: 'assistant', content: `Sorry — ${err}` })
+        return next
+      })
     } finally {
+      if (timer) clearTimeout(timer)
       setBusy(false)
     }
   }
