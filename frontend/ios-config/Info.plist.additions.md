@@ -29,10 +29,17 @@ arbitrary loads unless you must hit local HTTP during development.
 -->
 ```
 
-## Background modes
+## Background modes / push
 
-Not required for v1 (REST chat). Enable later only if you add push notifications
-or background fetch.
+For push notifications, enable **Background Modes → Remote notifications** in Xcode
+and configure APNs (Apple Developer → Keys → Apple Push Notifications service).
+
+Also ensure the app requests notification permission (handled by Capacitor
+`PushNotifications` + `LocalNotifications` at runtime).
+
+```xml
+<!-- Optional: app display name already set by Capacitor -->
+```
 
 ## Encryption export compliance
 

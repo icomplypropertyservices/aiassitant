@@ -1,0 +1,9 @@
+{
+    "webui_url":  "https://kyjnrftvwq0yh2-8080.proxy.runpod.net",
+    "updated_at":  "2026-07-17T20:44:24.5324059Z",
+    "agent_terminal_enabled":  true,
+    "api_key":  "",
+    "updated_by":  "grok-setup",
+    "ollama_url":  "https://kyjnrftvwq0yh2-11434.proxy.runpod.net",
+    "support_notes":  "pod kyjnrftvwq0yh2 RTX4090 SSH 213.173.110.211:13642"
+}

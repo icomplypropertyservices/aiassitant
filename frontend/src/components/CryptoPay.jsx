@@ -8,11 +8,12 @@ import { api } from '../api'
 const CHAIN_LABELS = {
   eth: 'Ethereum (ETH)',
   sol: 'Solana (SOL)',
+  btc: 'Bitcoin (BTC)',
   xrp: 'XRP Ledger (XRP)',
 }
 
 /**
- * Crypto payment modal for plan or top-up (ETH / SOL / XRP).
+ * Crypto payment modal for plan or top-up (ETH / SOL / BTC / XRP).
  *
  * props:
  *  open, onClose
@@ -121,12 +122,12 @@ export default function CryptoPay({
           type="warning"
           showIcon
           message="Crypto payments not configured"
-          description="Set CRYPTO_ETH_ADDRESS, CRYPTO_SOL_ADDRESS, and/or CRYPTO_XRP_ADDRESS in the server environment."
+          description="Set CRYPTO_ETH_ADDRESS, CRYPTO_SOL_ADDRESS, CRYPTO_BTC_ADDRESS, and/or CRYPTO_XRP_ADDRESS in the server environment."
         />
       ) : !invoice ? (
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            Pay with native <strong>ETH</strong>, <strong>SOL</strong>, or <strong>XRP</strong>.
+            Pay with native <strong>ETH</strong>, <strong>SOL</strong>, <strong>BTC</strong>, or <strong>XRP</strong>.
             Send from your wallet to our address, then paste the transaction hash to unlock instantly.
           </Typography.Paragraph>
           {kind === 'plan' && (
@@ -228,7 +229,9 @@ export default function CryptoPay({
                   ? 'Solana transaction signature'
                   : invoice.chain === 'xrp'
                     ? 'XRP transaction hash'
-                    : '0x… Ethereum tx hash'
+                    : invoice.chain === 'btc'
+                      ? 'Bitcoin transaction ID (txid)'
+                      : '0x… Ethereum tx hash'
               }
               value={txHash}
               onChange={(e) => setTxHash(e.target.value)}

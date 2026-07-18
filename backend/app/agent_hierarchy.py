@@ -67,6 +67,14 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
     existing = find_orchestrator(db, user.id)
     if existing:
         promote_orchestrator(db, existing)
+        # Light touch only: keep root identity. Full skill/model repair is POST /ops/scaffold.
+        existing.hierarchy_role = "orchestrator"
+        existing.is_lead = True
+        existing.parent_id = None
+        if not existing.permission_level or existing.permission_level == "viewer":
+            existing.permission_level = "admin"
+        if not existing.idle_mode:
+            existing.idle_mode = "never_idle"
         db.commit()
         db.refresh(existing)
         return existing
@@ -77,19 +85,26 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
         template_type="orchestrator",
         personality=(
             "Strategic, clear, and decisive. You sit above all other agents, "
-            "route work to the right lead or project team, and keep the human owner informed."
+            "route work to the right lead or project team, and keep the human owner informed. "
+            "You operate 100% autonomously: spawn, delegate, run skills, and recover from failures."
         ),
-        model="vps-quality",
+        model="quality",
         idle_mode="never_idle",
-        config=json.dumps({"mission": "Coordinate all companies, projects, and agents"}),
+        config=json.dumps({"mission": "Coordinate all companies, projects, and agents", "autonomy": "full"}),
         is_lead=True,
         hierarchy_role="orchestrator",
         parent_id=None,
+        permission_level="admin",
+        status="active",
+        escalate_when="on_failure",
+        escalate_to="owner",
     )
     db.add(a)
     db.flush()
     promote_orchestrator(db, a)
     attach_orphan_leads_under(db, a)
+    from .agent_scaffold import repair_agent
+    repair_agent(db, a, force_never_idle=True, expand_skills=True)
     db.commit()
     db.refresh(a)
     return a
@@ -130,11 +145,12 @@ def ensure_master_designer(db: Session, user: models.User) -> models.Agent:
             "ChatGPT-like agent chat, touch targets, spacing, hierarchy, contrast, and clarity. "
             "You block ship until the experience feels premium and simple — one agent per page for chat."
         ),
-        model="vps-quality",
+        model="quality",
         idle_mode="never_idle",
         config=json.dumps({
             "brand": "AI Business Assistant",
             "mobile_first": True,
+            "autonomy": "full",
             "gates": [
                 "Agent chat is full-screen ChatGPT style",
                 "One agent per chat page",
@@ -147,11 +163,15 @@ def ensure_master_designer(db: Session, user: models.User) -> models.Agent:
         hierarchy_role="specialist",
         parent_id=orch.id if orch else None,
         permission_level="lead",
-        escalate_when="always_review",
+        status="active",
+        escalate_when="on_failure",
         escalate_to="orchestrator",
         escalate_reason="UI polish not acceptable until designer gates pass",
     )
     db.add(a)
+    db.flush()
+    from .agent_scaffold import repair_agent
+    repair_agent(db, a, force_never_idle=True, expand_skills=True)
     db.commit()
     db.refresh(a)
     return a

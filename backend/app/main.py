@@ -13,7 +13,7 @@ from .auth_utils import hash_password, get_current_user
 from .ws import manager
 from .routers import (
     auth, templates, agents, chat, billing, dashboard, admin, org, keys,
-    integrations, training, humans, ops, business,
+    integrations, training, humans, ops, business, devices, marketplace,
 )
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
@@ -57,6 +57,7 @@ def seed_db():
                 email="admin@local", name="Staff Admin",
                 password_hash=hash_password("admin123"), role="admin",
                 plan="business", subscription_active=True,
+                email_verified=True,
             )
             db.add(u)
             db.commit()
@@ -72,12 +73,17 @@ def seed_db():
             if admin.role == "admin":
                 admin.subscription_active = True
                 admin.plan = "business"
+                admin.email_verified = True
                 bal = db.query(models.Balance).filter_by(user_id=admin.id).first()
                 if bal:
                     bal.tokens_included = 40_000_000
                 if db.query(models.Company).filter_by(owner_user_id=admin.id).count() == 0:
                     db.add(models.Company(owner_user_id=admin.id, name="Demo Company", industry="Technology"))
                 db.commit()
+        # Admins are always treated as verified (staff accounts)
+        for admin_u in db.query(models.User).filter_by(role="admin").all():
+            if not getattr(admin_u, "email_verified", False):
+                admin_u.email_verified = True
         # Backfill balances only (do not auto-activate paid plans in production)
         from .plans import plan_limits
         for u in db.query(models.User).all():
@@ -128,57 +134,18 @@ async def idle_activity_loop():
 async def lifespan(app: FastAPI):
     # Never let startup kill the whole serverless function hard
     try:
-        Base.metadata.create_all(bind=engine)
+        from .schema_migrate import ensure_schema
+        report = ensure_schema(engine)
+        if report.get("added"):
+            print(f"[startup] schema columns added: {report['added']}")
+        if report.get("errors"):
+            print(f"[startup] schema warnings: {report['errors']}")
     except Exception as e:
-        print(f"[startup] create_all failed: {e}")
-    # Light migrations for existing SQLite DBs
-    try:
-        db_url = str(engine.url)
-        if db_url.startswith("sqlite"):
-            with engine.begin() as conn:
-                def cols(table):
-                    return [r[1] for r in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()]
-
-                def add(table, col, decl):
-                    if col not in cols(table):
-                        conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-
-                if "tasks" in [r[0] for r in conn.exec_driver_sql(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                ).fetchall()]:
-                    add("tasks", "result", "TEXT DEFAULT ''")
-                    add("tasks", "completed_at", "DATETIME")
-                    add("tasks", "project_id", "INTEGER")
-                    add("tasks", "company_id", "INTEGER")
-                    add("tasks", "title", "TEXT DEFAULT ''")
-                    add("tasks", "tokens_used", "INTEGER DEFAULT 0")
-                    add("tasks", "cost", "FLOAT DEFAULT 0")
-                    add("tasks", "priority", "TEXT DEFAULT 'medium'")
-                    add("tasks", "labels", "TEXT DEFAULT ''")
-                    add("tasks", "updated_at", "DATETIME")
-                    add("tasks", "human_id", "INTEGER")
-                    add("tasks", "assignee_type", "TEXT DEFAULT 'agent'")
-                add("users", "subscription_active", "BOOLEAN DEFAULT 0")
-                add("users", "subscription_expires_at", "DATETIME")
-                add("balances", "tokens_included", "INTEGER DEFAULT 0")
-                add("balances", "tokens_used_period", "INTEGER DEFAULT 0")
-                add("balances", "period_start", "DATETIME")
-                add("agents", "company_id", "INTEGER")
-                add("agents", "project_id", "INTEGER")
-                add("agents", "parent_id", "INTEGER")
-                add("agents", "hierarchy_role", "TEXT DEFAULT 'member'")
-                add("agents", "is_lead", "BOOLEAN DEFAULT 0")
-                add("agents", "permission_level", "TEXT DEFAULT 'operator'")
-                add("agents", "escalate_when", "TEXT DEFAULT 'on_failure'")
-                add("agents", "escalate_reason", "TEXT DEFAULT ''")
-                add("agents", "escalate_to", "TEXT DEFAULT 'parent'")
-                add("agents", "escalate_human_id", "INTEGER")
-                add("token_usage", "company_id", "INTEGER")
-                add("token_usage", "project_id", "INTEGER")
-                add("token_usage", "bill_source", "TEXT DEFAULT 'included'")
-                add("conversations", "project_id", "INTEGER")
-    except Exception as e:
-        print(f"[startup] migrations failed: {e}")
+        print(f"[startup] ensure_schema failed: {e}")
+        try:
+            Base.metadata.create_all(bind=engine)
+        except Exception as e2:
+            print(f"[startup] create_all failed: {e2}")
     try:
         seed_db()
     except Exception as e:
@@ -206,6 +173,9 @@ app = FastAPI(
     title="AI Business Assistant API",
     version="1.4.0",
     lifespan=lifespan,
+    docs_url=None if config.IS_PRODUCTION else "/docs",
+    redoc_url=None if config.IS_PRODUCTION else "/redoc",
+    openapi_url=None if config.IS_PRODUCTION else "/openapi.json",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -214,10 +184,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+from .routers import media as media_router
+from .routers import permissions_api as permissions_router
 for r in (
     auth.router, templates.router, agents.router, chat.router,
     billing.router, dashboard.router, admin.router, org.router, keys.router,
     integrations.router, training.router, humans.router, ops.router, business.router,
+    media_router.router, permissions_router.router, devices.router, marketplace.router,
 ):
     app.include_router(r)
 
@@ -230,35 +203,53 @@ def health():
         "version": "1.4.0",
         "environment": config.APP_ENV,
         "serverless": bool(__import__("os").getenv("VERCEL")),
+        # Non-secret readiness flags (no secret values)
+        "billing_free_grants": False if config.IS_PRODUCTION else True,
+        "docs_enabled": not config.IS_PRODUCTION,
+        "cron_secret_configured": bool(config.CRON_SECRET),
+        "path_frontend_hint": config.FRONTEND_URL,
     }
 
 
 @app.get("/system/status")
 def system_status(user=Depends(get_current_user)):
-    """Authenticated: which integrations are live vs dev fallback."""
-    return config.integration_status()
+    """Authenticated: which integrations are live vs dev fallback.
+    Internal details (which exact token or session is used for Grok) are not exposed to clients.
+    """
+    st = config.integration_status()
+    # Remove any internal auth source details before returning to clients
+    llm = st.get("llm", {})
+    llm.pop("grok_auth_source", None)
+    llm.pop("xai_via_super_session", None)
+    llm.pop("xai_auth_source", None)
+    llm.pop("using_super_session", None)
+    # Only expose high-level "is configured" booleans
+    return st
 
 
 @app.get("/system/models")
 def system_models():
-    """Full model catalog for every picker (public — needed on login screens too)."""
-    from .pricing import MODEL_CATALOG, PRICING, MODEL_GROUPS
-    status = config.integration_status()["llm"]
+    """
+    Returns ONLY neutral model names to clients.
+    Never exposes RunPod, Grok, Claude, Ollama, etc.
+    """
+    from .pricing import MODEL_CATALOG, PRICING
+
     out = []
     for m in MODEL_CATALOG:
-        live = True
-        if m["provider"] == "anthropic":
-            live = bool(status.get("anthropic"))
-        elif m["provider"] == "xai":
-            live = bool(status.get("xai"))
         out.append({
-            **m,
-            "rate_per_1m": PRICING.get(m["id"], 0.80),
-            "configured": live if m["provider"] != "ollama" else True,
-            "value": m["id"],  # ant Select option shape
+            "id": m["id"],
+            "value": m["id"],
+            "label": m["label"],
+            "group": m.get("group", "managed"),
+            "group_label": m.get("group_label", "Managed"),
+            "provider": "managed",           # always hide the real provider
+            "rate_per_1m": PRICING.get(m["id"], 2.0),
+            "configured": True,
         })
+
     return {
         "models": out,
-        "groups": [{"id": g, "label": lab} for g, lab in MODEL_GROUPS],
+        "groups": [{"id": "managed", "label": "Managed"}],
         "count": len(out),
     }

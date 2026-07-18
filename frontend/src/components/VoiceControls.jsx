@@ -3,6 +3,33 @@ import { Button, Space, Switch, Tag, Tooltip, Typography, message } from 'antd'
 import {
   AudioOutlined, AudioMutedOutlined, SoundOutlined, StopOutlined,
 } from '@ant-design/icons'
+import { api } from '../api'
+
+/** Always bill voice events so the token meter moves (STT + TTS). */
+export async function meterVoice(kind, text = '') {
+  try {
+    const r = await api('/media/voice/meter', {
+      method: 'POST',
+      body: { kind, text: (text || ' ').slice(0, 4000) },
+    })
+    // Notify layout / listeners so header meter updates immediately
+    try {
+      window.dispatchEvent(new CustomEvent('aba-usage', { detail: r }))
+    } catch { /* ignore */ }
+    return r
+  } catch (e) {
+    const msg = String(e.message || e || '')
+    if (
+      msg.includes('402')
+      || msg.toLowerCase().includes('token')
+      || msg.toLowerCase().includes('credit')
+      || msg.toLowerCase().includes('subscription')
+    ) {
+      message.warning(msg || 'Out of tokens for voice — top up to continue')
+    }
+    return null
+  }
+}
 
 /**
  * Browser voice I/O for chat:
@@ -20,17 +47,19 @@ export function canSpeak() {
   return typeof window !== 'undefined' && !!window.speechSynthesis
 }
 
-export function speakText(text, { lang = 'en-GB', rate = 1, pitch = 1, onEnd } = {}) {
+export function speakText(text, { lang = 'en-GB', rate = 1, pitch = 1, onEnd, bill = true } = {}) {
   if (!canSpeak() || !text?.trim()) {
     onEnd?.()
     return null
   }
   window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text.trim())
+  const trimmed = text.trim()
+  // Bill TTS every time speech is used
+  if (bill) meterVoice('voice_tts', trimmed)
+  const u = new SpeechSynthesisUtterance(trimmed)
   u.lang = lang
   u.rate = rate
   u.pitch = pitch
-  // Prefer a British/English voice when available
   const voices = window.speechSynthesis.getVoices() || []
   const preferred = voices.find(v => /en-GB/i.test(v.lang))
     || voices.find(v => /en-US/i.test(v.lang))
@@ -122,6 +151,10 @@ export default function VoiceControls({
       setListening(false)
       const text = finalRef.current.trim()
       setPartial('')
+      if (text) {
+        // Always meter STT tokens when recognition completes
+        meterVoice('voice_stt', text)
+      }
       if (text && autoSend && onTranscript) {
         onTranscript(text)
       } else if (text && onPartial) {

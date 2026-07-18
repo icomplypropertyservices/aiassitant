@@ -6,6 +6,7 @@ import {
   MessageOutlined, ThunderboltOutlined, RobotOutlined,
   PlusOutlined, CheckSquareOutlined, ApartmentOutlined,
   CheckCircleFilled, CheckCircleOutlined, CrownOutlined,
+  BankOutlined, TeamOutlined, SafetyCertificateOutlined, UserOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api'
@@ -133,7 +134,7 @@ export default function Dashboard() {
         subtitle="Your workspace overview — companies, agents, tasks and token usage in one place."
         extra={
           <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/agents')}>Create agent</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/console')}>Create agent</Button>
             <Button icon={<MessageOutlined />} onClick={() => nav('/chat')}>AI Chat</Button>
           </Space>
         }
@@ -187,13 +188,18 @@ export default function Dashboard() {
 
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
+          <Card className="aba-stat-card" hoverable onClick={() => nav('/console')}>
+            <Statistic title="Active agents" value={agents.length} prefix={<RobotOutlined style={{ color: '#7c3aed' }} />} />
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              {agents.length >= 15 ? 'Full professional team' : 'Click to open team →'}
+            </div>
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
           <Card className="aba-stat-card"><Statistic title="Messages today" value={data?.messages_today ?? 0} prefix={<MessageOutlined style={{ color: '#1668dc' }} />} /></Card>
         </Col>
         <Col xs={12} md={6}>
           <Card className="aba-stat-card"><Statistic title="Tokens used" value={data?.tokens_used ?? 0} prefix={<ThunderboltOutlined style={{ color: '#d97706' }} />} /></Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card className="aba-stat-card"><Statistic title="Active agents" value={data?.active_agents ?? 0} prefix={<RobotOutlined style={{ color: '#7c3aed' }} />} /></Card>
         </Col>
         <Col xs={12} md={6}>
           <Card className="aba-stat-card">
@@ -209,15 +215,48 @@ export default function Dashboard() {
       <Space wrap style={{ margin: '16px 0' }}>
         <Button icon={<CheckSquareOutlined />} onClick={() => nav('/tasks')}>Tasks board</Button>
         <Button icon={<ApartmentOutlined />} onClick={() => nav('/workspace')}>Workspace</Button>
+        <Button icon={<TeamOutlined />} onClick={() => nav('/humans')}>Users / Team</Button>
+        <Button icon={<SafetyCertificateOutlined />} onClick={() => nav('/permissions')}>Permissions</Button>
+        <Button icon={<UserOutlined />} onClick={() => nav('/profile')}>Profile</Button>
         <Button onClick={() => nav('/templates')}>Templates</Button>
         <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
       </Space>
+
+      {companies.length > 0 && (
+        <Card
+          title="Companies"
+          extra={<Button type="link" onClick={() => nav('/workspace')}>Workspace</Button>}
+          style={{ marginBottom: 16 }}
+        >
+          <List
+            dataSource={companies.slice(0, 6)}
+            renderItem={(c) => (
+              <List.Item
+                style={{ cursor: 'pointer' }}
+                onClick={() => nav(`/companies/${c.id}`)}
+                actions={[
+                  <Tag key="p">{c.project_count ?? 0} projects</Tag>,
+                  <Button key="g" type="link" size="small" onClick={(e) => { e.stopPropagation(); nav(`/companies/${c.id}`) }}>
+                    P&amp;L / profile
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={<BankOutlined style={{ fontSize: 18, color: '#1668dc' }} />}
+                  title={c.name}
+                  description={c.industry || 'Open company profile for AI cost, pipeline & profit'}
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
 
       <Row gutter={16}>
         <Col xs={24} md={12}>
           <Card
             title="Your agents"
-            extra={<Button type="link" onClick={() => nav('/agents')}>View all</Button>}
+            extra={<Button type="link" onClick={() => nav('/console')}>Console</Button>}
             style={{ marginBottom: 16 }}
           >
             <List

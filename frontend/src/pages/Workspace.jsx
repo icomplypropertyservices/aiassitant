@@ -6,6 +6,7 @@ import {
 import {
   PlusOutlined, BankOutlined, ProjectOutlined, CheckSquareOutlined, DeleteOutlined,
   ThunderboltOutlined, RobotOutlined, CrownOutlined, ApartmentOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -28,13 +29,14 @@ export default function Workspace() {
   const nav = useNavigate()
   const [tree, setTree] = useState(null)
   const [agents, setAgents] = useState([])
-  const [templates, setTemplates] = useState({ companies: [], projects: [] })
+  const [templates, setTemplates] = useState({ companies: [], projects: [], tasks: [] })
   const [companyOpen, setCompanyOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(null) // company id
   const [taskOpen, setTaskOpen] = useState(null) // project
   const [allocOpen, setAllocOpen] = useState(null) // project
   const [allocIds, setAllocIds] = useState([])
   const [runningId, setRunningId] = useState(null)
+  const [selectedCompanyTpl, setSelectedCompanyTpl] = useState(null)
   const [companyForm] = Form.useForm()
   const [projectForm] = Form.useForm()
   const [taskForm] = Form.useForm()
@@ -58,11 +60,12 @@ export default function Workspace() {
         create_suggested_projects: v.create_suggested_projects !== false,
       }
       const r = await api('/org/companies', { method: 'POST', body })
-      const extra = r.created_projects?.length
-        ? ` · projects: ${r.created_projects.join(', ')}`
-        : ''
-      message.success(`Company created${extra}`)
+      const bits = []
+      if (r.created_projects?.length) bits.push(`${r.created_projects.length} projects`)
+      if (r.created_tasks?.length) bits.push(`${r.created_tasks.length} starter tasks`)
+      message.success(`Created${bits.length ? ` · ${bits.join(' · ')}` : ''}`)
       setCompanyOpen(false)
+      setSelectedCompanyTpl(null)
       companyForm.resetFields()
       load()
     } catch (e) { message.error(e.message) }
@@ -70,7 +73,7 @@ export default function Workspace() {
 
   const createProject = async (v) => {
     try {
-      await api('/org/projects', {
+      const r = await api('/org/projects', {
         method: 'POST',
         body: {
           name: v.name || '',
@@ -80,7 +83,8 @@ export default function Workspace() {
           company_id: projectOpen,
         },
       })
-      message.success('Project created')
+      const n = r.created_tasks?.length || 0
+      message.success(n ? `Project created · ${n} starter tasks` : 'Project created')
       setProjectOpen(null)
       projectForm.resetFields()
       load()
@@ -92,10 +96,11 @@ export default function Workspace() {
       await api('/org/tasks', {
         method: 'POST',
         body: {
-          title: v.title,
-          description: v.description,
+          title: v.title || '',
+          description: v.description || '',
           project_id: taskOpen.id,
           agent_id: v.agent_id || null,
+          template_id: v.template_id || null,
         },
       })
       message.success('Task added')
@@ -169,12 +174,12 @@ export default function Workspace() {
             Workspace
           </Typography.Title>
           <Typography.Text type="secondary">
-            Multiple companies → multiple projects → agents & tasks
+            Companies or Personal → projects → agents & tasks
             {tree?.subscriber && (
               <> · Plan <Tag color="blue">{tree.subscriber.plan}</Tag>
                 {limits.companies != null && (
                   <Tag>
-                    {tree.counts?.companies || 0}/{limits.companies} companies · {tree.counts?.projects || 0}/{limits.projects} projects
+                    {tree.counts?.companies || 0}/{limits.companies} workspaces · {tree.counts?.projects || 0}/{limits.projects} projects
                   </Tag>
                 )}
               </>
@@ -183,8 +188,22 @@ export default function Workspace() {
         </div>
         <Space wrap>
           <Button icon={<ApartmentOutlined />} onClick={() => nav('/hierarchy')}>Hierarchy</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCompanyOpen(true)}>
-            New company
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setCompanyOpen(true)
+              setSelectedCompanyTpl((templates.companies || []).find((t) => t.id === 'personal') || null)
+              companyForm.setFieldsValue({
+                template_id: 'personal',
+                name: 'Personal',
+                industry: 'Personal',
+                notes: 'Your life, goals, and personal ops — not a registered business.',
+                create_suggested_projects: true,
+              })
+            }}
+          >
+            New company / Personal
           </Button>
         </Space>
       </Space>
@@ -208,7 +227,13 @@ export default function Workspace() {
                 title={
                   <Space wrap>
                     <BankOutlined />
-                    {c.name}
+                    <Button
+                      type="link"
+                      style={{ padding: 0, height: 'auto', fontWeight: 600, fontSize: 16 }}
+                      onClick={() => nav(`/companies/${c.id}`)}
+                    >
+                      {c.name}
+                    </Button>
                     {c.industry && <Tag>{c.industry}</Tag>}
                   </Space>
                 }
@@ -217,6 +242,15 @@ export default function Workspace() {
                     <Tag>{c.project_count} projects</Tag>
                     <Tag>{c.agent_count || 0} agents</Tag>
                     <Tag>{c.task_count} tasks</Tag>
+                    <Button
+                      size="small"
+                      type="primary"
+                      ghost
+                      icon={<LineChartOutlined />}
+                      onClick={() => nav(`/companies/${c.id}`)}
+                    >
+                      Profile &amp; P&amp;L
+                    </Button>
                     <Button size="small" icon={<PlusOutlined />} onClick={() => setProjectOpen(c.id)}>
                       Project
                     </Button>
@@ -353,24 +387,41 @@ export default function Workspace() {
         </Row>
       )}
 
-      <Modal title="New company" open={companyOpen} onCancel={() => setCompanyOpen(false)} footer={null} destroyOnClose width={560}>
+      <Modal
+        title="New company or personal workspace"
+        open={companyOpen}
+        onCancel={() => { setCompanyOpen(false); setSelectedCompanyTpl(null) }}
+        footer={null}
+        destroyOnClose
+        width={640}
+      >
         <Form
           form={companyForm}
           layout="vertical"
           onFinish={createCompany}
-          initialValues={{ create_suggested_projects: true, template_id: 'blank' }}
+          initialValues={{ create_suggested_projects: true, template_id: 'personal' }}
         >
-          <Form.Item name="template_id" label="Company template">
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Pick a type"
+            description="Personal = life, goals, side projects. Business types seed industry projects + starter tasks. Universal task options work on every project."
+          />
+          <Form.Item name="template_id" label="Company type">
             <Select
+              showSearch
+              optionFilterProp="label"
               options={(templates.companies || []).map(t => ({
                 value: t.id,
-                label: `${t.name}${t.industry ? ` · ${t.industry}` : ''}`,
+                label: `${t.kind === 'personal' ? '👤 ' : ''}${t.name}${t.industry ? ` · ${t.industry}` : ''}${t.badge ? ` (${t.badge})` : ''}`,
               }))}
               onChange={(id) => {
                 const t = (templates.companies || []).find(x => x.id === id)
+                setSelectedCompanyTpl(t || null)
                 if (t && id !== 'blank') {
                   companyForm.setFieldsValue({
-                    name: t.name,
+                    name: id === 'personal' ? 'Personal' : t.name,
                     industry: t.industry,
                     notes: t.notes,
                   })
@@ -378,8 +429,31 @@ export default function Workspace() {
               }}
             />
           </Form.Item>
-          <Form.Item name="name" label="Company name" rules={[{ required: true, message: 'Name or template required' }]}>
-            <Input placeholder="Acme Ltd" />
+          {selectedCompanyTpl?.suggested_projects?.length > 0 && (
+            <Card size="small" type="inner" title="What you get" style={{ marginBottom: 12 }}>
+              <List
+                size="small"
+                dataSource={selectedCompanyTpl.suggested_projects}
+                renderItem={(p) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={p.name}
+                      description={
+                        <>
+                          {p.description}
+                          {p.task_count > 0 && (
+                            <Tag color="purple" style={{ marginLeft: 8 }}>{p.task_count} starter tasks</Tag>
+                          )}
+                        </>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          )}
+          <Form.Item name="name" label={selectedCompanyTpl?.kind === 'personal' ? 'Name' : 'Company name'} rules={[{ required: true, message: 'Name or template required' }]}>
+            <Input placeholder={selectedCompanyTpl?.kind === 'personal' ? 'Personal' : 'Acme Ltd'} />
           </Form.Item>
           <Form.Item name="industry" label="Industry">
             <Input placeholder="Electrical / SaaS / Agency" />
@@ -387,10 +461,16 @@ export default function Workspace() {
           <Form.Item name="notes" label="Notes">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="create_suggested_projects" label="Create suggested projects from template" valuePropName="checked">
+          <Form.Item
+            name="create_suggested_projects"
+            label="Create suggested projects + starter tasks"
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
-          <Button type="primary" htmlType="submit" block>Create company</Button>
+          <Button type="primary" htmlType="submit" block>
+            {selectedCompanyTpl?.kind === 'personal' ? 'Create personal workspace' : 'Create company'}
+          </Button>
         </Form>
       </Modal>
 
@@ -398,9 +478,11 @@ export default function Workspace() {
         <Form form={projectForm} layout="vertical" onFinish={createProject} initialValues={{ status: 'active', template_id: 'blank' }}>
           <Form.Item name="template_id" label="Project template">
             <Select
+              showSearch
+              optionFilterProp="label"
               options={(templates.projects || []).map(t => ({
                 value: t.id,
-                label: t.name,
+                label: `${t.name}${t.suggested_task_ids?.length ? ` · ${t.suggested_task_ids.length} tasks` : ''}`,
               }))}
               onChange={(id) => {
                 const t = (templates.projects || []).find(x => x.id === id)
@@ -414,6 +496,9 @@ export default function Workspace() {
               }}
             />
           </Form.Item>
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+            Templates seed starter tasks. You can always add more from universal task options.
+          </Typography.Paragraph>
           <Form.Item name="name" label="Project name" rules={[{ required: true }]}>
             <Input placeholder="Website relaunch / Q3 sales" />
           </Form.Item>
@@ -466,12 +551,41 @@ export default function Workspace() {
         onCancel={() => { setTaskOpen(null); taskForm.resetFields() }}
         footer={null}
         destroyOnClose
+        width={560}
       >
         <Form form={taskForm} layout="vertical" onFinish={createTask}>
+          <Form.Item name="template_id" label="Task option (all projects)">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="Pick a starter task template"
+              options={(templates.tasks || []).map((t) => ({
+                value: t.id,
+                label: t.name,
+              }))}
+              onChange={(id) => {
+                const t = (templates.tasks || []).find((x) => x.id === id)
+                if (t) {
+                  taskForm.setFieldsValue({
+                    title: t.title || t.name,
+                    description: t.description,
+                  })
+                }
+              }}
+            />
+          </Form.Item>
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -8 }}>
+            Universal options: standup, inbox triage, follow-ups, content draft, research, checklists, and more.
+          </Typography.Paragraph>
           <Form.Item name="title" label="Title">
             <Input placeholder="Optional short title" />
           </Form.Item>
-          <Form.Item name="description" label="Description" rules={[{ required: true }]}>
+          <Form.Item
+            name="description"
+            label="Description"
+            rules={[{ required: true, message: 'Description or task template required' }]}
+          >
             <Input.TextArea rows={3} placeholder="What needs doing?" />
           </Form.Item>
           <Form.Item name="agent_id" label="Assign agent">

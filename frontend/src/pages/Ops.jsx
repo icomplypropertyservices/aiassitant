@@ -8,7 +8,7 @@ import {
   CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -70,10 +70,11 @@ export default function Ops() {
     load()
     let ws
     try {
-      ws = new WebSocket(`${getWsBase()}/ops/ws?token=${getToken()}`)
+      ws = connectAuthedWs('/ops/ws')
       ws.onmessage = (ev) => {
         try {
           const m = JSON.parse(ev.data)
+          if (m.type === 'auth_ok') return
           if (m.event === 'snapshot') setSnap(m.snapshot)
           if (m.event === 'ops') {
             setSnap((prev) => {

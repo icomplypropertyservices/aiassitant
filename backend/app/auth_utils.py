@@ -29,11 +29,19 @@ def verify_password(password: str, stored: str) -> bool:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex() == h
 
 
-def create_token(user_id: int, role: str) -> str:
+def hash_reset_token(token: str) -> str:
+    """SHA-256 hex digest of a password-reset secret (never store the raw token)."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_token(user_id: int, role: str, token_version: int = 0) -> str:
+    # Logout is client-side (discard token). Password change bumps token_version
+    # so older JWTs fail in get_current_user / user_from_ws_token.
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": datetime.utcnow() + timedelta(days=7),
+        "tv": int(token_version or 0),
+        "exp": datetime.utcnow() + timedelta(hours=48),
     }
     return jwt.encode(payload, SECRET, algorithm=ALGO)
 
@@ -43,6 +51,13 @@ def decode_token(token: str):
         return jwt.decode(token, SECRET, algorithms=[ALGO])
     except jwt.PyJWTError:
         return None
+
+
+def _token_version_ok(user: models.User, payload: dict) -> bool:
+    """Reject JWTs issued before the last password change (missing tv treated as 0)."""
+    claim = int(payload.get("tv") or 0)
+    current = int(getattr(user, "token_version", None) or 0)
+    return claim == current
 
 
 def get_current_user(
@@ -57,6 +72,8 @@ def get_current_user(
     user = db.get(models.User, int(payload["sub"]))
     if not user:
         raise HTTPException(401, "User not found")
+    if not _token_version_ok(user, payload):
+        raise HTTPException(401, "Session expired. Please sign in again.")
     return user
 
 
@@ -70,7 +87,48 @@ def user_from_ws_token(token: str, db: Session):
     payload = decode_token(token or "")
     if not payload:
         return None
-    return db.get(models.User, int(payload["sub"]))
+    user = db.get(models.User, int(payload["sub"]))
+    if not user or not _token_version_ok(user, payload):
+        return None
+    return user
+
+
+async def accept_and_authenticate_ws(ws, token: str, db: Session):
+    """
+    Accept WebSocket then authenticate.
+
+    Preferred (no JWT in URL): client connects without query token, then sends
+    first text frame: {"type":"auth","token":"<jwt>"}. Server replies {"type":"auth_ok"}.
+
+    Legacy/mobile fallback: ?token=<jwt> still works (no first-message required).
+
+    Returns User on success, or None after closing the socket with code 4401.
+    """
+    await ws.accept()
+    raw = (token or "").strip()
+    if not raw:
+        try:
+            msg = await ws.receive_text()
+            import json as _json
+            data = _json.loads(msg) if msg else {}
+            if isinstance(data, dict) and data.get("type") == "auth":
+                raw = (data.get("token") or "").strip()
+        except Exception:
+            raw = ""
+    user = user_from_ws_token(raw, db) if raw else None
+    if not user:
+        try:
+            await ws.close(code=4401)
+        except Exception:
+            pass
+        return None
+    # If client used first-message auth, acknowledge (query-token path is silent)
+    if not (token or "").strip():
+        try:
+            await ws.send_text('{"type":"auth_ok"}')
+        except Exception:
+            pass
+    return user
 
 
 def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) -> float:

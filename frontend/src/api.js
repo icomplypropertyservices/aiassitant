@@ -2,14 +2,15 @@
  * API base URL:
  * - Local web: http://localhost:8000 (or VITE_API_URL)
  * - Local with Vite proxy: set VITE_API_URL= (empty) or VITE_USE_PROXY=1 → /api
- * - Vercel full-stack web: same-origin /api
+ * - Production web (aibusinessagent.xyz): same-origin /api
+ *   App UI lives at /agents; API stays at domain root /api
  * - iOS/Android Capacitor: absolute production API
  *
  * Override anytime with VITE_API_URL.
- * Native default: VITE_PROD_API_URL or https://aiassitant-nu.vercel.app/api
+ * Native default: VITE_PROD_API_URL or https://aibusinessagent.xyz/api
  */
 
-const PROD_API_DEFAULT = 'https://aiassitant-nu.vercel.app/api'
+const PROD_API_DEFAULT = 'https://aibusinessagent.xyz/api'
 
 function isNativeShell() {
   try {
@@ -52,9 +53,16 @@ export function getWsBase() {
   if (API && (API.startsWith('http://') || API.startsWith('https://'))) {
     return API.replace(/^http/i, (m) => (m.toLowerCase() === 'https' ? 'wss' : 'ws'))
   }
+  // Relative API (e.g. /api) → same host + that path prefix
+  if (API && API.startsWith('/')) {
+    if (typeof window !== 'undefined') {
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+      return `${proto}://${window.location.host}${API.replace(/\/+$/, '')}`
+    }
+  }
   if (typeof window !== 'undefined') {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    return `${proto}://${window.location.host}`
+    return `${proto}://${window.location.host}/api`
   }
   return 'ws://localhost:8000'
 }
@@ -68,6 +76,58 @@ export const WS =
 
 export function getToken() {
   return localStorage.getItem('token')
+}
+
+/**
+ * Open a WebSocket and auth via first text frame (JWT not in URL).
+ * Prefers header-safe path: connect without ?token=, then send
+ * {"type":"auth","token":"..."}. Backend still accepts ?token= for mobile/legacy.
+ *
+ * @param {string} path  Absolute path under API/WS base, e.g. "/ops/ws" or "/agents/1/ws/chat"
+ * @param {{ useQueryToken?: boolean }} [opts]  If useQueryToken true, put token in URL (mobile fallback)
+ * @returns {WebSocket}
+ */
+export function connectAuthedWs(path, opts = {}) {
+  // Vercel Python serverless does not support WebSocket upgrades (browser sees 403).
+  // Production uses REST for chat/ops; skip opening sockets that only spam console errors.
+  if (import.meta.env.PROD && !opts.force) {
+    return {
+      readyState: 3, // CLOSED
+      send() {},
+      close() {},
+      addEventListener() {},
+      removeEventListener() {},
+      onopen: null,
+      onclose: null,
+      onerror: null,
+      onmessage: null,
+    }
+  }
+  const token = getToken() || ''
+  const p = path.startsWith('/') ? path : `/${path}`
+  const base = getWsBase()
+  let url
+  if (opts.useQueryToken && token) {
+    const sep = p.includes('?') ? '&' : '?'
+    url = `${base}${p}${sep}token=${encodeURIComponent(token)}`
+  } else {
+    url = `${base}${p}`
+  }
+  const ws = new WebSocket(url)
+  if (!opts.useQueryToken && token) {
+    ws.addEventListener(
+      'open',
+      () => {
+        try {
+          ws.send(JSON.stringify({ type: 'auth', token }))
+        } catch {
+          /* ignore */
+        }
+      },
+      { once: true },
+    )
+  }
+  return ws
 }
 export function getUser() {
   try {
@@ -134,11 +194,17 @@ export async function api(path, options = {}) {
     throw new Error(msg)
   }
 
-  // Auth expired — force re-login (except on auth endpoints)
+  // Auth expired / missing — force re-login (except on auth endpoints)
   if (res.status === 401 && !path.startsWith('/auth/')) {
     clearAuth()
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login'
+    if (typeof window !== 'undefined') {
+      // App lives at /agents/* — never bounce to bare /login (that hit the wrong route)
+      const base = (import.meta.env.BASE_URL || '/agents/').replace(/\/+$/, '') || '/agents'
+      const loginUrl = `${base}/login`
+      const here = window.location.pathname || ''
+      if (!here.includes('/login') && !here.endsWith('/login')) {
+        window.location.href = loginUrl
+      }
     }
     throw new Error('Session expired — please sign in again')
   }

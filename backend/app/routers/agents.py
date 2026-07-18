@@ -5,13 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db, SessionLocal
 from .. import models
-from ..auth_utils import get_current_user, user_from_ws_token, ensure_credits
+from ..auth_utils import get_current_user, user_from_ws_token, ensure_credits, accept_and_authenticate_ws
 from ..ws import manager
 from ..llm import stream_completion, complete, provider_hint
 from .. import channels
 from ..pricing import estimate_tokens
 from ..plans import plan_limits
-from ..usage_billing import charge_usage
+from ..usage_billing import charge_usage, bill_llm_turn
 from ..user_keys import credentials_for_user
 from ..async_jobs import schedule as schedule_job
 from ..task_status import ALLOWED as TASK_STATUSES, normalize_status
@@ -24,9 +24,30 @@ from ..agent_roles import (
     resolve_create_role,
 )
 from ..agent_serialize import agent_out, agents_out_list, task_dict
-from ..agent_hierarchy import build_hierarchy_payload, ensure_main_orchestrator
+from ..agent_hierarchy import build_hierarchy_payload, ensure_main_orchestrator, ensure_master_designer
+from ..seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
+from ..agent_roles import is_orchestrator
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+def _agent_plan_cap(db: Session, user) -> tuple[int, int, bool]:
+    """Return (current_count, max_agents, is_admin). max_agents from plan_limits."""
+    count = db.query(models.Agent).filter_by(user_id=user.id).count()
+    max_agents = int(plan_limits(user.plan).get("agents") or 0)
+    is_admin = user.role == "admin"
+    return count, max_agents, is_admin
+
+
+def _require_agent_slot(db: Session, user) -> tuple[int, int]:
+    """Raise 400 if non-admin is at/over plan agent cap. Returns (count, max_agents)."""
+    count, max_agents, is_admin = _agent_plan_cap(db, user)
+    if not is_admin and count >= max_agents:
+        raise HTTPException(
+            400,
+            f"Your plan allows up to {max_agents} agents. Upgrade on Billing.",
+        )
+    return count, max_agents
 
 
 def mode_for_template(template_type: str) -> str:
@@ -67,7 +88,7 @@ class AgentIn(BaseModel):
     template_type: str = "custom"
     personality: str = "Professional, friendly and concise."
     model: str = "vps-fast"
-    idle_mode: str = "allow_idle"
+    idle_mode: str = "never_idle"
     config: dict = {}
     is_lead: bool = False
     hierarchy_role: str = "member"  # lead | member | specialist
@@ -226,6 +247,390 @@ async def ensure_designer(db: Session = Depends(get_db), user=Depends(get_curren
     out = agent_out(a, db, include_team=True)
     out["polish_gates"] = polish_checklist()
     return out
+
+
+@router.post("/seed-starter-team")
+async def seed_starter_team(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """One-click seed: creates a rich, balanced professional team (~20 agents) using all the great templates."""
+    if user.role != "admin" and (not user.subscription_active or user.plan in (None, "", "none")):
+        raise HTTPException(402, "Choose a subscription plan to create agents")
+    ensure_credits(db, user.id)
+
+    count = db.query(models.Agent).filter_by(user_id=user.id).count()
+    max_agents = int(plan_limits(user.plan).get("agents") or 0)
+    # Admin may bypass plan caps with a high ceiling
+    if user.role == "admin":
+        max_agents = max(max_agents, 10_000)
+    remaining = max(0, max_agents - count)
+    if remaining < 3:
+        raise HTTPException(
+            400,
+            f"Your plan allows up to {max_agents} agents "
+            f"({count} in use, {remaining} slot(s) left). "
+            "Need at least 3 free slots to seed the starter team. Upgrade on Billing.",
+        )
+
+    created_ids = []
+    name_map = {}
+    _live_count = count  # track newly created (not re-used existing)
+
+    # Core always (may create if missing — respect remaining slots)
+    orch = ensure_main_orchestrator(db, user)
+    name_map["Main AI Orchestrator"] = orch
+    created_ids.append(orch.id)
+    _live_count = db.query(models.Agent).filter_by(user_id=user.id).count()
+
+    if _live_count < max_agents:
+        designer = ensure_master_designer(db, user)
+        name_map["Master Designer"] = designer
+        created_ids.append(designer.id)
+        _live_count = db.query(models.Agent).filter_by(user_id=user.id).count()
+    else:
+        designer = db.query(models.Agent).filter_by(user_id=user.id, name="Master Designer").first()
+        if designer:
+            name_map["Master Designer"] = designer
+            created_ids.append(designer.id)
+
+    def create_from_seed(seed_name: str, overrides: dict | None = None):
+        nonlocal _live_count
+        tpl = next((t for t in SEED_TEMPLATES if t[0] == seed_name), None)
+        if not tpl:
+            return None
+        full_name, ttype, desc, fields, _cost = tpl
+        # Skip if already exists with that name
+        existing = db.query(models.Agent).filter_by(user_id=user.id, name=full_name).first()
+        if existing:
+            name_map[full_name] = existing
+            if existing.id not in created_ids:
+                created_ids.append(existing.id)
+            return existing
+
+        # Stop creating new agents when at plan max
+        if _live_count >= max_agents:
+            return None
+
+        cfg = {f["name"]: (overrides or {}).get(f["name"], "") for f in fields}
+
+        from ..agent_scaffold import apply_create_defaults, repair_agent
+        hrole = "orchestrator" if ttype == "orchestrator" else ("lead" if ttype == "lead" else "member")
+        defaults = apply_create_defaults(None, ttype, hrole)
+        a = models.Agent(
+            user_id=user.id,
+            name=full_name,
+            template_type=ttype,
+            personality=desc[:220],
+            model=defaults["model"],
+            idle_mode="never_idle",
+            config=json.dumps({**cfg, "autonomy": "full"}),
+            hierarchy_role=hrole,
+            is_lead=ttype in ("orchestrator", "lead"),
+            status="active",
+            permission_level=defaults["permission_level"],
+            escalate_when="on_failure",
+            escalate_to="parent",
+        )
+        db.add(a)
+        db.flush()
+        repair_agent(db, a, force_never_idle=True, expand_skills=True)
+        name_map[full_name] = a
+        created_ids.append(a.id)
+        _live_count += 1
+        return a
+
+    # Leadership
+    create_from_seed("Main AI Orchestrator")
+    create_from_seed("Master Designer")
+    lead = create_from_seed("Lead Agent / Team Lead")
+    sales_lead = create_from_seed("Sales Lead Agent")
+    ops_lead = create_from_seed("Operations Lead")
+
+    # Sales
+    create_from_seed("Sales Outreach Agent")
+    create_from_seed("Lead Qualifier")
+    create_from_seed("Appointment Booker")
+
+    # Support
+    create_from_seed("Customer Support Agent")
+    create_from_seed("Review Responder")
+    create_from_seed("Complaint Handler")
+
+    # Content
+    create_from_seed("Content Writer Agent")
+    create_from_seed("Social Media Manager")
+    create_from_seed("Email Newsletter Writer")
+
+    # Engineering (the biggest pod)
+    create_from_seed("Full-Stack Developer")
+    create_from_seed("Frontend Engineer")
+    create_from_seed("Backend API Engineer")
+    create_from_seed("Code Reviewer")
+    create_from_seed("QA / Test Engineer")
+
+    # Ops & PM
+    create_from_seed("Research Analyst")
+    create_from_seed("Meeting Summariser")
+    create_from_seed("Product Manager")
+
+    # Nice hierarchy wiring
+    if sales_lead:
+        for n in ["Sales Outreach Agent", "Lead Qualifier", "Appointment Booker"]:
+            if n in name_map:
+                name_map[n].parent_id = sales_lead.id
+    if ops_lead:
+        for n in ["Meeting Summariser", "Research Analyst"]:
+            if n in name_map:
+                name_map[n].parent_id = ops_lead.id
+    if lead:
+        for n in ["Sales Lead Agent", "Operations Lead"]:
+            if n in name_map:
+                name_map[n].parent_id = lead.id
+
+    # Full autonomy stack for every seeded agent
+    from ..agent_scaffold import scaffold_workspace, repair_workspace
+    for a in name_map.values():
+        a.idle_mode = "never_idle"
+        a.status = "active"
+    db.commit()
+    repair_workspace(db, user.id)
+
+    # Return fresh list
+    fresh = db.query(models.Agent).filter(models.Agent.id.in_(created_ids)).all()
+    capped = _live_count >= max_agents
+    msg = "Professional starter team of ~20 agents created with proper hierarchy, leads, and specialist pods."
+    if capped:
+        msg = (
+            f"Starter team seeded up to your plan limit ({max_agents} agents). "
+            "Upgrade on Billing for more agent slots."
+        )
+    return {
+        "ok": True,
+        "count": len(fresh),
+        "agents": [agent_out(a, db) for a in fresh],
+        "message": msg,
+        "plan_limit": max_agents,
+        "at_limit": capped,
+    }
+
+
+@router.post("/seed-professional-40")
+async def seed_professional_40(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    ONE-CLICK: Spawn a massive professional team of ~40 agents.
+    Uses the meta 'spawn_team' + bulk skill enabling logic so agents are 'made' with skills.
+    Creates rich hierarchy: Orchestrator + Designer + Leads (sales/ops/content/eng) + 30+ specialists.
+    Respects plan agent caps (admin bypass); stops at max or 400 if no room to seed.
+    """
+    from ..agent_scaffold import repair_agent, repair_workspace, map_model
+    from ..agent_skills import SKILL_CATALOG, set_enabled_skills, DEFAULT_ENABLED, _apply_preset_skills
+    import json as _json
+
+    count0, max_agents, is_admin = _agent_plan_cap(db, user)
+    live_count = count0
+    capped = False
+    newly_created = 0
+
+    created = []
+    name_map = {}
+
+    def _room() -> bool:
+        """True if another agent may be created under plan limits."""
+        nonlocal live_count, capped
+        if is_admin:
+            return True
+        live_count = db.query(models.Agent).filter_by(user_id=user.id).count()
+        if live_count >= max_agents:
+            capped = True
+            return False
+        return True
+
+    # 1. Core leaders (reuse existing; only create when a plan slot remains)
+    existing_orch = find_orchestrator(db, user.id)
+    if not existing_orch and not _room():
+        raise HTTPException(
+            400,
+            f"Your plan allows up to {max_agents} agents. Cannot seed team. Upgrade on Billing.",
+        )
+    before = db.query(models.Agent).filter_by(user_id=user.id).count()
+    orch = ensure_main_orchestrator(db, user)
+    after = db.query(models.Agent).filter_by(user_id=user.id).count()
+    newly_created += max(0, after - before)
+    live_count = after
+    name_map["Main AI Orchestrator"] = orch
+    created.append(orch.id)
+
+    designer_existing = (
+        db.query(models.Agent)
+        .filter_by(user_id=user.id, name="Master Designer")
+        .first()
+    )
+    if designer_existing or _room():
+        before = db.query(models.Agent).filter_by(user_id=user.id).count()
+        designer = ensure_master_designer(db, user)
+        after = db.query(models.Agent).filter_by(user_id=user.id).count()
+        newly_created += max(0, after - before)
+        live_count = after
+        name_map["Master Designer"] = designer
+        created.append(designer.id)
+
+    def _mk(name, ttype, personality, hrole="member", parent=None):
+        nonlocal live_count, capped, newly_created
+        existing = db.query(models.Agent).filter_by(user_id=user.id, name=name).first()
+        if existing:
+            name_map[name] = existing
+            if existing.id not in created:
+                created.append(existing.id)
+            return existing
+        if not _room():
+            return None
+        a = models.Agent(
+            user_id=user.id,
+            name=name,
+            template_type=ttype,
+            personality=personality[:240],
+            model=map_model("quality"),
+            idle_mode="never_idle",
+            status="active",
+            hierarchy_role=hrole,
+            is_lead=hrole in ("lead", "orchestrator"),
+            parent_id=parent,
+            permission_level="admin" if hrole == "orchestrator" else ("lead" if hrole == "lead" else "operator"),
+            config=_json.dumps({"autonomy": "full"}),
+            escalate_when="on_failure",
+            escalate_to="parent",
+        )
+        db.add(a)
+        db.flush()
+        repair_agent(db, a, force_never_idle=True, expand_skills=True)
+        name_map[name] = a
+        created.append(a.id)
+        newly_created += 1
+        live_count += 1
+        return a
+
+    def _pid(agent):
+        return agent.id if agent else None
+
+    # Leadership pod
+    ceo = _mk("CEO / Vision Lead", "lead", "Sets company direction and priorities. Owns top-level decisions and OKRs.", "lead")
+    sales_lead = _mk("VP Sales", "lead", "Owns revenue, pipeline, outreach pods and quota attainment.", "lead", parent=_pid(ceo))
+    ops_lead = _mk("VP Operations", "lead", "Runs delivery, support, scheduling and customer ops.", "lead", parent=_pid(ceo))
+    content_lead = _mk("VP Content & Growth", "lead", "Owns all content, SEO, social, email, ads and brand.", "lead", parent=_pid(ceo))
+    eng_lead = _mk("VP Engineering", "lead", "Architecture, code quality, delivery velocity and infra.", "lead", parent=_pid(ceo))
+    cs_lead = _mk("VP Customer Success", "lead", "Health scores, onboarding, retention, QBRs and expansion.", "lead", parent=_pid(ceo))
+
+    # Sales pod (8)
+    for nm, pers in [
+        ("Outbound SDR", "Cold outreach specialist (email + LinkedIn + calls). Books first meetings."),
+        ("Lead Qualifier", "Qualifies inbound leads, scores them, books discovery calls."),
+        ("Appointment Booker", "Negotiates calendars and books meetings into the diary."),
+        ("Proposal Writer", "Creates beautiful, accurate proposals and SOWs from briefs."),
+        ("Deal Closer", "Handles late-stage objections and gets signatures."),
+        ("Account Executive", "Runs full-cycle demos and negotiations for larger deals."),
+        ("Renewals & Expansion", "Manages renewals, upsells and cross-sells."),
+        ("Sales Ops Analyst", "Keeps CRM clean, builds reports and forecasts."),
+    ]:
+        a = _mk(nm, "sales", pers, "member", parent=_pid(sales_lead))
+        if a:
+            set_enabled_skills(db, a, [s for s in DEFAULT_ENABLED if any(k in s for k in ("sales","lead","proposal","cold","book","qualif","close","churn","upsell","email","sms"))] or DEFAULT_ENABLED)
+
+    # Support / Success pod (7)
+    for nm, pers in [
+        ("Tier-1 Support", "Answers everyday questions fast with perfect tone."),
+        ("Escalations & Complaints", "De-escalates and resolves complex or angry customers."),
+        ("Onboarding Specialist", "Gets new customers live and hitting value quickly."),
+        ("Customer Success Manager", "Owns named accounts, health scores and QBRs."),
+        ("Retention & Cancel Save", "Stops churn and wins customers back with smart offers."),
+        ("Review & Reputation", "Monitors and replies to Google / Trustpilot reviews."),
+        ("Knowledge Curator", "Writes help articles and improves the training base from tickets."),
+    ]:
+        _mk(nm, "support", pers, "member", parent=_pid(cs_lead))
+
+    # Content & Growth pod (7)
+    for nm, pers in [
+        ("Blog & SEO Writer", "Long-form SEO articles that rank and convert."),
+        ("Social Media Manager", "Posts daily across LinkedIn, X, Instagram with hooks."),
+        ("Email Newsletter", "Writes weekly value-packed newsletters that drive replies."),
+        ("Ad Copywriter", "High-converting Google/FB/IG ad copy and landing pages."),
+        ("Video Scriptwriter", "Short and long-form video scripts for YouTube and ads."),
+        ("Case Study Writer", "Turns happy customers into powerful proof assets."),
+        ("Growth Experimenter", "Designs and analyses acquisition experiments."),
+    ]:
+        _mk(nm, "content", pers, "member", parent=_pid(content_lead))
+
+    # Engineering pod (8)
+    for nm, pers in [
+        ("Backend Engineer", "APIs, data models, auth, billing, integrations."),
+        ("Frontend Engineer", "Polished React UIs, forms, mobile-first components."),
+        ("Full-Stack Feature Dev", "Ships complete features end-to-end."),
+        ("Code Reviewer & QA", "Reviews PRs, writes tests, prevents regressions."),
+        ("DevOps & Infra", "Docker, CI, deploy, monitoring, secrets."),
+        ("Data & Analytics Eng", "Pipelines, dashboards, metric definitions."),
+        ("Security & Compliance", "Threat modelling, audits, GDPR, pen-test support."),
+        ("Mobile / React Native", "iOS + Android apps and Capacitor shells."),
+    ]:
+        _mk(nm, "coding", pers, "member", parent=_pid(eng_lead))
+
+    # Ops + PM + Finance + HR + Legal pod (more to hit ~40)
+    extra = [
+        ("Product Manager", "ops", "Writes specs, prioritises roadmap, runs discovery."),
+        ("Research Analyst", "ops", "Competitor deep dives, market sizing, ICP research."),
+        ("Finance & Invoicing", "ops", "Invoices, chasers, cashflow, basic reporting."),
+        ("Recruiter / HR", "ops", "Writes JDs, screens CVs, coordinates interviews."),
+        ("Legal & Compliance", "ops", "First-pass contracts, policies and risk notes."),
+        ("Meeting Summariser", "ops", "Turns every call into actions + follow-ups."),
+        ("Project Coordinator", "ops", "Tracks milestones, unblocks teams, reports status."),
+        ("Executive Assistant", "ops", "Prioritises CEO time, books travel, manages comms."),
+    ]
+    for nm, tt, pers in extra:
+        _mk(nm, tt, pers, "member", parent=_pid(ops_lead))
+
+    # Cannot seed meaningfully: no agents collected and no creates under cap
+    if not created:
+        raise HTTPException(
+            400,
+            f"Your plan allows up to {max_agents} agents. Cannot seed team. Upgrade on Billing.",
+        )
+
+    # Bulk-enable powerful presets on all non-orchestrator agents
+    all_agents = db.query(models.Agent).filter_by(user_id=user.id).all()
+    for a in all_agents:
+        if is_orchestrator(a):
+            continue
+        # Give everyone a strong base + role-specific extras
+        base = list(DEFAULT_ENABLED)
+        if any(k in (a.template_type or "") for k in ("sales", "lead")):
+            base = list(set(base) | {s["id"] for s in SKILL_CATALOG if any(x in s["id"] for x in ("sales","proposal","cold","qualif","close"))})
+        elif "support" in (a.template_type or "") or "success" in (a.name or "").lower():
+            base = list(set(base) | {s["id"] for s in SKILL_CATALOG if any(x in s["id"] for x in ("support","ticket","escalat","onboard","health"))})
+        elif "content" in (a.template_type or "") or "growth" in (a.name or "").lower():
+            base = list(set(base) | {s["id"] for s in SKILL_CATALOG if any(x in s["id"] for x in ("content","linkedin","newsletter","seo","ad","video"))})
+        elif "coding" in (a.template_type or "") or "engineer" in (a.name or "").lower():
+            base = list(set(base) | {s["id"] for s in SKILL_CATALOG if any(x in s["id"] for x in ("code","api","test","debug","docker","ci","review"))})
+        set_enabled_skills(db, a, base[:240])
+
+    # Make everything fully autonomous
+    for a in all_agents:
+        a.idle_mode = "never_idle"
+        a.status = "active"
+    db.commit()
+    repair_workspace(db, user.id)
+
+    final = db.query(models.Agent).filter(models.Agent.id.in_(created)).all()
+    msg = (
+        f"Professional team of {len(final)} agents spawned with skills pre-enabled. "
+        "Agents can now spawn + skill-enable more themselves."
+    )
+    if capped and not is_admin:
+        msg += f" Plan limit of {max_agents} agents reached; remaining roles were not created. Upgrade on Billing for more."
+    return {
+        "ok": True,
+        "count": len(final),
+        "agents": [agent_out(a, db) for a in final],
+        "message": msg,
+        "plan_capped": bool(capped and not is_admin),
+        "max_agents": max_agents,
+        "newly_created": newly_created,
+    }
 
 
 @router.get("/designer/polish-review")
@@ -437,19 +842,25 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
             raise HTTPException(400, "Invalid company")
 
     from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
+    from ..agent_scaffold import apply_create_defaults, repair_agent, map_model
+    defaults = apply_create_defaults(data.model, data.template_type, role)
+    cfg = dict(data.config or {})
+    cfg.setdefault("autonomy", "full")
     a = models.Agent(
         user_id=user.id, name=data.name, template_type=data.template_type,
-        personality=data.personality, model=data.model, idle_mode=data.idle_mode,
-        config=json.dumps(data.config),
+        personality=data.personality,
+        model=map_model(data.model or defaults["model"]),
+        idle_mode="never_idle",
+        config=json.dumps(cfg),
         is_lead=is_lead,
         hierarchy_role=role,
         parent_id=parent_id,
-        permission_level=normalize_permission(data.permission_level),
-        escalate_when=normalize_escalate_when(data.escalate_when),
+        permission_level=normalize_permission(data.permission_level or defaults["permission_level"]),
+        escalate_when=normalize_escalate_when(data.escalate_when or "on_failure"),
         escalate_reason=(data.escalate_reason or "").strip(),
-        escalate_to=normalize_escalate_to(data.escalate_to),
+        escalate_to=normalize_escalate_to(data.escalate_to or "parent"),
         escalate_human_id=data.escalate_human_id,
-
+        status="active",
         company_id=company_id,
         project_id=project_id,
     )
@@ -457,10 +868,18 @@ async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depend
     db.flush()
     if make_orch:
         promote_orchestrator(db, a)
+    repair_agent(db, a, force_never_idle=True, expand_skills=True)
     db.commit()
     db.refresh(a)
     role_msg = " as Main Orchestrator" if make_orch else (" as Lead" if is_lead else (f" under #{parent_id}" if parent_id else ""))
-    await log_activity(a.id, user.id, "info", f"Agent '{a.name}' created{role_msg} and online")
+    await log_activity(a.id, user.id, "info", f"Agent '{a.name}' created{role_msg} — full autonomy online")
+    # Optional: auto-publish skill listing to AgentBay marketplace
+    try:
+        from ..agentbay_bridge import maybe_auto_publish
+        await maybe_auto_publish(a, db)
+        db.refresh(a)
+    except Exception:
+        pass
     return agent_out(a, db, include_team=True)
 
 def _get_owned(agent_id: int, user, db) -> models.Agent:
@@ -657,110 +1076,10 @@ def delete_agent(agent_id: int, db: Session = Depends(get_db), user=Depends(get_
     return {"ok": True}
 
 async def _run_task(agent_id: int, user_id: int, task_id: int, description: str, agent_name: str):
-    db = SessionLocal()
-    try:
-        t = db.get(models.Task, task_id)
-        t.status = "in_progress"
-        db.commit()
-        a = db.get(models.Agent, agent_id)
-        cfg = json.loads((a.config if a else None) or "{}")
-        model = a.model if a else "vps-fast"
-        mode = mode_for_template(a.template_type if a else "")
-        if mode == "coding" and model in ("vps-fast", "vps-quality"):
-            model = "vps-qwen-coder"
-        agent_snapshot_id = a.id if a else agent_id
-    finally:
-        db.close()
+    """Delegate to task_runner (single implementation)."""
+    from ..task_runner import run_agent_task
+    await run_agent_task(agent_id, user_id, task_id, description, agent_name)
 
-    try:
-        await log_activity(agent_id, user_id, "thinking", f"Analysing task: {description[:80]}")
-        db = SessionLocal()
-        try:
-            creds = credentials_for_user(db, user_id)
-            agent_row = db.get(models.Agent, agent_snapshot_id)
-            prompt = (
-                build_task_prompt(db, agent_row, description, business_context=cfg)
-                if agent_row
-                else f"Complete this task:\n\n{description}"
-            )
-        finally:
-            db.close()
-        output = await complete(
-            [{"role": "user", "content": prompt}], model, mode, credentials=creds,
-        )
-
-        inp, out = estimate_tokens(prompt), estimate_tokens(output)
-        db = SessionLocal()
-        try:
-            user = db.get(models.User, user_id)
-            t = db.get(models.Task, task_id)
-            company_id = t.company_id if t else None
-            project_id = t.project_id if t else None
-            if t and t.agent_id and (not company_id or not project_id):
-                agent_row = db.get(models.Agent, t.agent_id)
-                if agent_row:
-                    company_id = company_id or agent_row.company_id
-                    project_id = project_id or agent_row.project_id
-            charged = charge_usage(
-                db, user, model, inp, out,
-                company_id=company_id, project_id=project_id,
-            )
-            cost = charged["cost"]
-            if t:
-                t.tokens_used = (t.tokens_used or 0) + charged["tokens"]
-                t.cost = (t.cost or 0) + cost
-                db.commit()
-        finally:
-            db.close()
-        await manager.broadcast(
-            f"tokens:{user_id}",
-            {"event": "usage", "tokens": inp + out, "cost": cost, "model": model,
-             "tokens_used_period": charged.get("tokens_used_period")},
-        )
-        await log_activity(agent_id, user_id, "action", f"Drafted deliverable: {output[:100]}")
-
-        if cfg.get("notify_email"):
-            ok, detail = await channels.send_email(
-                cfg["notify_email"], f"{agent_name}: task completed", output,
-                credentials=creds,
-            )
-            await log_activity(agent_id, user_id, "email", detail)
-        if cfg.get("notify_sms"):
-            ok, detail = await channels.send_sms(
-                cfg["notify_sms"], output[:300], credentials=creds,
-            )
-            await log_activity(agent_id, user_id, "sms", detail)
-
-        db = SessionLocal()
-        try:
-            t = db.get(models.Task, task_id)
-            t.status = "completed"
-            t.result = output
-            t.completed_at = datetime.utcnow()
-            db.commit()
-        finally:
-            db.close()
-        await log_activity(agent_id, user_id, "done", "Task completed — deliverable saved and delivered")
-        await manager.broadcast(
-            f"agents:{user_id}",
-            {"event": "task_done", "agent_id": agent_id, "task_id": task_id},
-        )
-    except Exception as e:
-        db = SessionLocal()
-        try:
-            t = db.get(models.Task, task_id)
-            if t:
-                t.status = "failed"
-                t.result = str(e)[:500]
-                t.completed_at = datetime.utcnow()
-                db.commit()
-        finally:
-            db.close()
-        await log_activity(agent_id, user_id, "info", f"Task failed: {str(e)[:120]}")
-        await manager.broadcast(
-            f"agents:{user_id}",
-            {"event": "task_done", "agent_id": agent_id, "task_id": task_id},
-        )
 
 @router.post("/{agent_id}/tasks")
 async def assign_task(agent_id: int, data: TaskIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -861,12 +1180,35 @@ async def run_task(task_id: int, db: Session = Depends(get_db), user=Depends(get
 
 @router.get("/{agent_id}/skills")
 def get_skills(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    from ..agent_skills import list_skills_for_agent, SKILL_CATALOG
+    from ..agent_skills import (
+        list_skills_for_agent,
+        list_skills_grouped,
+        SKILL_CATALOG,
+        get_comprehensive_skill_catalog,
+        enabled_skill_ids,
+    )
+    from ..agent_roles import normalize_role
     a = _get_owned(agent_id, user, db)
+    skills = list_skills_for_agent(a, db)
+    free = [s for s in skills if not s.get("premium")]
+    premium = [s for s in skills if s.get("premium")]
+    enabled = enabled_skill_ids(a, db)
     return {
         "agent_id": a.id,
-        "skills": list_skills_for_agent(a, db),
+        "role": normalize_role(a),
+        "skills": skills,
         "catalog": SKILL_CATALOG,
+        "categories": list_skills_grouped(),
+        "grouped": get_comprehensive_skill_catalog(),
+        "enabled_count": len(enabled),
+        "summary": {
+            "total": len(skills),
+            "unique_catalog": len(SKILL_CATALOG),
+            "enabled": len(enabled),
+            "free": len(free),
+            "premium": len(premium),
+            "premium_examples": [p["name"] for p in premium[:8]],
+        },
     }
 
 
@@ -987,12 +1329,14 @@ def delete_memory(agent_id: int, memory_id: int, db: Session = Depends(get_db), 
 
 @router.post("/{agent_id}/chat")
 async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    from ..agent_scaffold import map_model, resolve_runtime
     a = _get_owned(agent_id, user, db)
     ensure_credits(db, user.id)
+    rt = resolve_runtime(a)
     mode = mode_for_template(a.template_type)
-    model = a.model
-    if mode == "coding" and model in ("vps-fast", "vps-quality"):
-        model = "vps-qwen-coder"
+    model = rt.model
+    if mode == "coding" and model in ("fast", "small", "medium"):
+        model = "quality"
 
     conv = None
     if data.conversation_id:
@@ -1056,12 +1400,14 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     db.add(models.Message(conversation_id=conv.id, role="assistant", content=clean_reply or reply))
     db.commit()
 
-    inp = sum(estimate_tokens(m["content"]) for m in llm_messages)
-    out = estimate_tokens(clean_reply or reply)
-    charged = charge_usage(db, user, model, inp, out)
+    charged = bill_llm_turn(db, user, model, llm_messages, clean_reply or reply)
     await manager.broadcast(f"tokens:{user.id}", {
-        "event": "usage", "tokens": charged["tokens"], "cost": charged["cost"], "model": model,
+        "event": "usage",
+        "tokens": charged["tokens"],
+        "cost": charged["cost"],
+        "model": charged.get("model") or model,
         "tokens_used_period": charged.get("tokens_used_period"),
+        "credits": charged.get("credits"),
     })
     await log_activity(a.id, user.id, "action", f"Replied to a direct chat message")
     await emit_ops(
@@ -1074,6 +1420,9 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         "reply": clean_reply or reply,
         "tokens": charged["tokens"],
         "cost": charged["cost"],
+        "tokens_used_period": charged.get("tokens_used_period"),
+        "credits": charged.get("credits"),
+        "bill_source": charged.get("bill_source"),
         "conversation_id": conv.id,
         "skills": skill_results,
         "provider_hint": provider_hint(model, creds),
@@ -1082,17 +1431,22 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
 
 @router.websocket("/{agent_id}/ws/chat")
 async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
-    """Streaming live chat with a single agent."""
+    """Streaming live chat with a single agent.
+
+    Auth: ?token= (legacy/mobile) or first-message {"type":"auth","token":...}.
+    """
     db = SessionLocal()
-    user = user_from_ws_token(token, db)
+    user = await accept_and_authenticate_ws(ws, token, db)
     if not user:
         db.close()
-        await ws.close(code=4401)
         return
     a = db.get(models.Agent, agent_id)
     if not a or (a.user_id != user.id and user.role != "admin"):
         db.close()
-        await ws.close(code=4404)
+        try:
+            await ws.close(code=4404)
+        except Exception:
+            pass
         return
     agent_id = a.id
     user_id = user.id
@@ -1101,16 +1455,18 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
     template_type = a.template_type
     model = a.model
     config_raw = a.config or "{}"
-    await ws.accept()
     try:
         while True:
             raw = await ws.receive_text()
             data = json.loads(raw)
-            text = (data.get("message") or "").strip()
-            if not text:
+            if data.get("type") == "auth":
+                # Extra auth frames after handshake are ignored
                 continue
             if data.get("type") == "ping":
                 await ws.send_text(json.dumps({"type": "pong"}))
+                continue
+            text = (data.get("message") or "").strip()
+            if not text:
                 continue
 
             bal = db.query(models.Balance).filter_by(user_id=user_id).first()
@@ -1178,18 +1534,22 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
-            inp = sum(estimate_tokens(m["content"]) for m in llm_messages)
-            out = estimate_tokens(reply)
-            charged = charge_usage(db, user_obj, use_model, inp, out)
+            charged = bill_llm_turn(db, user_obj, use_model, llm_messages, reply)
             await ws.send_text(json.dumps({
                 "type": "done",
                 "tokens": charged["tokens"],
                 "cost": charged["cost"],
                 "conversation_id": conv.id,
+                "tokens_used_period": charged.get("tokens_used_period"),
+                "credits": charged.get("credits"),
             }))
             await manager.broadcast(f"tokens:{user_id}", {
-                "event": "usage", "tokens": charged["tokens"], "cost": charged["cost"],
-                "model": use_model, "tokens_used_period": charged.get("tokens_used_period"),
+                "event": "usage",
+                "tokens": charged["tokens"],
+                "cost": charged["cost"],
+                "model": charged.get("model") or use_model,
+                "tokens_used_period": charged.get("tokens_used_period"),
+                "credits": charged.get("credits"),
             })
             await log_activity(agent_id, user_id, "action", "Live chat reply sent")
     except WebSocketDisconnect:
@@ -1205,13 +1565,14 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
 
 @router.websocket("/ws")
 async def agents_ws(ws: WebSocket, token: str = Query("")):
+    """Agent activity feed WS. Auth: ?token= (legacy/mobile) or first-message {"type":"auth","token":...}."""
     db = SessionLocal()
-    user = user_from_ws_token(token, db)
+    user = await accept_and_authenticate_ws(ws, token, db)
     db.close()
     if not user:
-        await ws.close(code=4401); return
+        return
     channel = f"agents:{user.id}"
-    await manager.connect(channel, ws)
+    manager.register(channel, ws)
     try:
         while True:
             await ws.receive_text()

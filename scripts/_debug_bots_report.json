@@ -1,0 +1,172 @@
+{
+  "passed": 33,
+  "failed": 0,
+  "total": 33,
+  "results": [
+    {
+      "bot": "01-app-import",
+      "status": "PASS",
+      "detail": "180 routes"
+    },
+    {
+      "bot": "02-route-auth",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-agents",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-org",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-billing",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-integrations",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-humans",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-permissions",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-dashboard",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-ops",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "02-route-business",
+      "status": "PASS",
+      "detail": "mounted"
+    },
+    {
+      "bot": "03-schema-tables",
+      "status": "PASS",
+      "detail": "33 tables"
+    },
+    {
+      "bot": "03-cols-agents",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "bot": "03-cols-tasks",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "bot": "03-cols-humans",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "bot": "04-skills-catalog",
+      "status": "PASS",
+      "detail": "lists=[('SKILL_CATALOG', 256)] unique_ids=247"
+    },
+    {
+      "bot": "05-skill-dispatch",
+      "status": "PASS",
+      "detail": "dispatch=execute_skill"
+    },
+    {
+      "bot": "06-scaffold-map",
+      "status": "PASS",
+      "detail": "resolve_runtime + repair_agent + agent_out"
+    },
+    {
+      "bot": "06b-skill-coverage",
+      "status": "PASS",
+      "detail": "catalog=247 dedicated_handlers=111 generic_fallback=True"
+    },
+    {
+      "bot": "07-permissions",
+      "status": "PASS",
+      "detail": "levels=4 escalate_when=9"
+    },
+    {
+      "bot": "08-integrations",
+      "status": "PASS",
+      "detail": "22 apps, 16 oauth"
+    },
+    {
+      "bot": "09-crypto",
+      "status": "PASS",
+      "detail": "enabled=True chains=['eth', 'sol', 'btc', 'xrp']"
+    },
+    {
+      "bot": "10-stripe",
+      "status": "PASS",
+      "detail": "mode=live webhook=False"
+    },
+    {
+      "bot": "11-llm",
+      "status": "PASS",
+      "detail": "xai=True anthropic=False"
+    },
+    {
+      "bot": "12-roles",
+      "status": "PASS",
+      "detail": "hierarchy helpers"
+    },
+    {
+      "bot": "13-autonomy",
+      "status": "PASS",
+      "detail": "import ok"
+    },
+    {
+      "bot": "14-media",
+      "status": "PASS",
+      "detail": "router ok"
+    },
+    {
+      "bot": "15-crm-models",
+      "status": "PASS",
+      "detail": "Customer Deal Pipeline Diary Human CryptoInvoice"
+    },
+    {
+      "bot": "16-usage-billing",
+      "status": "PASS",
+      "detail": "meter_snapshot"
+    },
+    {
+      "bot": "17-db-query",
+      "status": "PASS",
+      "detail": "users=3 agents=3 companies=1 tasks=1 humans=0"
+    },
+    {
+      "bot": "18-pricing-plans",
+      "status": "PASS",
+      "detail": "pricing=12 labels=8 plans=['none', 'trial', 'starter', 'pro', 'business', 'pay_as_you_go']"
+    },
+    {
+      "bot": "19-routers-core",
+      "status": "PASS",
+      "detail": "org humans agents dashboard permissions"
+    },
+    {
+      "bot": "20-prod-http",
+      "status": "PASS",
+      "detail": "health=200 pay=200 stripe=live crypto=['eth', 'sol', 'btc', 'xrp'] dash_unauth=401"
+    }
+  ]
+}

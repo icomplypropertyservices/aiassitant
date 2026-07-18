@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Row, Col, Card, Button, Tag, Timeline, Modal, Form, Input, Select, Switch, Space,
-  message, Empty, Popconfirm, Typography, Badge,
+  message, Empty, Popconfirm, Typography, Badge, Dropdown,
 } from 'antd'
 import {
   PlusOutlined, MessageOutlined, EditOutlined, PauseCircleOutlined,
   PlayCircleOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, BulbOutlined,
   CheckCircleOutlined, InfoCircleOutlined, ThunderboltOutlined, RightOutlined,
-  CrownOutlined,
+  CrownOutlined, DownOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import OrchestratorBanner from '../components/OrchestratorBanner'
 import { modelLabel } from '../models'
@@ -54,9 +54,10 @@ export default function Agents() {
     }).catch(() => {})
     api('/org/companies').then(setCompanies).catch(() => setCompanies([]))
     api('/org/projects').then(setProjects).catch(() => setProjects([]))
-    const ws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
+    const ws = connectAuthedWs('/agents/ws')
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
+      if (m.type === 'auth_ok') return
       if (m.event === 'activity') {
         setAgents(prev => prev.map(a => a.id === m.agent_id
           ? { ...a, activity: [...(a.activity || []).slice(-7), m.entry] } : a))
@@ -93,7 +94,7 @@ export default function Agents() {
       message.success('Agent created — opening chat')
       setCreateOpen(false)
       form.resetFields()
-      nav(`/agents/${a.id}`)
+      nav(`/console/${a.id}`)
     } catch (e) {
       message.error(e.message)
     }
@@ -114,138 +115,183 @@ export default function Agents() {
   const tpl = templates.find(t => t.id === selectedTemplate)
   const orch = agents.find(a => isOrchestrator(a))
 
+  const openSpawn = (templateId) => {
+    setCreateOpen(true)
+    if (templateId) {
+      const t = templates.find((x) => x.id === templateId)
+      const next = { template_id: templateId }
+      if (t?.type === 'orchestrator') {
+        next.is_lead = true
+        next.hierarchy_role = 'orchestrator'
+        next.name = form.getFieldValue('name') || 'Main AI Orchestrator'
+      } else if (t?.type === 'lead') {
+        next.is_lead = true
+        next.hierarchy_role = 'lead'
+      }
+      form.setFieldsValue(next)
+    } else {
+      form.setFieldsValue({ template_id: undefined })
+    }
+  }
+
+  const spawnMenuItems = [
+    {
+      key: 'custom',
+      icon: <PlusOutlined />,
+      label: 'Custom agent…',
+      onClick: () => openSpawn(null),
+    },
+    ...(templates.length
+      ? [
+          { type: 'divider' },
+          {
+            type: 'group',
+            label: 'From template',
+            children: templates.map((t) => ({
+              key: `tpl-${t.id}`,
+              label: `${t.type === 'orchestrator' ? '👑 ' : t.type === 'lead' ? '★ ' : ''}${t.name}`,
+              onClick: () => openSpawn(t.id),
+            })),
+          },
+        ]
+      : []),
+    { type: 'divider' },
+    {
+      key: 'designer',
+      icon: <CrownOutlined />,
+      label: 'Open Master Designer',
+      onClick: async () => {
+        try {
+          const d = await api('/agents/ensure-designer', { method: 'POST' })
+          message.success('Master Designer ready')
+          nav(`/console/${d.id}`)
+        } catch (e) {
+          message.error(e.message)
+        }
+      },
+    },
+  ]
+
   return (
     <div>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Space wrap>
-          <Input.Search
-            placeholder="Search agents"
-            style={{ width: 260 }}
-            allowClear
-            onChange={e => setSearch(e.target.value)}
-          />
-          <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
-          <Button onClick={() => nav('/workspace')}>Workspace</Button>
-          <Button onClick={() => nav('/tasks')}>Tasks board</Button>
+      <div style={{ marginBottom: 12 }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+          <div>
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              Console <Tag color="blue">{agents.length}</Tag>
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              Your agents in one place — open any chat, manage roles, keep work organised.
+            </Typography.Text>
+          </div>
+          <Space wrap>
+            <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
+            <Button onClick={() => nav('/workspace')}>Workspace</Button>
+            <Dropdown menu={{ items: spawnMenuItems }} trigger={['click']}>
+              <Button type="primary" icon={<PlusOutlined />}>
+                Spawn agent <DownOutlined />
+              </Button>
+            </Dropdown>
+          </Space>
         </Space>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          Create New Agent
+      </div>
+
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Input.Search
+          placeholder="Search agents…"
+          style={{ width: 260 }}
+          allowClear
+          onChange={e => setSearch(e.target.value)}
+        />
+        <Button onClick={() => nav('/tasks')}>Tasks board</Button>
+        <Button type="link" href="/bay/browse">
+          Browse AgentBay →
         </Button>
       </Space>
 
       <OrchestratorBanner orchestrator={orch} onChanged={load} compact />
 
-      <Space style={{ marginBottom: 12 }} wrap>
-        <Button
-          type="dashed"
-          icon={<CrownOutlined />}
-          onClick={async () => {
-            try {
-              const d = await api('/agents/ensure-designer', { method: 'POST' })
-              message.success('Master Designer ready')
-              nav(`/agents/${d.id}`)
-            } catch (e) { message.error(e.message) }
-          }}
-        >
-          Master Designer
-        </Button>
-        <Button
-          onClick={async () => {
-            try {
-              const r = await api('/agents/designer/polish-review')
-              if (r.acceptable) message.success(r.verdict)
-              else message.warning(r.verdict)
-              Modal.info({
-                title: 'Master Designer — polish review',
-                width: 560,
-                content: (
-                  <div>
-                    <Typography.Paragraph>{r.verdict}</Typography.Paragraph>
-                    {(r.gates || []).map((g) => (
-                      <div key={g.id} style={{ marginBottom: 6 }}>
-                        <Tag color={g.status === 'pass' ? 'success' : 'error'}>{g.status}</Tag>
-                        {g.label}
-                      </div>
-                    ))}
-                  </div>
-                ),
-              })
-            } catch (e) { message.error(e.message) }
-          }}
-        >
-          Run polish review
-        </Button>
-      </Space>
-
       {filtered.length === 0 && (
-        <Empty description="No agents yet — create one, then open chat to talk">
-          <Button type="primary" onClick={() => setCreateOpen(true)}>Create agent</Button>
+        <Empty description="No agents yet — spawn one from the dropdown, then open chat">
+          <Dropdown menu={{ items: spawnMenuItems }} trigger={['click']}>
+            <Button type="primary" icon={<PlusOutlined />}>
+              Spawn agent <DownOutlined />
+            </Button>
+          </Dropdown>
         </Empty>
       )}
 
       <Row gutter={[16, 16]}>
         {filtered.filter(a => a.id !== orch?.id).map(a => (
-          <Col xs={24} sm={12} lg={8} key={a.id}>
+          <Col xs={24} sm={12} lg={8} xl={6} key={a.id}>
             <Card
-              className="aba-soft-card"
-              title={
-                <Space wrap>
-                  {a.name}
-                  <Tag>{a.template_type}</Tag>
-                  <Tag color={a.status === 'active' ? 'green' : 'orange'}>{a.status}</Tag>
-                  {isLead(a) && !isOrchestrator(a) && <Tag color="gold">Lead</Tag>}
-                  {a.permission_level && <Tag color="blue">{a.permission_level}</Tag>}
-                </Space>
-              }
-              extra={<Tag color="blue">{modelLabel(a.model)}</Tag>}
+              className="aba-agent-card"
+              hoverable
+              styles={{ body: { padding: 14 } }}
+              onClick={() => nav(`/console/${a.id}`)}
             >
-              <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ minHeight: 40 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>{a.name}</div>
+                  <Space size={4} style={{ marginTop: 4 }}>
+                    <Tag style={{ margin: 0 }}>{a.template_type}</Tag>
+                    {isLead(a) && !isOrchestrator(a) && <Tag color="gold" style={{ margin: 0 }}>Lead</Tag>}
+                    {isOrchestrator(a) && <Tag color="purple" style={{ margin: 0 }}>Orchestrator</Tag>}
+                  </Space>
+                </div>
+                <Tag color={a.status === 'active' ? 'success' : 'warning'} style={{ margin: 0 }}>{a.status}</Tag>
+              </div>
+
+              <div style={{ margin: '8px 0 10px', fontSize: 12, color: '#666', minHeight: 32 }}>
                 {a.personality || 'Your AI teammate'}
-              </Typography.Paragraph>
-              <Space style={{ marginBottom: 12 }} wrap>
-                <Tag color={a.idle_mode === 'never_idle' ? 'purple' : 'default'}>
-                  {a.idle_mode === 'never_idle' ? 'Self-running' : 'Idle ok'}
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                <Tag color={a.idle_mode === 'never_idle' ? 'purple' : 'default'} style={{ margin: 0 }}>
+                  {a.idle_mode === 'never_idle' ? 'Self-running' : 'Idle allowed'}
                 </Tag>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {a.stats?.open || 0} open · {a.stats?.completed || 0} done
-                </Typography.Text>
-              </Space>
+                <Tag color="blue" style={{ margin: 0 }}>{modelLabel(a.model)}</Tag>
+                {a.permission_level && <Tag style={{ margin: 0 }}>{a.permission_level}</Tag>}
+              </div>
+
               <Button
                 type="primary"
                 size="large"
                 block
                 className="aba-agent-card-talk"
                 icon={<MessageOutlined />}
-                onClick={() => nav(`/agents/${a.id}`)}
+                onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}`) }}
               >
                 Talk to {a.name.split(' ')[0]}
               </Button>
-              <Space style={{ marginTop: 8, width: '100%', justifyContent: 'space-between' }}>
-                <Button type="link" size="small" onClick={() => nav(`/agents/${a.id}/manage`)}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' }}>
+                <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/manage`) }}>
                   Workspace
                 </Button>
-                <Space>
+                <Space size={2}>
                   {a.status === 'active'
                     ? <Button type="text" size="small" icon={<PauseCircleOutlined />} onClick={(e) => action(a.id, 'pause', e)} />
                     : <Button type="text" size="small" icon={<PlayCircleOutlined />} onClick={(e) => action(a.id, 'resume', e)} />}
                   <Popconfirm
                     title="Delete this agent?"
-                    onConfirm={async () => {
+                    onConfirm={async (e) => {
+                      e?.stopPropagation?.()
                       await api(`/agents/${a.id}`, { method: 'DELETE' })
                       load()
                     }}
                   >
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={e => e.stopPropagation()} />
                   </Popconfirm>
                 </Space>
-              </Space>
+              </div>
             </Card>
           </Col>
         ))}
       </Row>
 
       <Modal
-        title="Create New Agent"
+        title="Spawn agent"
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={() => form.submit()}

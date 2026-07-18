@@ -1,109 +1,119 @@
-"""Customer-facing model catalog + rates (USD per 1M tokens)."""
+"""Customer-facing model catalog + rates.
 
-# Full public model picker — keep labels clear; rates include SaaS markup.
+CLIENTS MUST ONLY SEE NEUTRAL GENERIC NAMES.
+Never expose: Grok, xAI, Claude, Anthropic, RunPod, VPS, Ollama, Super, session, etc.
+
+Clients only ever see:
+  Fast, Quality, Reasoning, Large Context, Small, Medium, Image, Video
+
+Actual inference (RunPod Qwen/DeepSeek; staff Grok JWT) is hidden.
+You charge customers via included tokens + wallet.
+"""
+
+# USD per 1,000,000 tokens (input+output combined for simple billing)
+# Tuned for healthy margin on managed fleet while staying competitive.
 PRICING = {
-    # ── Our VPS (generic) ─────────────────────────────────────────
-    "vps-fast": 0.80,
-    "vps-quality": 1.60,
-    # ── Our VPS — Qwen fleet ──────────────────────────────────────
-    "vps-qwen-fast": 0.95,
-    "vps-qwen-7b": 0.90,
-    "vps-qwen-14b": 1.40,
-    "vps-qwen-32b": 2.20,
-    "vps-qwen-coder": 1.90,
-    "vps-qwen-coder-7b": 1.20,
-    "vps-qwen-coder-14b": 1.70,
-    "vps-qwen-coder-32b": 2.40,
-    "vps-qwen-large": 3.80,
-    "vps-qwen-72b": 3.80,
-    # ── Anthropic Claude ──────────────────────────────────────────
-    "claude-haiku": 4.50,
-    "claude-sonnet": 18.00,
-    "claude-opus": 45.00,
-    # ── xAI Grok ──────────────────────────────────────────────────
-    "grok-fast": 4.00,
-    "grok-mini": 4.00,
-    "grok": 12.00,
-    "grok-2": 10.00,
-    "grok-3": 12.00,
-    "grok-4": 15.00,
+    "small": 0.90,       # light / teaser tier
+    "fast": 1.50,        # day-to-day chat & agents
+    "medium": 2.40,      # balanced
+    "quality": 3.50,     # better answers
+    "large": 5.00,       # large context / top Qwen 32b class
+    "reasoning": 6.00,   # deep reasoning
+    # Media + voice (also used as model ids on TokenUsage rows)
+    "image": 12.00,
+    "video": 40.00,
+    "voice-stt": 4.00,
+    "voice-tts": 3.50,
+    "voice-call": 8.00,
+    "premium-comm": 6.00,
+    # Internal staff ids map to quality rates if they leak into billing rows
+    "grok-max": 12.00,
 }
 
+# Flat USD + meter token weights per event (tokens always applied)
+EVENT_PRICING = {
+    "voice-stt": {"usd": 0.004, "meter_tokens": 120},   # speech → text
+    "voice-tts": {"usd": 0.003, "meter_tokens": 100},   # text → speech
+    "voice-call": {"usd": 0.08, "meter_tokens": 400},
+    "image": {"usd": 0.06, "meter_tokens": 1200},
+    "video": {"usd": 0.25, "meter_tokens": 4000},
+    "premium-comm": {"usd": 0.02, "meter_tokens": 100},
+}
+
+
+
+def event_usd(kind: str) -> float | None:
+    row = EVENT_PRICING.get(kind)
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return float(row.get("usd") or 0)
+    return float(row)
+
+
+def event_meter_tokens(kind: str) -> int:
+    row = EVENT_PRICING.get(kind)
+    if isinstance(row, dict):
+        return int(row.get("meter_tokens") or 50)
+    return 50
+
+
 MODEL_LABELS = {
-    "vps-fast": "Our VPS – Fast",
-    "vps-quality": "Our VPS – Quality",
-    "vps-qwen-fast": "Our VPS – Qwen Fast",
-    "vps-qwen-7b": "Our VPS – Qwen 7B",
-    "vps-qwen-14b": "Our VPS – Qwen 14B",
-    "vps-qwen-32b": "Our VPS – Qwen 32B",
-    "vps-qwen-coder": "Our VPS – Qwen Coder",
-    "vps-qwen-coder-7b": "Our VPS – Qwen Coder 7B",
-    "vps-qwen-coder-14b": "Our VPS – Qwen Coder 14B",
-    "vps-qwen-coder-32b": "Our VPS – Qwen Coder 32B",
-    "vps-qwen-large": "Our VPS – Qwen Large",
-    "vps-qwen-72b": "Our VPS – Qwen 72B",
-    "claude-haiku": "Premium Claude Haiku",
-    "claude-sonnet": "Premium Claude Sonnet",
-    "claude-opus": "Premium Claude Opus",
-    "grok-fast": "Premium xAI Grok Fast",
-    "grok-mini": "Premium xAI Grok Mini",
-    "grok": "Premium xAI Grok",
-    "grok-2": "Premium xAI Grok 2",
-    "grok-3": "Premium xAI Grok 3",
-    "grok-4": "Premium xAI Grok 4",
+    "fast": "Fast",
+    "quality": "Quality",
+    "reasoning": "Reasoning",
+    "large": "Large Context",
+    "small": "Small",
+    "medium": "Medium",
+    "image": "Image",
+    "video": "Video",
+}
+
+MODEL_BLURBS = {
+    "small": "Quick replies · lowest cost",
+    "fast": "Everyday agents & chat",
+    "medium": "Stronger answers, still snappy",
+    "quality": "Best balance for most work",
+    "reasoning": "Hard problems & analysis",
+    "large": "Long documents & big context",
+    "image": "Image generation (per event)",
+    "video": "Video generation (per event)",
 }
 
 MODEL_GROUPS = [
-    ("vps", "Our VPS"),
-    ("qwen", "Our VPS – Qwen"),
-    ("anthropic", "Premium Claude"),
-    ("xai", "Premium xAI Grok"),
+    ("managed", "Managed chat"),
+    ("media", "Media"),
 ]
 
-
-def _provider(model_id: str) -> str:
-    if model_id.startswith("claude"):
-        return "anthropic"
-    if model_id.startswith("grok"):
-        return "xai"
-    return "ollama"
-
-
-def _group(model_id: str) -> str:
-    if model_id.startswith("claude"):
-        return "anthropic"
-    if model_id.startswith("grok"):
-        return "xai"
-    if "qwen" in model_id:
-        return "qwen"
-    return "vps"
-
-
-# Ordered catalog for UI (stable picker order)
-_ORDER = [
-    "vps-fast", "vps-quality",
-    "vps-qwen-fast", "vps-qwen-7b", "vps-qwen-14b", "vps-qwen-32b",
-    "vps-qwen-coder", "vps-qwen-coder-7b", "vps-qwen-coder-14b", "vps-qwen-coder-32b",
-    "vps-qwen-large", "vps-qwen-72b",
-    "claude-haiku", "claude-sonnet", "claude-opus",
-    "grok-fast", "grok-mini", "grok", "grok-2", "grok-3", "grok-4",
-]
+# Client-visible order
+_ORDER = ["fast", "quality", "reasoning", "large", "small", "medium", "image", "video"]
 
 MODEL_CATALOG = [
     {
         "id": mid,
         "label": MODEL_LABELS[mid],
-        "provider": _provider(mid),
-        "group": _group(mid),
-        "group_label": dict(MODEL_GROUPS).get(_group(mid), "Other"),
+        "provider": "managed",
+        "group": "media" if mid in ("image", "video") else "managed",
+        "group_label": "Media" if mid in ("image", "video") else "Managed chat",
+        "blurb": MODEL_BLURBS.get(mid, ""),
+        "usd_per_1m": PRICING[mid],
     }
     for mid in _ORDER
-    if mid in PRICING
 ]
 
 
 def cost_for(model: str, input_tokens: int, output_tokens: int) -> float:
-    rate = PRICING.get(model, 0.80)
+    m = (model or "fast").lower().strip().replace("_", "-")
+    # Map staff / legacy ids to billed tiers
+    if m in ("grok-max", "grok") or m.startswith("grok"):
+        m = "quality"
+    if m.startswith("vps-") or m.startswith("qwen") or m.startswith("ollama"):
+        try:
+            from .agent_scaffold import map_model
+            m = map_model(m)
+        except Exception:
+            m = "fast"
+    rate = PRICING.get(m, PRICING.get("fast", 1.50))
     return round((input_tokens + output_tokens) * rate / 1_000_000, 6)
 
 
@@ -117,3 +127,31 @@ def format_token_count(n: int) -> str:
     if n >= 1_000:
         return f"{n / 1_000:.1f}k"
     return str(n)
+
+
+def public_rates() -> list[dict]:
+    """Transparent rates table for Billing UI."""
+    out = []
+    for mid in _ORDER:
+        if mid in ("image", "video"):
+            continue
+        out.append({
+            "id": mid,
+            "label": MODEL_LABELS[mid],
+            "blurb": MODEL_BLURBS.get(mid, ""),
+            "usd_per_1m": PRICING[mid],
+            "group": "managed",
+        })
+    # Event pricing summary rows
+    for kind, row in EVENT_PRICING.items():
+        if kind.startswith("voice") or kind == "premium-comm":
+            continue
+        out.append({
+            "id": kind,
+            "label": MODEL_LABELS.get(kind, kind.title()),
+            "blurb": f"Flat ${row['usd']:.2f} per generation",
+            "usd_per_1m": PRICING.get(kind, 0),
+            "flat_usd": row["usd"],
+            "group": "media",
+        })
+    return out

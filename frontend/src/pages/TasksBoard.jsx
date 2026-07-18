@@ -8,7 +8,7 @@ import {
   RobotOutlined, ProjectOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
 
 const COLUMNS = [
   { key: 'todo', title: 'To do', color: '#8c8c8c' },
@@ -54,9 +54,10 @@ export default function TasksBoard() {
 
   useEffect(() => {
     load()
-    const ws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
+    const ws = connectAuthedWs('/agents/ws')
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
+      if (m.type === 'auth_ok') return
       if (m.event === 'task_done' || m.event === 'task_updated') load()
     }
     wsRef.current = ws

@@ -1,16 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Descriptions, Typography, Alert, Form, Input, Button, Tag, Space, message,
-  Spin, Divider, List, Popconfirm, Modal, Tabs, Select, Badge, Row, Col, Empty,
+  Spin, Divider, List, Popconfirm, Modal, Tabs, Select, Badge, Row, Col, Empty, Switch,
 } from 'antd'
 import {
   CheckCircleOutlined, CloseCircleOutlined, LockOutlined, KeyOutlined, DeleteOutlined,
   SafetyCertificateOutlined, ApiOutlined, AppstoreOutlined, RobotOutlined,
   LinkOutlined, ReloadOutlined, UserOutlined, ExperimentOutlined, CloudOutlined,
+  MobileOutlined, NotificationOutlined, DownloadOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons'
-import { useSearchParams } from 'react-router-dom'
-import { getUser, setAuth, getToken, API, api } from '../api'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { getUser, setAuth, getToken, clearAuth, API, api } from '../api'
 import { connStatusColor, partitionKeys } from './settings/helpers'
+import {
+  isNative,
+  getNativePlatform,
+  getHapticsEnabled,
+  getNotificationsEnabled,
+  setHapticsEnabled,
+  setNotificationsEnabled,
+  registerPush,
+  getPushToken,
+  hapticSuccess,
+  hapticMedium,
+  notifyLocal,
+} from '../native'
 
 const { Text, Paragraph, Title } = Typography
 
@@ -23,6 +37,7 @@ function StatusTag({ ok, label }) {
 }
 
 export default function Settings() {
+  const nav = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || 'profile'
   const [tab, setTab] = useState(initialTab)
@@ -31,6 +46,11 @@ export default function Settings() {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteForm] = Form.useForm()
+  const marketingOrigin = typeof window !== 'undefined' ? window.location.origin : ''
 
   // API keys vault
   const [keys, setKeys] = useState([])
@@ -42,6 +62,8 @@ export default function Settings() {
 
   // Connected apps
   const [catalog, setCatalog] = useState([])
+  const [oneClickApps, setOneClickApps] = useState([])
+  const [googleOauthOk, setGoogleOauthOk] = useState(null)
   const [categories, setCategories] = useState([])
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [connections, setConnections] = useState([])
@@ -73,15 +95,18 @@ export default function Settings() {
   const loadApps = () => {
     setAppsLoading(true)
     Promise.all([
-      api('/integrations/catalog').catch(() => ({ apps: [], categories: [] })),
+      api('/integrations/catalog').catch(() => ({ apps: [], categories: [], one_click_oauth: [] })),
       api('/integrations/connections').catch(() => ({ connections: [] })),
       api('/agents/').catch(() => []),
+      api('/integrations/oauth/google-status').catch(() => null),
     ])
-      .then(([cat, con, ag]) => {
+      .then(([cat, con, ag, gstat]) => {
         setCatalog(cat.apps || [])
+        setOneClickApps(cat.one_click_oauth || (cat.apps || []).filter((a) => a.one_click_oauth))
         setCategories(cat.categories || [])
         setConnections(con.connections || [])
         setAgents(Array.isArray(ag) ? ag : [])
+        setGoogleOauthOk(gstat)
       })
       .finally(() => setAppsLoading(false))
   }
@@ -134,6 +159,43 @@ export default function Settings() {
       message.error(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const exportData = async () => {
+    setExporting(true)
+    try {
+      const data = await api('/auth/export')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `account-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      message.success('Data export downloaded')
+    } catch (e) {
+      message.error(e?.message || 'Export failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const confirmDeleteAccount = async (values) => {
+    setDeleting(true)
+    try {
+      await api('/auth/delete-account', { method: 'POST', body: { password: values.password } })
+      clearAuth()
+      message.success('Account deleted')
+      setDeleteOpen(false)
+      deleteForm.resetFields()
+      nav('/login', { replace: true })
+    } catch (e) {
+      message.error(e?.message || 'Could not delete account')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -260,7 +322,25 @@ export default function Settings() {
       }
       const r = await api(`/integrations/${app.id}/oauth/start`, { method: 'POST', body })
       if (r.ok && r.authorize_url) {
-        window.location.href = r.authorize_url
+        const url = r.authorize_url
+
+        const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+
+        if (isNative) {
+          // On iOS/Android (Capacitor), open the provider's login in the system browser.
+          // This is the key part: users can use their *already logged-in* Google / Facebook / etc. session.
+          // The OAuth callback will send them back to the app's /settings with ?oauth=success.
+          try {
+            // Best cross-platform way without bundling native plugin in web build
+            window.open(url, '_system')
+          } catch {
+            window.open(url, '_blank')
+          }
+          message.info('Finish login with your account in the browser, then come back.')
+        } else {
+          // Web / desktop — full redirect (required for proper OAuth flows)
+          window.location.href = url
+        }
         return
       }
       message.info(r.message || 'OAuth not configured on server — use API credentials below')
@@ -346,8 +426,10 @@ export default function Settings() {
           >
             <List.Item.Meta
               title={
-                <Space>
+                <Space wrap>
                   {row.provider_label || row.provider}
+                  {row.status === 'coming_soon' && <Tag>Coming soon</Tag>}
+                  {row.status === 'api_only' && <Tag color="blue">API only</Tag>}
                   {(row.configured || row.id) ? (
                     <Tag color="success">Saved · {row.masked || `••••${row.hint}`}</Tag>
                   ) : (
@@ -356,7 +438,8 @@ export default function Settings() {
                 </Space>
               }
               description={
-                providers.find((p) => p.id === row.provider)?.help
+                row.help
+                || providers.find((p) => p.id === row.provider)?.help
                 || 'Stored only for your subscriber account'
               }
             />
@@ -368,6 +451,13 @@ export default function Settings() {
 
   const profileTab = (
     <Card>
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Button type="link" style={{ padding: 0 }} onClick={() => nav('/profile')}>
+          Open full profile page
+        </Button>
+        <Button type="link" onClick={() => nav('/permissions')}>Team permissions</Button>
+        <Button type="link" onClick={() => nav('/humans')}>Users / Team</Button>
+      </Space>
       <Form
         layout="vertical"
         style={{ maxWidth: 420 }}
@@ -381,8 +471,23 @@ export default function Settings() {
         <Form.Item name="name" label="Display name">
           <Input placeholder="Your name" />
         </Form.Item>
-        <Form.Item name="password" label="New password" extra="Leave blank to keep current password">
-          <Input.Password placeholder="At least 6 characters" />
+        <Form.Item
+          name="password"
+          label="New password"
+          extra="Leave blank to keep current password. Min 8 characters, include a letter and a number."
+          rules={[
+            { min: 8, message: 'Password must be at least 8 characters' },
+            {
+              validator(_, value) {
+                if (!value) return Promise.resolve()
+                if (!/[A-Za-z]/.test(value)) return Promise.reject(new Error('Password must contain at least one letter'))
+                if (!/[0-9]/.test(value)) return Promise.reject(new Error('Password must contain at least one number'))
+                return Promise.resolve()
+              },
+            },
+          ]}
+        >
+          <Input.Password placeholder="At least 8 characters, include a letter and number" />
         </Form.Item>
         <Descriptions size="small" column={1} style={{ marginBottom: 12 }}>
           <Descriptions.Item label="Role">{user?.role}</Descriptions.Item>
@@ -390,6 +495,39 @@ export default function Settings() {
         </Descriptions>
         <Button type="primary" htmlType="submit" loading={saving}>Save changes</Button>
       </Form>
+      <Divider />
+      <Title level={5} style={{ marginTop: 0 }}>
+        <SafetyCertificateOutlined /> Privacy
+      </Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+        Export a copy of your account data, or permanently delete your account. Review our legal pages on this deploy origin.
+      </Text>
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Button icon={<DownloadOutlined />} loading={exporting} onClick={exportData}>
+          Export my data
+        </Button>
+        <Button
+          danger
+          icon={<DeleteOutlined />}
+          loading={deleting}
+          onClick={() => {
+            deleteForm.resetFields()
+            setDeleteOpen(true)
+          }}
+        >
+          Delete account
+        </Button>
+      </Space>
+      <div>
+        <Space split={<Divider type="vertical" />} wrap>
+          <a href={`${marketingOrigin}/privacy.html`} target="_blank" rel="noopener noreferrer">
+            Privacy policy
+          </a>
+          <a href={`${marketingOrigin}/terms.html`} target="_blank" rel="noopener noreferrer">
+            Terms of service
+          </a>
+        </Space>
+      </div>
     </Card>
   )
 
@@ -403,22 +541,28 @@ export default function Settings() {
         description={
           <>
             Keys are encrypted with AES (Fernet) before storage and never shown in full again.
-            Your keys power <strong>your</strong> Claude/Grok calls when set; otherwise the platform falls back to its config or mock.
+            <strong> Grok works via API only</strong> (your xAI key or the platform key).{' '}
+            <strong>Claude</strong> and <strong>VPS small models</strong> are <strong>Coming soon</strong>.
             For Shopify, Google Workspace, Slack, etc. use the <strong>Connected apps</strong> tab.
           </>
         }
       />
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Tag color="blue">Grok · API only</Tag>
+        <Tag>Claude · Coming soon</Tag>
+        <Tag>VPS small models · Coming soon</Tag>
+      </Space>
       {!keysLoading && (() => {
         const configured = (p) => keys.some((k) => k.provider === p && (k.configured || k.id || k.hint || k.masked))
         const hasAnthropic = configured('anthropic')
         const hasXai = configured('xai')
         if (!hasAnthropic && !hasXai) return null
         const parts = []
-        if (hasAnthropic) parts.push('Claude')
-        if (hasXai) parts.push('Grok')
+        if (hasXai) parts.push('Grok (API)')
+        if (hasAnthropic) parts.push('Claude (coming soon)')
         return (
           <Tag color="purple" style={{ marginBottom: 12 }}>
-            Using your {parts.join('/')} keys for premium models
+            Using your {parts.join(' / ')} keys
           </Tag>
         )
       })()}
@@ -445,14 +589,35 @@ export default function Settings() {
   const appsTab = (
     <div>
       <Alert
+        type={googleOauthOk?.ok ? 'success' : 'warning'}
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={googleOauthOk?.ok ? 'Google 1-click OAuth is configured' : 'Google OAuth client not fully configured'}
+        description={
+          googleOauthOk?.ok ? (
+            <>
+              Connect Google Workspace, Gmail, Sheets, Business Profile, and YouTube with one click.
+              Redirect URI: <Text code copyable>{googleOauthOk.redirect_uri}</Text>
+            </>
+          ) : (
+            <>
+              Set <Text code>GOOGLE_OAUTH_CLIENT_ID</Text> and <Text code>GOOGLE_OAUTH_CLIENT_SECRET</Text> in production env.
+              {googleOauthOk?.redirect_uri && (
+                <> Redirect URI: <Text code copyable>{googleOauthOk.redirect_uri}</Text></>
+              )}
+            </>
+          )
+        }
+      />
+      <Alert
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Connect business & social apps your agents can use"
+        message="Launch apps"
         description={
           <>
-            Connect Shopify, Google, Slack, HubSpot, and more with <strong>OAuth</strong> (when configured on the server)
-            or <strong>API credentials</strong>. Then allocate agents so they receive that app context in chat and tasks.
+            <strong>Live:</strong> Google family only (1-click OAuth).{' '}
+            <strong>Coming soon:</strong> Slack, Meta, LinkedIn, Microsoft, Shopify, and the rest.
           </>
         }
       />
@@ -547,7 +712,68 @@ export default function Settings() {
       </Card>
 
       <Card
-        title={<Space><AppstoreOutlined /> Available apps</Space>}
+        title={<Space><LinkOutlined /> 1-click OAuth (Google)</Space>}
+        style={{ marginBottom: 16 }}
+        extra={
+          <Tag color={googleOauthOk?.ok ? 'success' : 'warning'}>
+            {googleOauthOk?.ok ? 'Server ready' : 'Needs env keys'}
+          </Tag>
+        }
+      >
+        {appsLoading ? <Spin /> : (
+          <List
+            dataSource={oneClickApps.length ? oneClickApps : catalog.filter((a) => a.one_click_oauth)}
+            locale={{ emptyText: 'No Google apps in catalog' }}
+            renderItem={(app, idx) => {
+              const conn = connectionByApp[app.id]
+              const connected = conn?.status === 'connected'
+              return (
+                <List.Item
+                  actions={[
+                    connected ? (
+                      <Button key="m" size="small" onClick={() => openConnect(app)}>Manage</Button>
+                    ) : (
+                      <Button
+                        key="c"
+                        type="primary"
+                        size="small"
+                        icon={<LinkOutlined />}
+                        disabled={!app.oauth_ready}
+                        onClick={() => startOAuth(app)}
+                      >
+                        Connect with Google
+                      </Button>
+                    ),
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 8, background: app.color || '#4285F4',
+                        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+                      }}
+                      >
+                        {idx + 1}
+                      </div>
+                    }
+                    title={
+                      <Space wrap>
+                        <Text strong>{app.name}</Text>
+                        {connected && <Tag color="success">Connected</Tag>}
+                        <Tag color="blue">1-click OAuth</Tag>
+                      </Space>
+                    }
+                    description={app.description}
+                  />
+                </List.Item>
+              )
+            }}
+          />
+        )}
+      </Card>
+
+      <Card
+        title={<Space><AppstoreOutlined /> All apps</Space>}
         extra={
           <Select
             value={categoryFilter}
@@ -565,12 +791,13 @@ export default function Settings() {
             {filteredCatalog.map((app) => {
               const conn = connectionByApp[app.id]
               const connected = conn?.status === 'connected'
+              const soon = !!app.coming_soon
               return (
                 <Col xs={24} sm={12} lg={8} key={app.id}>
                   <Card
                     size="small"
-                    hoverable
-                    styles={{ body: { minHeight: 160 } }}
+                    hoverable={!soon}
+                    styles={{ body: { minHeight: 160, opacity: soon && !connected ? 0.85 : 1 } }}
                     title={
                       <Space>
                         <span
@@ -585,25 +812,50 @@ export default function Settings() {
                         {app.name}
                       </Space>
                     }
-                    extra={connected ? <Tag color="success">Connected</Tag> : <Tag>Available</Tag>}
+                    extra={
+                      connected
+                        ? <Tag color="success">Connected</Tag>
+                        : soon
+                          ? <Tag color="default">Coming soon</Tag>
+                          : <Tag color="blue">Live</Tag>
+                    }
                   >
                     <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ minHeight: 44 }}>
                       {app.description}
                     </Paragraph>
                     <Space wrap size={[4, 4]} style={{ marginBottom: 8 }}>
-                      {app.auth_modes?.map((m) => (
-                        <Tag key={m}>{m === 'api_key' ? 'API key' : 'OAuth'}</Tag>
-                      ))}
-                      {app.supports_oauth && (
-                        <Tag color={app.oauth_ready ? 'blue' : 'default'}>
-                          OAuth {app.oauth_ready ? 'ready' : 'needs server keys'}
-                        </Tag>
+                      {soon ? (
+                        <Tag>Coming soon</Tag>
+                      ) : (
+                        <>
+                          {app.one_click_oauth && <Tag color="blue">1-click OAuth</Tag>}
+                          {app.supports_oauth && (
+                            <Tag color={app.oauth_ready ? 'processing' : 'default'}>
+                              OAuth {app.oauth_ready ? 'ready' : 'needs keys'}
+                            </Tag>
+                          )}
+                        </>
                       )}
                     </Space>
                     <Space wrap>
-                      <Button type="primary" size="small" onClick={() => openConnect(app)}>
-                        {connected ? 'Manage' : 'Connect'}
-                      </Button>
+                      {soon && !connected ? (
+                        <Button type="default" size="small" disabled>
+                          Coming soon
+                        </Button>
+                      ) : app.supports_oauth && app.oauth_ready ? (
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => startOAuth(app)}
+                          icon={<LinkOutlined />}
+                        >
+                          Connect with Google
+                        </Button>
+                      ) : (
+                        <Button type="primary" size="small" onClick={() => openConnect(app)} disabled={soon}>
+                          {connected ? 'Manage' : 'Connect'}
+                        </Button>
+                      )}
                       {app.docs_url && (
                         <Button type="link" size="small" href={app.docs_url} target="_blank" rel="noreferrer">
                           Docs
@@ -748,11 +1000,126 @@ export default function Settings() {
     </Card>
   )
 
+  const [hapticsOn, setHapticsOn] = useState(getHapticsEnabled())
+  const [notifOn, setNotifOn] = useState(getNotificationsEnabled())
+  const [pushDevices, setPushDevices] = useState([])
+  const [pushStatus, setPushStatus] = useState(null)
+
+  useEffect(() => {
+    if (tab !== 'mobile') return
+    api('/devices/push').then((r) => setPushDevices(r.devices || [])).catch(() => {})
+    api('/devices/push/status').then(setPushStatus).catch(() => {})
+  }, [tab])
+
+  const mobileTab = (
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="Phone feel & alerts"
+        description={
+          isNative()
+            ? `Running as native ${getNativePlatform()} app. Haptics and notifications use the device OS.`
+            : 'Open the iOS/Android app for full haptics and push. On web these controls are previews only.'
+        }
+      />
+      <Card title={<Space><MobileOutlined /> Haptics</Space>} style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Text>Vibration / haptic feedback</Text>
+            <Switch
+              checked={hapticsOn}
+              onChange={async (v) => {
+                setHapticsOn(v)
+                await setHapticsEnabled(v)
+                if (v) hapticSuccess()
+              }}
+            />
+          </Space>
+          <Space wrap>
+            <Button size="small" onClick={() => { hapticMedium(); message.info('Medium tap') }}>Test medium</Button>
+            <Button size="small" onClick={() => { hapticSuccess(); message.success('Success') }}>Test success</Button>
+          </Space>
+          <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
+            Used when you send chat, complete agent steps, and navigate on device.
+          </Paragraph>
+        </Space>
+      </Card>
+      <Card title={<Space><NotificationOutlined /> Notifications</Space>} style={{ marginBottom: 16 }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Text>Push &amp; local alerts</Text>
+            <Switch
+              checked={notifOn}
+              onChange={async (v) => {
+                setNotifOn(v)
+                await setNotificationsEnabled(v)
+                if (v) {
+                  const r = await registerPush()
+                  if (r?.ok) message.success('Notifications ready')
+                  else message.warning(r?.reason || 'Permission needed in system settings')
+                }
+              }}
+            />
+          </Space>
+          <Button
+            onClick={async () => {
+              const r = await notifyLocal({
+                title: 'AI Assistant',
+                body: 'Test notification — agents and ops can alert you like this.',
+              })
+              if (r?.ok) {
+                hapticSuccess()
+                message.success('Notification scheduled')
+              } else {
+                message.warning(r?.reason || 'Could not show notification (use the mobile app)')
+              }
+            }}
+          >
+            Send test notification
+          </Button>
+          <Button
+            type="primary"
+            ghost
+            onClick={async () => {
+              const r = await registerPush()
+              message.info(r?.ok ? `Registered · token ${String(getPushToken() || '').slice(0, 12)}…` : (r?.reason || 'Failed'))
+              api('/devices/push').then((x) => setPushDevices(x.devices || [])).catch(() => {})
+            }}
+          >
+            Register this device for push
+          </Button>
+          {pushStatus && (
+            <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
+              Devices on account: {pushStatus.enabled_devices || 0}. {pushStatus.note}
+            </Paragraph>
+          )}
+          {pushDevices.length > 0 && (
+            <List
+              size="small"
+              header="Registered devices"
+              dataSource={pushDevices}
+              renderItem={(d) => (
+                <List.Item>
+                  <Space>
+                    <Tag color={d.enabled ? 'green' : 'default'}>{d.platform || 'device'}</Tag>
+                    <Text type="secondary">{d.token_preview}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          )}
+        </Space>
+      </Card>
+    </div>
+  )
+
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
         <Title level={3} style={{ marginBottom: 4 }}>Settings</Title>
-        <Text type="secondary">Profile, API keys, connected apps, and agent access</Text>
+        <Text type="secondary">Profile, mobile, API keys, connected apps, and agent access</Text>
       </div>
 
       <Tabs
@@ -760,6 +1127,7 @@ export default function Settings() {
         onChange={onTabChange}
         items={[
           { key: 'profile', label: <span><UserOutlined /> Profile</span>, children: profileTab },
+          { key: 'mobile', label: <span><MobileOutlined /> Mobile</span>, children: mobileTab },
           { key: 'keys', label: <span><KeyOutlined /> API keys</span>, children: keysTab },
           {
             key: 'apps',
@@ -779,6 +1147,53 @@ export default function Settings() {
           { key: 'platform', label: <span><CloudOutlined /> Platform</span>, children: platformTab },
         ]}
       />
+
+      {/* Delete account — confirm password */}
+      <Modal
+        title={
+          <Space>
+            <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+            Delete your account?
+          </Space>
+        }
+        open={deleteOpen}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteOpen(false)
+            deleteForm.resetFields()
+          }
+        }}
+        footer={null}
+        destroyOnClose
+      >
+        <Paragraph type="secondary">
+          This deactivates your account, scrubs personal identifiers, and cannot be undone.
+          Enter your password to confirm.
+        </Paragraph>
+        <Form form={deleteForm} layout="vertical" onFinish={confirmDeleteAccount}>
+          <Form.Item
+            name="password"
+            label="Current password"
+            rules={[{ required: true, message: 'Password is required' }]}
+          >
+            <Input.Password placeholder="Current password" autoComplete="current-password" />
+          </Form.Item>
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button
+              onClick={() => {
+                setDeleteOpen(false)
+                deleteForm.resetFields()
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button type="primary" danger htmlType="submit" loading={deleting} icon={<DeleteOutlined />}>
+              Delete account
+            </Button>
+          </Space>
+        </Form>
+      </Modal>
 
       {/* API key modal */}
       <Modal
@@ -854,7 +1269,7 @@ export default function Settings() {
             )}
 
             {connectModal.supports_oauth && (
-              <Card size="small" style={{ marginBottom: 16 }} title="OAuth">
+              <div style={{ marginBottom: 16 }}>
                 {connectModal.oauth_needs_shop && (
                   <Form.Item label="Shop domain" style={{ marginBottom: 8 }}>
                     <Input
@@ -864,99 +1279,108 @@ export default function Settings() {
                     />
                   </Form.Item>
                 )}
+
+                {/* Primary big OAuth button — existing browser/mobile login */}
                 <Button
                   type="primary"
+                  size="large"
                   block
                   loading={oauthStarting}
                   disabled={connectModal.oauth_ready === false}
                   onClick={() => startOAuth(connectModal)}
                   icon={<LinkOutlined />}
+                  style={{ height: 52, fontSize: 17, fontWeight: 600 }}
                 >
                   {connectModal.oauth_ready
-                    ? `Continue with ${connectModal.name} OAuth`
+                    ? `Connect with ${connectModal.id.includes('google') || connectModal.id.includes('gmail') || connectModal.id.includes('youtube') || connectModal.id.includes('google_business') || connectModal.id.includes('google_sheets') ? 'Google' :
+                       connectModal.id === 'meta' ? 'Facebook' :
+                       connectModal.id === 'instagram' ? 'Instagram' :
+                       connectModal.id === 'linkedin' ? 'LinkedIn' :
+                       connectModal.id === 'slack' ? 'Slack' :
+                       connectModal.id === 'microsoft' ? 'Microsoft' :
+                       connectModal.name}`
                     : 'OAuth not configured on server'}
                 </Button>
+                <div style={{ textAlign: 'center', marginTop: 6, marginBottom: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Uses your existing login • works in browser and on mobile (no passwords or tokens to paste)
+                  </Text>
+                </div>
                 {!connectModal.oauth_ready && (
-                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
-                    Set server env vars (e.g. GOOGLE_OAUTH_CLIENT_ID / SHOPIFY_CLIENT_ID) to enable one-click OAuth.
-                    You can still connect with API credentials below.
+                  <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12 }}>
+                    Server needs OAuth client keys (Platform tab or Vercel env).
                   </Paragraph>
                 )}
-              </Card>
+
+                {/* Advanced manual option — collapsed */}
+                {(connectModal.auth_modes || []).includes('api_key') && (
+                  <details style={{ marginTop: 10 }}>
+                    <summary style={{ cursor: 'pointer', color: '#666', fontSize: 13 }}>
+                      Advanced: Connect with API keys / manual tokens
+                    </summary>
+                    <div style={{ marginTop: 12, paddingLeft: 4 }}>
+                      <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
+                        <Form.Item name="display_name" label="Display name">
+                          <Input placeholder={connectModal.name} />
+                        </Form.Item>
+                        {(connectModal.fields || []).map((f) => (
+                          <Form.Item
+                            key={f.name}
+                            name={f.name}
+                            label={f.label}
+                            rules={f.required ? [{ required: true, message: `Required: ${f.label}` }] : []}
+                          >
+                            {f.secret ? (
+                              <Input.Password placeholder={f.placeholder} autoComplete="new-password" />
+                            ) : (
+                              <Input placeholder={f.placeholder} />
+                            )}
+                          </Form.Item>
+                        ))}
+                        <Form.Item
+                          name="agent_ids"
+                          label="Allocate to agents"
+                          extra="These agents will receive this app in their context"
+                        >
+                          <Select
+                            mode="multiple"
+                            allowClear
+                            placeholder="Select agents"
+                            options={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.template_type})` }))}
+                          />
+                        </Form.Item>
+                        <Button type="default" htmlType="submit" block loading={connectSaving}>
+                          Save API credentials
+                        </Button>
+                      </Form>
+                    </div>
+                  </details>
+                )}
+              </div>
             )}
 
-            {(connectModal.auth_modes || []).includes('api_key') && (
-              <>
-                <Divider plain>Or use API credentials</Divider>
-                <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
-                  <Form.Item name="display_name" label="Display name">
-                    <Input placeholder={connectModal.name} />
-                  </Form.Item>
-                  {(connectModal.fields || []).map((f) => (
-                    <Form.Item
-                      key={f.name}
-                      name={f.name}
-                      label={f.label}
-                      rules={f.required ? [{ required: true, message: `Required: ${f.label}` }] : []}
-                    >
-                      {f.secret ? (
-                        <Input.Password placeholder={f.placeholder} autoComplete="new-password" />
-                      ) : (
-                        <Input placeholder={f.placeholder} />
-                      )}
-                    </Form.Item>
-                  ))}
-                  <Form.Item
-                    name="agent_ids"
-                    label="Allocate to agents"
-                    extra="These agents will receive this app in their context"
-                  >
-                    <Select
-                      mode="multiple"
-                      allowClear
-                      placeholder="Select agents"
-                      options={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.template_type})` }))}
-                    />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" block loading={connectSaving} icon={<LockOutlined />}>
-                    Encrypt, test & connect
-                  </Button>
-                </Form>
-              </>
-            )}
-
-            {!(connectModal.auth_modes || []).includes('api_key') && connectModal.supports_oauth && (
-              <Paragraph type="secondary">
-                This app is OAuth-only. If OAuth is not ready, paste tokens under Platform docs or enable OAuth client IDs.
-              </Paragraph>
-            )}
-
-            {/* OAuth-only apps still allow manual token paste via fields if any */}
+            {/* For apps that are OAuth-only but have some manual fields (rare), keep a collapsed advanced area */}
             {!(connectModal.auth_modes || []).includes('api_key') && (connectModal.fields || []).length > 0 && (
-              <>
-                <Divider plain>Manual tokens (advanced)</Divider>
-                <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
-                  {(connectModal.fields || []).map((f) => (
-                    <Form.Item key={f.name} name={f.name} label={f.label}>
-                      {f.secret ? (
-                        <Input.Password placeholder={f.placeholder} />
-                      ) : (
-                        <Input placeholder={f.placeholder} />
-                      )}
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: 'pointer', color: '#666', fontSize: 13 }}>
+                  Advanced: Paste tokens manually
+                </summary>
+                <div style={{ marginTop: 10, paddingLeft: 4 }}>
+                  <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
+                    {(connectModal.fields || []).map((f) => (
+                      <Form.Item key={f.name} name={f.name} label={f.label}>
+                        {f.secret ? <Input.Password placeholder={f.placeholder} /> : <Input placeholder={f.placeholder} />}
+                      </Form.Item>
+                    ))}
+                    <Form.Item name="agent_ids" label="Allocate to agents">
+                      <Select mode="multiple" allowClear options={agents.map((a) => ({ value: a.id, label: a.name }))} />
                     </Form.Item>
-                  ))}
-                  <Form.Item name="agent_ids" label="Allocate to agents">
-                    <Select
-                      mode="multiple"
-                      allowClear
-                      options={agents.map((a) => ({ value: a.id, label: a.name }))}
-                    />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" block loading={connectSaving}>
-                    Save tokens
-                  </Button>
-                </Form>
-              </>
+                    <Button type="default" htmlType="submit" block loading={connectSaving}>
+                      Save tokens manually
+                    </Button>
+                  </Form>
+                </div>
+              </details>
             )}
           </>
         )}

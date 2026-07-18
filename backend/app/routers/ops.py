@@ -1,12 +1,13 @@
 """Live ops feed + visual snapshot + WebSocket + autonomy control."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, Query, WebSocket, WebSocketDisconnect
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db, SessionLocal
-from ..auth_utils import get_current_user, user_from_ws_token
+from ..auth_utils import get_current_user, user_from_ws_token, accept_and_authenticate_ws
 from ..live_ops import list_ops, ops_snapshot, emit_ops
 from ..ws import manager
 from .. import models
@@ -19,6 +20,16 @@ from ..autonomy import (
 )
 
 router = APIRouter(prefix="/ops", tags=["ops"])
+
+
+@router.post("/scaffold")
+def scaffold_all_agents(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    Explicit one-shot REPAIR of the whole team (not run on every chat/tick).
+    Sets never_idle, executable permissions, model maps, role skills, hierarchy.
+    """
+    from ..agent_scaffold import repair_workspace
+    return repair_workspace(db, user.id)
 
 
 class PlanIn(BaseModel):
@@ -124,13 +135,68 @@ async def autonomy_tick(db: Session = Depends(get_db), user=Depends(get_current_
     return {"ok": True, "result": result}
 
 
+def _optional_user(
+    creds: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db),
+):
+    """Like get_current_user but returns None instead of 401 (for cron + optional JWT)."""
+    if not creds or not creds.credentials:
+        return None
+    from ..auth_utils import decode_token
+
+    payload = decode_token(creds.credentials)
+    if not payload:
+        return None
+    return db.get(models.User, int(payload["sub"]))
+
+
 @router.post("/autonomy/tick-all")
-async def autonomy_tick_all(user=Depends(get_current_user)):
-    """Admin: tick all workspaces (or cron with admin token)."""
-    if user.role != "admin":
-        # Still allow self tick via tick endpoint; tick-all restricted
-        return await run_global_tick()
-    return await run_global_tick()
+async def autonomy_tick_all(
+    db: Session = Depends(get_db),
+    user=Depends(_optional_user),
+    x_cron_secret: str | None = Header(default=None, alias="x-cron-secret"),
+    authorization: str | None = Header(default=None),
+):
+    """Admin or cron only.
+
+    Access when any of:
+    - `X-Cron-Secret: <CRON_SECRET>` matches configured secret
+    - `Authorization: Bearer <CRON_SECRET>` (Vercel Cron often sends this)
+    - Authenticated JWT user with admin role (admin UI)
+    """
+    from fastapi import HTTPException
+    from ..config import CRON_SECRET, IS_PRODUCTION
+
+    bearer_token: str | None = None
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer_token = authorization[7:].strip()
+
+    is_valid_cron = bool(
+        CRON_SECRET
+        and (
+            (x_cron_secret and x_cron_secret == CRON_SECRET)
+            or (bearer_token and bearer_token == CRON_SECRET)
+        )
+    )
+    is_admin = bool(user is not None and getattr(user, "role", None) == "admin")
+
+    if not CRON_SECRET and IS_PRODUCTION and not is_admin:
+        raise HTTPException(503, "CRON_SECRET not configured")
+
+    if not (is_valid_cron or is_admin):
+        raise HTTPException(
+            403,
+            "Admin role or valid cron secret required "
+            "(X-Cron-Secret or Authorization: Bearer <CRON_SECRET>)",
+        )
+
+    result = await run_global_tick()
+    return {
+        "ok": True,
+        "global": True,
+        "via": "cron" if is_valid_cron else "admin",
+        "result": result,
+    }
 
 
 @router.get("/escalations")
@@ -169,17 +235,17 @@ def list_escalations(
 
 @router.websocket("/ws")
 async def ops_ws(ws: WebSocket, token: str = Query("")):
+    """Live ops feed WS. Auth: ?token= (legacy/mobile) or first-message {"type":"auth","token":...}."""
     db = SessionLocal()
-    user = user_from_ws_token(token, db)
+    user = await accept_and_authenticate_ws(ws, token, db)
     if not user:
         db.close()
-        await ws.close(code=4401)
         return
     user_id = user.id
     # Send snapshot first
     snap = ops_snapshot(db, user_id)
     db.close()
-    await manager.connect(f"ops:{user_id}", ws)
+    manager.register(f"ops:{user_id}", ws)
     try:
         await ws.send_json({"event": "snapshot", "snapshot": snap})
         while True:

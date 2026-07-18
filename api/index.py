@@ -106,21 +106,149 @@ try:
 
     from app.main import app  # FastAPI instance — required name for Vercel detection
 
+    # ── AgentBay (aibusinessagent.xyz/bay/api) ────────────────────────────
+    # Browser: /bay/api/...  →  Vercel rewrite → /api/__bay__/...
+    # Middleware strips /api → /__bay__/... which matches routers below.
+    _ab_path = _ROOT / "agentbay_backend"
+    if _ab_path.is_dir():
+        if str(_ab_path) not in sys.path:
+            sys.path.insert(0, str(_ab_path))
+        try:
+            from agentbay.database import init_db as _bay_init_db
+            from agentbay.schema_migrate import migrate as _bay_migrate
+            from agentbay.seed import seed as _bay_seed
+            from agentbay.routers import (
+                auth as bay_auth,
+                listings as bay_listings,
+                orders as bay_orders,
+                chat as bay_chat,
+                catalog as bay_catalog,
+                media as bay_media,
+                bridge as bay_bridge,
+            )
+
+            _BAY_PREFIX = "/__bay__"
+            for _r in (
+                bay_auth.router,
+                bay_listings.router,
+                bay_orders.router,
+                bay_chat.router,
+                bay_catalog.router,
+                bay_media.router,
+                bay_bridge.router,
+            ):
+                app.include_router(_r, prefix=_BAY_PREFIX)
+
+            @app.get(f"{_BAY_PREFIX}/health")
+            def _bay_health():
+                from agentbay import config as bay_cfg
+
+                issues = bay_cfg.config_issues()
+                return {
+                    "ok": True,
+                    "app": "AgentBay Marketplace",
+                    "path": "/bay/api",
+                    "demo": False,
+                    "ready": len(issues) == 0,
+                    "issues": issues,
+                    "stripe": bay_cfg.stripe_enabled(),
+                }
+
+            try:
+                _bay_init_db()
+                _bay_migrate()
+                _bay_seed()
+            except Exception as _bay_boot:  # noqa: BLE001
+                print(f"[startup] AgentBay db boot: {_bay_boot}")
+            print("[startup] AgentBay routers at /bay/api (via /api/__bay__)")
+        except Exception as _bay_exc:  # noqa: BLE001
+            print(f"[startup] AgentBay not loaded: {_bay_exc}")
+
+    # Static layout (Vercel buildCommand → public/):
+    #   /              marketing website
+    #   /agents/*      product SPA  (UI — must NOT hit API routers at /agents)
+    #   /api/*         product API  (middleware strips /api → backend routes)
+    #   /bay/*         AgentBay SPA
+    #   /bay/api/*     AgentBay API
+    _public = _ROOT / "public"
+    _website = _ROOT / "website"
+    _agents_dir = (
+        (_public / "agents")
+        if (_public / "agents" / "index.html").is_file()
+        else (_ROOT / "frontend" / "dist")
+    )
+    _bay_dir = (
+        (_public / "bay")
+        if (_public / "bay" / "index.html").is_file()
+        else (_ROOT / "bay-dist")
+    )
+    _marketing_index = None
+    for _cand in (
+        _public / "index.html",
+        _website / "index.html",
+    ):
+        if _cand.is_file():
+            # Prefer marketing; skip if it looks like the product SPA only
+            try:
+                _head = _cand.read_text(encoding="utf-8", errors="ignore")[:800]
+            except Exception:  # noqa: BLE001
+                _head = ""
+            if "data-site-header" in _head or "AI Business Agent" in _head or "section-kicker" in _head:
+                _marketing_index = _cand
+                break
+            if _marketing_index is None and "id=\"root\"" not in _head:
+                _marketing_index = _cand
+    if _marketing_index is None and (_website / "index.html").is_file():
+        _marketing_index = _website / "index.html"
+
+    _marketing_root = _marketing_index.parent if _marketing_index else _public
+
+    def _safe_file(base: Path, rel: str) -> Path | None:
+        if not base or not base.is_dir():
+            return None
+        rel = (rel or "").lstrip("/").replace("\\", "/")
+        if not rel or ".." in rel.split("/"):
+            return None
+        candidate = (base / rel).resolve()
+        try:
+            candidate.relative_to(base.resolve())
+        except ValueError:
+            return None
+        return candidate if candidate.is_file() else None
+
+    def _file_response(path: Path):
+        return FileResponse(str(path))
+
+    def _resolve_request_path(request: Request) -> str:
+        path = request.scope.get("path") or "/"
+        headers = {
+            k.decode().lower(): v.decode()
+            for k, v in (request.scope.get("headers") or [])
+        }
+        raw = headers.get("x-forwarded-uri") or headers.get("x-url") or ""
+        if raw:
+            if raw.startswith("http"):
+                path = urlparse(raw).path or path
+            elif raw.startswith("/"):
+                path = raw
+        return path or "/"
+
     class StripApiPrefixMiddleware(BaseHTTPMiddleware):
-        """/api/auth/login → /auth/login for backend routers."""
+        """/api/auth/login → /auth/login for backend routers.
+        /api/__bay__/listings → /__bay__/listings (AgentBay).
+        Does NOT rewrite browser UI paths (/agents, /bay).
+        """
 
         async def dispatch(self, request: Request, call_next):
-            path = request.scope.get("path") or "/"
-            headers = {
-                k.decode().lower(): v.decode()
-                for k, v in (request.scope.get("headers") or [])
-            }
-            raw = headers.get("x-forwarded-uri") or headers.get("x-url") or ""
-            if raw:
-                if raw.startswith("http"):
-                    path = urlparse(raw).path or path
-                elif raw.startswith("/"):
-                    path = raw
+            path = _resolve_request_path(request)
+
+            # Normalize /bay/api/* if it reaches the function without rewrite
+            if path == "/bay/api" or path.startswith("/bay/api/"):
+                rest = path[len("/bay/api") :] or ""
+                path = "/api/__bay__" + rest
+                request.scope["path"] = path
+                if "raw_path" in request.scope:
+                    request.scope["raw_path"] = path.encode("utf-8")
 
             if path == "/api":
                 request.scope["path"] = "/health"
@@ -134,46 +262,87 @@ try:
 
             return await call_next(request)
 
-    # Keeps `app` typed as FastAPI (add_middleware, not ASGI reassignment)
+    class UiStaticMiddleware(BaseHTTPMiddleware):
+        """Serve marketing + SPAs for browser paths BEFORE API routers match.
+
+        Critical: backend agents API is mounted at /agents after /api is stripped.
+        Browser UI is also under /agents — without this middleware, GET /agents/console
+        hits the API and returns {"detail":"Not authenticated"}.
+        """
+
+        async def dispatch(self, request: Request, call_next):
+            if request.method not in ("GET", "HEAD"):
+                return await call_next(request)
+
+            path = _resolve_request_path(request)
+
+            # Never intercept real API traffic
+            if (
+                path == "/api"
+                or path.startswith("/api/")
+                or path == "/bay/api"
+                or path.startswith("/bay/api/")
+            ):
+                return await call_next(request)
+
+            # Product SPA: /agents and /agents/*
+            if path == "/agents" or path.startswith("/agents/"):
+                rel = path[len("/agents") :].lstrip("/")
+                if rel:
+                    f = _safe_file(_agents_dir, rel)
+                    if f is not None:
+                        return _file_response(f)
+                agents_index = _agents_dir / "index.html"
+                if agents_index.is_file():
+                    return _file_response(agents_index)
+
+            # AgentBay SPA: /bay (API already excluded above)
+            if path == "/bay" or path.startswith("/bay/"):
+                rel = path[len("/bay") :].lstrip("/")
+                if rel:
+                    f = _safe_file(_bay_dir, rel)
+                    if f is not None:
+                        return _file_response(f)
+                bay_index = _bay_dir / "index.html"
+                if bay_index.is_file():
+                    return _file_response(bay_index)
+
+            # Marketing site root + static pages
+            if path == "/":
+                if _marketing_index and _marketing_index.is_file():
+                    return _file_response(_marketing_index)
+            elif _marketing_root and _marketing_root.is_dir():
+                rel = path.lstrip("/")
+                f = _safe_file(_marketing_root, rel)
+                if f is not None:
+                    return _file_response(f)
+                if "." not in Path(rel).name:
+                    f_html = _safe_file(_marketing_root, f"{rel}.html")
+                    if f_html is not None:
+                        return _file_response(f_html)
+
+            return await call_next(request)
+
+    # Order: last added runs first. UI static must run before strip+API routers.
     app.add_middleware(StripApiPrefixMiddleware)
+    app.add_middleware(UiStaticMiddleware)
 
-    # Serve Vite SPA from public/ (built into public during Vercel buildCommand)
-    _public = _ROOT / "public"
-    if not _public.is_dir():
-        # Fallback: frontend/dist if present in the bundle
-        _public = _ROOT / "frontend" / "dist"
-    _index = _public / "index.html"
-    _assets = _public / "assets"
-    if _assets.is_dir():
-        app.mount("/assets", StaticFiles(directory=str(_assets)), name="assets")
-
-    if _index.is_file():
-
-        @app.get("/")
-        async def spa_root():
-            return FileResponse(str(_index))
-
-        @app.get("/{full_path:path}")
-        async def spa_fallback(full_path: str):
-            # Never serve SPA HTML for API paths (login/register must stay JSON)
-            api_prefixes = (
-                "auth/", "billing/", "agents/", "conversations/", "ws/",
-                "keys/", "org/", "admin/", "integrations/", "training/",
-                "templates/", "dashboard/", "system/", "health", "api/",
-                "humans/", "ops/", "business/",
-            )
-            low = (full_path or "").lstrip("/").lower()
-            if low == "health" or any(low.startswith(p) for p in api_prefixes):
-                from fastapi.responses import JSONResponse
-                return JSONResponse(
-                    {"ok": False, "error": "not_found", "path": full_path},
-                    status_code=404,
-                )
-            # Prefer real static files when present (favicon, etc.)
-            candidate = _public / full_path
-            if candidate.is_file() and _public in candidate.resolve().parents:
-                return FileResponse(str(candidate))
-            return FileResponse(str(_index))
+    # Mounts for asset directories (middleware also serves files; mounts help WSGI tools)
+    if (_agents_dir / "assets").is_dir():
+        app.mount(
+            "/agents/assets",
+            StaticFiles(directory=str(_agents_dir / "assets")),
+            name="agents-assets",
+        )
+    if (_bay_dir / "assets").is_dir():
+        app.mount(
+            "/bay/assets",
+            StaticFiles(directory=str(_bay_dir / "assets")),
+            name="bay-assets",
+        )
+    _legacy_assets = _public / "assets"
+    if _legacy_assets.is_dir() and not (_agents_dir / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_legacy_assets)), name="assets")
 
 except Exception as _exc:  # noqa: BLE001
     app = _build_error_app(_exc)

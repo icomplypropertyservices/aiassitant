@@ -10,12 +10,52 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, default="")
     password_hash = Column(String, nullable=False)
+    # Bumped on password change/reset so existing JWTs (claim "tv") become invalid
+    token_version = Column(Integer, default=0, nullable=False)
     role = Column(String, default="user")  # user | admin
     # none = must pick plan; trial | starter | pro | business | pay_as_you_go
     plan = Column(String, default="none")
     subscription_active = Column(Boolean, default=False)
     # When set, access ends after this UTC time (null = no time limit while active)
     subscription_expires_at = Column(DateTime, nullable=True)
+    # Email ownership confirmed via /auth/verify-email (admins/dev seed may start True)
+    email_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmailToken(Base):
+    """One-time tokens for email verification and password reset (unified)."""
+    __tablename__ = "email_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # verify | reset
+    purpose = Column(String, nullable=False, index=True, default="verify")
+    # SHA-256 hex of the raw token sent to the user (never store raw token)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PasswordResetToken(Base):
+    """Dedicated password-reset tokens (optional; EmailToken.purpose=reset also works)."""
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmailVerificationToken(Base):
+    """Dedicated email-verify tokens (optional; EmailToken.purpose=verify also works)."""
+    __tablename__ = "email_verification_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -28,6 +68,12 @@ class Balance(Base):
     tokens_included = Column(Integer, default=0)
     tokens_used_period = Column(Integer, default=0)
     period_start = Column(DateTime, default=datetime.utcnow)
+    # Auto top-up (wallet) — fires checkout when credits/tokens low
+    auto_topup_enabled = Column(Boolean, default=False)
+    auto_topup_amount = Column(Float, default=25.0)  # USD per top-up
+    auto_topup_threshold_credits = Column(Float, default=5.0)  # when credits below this
+    auto_topup_token_pct = Column(Integer, default=85)  # when usage_percent >= this
+    auto_topup_last_at = Column(DateTime, nullable=True)
 
 
 class Company(Base):
@@ -397,6 +443,32 @@ class AgentMessage(Base):
     # thread key = min(id)-max(id) pair or explicit thread id
     thread_key = Column(String, index=True, default="")
     content = Column(Text, default="")
+
+
+class PlatformSetting(Base):
+    """
+    Global staff settings (fleet connection, model map, etc.).
+    Survives Vercel cold starts when DATABASE_URL is Postgres.
+    """
+    __tablename__ = "platform_settings"
+    key = Column(String, primary_key=True)
+    value = Column(Text, default="{}")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = Column(String, default="")  # admin email
+
+
+class DevicePushToken(Base):
+    """Mobile device tokens for push notifications (FCM / APNs via Capacitor)."""
+    __tablename__ = "device_push_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    token = Column(String, nullable=False, index=True)
+    platform = Column(String, default="")  # ios | android | web
+    device_label = Column(String, default="")
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
     # open | acknowledged | closed
     status = Column(String, default="open")
     meta_json = Column(Text, default="{}")
@@ -533,3 +605,28 @@ class CustomerActivity(Base):
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
     human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ── Diary / Appointments (arrange diaries for customers) ─────────────────
+
+class DiaryEntry(Base):
+    """Scheduled meetings, calls, site visits, follow-ups for customers."""
+    __tablename__ = "diary_entries"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), index=True, nullable=False)
+    deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True, index=True)
+    title = Column(String, nullable=False)
+    # ISO datetime strings or real datetimes
+    start_at = Column(DateTime, nullable=True)
+    end_at = Column(DateTime, nullable=True)
+    location = Column(String, default="")
+    notes = Column(Text, default="")
+    # scheduled | completed | cancelled | no_show
+    status = Column(String, default="scheduled")
+    # Who owns / runs this appointment
+    owner_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    owner_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)

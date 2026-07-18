@@ -22,7 +22,7 @@ export default function Analytics() {
           </BarChart>
         </ResponsiveContainer>
       </Card>
-      <Card title="Usage by model (VPS vs Claude)">
+      <Card title="Usage by model">
         <Table pagination={false} dataSource={models} columns={[
           { title: 'Model', dataIndex: 'label' },
           { title: 'Tokens', dataIndex: 'tokens', render: v => v.toLocaleString() },

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /bay/
+Sitemap: https://aibusinessagent.xyz/bay/

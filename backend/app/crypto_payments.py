@@ -1,11 +1,11 @@
 """
-Self-custody crypto payments: ETH, SOL, XRP.
+Self-custody crypto payments: ETH, SOL, BTC, XRP.
 
 Flow
 ----
 1. Create invoice with USD amount → convert via CoinGecko → unique on-chain amount / XRP dest tag
 2. User sends to platform receive address
-3. User pastes tx hash (or we poll) → verify on public RPC → activate plan / credits
+3. User pastes tx hash (or we poll) → verify on public RPC / explorer → activate plan / credits
 
 Never store or use private keys. Configure receive addresses only.
 """
@@ -43,6 +43,15 @@ CHAINS = {
         "explorer_tx": "https://solscan.io/tx/{tx}",
         "network": "Solana mainnet",
     },
+    "btc": {
+        "id": "btc",
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "coingecko_id": "bitcoin",
+        "decimals": 8,
+        "explorer_tx": "https://mempool.space/tx/{tx}",
+        "network": "Bitcoin mainnet",
+    },
     "xrp": {
         "id": "xrp",
         "symbol": "XRP",
@@ -64,6 +73,7 @@ def crypto_enabled() -> bool:
         config.CRYPTO_ETH_ADDRESS
         or config.CRYPTO_SOL_ADDRESS
         or config.CRYPTO_XRP_ADDRESS
+        or getattr(config, "CRYPTO_BTC_ADDRESS", "")
     )
 
 
@@ -73,6 +83,8 @@ def receive_address(chain: str) -> str:
         return config.CRYPTO_ETH_ADDRESS
     if chain == "sol":
         return config.CRYPTO_SOL_ADDRESS
+    if chain == "btc":
+        return getattr(config, "CRYPTO_BTC_ADDRESS", "") or ""
     if chain == "xrp":
         return config.CRYPTO_XRP_ADDRESS
     return ""
@@ -116,7 +128,7 @@ def fetch_usd_prices() -> dict[str, float]:
         except Exception as e:
             log.warning("price fetch failed: %s", e)
             # Fallback static-ish mid prices if API down (invoice still works; amount may be off)
-            defaults = {"eth": 3500.0, "sol": 150.0, "xrp": 0.60}
+            defaults = {"eth": 3500.0, "sol": 150.0, "btc": 95000.0, "xrp": 0.60}
             for cid, px in defaults.items():
                 if cid not in _price_cache:
                     _price_cache[cid] = (px, now - _PRICE_TTL + 10)
@@ -151,6 +163,10 @@ def unique_amount(chain: str, base: float, invoice_id: int) -> float:
         # lamport-level uniqueness (~1e-9 SOL)
         nudge = ((invoice_id * 13) % 9999 + 1) * 1e-9
         return round(base + nudge, 9)
+    if chain == "btc":
+        # satoshi-level uniqueness (1e-8 BTC)
+        nudge = ((invoice_id * 19) % 999 + 1) * 1e-8
+        return round(base + nudge, 8)
     return base
 
 
@@ -220,6 +236,8 @@ def verify_payment(chain: str, *, receive_address: str, amount_crypto: float,
         return _verify_eth(receive_address, amount_crypto, tx_hash)
     if chain == "sol":
         return _verify_sol(receive_address, amount_crypto, tx_hash)
+    if chain == "btc":
+        return _verify_btc(receive_address, amount_crypto, tx_hash)
     if chain == "xrp":
         return _verify_xrp(receive_address, amount_crypto, dest_tag, tx_hash)
     return {"ok": False, "error": f"Unsupported chain {chain}"}
@@ -266,8 +284,17 @@ def _verify_eth(to_addr: str, amount_eth: float, tx_hash: str) -> dict[str, Any]
             "error": f"Amount mismatch: got {actual} ETH, expected ~{amount_eth} ETH",
             "actual": actual,
         }
-    # Confirmations (optional)
+    # Require >= 2 confirmations before fulfillment (covers conf==0 and conf==1).
     conf = _eth_confirmations(tx_hash, tx.get("blockNumber"))
+    min_conf = 2
+    if conf < min_conf:
+        return {
+            "ok": False,
+            "error": "awaiting confirmations",
+            "actual": actual,
+            "confirmations": conf,
+            "tx_hash": tx_hash,
+        }
     return {"ok": True, "actual": actual, "confirmations": conf, "tx_hash": tx_hash}
 
 
@@ -286,7 +313,88 @@ def _eth_confirmations(tx_hash: str, block_hex: str | None) -> int:
         return 0
 
 
+def _verify_btc(to_addr: str, amount_btc: float, tx_hash: str) -> dict[str, Any]:
+    """Verify native BTC payment via Blockstream / mempool-compatible REST API."""
+    tx_hash = (tx_hash or "").strip().lower()
+    if tx_hash.startswith("0x"):
+        tx_hash = tx_hash[2:]
+    if len(tx_hash) != 64:
+        return {"ok": False, "error": "Invalid Bitcoin txid (expect 64 hex chars)"}
+    base = (getattr(config, "CRYPTO_BTC_API", None) or "https://blockstream.info/api").rstrip("/")
+    url = f"{base}/tx/{tx_hash}"
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            r = client.get(url)
+            if r.status_code == 404:
+                return {"ok": False, "error": "Transaction not found (pending or invalid txid)"}
+            r.raise_for_status()
+            tx = r.json()
+    except Exception as e:
+        return {"ok": False, "error": f"BTC API error: {e}"}
+
+    status = tx.get("status") or {}
+    confirmed = bool(status.get("confirmed"))
+
+    vouts = tx.get("vout") or []
+    to_norm = (to_addr or "").strip()
+    matched_sats = 0
+    for out in vouts:
+        # blockstream: scriptpubkey_address
+        addr = out.get("scriptpubkey_address") or out.get("scriptPubKey", {}).get("address")
+        if not addr:
+            # some explorers nest differently
+            spk = out.get("scriptpubkey") or out.get("scriptPubKey") or {}
+            if isinstance(spk, dict):
+                addr = spk.get("address") or (spk.get("addresses") or [None])[0]
+        if addr and addr == to_norm:
+            matched_sats += int(out.get("value") or 0)
+
+    if matched_sats <= 0:
+        return {"ok": False, "error": f"No output to our BTC address {to_norm} in this tx"}
+
+    actual = matched_sats / 1e8
+    # BTC: allow ~500 sat absolute or 1% relative
+    if not _amount_match(actual, amount_btc, rel_tol=0.01, abs_tol=5e-6):
+        return {
+            "ok": False,
+            "error": f"Amount mismatch: got {actual} BTC, expected ~{amount_btc} BTC",
+            "actual": actual,
+        }
+
+    conf = 0
+    if confirmed:
+        # Approximate confirmations from block height if available
+        try:
+            with httpx.Client(timeout=12.0) as client:
+                tip = int(client.get(f"{base}/blocks/tip/height").text.strip())
+            bh = int(status.get("block_height") or 0)
+            if tip and bh:
+                conf = max(1, tip - bh + 1)
+            else:
+                conf = 1
+        except Exception:
+            conf = 1
+
+    # Require confirmed=true or conf>=1 before fulfillment (reject mempool-only).
+    if not confirmed and conf < 1:
+        return {
+            "ok": False,
+            "error": "awaiting confirmations",
+            "actual": actual,
+            "confirmations": conf,
+            "tx_hash": tx_hash,
+        }
+
+    return {"ok": True, "actual": actual, "confirmations": conf, "tx_hash": tx_hash}
+
+
 def _verify_sol(to_addr: str, amount_sol: float, signature: str) -> dict[str, Any]:
+    """
+    Solana verification finality:
+    - getTransaction only returns committed/finalized txs (not in-flight).
+    - Rejects meta.err; treats presence of slot as confirmed (confirmations=1).
+    - No extra commitment param; RPC default is sufficient for basic finality.
+    """
     rpc = config.CRYPTO_SOL_RPC
     payload = {
         "jsonrpc": "2.0",
@@ -362,6 +470,12 @@ def _verify_sol(to_addr: str, amount_sol: float, signature: str) -> dict[str, An
 
 
 def _verify_xrp(to_addr: str, amount_xrp: float, dest_tag: int | None, tx_hash: str) -> dict[str, Any]:
+    """
+    XRP Ledger finality:
+    - Requires validated != False (ledger-validated tx).
+    - tesSUCCESS (or missing result) for successful payment.
+    - confirmations=1 when validated; already blocks unvalidated before amount match.
+    """
     rpc = config.CRYPTO_XRP_RPC.rstrip("/")
     # Accept with or without uppercase
     tx_hash = tx_hash.strip()
@@ -381,7 +495,7 @@ def _verify_xrp(to_addr: str, amount_xrp: float, dest_tag: int | None, tx_hash: 
     if result.get("error") or result.get("status") == "error":
         return {"ok": False, "error": result.get("error_message") or result.get("error") or "tx not found"}
 
-    # validated true when ledger validated
+    # Finality: validated true when ledger validated (reject unvalidated)
     if result.get("validated") is False:
         return {"ok": False, "error": "Transaction not yet validated on XRPL"}
 

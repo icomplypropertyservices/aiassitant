@@ -4,11 +4,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db, SessionLocal
 from .. import models
-from ..auth_utils import get_current_user, user_from_ws_token, ensure_credits
+from ..auth_utils import get_current_user, user_from_ws_token, ensure_credits, accept_and_authenticate_ws
 from ..llm import stream_completion, complete, provider_hint
 from ..pricing import estimate_tokens
 from ..ws import manager
-from ..usage_billing import charge_usage
+from ..usage_billing import charge_usage, bill_llm_turn
 from ..user_keys import credentials_for_user
 
 router = APIRouter(tags=["chat"])
@@ -80,13 +80,19 @@ async def post_message(data: MessageIn, db: Session = Depends(get_db), user=Depe
 
     db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
     db.commit()
-    inp = sum(estimate_tokens(m["content"]) for m in llm_messages)
-    out = estimate_tokens(reply)
-    charged = charge_usage(db, user, data.model, inp, out)
+    charged = bill_llm_turn(db, user, data.model, llm_messages, reply)
     await manager.broadcast(
         f"tokens:{user.id}",
-        {"event": "usage", "tokens": charged["tokens"], "cost": charged["cost"],
-         "model": data.model, "tokens_used_period": charged.get("tokens_used_period")},
+        {
+            "event": "usage",
+            "tokens": charged["tokens"],
+            "cost": charged["cost"],
+            "model": charged.get("model") or data.model,
+            "tokens_used_period": charged.get("tokens_used_period"),
+            "credits": charged.get("credits"),
+            "warn": None,
+            "hard_block": None,
+        },
     )
     return {
         "conversation_id": conv.id,
@@ -101,14 +107,13 @@ async def post_message(data: MessageIn, db: Session = Depends(get_db), user=Depe
 
 @router.websocket("/ws/chat")
 async def ws_chat(ws: WebSocket, token: str = Query("")):
+    """Streaming chat WS. Auth: ?token= (legacy/mobile) or first-message {"type":"auth","token":...}."""
     db = SessionLocal()
-    user = user_from_ws_token(token, db)
+    user = await accept_and_authenticate_ws(ws, token, db)
     if not user:
         db.close()
-        await ws.close(code=4401)
         return
     user_id = user.id
-    await ws.accept()
     try:
         while True:
             raw = await ws.receive_text()
@@ -161,10 +166,8 @@ async def ws_chat(ws: WebSocket, token: str = Query("")):
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
-            inp = sum(estimate_tokens(m["content"]) for m in llm_messages)
-            out = estimate_tokens(reply)
             user = db.get(models.User, user_id)
-            charged = charge_usage(db, user, model, inp, out)
+            charged = bill_llm_turn(db, user, model, llm_messages, reply)
 
             await ws.send_text(json.dumps({
                 "type": "done",
@@ -172,11 +175,18 @@ async def ws_chat(ws: WebSocket, token: str = Query("")):
                 "cost": charged["cost"],
                 "conversation_id": conv.id,
                 "tokens_used_period": charged.get("tokens_used_period"),
+                "credits": charged.get("credits"),
             }))
             await manager.broadcast(
                 f"tokens:{user_id}",
-                {"event": "usage", "tokens": charged["tokens"], "cost": charged["cost"],
-                 "model": model, "tokens_used_period": charged.get("tokens_used_period")},
+                {
+                    "event": "usage",
+                    "tokens": charged["tokens"],
+                    "cost": charged["cost"],
+                    "model": charged.get("model") or model,
+                    "tokens_used_period": charged.get("tokens_used_period"),
+                    "credits": charged.get("credits"),
+                },
             )
     except WebSocketDisconnect:
         pass

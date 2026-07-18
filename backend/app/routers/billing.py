@@ -4,10 +4,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from ..database import get_db, SessionLocal
 from .. import models, config
-from ..auth_utils import get_current_user, user_from_ws_token
+from ..auth_utils import get_current_user, user_from_ws_token, accept_and_authenticate_ws
 from ..ws import manager
-from ..pricing import MODEL_LABELS, PRICING, format_token_count
-from ..plans import PLANS, public_plans, plan_limits
+from ..pricing import MODEL_LABELS, PRICING, format_token_count, public_rates
+from ..plans import (
+    PLANS,
+    public_plans,
+    plan_limits,
+    is_upgrade,
+    effective_included_rate,
+    preorder_active,
+    preorder_meta,
+    plan_checkout_price,
+    enrich_plan_for_public,
+)
 from ..usage_billing import meter_snapshot, ensure_period
 from .. import crypto_payments as crypto_pay
 
@@ -45,20 +55,39 @@ def _stripe_ready() -> bool:
 
 
 def _plan_line_item(plan: str, limits: dict) -> dict:
-    """Prefer configured Price ID; otherwise inline price_data (sandbox-friendly)."""
-    price_id = (PLAN_PRICE_IDS.get(plan) or "").strip()
-    if price_id:
-        return {"price": price_id, "quantity": 1}
-    amount = float(limits.get("price") or 0)
+    """Prefer configured Price ID; otherwise inline price_data (sandbox-friendly).
+
+    During pre-order we always use inline price_data at the discounted amount so
+    the 10% off is applied even if fixed Stripe Price IDs are configured.
+    """
+    amount = plan_checkout_price(plan)
+    if amount <= 0:
+        amount = float(limits.get("price") or 0)
     if amount <= 0:
         raise HTTPException(400, "Plan has no price for Stripe checkout")
+
+    # Fixed Price IDs skip pre-order discount — only use them after launch
+    price_id = (PLAN_PRICE_IDS.get(plan) or "").strip()
+    if price_id and not preorder_active():
+        return {"price": price_id, "quantity": 1}
+
     name = limits.get("name") or plan.title()
+    list_price = float(limits.get("price") or 0)
+    desc = limits.get("blurb") or f"{name} monthly subscription"
+    if preorder_active() and list_price > amount:
+        desc = (
+            f"Pre-order · 10% off (list ${list_price:.0f}/mo) · early access · "
+            f"launch 27 July 2026. {desc}"
+        )
+    product_name = f"AI Business Assistant — {name}"
+    if preorder_active():
+        product_name = f"AI Business Assistant — {name} (Pre-order 10% off)"
     return {
         "price_data": {
             "currency": "usd",
             "product_data": {
-                "name": f"AI Business Assistant — {name}",
-                "description": limits.get("blurb") or f"{name} monthly subscription",
+                "name": product_name,
+                "description": desc,
             },
             "unit_amount": int(round(amount * 100)),
             "recurring": {"interval": "month"},
@@ -171,6 +200,13 @@ class TopupIn(BaseModel):
     amount: float
 
 
+class AutoTopupIn(BaseModel):
+    enabled: bool = False
+    amount: float = Field(25.0, ge=5, le=500)
+    threshold_credits: float = Field(5.0, ge=0, le=500)
+    token_pct: int = Field(85, ge=50, le=99)
+
+
 class PlanIn(BaseModel):
     plan: str
     company_name: str | None = None  # optional: create first company on subscribe
@@ -191,20 +227,40 @@ class CryptoVerifyIn(BaseModel):
 
 @router.get("/plans")
 def plans():
-    """Public — shown on login / subscribe without auth."""
-    return public_plans()
+    """Public tiers with upgrade teasers — login / subscribe / billing."""
+    out = {}
+    for key, p in public_plans().items():
+        row = enrich_plan_for_public(key, p)
+        rate = effective_included_rate(key)
+        if rate is not None:
+            row["effective_usd_per_1m"] = rate
+            row["value_line"] = f"As low as ${rate}/1M if you use the full included pool"
+        else:
+            row["effective_usd_per_1m"] = None
+            row["value_line"] = "Free to start — upgrade when you need volume"
+        out[key] = row
+    # Attach launch / pre-order meta at top-level via special key (UI may ignore)
+    return out
+
+
+@router.get("/preorder")
+def preorder_status():
+    """Public pre-order / launch window + model availability for marketing & app."""
+    return preorder_meta()
 
 
 @router.get("/rates")
 def rates():
-    """Public token rates ($ / 1M tokens) for transparency."""
+    """Public token rates ($ / 1M tokens) — neutral names only."""
+    rows = public_rates()
     return {
         "currency": "usd",
         "unit": "per_1m_tokens",
-        "rates": [
-            {"id": k, "label": MODEL_LABELS.get(k, k), "usd_per_1m": v}
-            for k, v in PRICING.items()
-        ],
+        "note": (
+            "Included monthly tokens cover managed chat until the pool is used. "
+            "Overage and media bill your credit wallet at these rates."
+        ),
+        "rates": rows,
     }
 
 
@@ -222,6 +278,7 @@ def meter(db: Session = Depends(get_db), user=Depends(get_current_user)):
 def payment_options():
     """Public-ish status: card (Stripe sandbox/live) + crypto availability."""
     mode = _stripe_mode()
+    po = preorder_meta()
     return {
         "stripe": {
             "enabled": _stripe_ready(),
@@ -249,8 +306,11 @@ def payment_options():
         "crypto": {
             "enabled": crypto_pay.crypto_enabled(),
             "chains": [c["id"] for c in crypto_pay.available_chains()],
-            "label": "Crypto (ETH / SOL / XRP)",
+            "label": "Crypto (ETH / SOL / BTC / XRP)",
+            "ready": crypto_pay.crypto_enabled(),
         },
+        "preorder": po,
+        "ready_for_payments": _stripe_ready() or crypto_pay.crypto_enabled(),
     }
 
 
@@ -301,6 +361,177 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
     return {"credits": round(bal.credits, 4), "dev_mode": True}
 
 
+@router.get("/auto-topup")
+def get_auto_topup(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+    if not bal:
+        bal = models.Balance(user_id=user.id, credits=0.0)
+        db.add(bal)
+        db.commit()
+        db.refresh(bal)
+    snap = meter_snapshot(db, user)
+    return {
+        "enabled": bool(getattr(bal, "auto_topup_enabled", False)),
+        "amount": float(getattr(bal, "auto_topup_amount", None) or 25),
+        "threshold_credits": float(getattr(bal, "auto_topup_threshold_credits", None) or 5),
+        "token_pct": int(getattr(bal, "auto_topup_token_pct", None) or 85),
+        "last_at": (
+            bal.auto_topup_last_at.isoformat()
+            if getattr(bal, "auto_topup_last_at", None)
+            else None
+        ),
+        "meter": snap,
+    }
+
+
+@router.put("/auto-topup")
+def put_auto_topup(
+    data: AutoTopupIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+    if not bal:
+        bal = models.Balance(user_id=user.id, credits=0.0)
+        db.add(bal)
+        db.flush()
+    bal.auto_topup_enabled = bool(data.enabled)
+    bal.auto_topup_amount = float(data.amount)
+    bal.auto_topup_threshold_credits = float(data.threshold_credits)
+    bal.auto_topup_token_pct = int(data.token_pct)
+    db.commit()
+    return {
+        "ok": True,
+        "enabled": bal.auto_topup_enabled,
+        "amount": bal.auto_topup_amount,
+        "threshold_credits": bal.auto_topup_threshold_credits,
+        "token_pct": bal.auto_topup_token_pct,
+        "message": (
+            f"Auto top-up ON — we'll prompt a ${int(data.amount)} refill when credits "
+            f"drop below ${data.threshold_credits:.0f} or tokens hit {data.token_pct}%."
+            if data.enabled
+            else "Auto top-up off. You can still top up anytime."
+        ),
+    }
+
+
+@router.post("/auto-topup/trigger")
+def trigger_auto_topup(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    If auto-topup is enabled and balance is low, start a Stripe Checkout top-up.
+    Called by the app when the salesy popup fires or meter says should_trigger.
+    Rate-limited to once per 10 minutes per user.
+    """
+    bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+    if not bal or not getattr(bal, "auto_topup_enabled", False):
+        raise HTTPException(400, "Auto top-up is not enabled")
+    snap = meter_snapshot(db, user)
+    if not (snap.get("auto_topup") or {}).get("should_trigger") and not snap.get("needs_topup"):
+        return {
+            "ok": False,
+            "skipped": True,
+            "message": "Balance looks fine — no top-up needed yet.",
+            "meter": snap,
+        }
+    last = getattr(bal, "auto_topup_last_at", None)
+    if last and (datetime.utcnow() - last).total_seconds() < 600:
+        return {
+            "ok": False,
+            "skipped": True,
+            "message": "Top-up already started recently — finish checkout or wait a few minutes.",
+            "meter": snap,
+        }
+    amount = float(getattr(bal, "auto_topup_amount", None) or 25)
+    amount = max(5.0, min(500.0, amount))
+    # Reuse topup path
+    stripe = _stripe()
+    if stripe:
+        success, cancel = _checkout_urls("/billing", "/billing")
+        try:
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                line_items=[{
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": "AI Assistant auto top-up",
+                            "description": f"Wallet refill ${amount:.0f} — keep agents running",
+                        },
+                        "unit_amount": int(round(amount * 100)),
+                    },
+                    "quantity": 1,
+                }],
+                success_url=success,
+                cancel_url=cancel,
+                customer_email=user.email,
+                metadata={
+                    "kind": "topup",
+                    "user_id": str(user.id),
+                    "amount": str(amount),
+                    "auto": "1",
+                },
+            )
+        except Exception as e:
+            raise HTTPException(502, f"Stripe Checkout error: {e}") from e
+        bal.auto_topup_last_at = datetime.utcnow()
+        db.commit()
+        return {
+            "ok": True,
+            "checkout_url": session.url,
+            "session_id": session.id,
+            "amount": amount,
+            "provider": "stripe",
+            "sales_message": snap.get("sales_message"),
+            "headline": snap.get("headline"),
+        }
+    if config.IS_PRODUCTION:
+        raise HTTPException(503, "Stripe not configured for auto top-up")
+    bal.credits = float(bal.credits or 0) + amount
+    bal.auto_topup_last_at = datetime.utcnow()
+    db.commit()
+    return {
+        "ok": True,
+        "dev_mode": True,
+        "amount": amount,
+        "credits": round(bal.credits, 4),
+        "message": f"Dev auto top-up +${amount:.0f}",
+    }
+
+
+TRIAL_DAYS = 14
+TRIAL_ENDED_MSG = "Trial ended — choose a paid plan"
+
+
+def _trial_live(user: models.User) -> bool:
+    """True when user is on an unexpired free trial."""
+    if (user.plan or "") != "trial" or not user.subscription_active:
+        return False
+    exp = getattr(user, "subscription_expires_at", None)
+    if exp is None:
+        return False
+    return exp > datetime.utcnow()
+
+
+def _had_or_has_trial(db: Session, user: models.User) -> bool:
+    """
+    One-shot trial detection without a dedicated column:
+    - currently on plan trial, or
+    - subscription_expires_at was set (timed trial window), or
+    - balance still shows the trial token pool after a prior activation
+      while still on none / trial / pay_as_you_go.
+    """
+    if (user.plan or "") == "trial":
+        return True
+    if getattr(user, "subscription_expires_at", None) is not None:
+        return True
+    bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+    trial_tokens = int(plan_limits("trial").get("tokens_included") or 50_000)
+    if bal and int(bal.tokens_included or 0) == trial_tokens:
+        if (user.plan or "") in ("none", "", "trial", "pay_as_you_go"):
+            return True
+    return False
+
+
 def _activate_plan(db: Session, user: models.User, plan: str, company_name: str | None = None):
     if plan not in PLANS or plan == "none":
         raise HTTPException(400, "Unknown plan")
@@ -308,6 +539,13 @@ def _activate_plan(db: Session, user: models.User, plan: str, company_name: str 
     u = db.get(models.User, user.id)
     u.plan = plan
     u.subscription_active = True
+    # Free trial: one-shot 14-day window (set only when missing)
+    if plan == "trial":
+        if not getattr(u, "subscription_expires_at", None):
+            u.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
+    elif limits.get("requires_payment"):
+        # Paid plans are not time-boxed by trial expiry
+        u.subscription_expires_at = None
     bal = db.query(models.Balance).filter_by(user_id=user.id).first()
     if not bal:
         bal = models.Balance(user_id=user.id, credits=0.0)
@@ -316,11 +554,12 @@ def _activate_plan(db: Session, user: models.User, plan: str, company_name: str 
     bal.tokens_included = int(limits.get("tokens_included") or 0)
     bal.tokens_used_period = 0
     bal.period_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    # Welcome credits for paid / trial
-    if plan == "trial" and (bal.credits or 0) < 2:
-        bal.credits = max(bal.credits or 0, 2.0)
-    if plan == "pay_as_you_go" and (bal.credits or 0) < 5:
-        bal.credits = max(bal.credits or 0, 5.0)
+    # Welcome credits only in non-production — never mint free wallet credits in prod
+    if not config.IS_PRODUCTION:
+        if plan == "trial" and (bal.credits or 0) < 2:
+            bal.credits = max(bal.credits or 0, 2.0)
+        if plan == "pay_as_you_go" and (bal.credits or 0) < 5:
+            bal.credits = max(bal.credits or 0, 5.0)
     # Bootstrap first company if requested or none exist
     existing = db.query(models.Company).filter_by(owner_user_id=user.id).count()
     if existing == 0:
@@ -339,23 +578,87 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
     limits = plan_limits(data.plan)
     needs_payment = bool(limits.get("requires_payment"))
 
-    # Paid plans: Stripe Checkout when key present (sandbox or live)
-    if needs_payment and stripe:
+    # ── Free trial: one-shot + 14-day expiry (no token refill on re-POST) ──
+    if data.plan == "trial":
+        u = db.get(models.User, user.id) or user
+        # Legacy: plan=trial but never got expires_at — stamp 14d once, no pool reset
+        if (u.plan or "") == "trial" and not getattr(u, "subscription_expires_at", None):
+            u.subscription_active = True
+            u.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
+            db.commit()
+            db.refresh(u)
+            out = {
+                "plan": u.plan,
+                "subscription_active": bool(u.subscription_active),
+                "subscription_expires_at": u.subscription_expires_at.isoformat() + "Z",
+                "already_active": True,
+                "meter": meter_snapshot(db, u),
+            }
+            out["dev_mode"] = not config.IS_PRODUCTION
+            return out
+        if _trial_live(u):
+            # Still in active trial — return current state, do not reset pool
+            out = {
+                "plan": u.plan,
+                "subscription_active": bool(u.subscription_active),
+                "subscription_expires_at": (
+                    u.subscription_expires_at.isoformat() + "Z"
+                    if getattr(u, "subscription_expires_at", None)
+                    else None
+                ),
+                "already_active": True,
+                "meter": meter_snapshot(db, u),
+            }
+            out["dev_mode"] = not config.IS_PRODUCTION
+            return out
+        if _had_or_has_trial(db, u):
+            # Used or expired trial — refuse fresh 50k activation
+            raise HTTPException(402, TRIAL_ENDED_MSG)
+        u = _activate_plan(db, user, "trial", data.company_name)
+        out = {
+            "plan": u.plan,
+            "subscription_active": True,
+            "subscription_expires_at": (
+                u.subscription_expires_at.isoformat() + "Z"
+                if getattr(u, "subscription_expires_at", None)
+                else None
+            ),
+            "already_active": False,
+            "meter": meter_snapshot(db, u),
+        }
+        out["dev_mode"] = not config.IS_PRODUCTION
+        return out
+
+    # Production: pay_as_you_go is wallet-only — no free activation / free $5 mint
+    if data.plan == "pay_as_you_go" and config.IS_PRODUCTION:
+        raise HTTPException(
+            402,
+            "Pay as you go requires a credit top-up via card (Stripe) or crypto. "
+            "Free activation and free wallet credits are not available in production.",
+        )
+
+    # Paid plans: Stripe Checkout when key present (sandbox or live).
+    # pay_as_you_go has no subscription price — fund via top-up only; free-activate in non-prod.
+    if needs_payment and stripe and data.plan != "pay_as_you_go":
         success, cancel = _checkout_urls("/billing", "/subscribe")
         try:
             line_item = _plan_line_item(data.plan, limits)
+            meta = {
+                "kind": "plan",
+                "user_id": str(user.id),
+                "plan": data.plan,
+                "company_name": data.company_name or "",
+                "preorder": "1" if preorder_active() else "0",
+                "list_price": str(limits.get("price") or ""),
+                "checkout_price": str(plan_checkout_price(data.plan)),
+            }
             session = stripe.checkout.Session.create(
                 mode="subscription",
                 line_items=[line_item],
                 success_url=success,
                 cancel_url=cancel,
                 customer_email=user.email,
-                metadata={
-                    "kind": "plan",
-                    "user_id": str(user.id),
-                    "plan": data.plan,
-                    "company_name": data.company_name or "",
-                },
+                metadata=meta,
                 allow_promotion_codes=True,
             )
         except Exception as e:
@@ -366,6 +669,9 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
             "provider": "stripe",
             "stripe_mode": _stripe_mode(),
             "crypto_available": crypto_pay.crypto_enabled(),
+            "preorder": preorder_active(),
+            "amount_usd": plan_checkout_price(data.plan),
+            "list_price_usd": float(limits.get("price") or 0),
         }
 
     # Production: no free activate for paid plans without Stripe
@@ -373,7 +679,7 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
         if crypto_pay.crypto_enabled():
             raise HTTPException(
                 402,
-                "Card payments unavailable — pay with crypto (ETH, SOL, or XRP) on Billing / Subscribe, "
+                "Card payments unavailable — pay with crypto (ETH, SOL, BTC, or XRP) on Billing / Subscribe, "
                 "or set STRIPE_SECRET_KEY (sk_test_… for sandbox).",
             )
         raise HTTPException(
@@ -382,14 +688,19 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
             "or CRYPTO_*_ADDRESS for crypto.",
         )
 
-    # Dev (or free plans): activate without Checkout
+    # Dev (or free plans e.g. trial): activate without Checkout
     u = _activate_plan(db, user, data.plan, data.company_name)
-    return {
+    out = {
         "plan": u.plan,
         "subscription_active": True,
-        "dev_mode": True,
         "meter": meter_snapshot(db, u),
     }
+    # Only mark dev_mode when this path actually free-granted without payment rails
+    if not config.IS_PRODUCTION:
+        out["dev_mode"] = True
+    else:
+        out["dev_mode"] = False
+    return out
 
 
 @router.post("/checkout/confirm")
@@ -423,6 +734,76 @@ def confirm_checkout(
         "subscription_active": bool(u.subscription_active) if u else False,
         "meter": meter_snapshot(db, u) if u else None,
     }
+
+
+def _stripe_customer_id_for_user(stripe, user) -> str | None:
+    """
+    Resolve Stripe Customer id for portal access.
+    Prefer metadata user_id match, then email, then Search API fallback.
+    """
+    email = (getattr(user, "email", None) or "").strip()
+    uid = str(user.id)
+    email_match = None
+
+    if email:
+        try:
+            listed = stripe.Customer.list(email=email, limit=20)
+            rows = listed.get("data") if isinstance(listed, dict) else list(listed.data or [])
+            for c in rows:
+                cid = c.get("id") if isinstance(c, dict) else getattr(c, "id", None)
+                meta = c.get("metadata") if isinstance(c, dict) else getattr(c, "metadata", None)
+                if hasattr(meta, "to_dict"):
+                    meta = meta.to_dict()
+                meta = dict(meta or {})
+                if str(meta.get("user_id") or "") == uid:
+                    return cid
+                if cid and not email_match:
+                    email_match = cid
+        except Exception:
+            pass
+
+    try:
+        # Stripe Search (may be unavailable on older API / some accounts)
+        found = stripe.Customer.search(query=f"metadata['user_id']:'{uid}'", limit=1)
+        rows = found.get("data") if isinstance(found, dict) else list(found.data or [])
+        if rows:
+            c0 = rows[0]
+            return c0.get("id") if isinstance(c0, dict) else getattr(c0, "id", None)
+    except Exception:
+        pass
+
+    return email_match
+
+
+@router.post("/portal")
+def billing_portal(user=Depends(get_current_user)):
+    """
+    Create a Stripe Customer Portal session so the user can manage subscription,
+    payment methods, and invoices. Returns {url}.
+    """
+    stripe = _stripe()
+    if not stripe:
+        raise HTTPException(503, "Stripe is not configured. Set STRIPE_SECRET_KEY.")
+    customer_id = _stripe_customer_id_for_user(stripe, user)
+    if not customer_id:
+        raise HTTPException(
+            400,
+            "No Stripe customer found for this account. Subscribe or complete a card payment first, "
+            "then use Manage subscription to update billing details.",
+        )
+    base = (config.FRONTEND_URL or "").rstrip("/") or "http://localhost:5173"
+    return_url = f"{base}/billing"
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+    except Exception as e:
+        raise HTTPException(502, f"Stripe Customer Portal error: {e}") from e
+    url = session.url if hasattr(session, "url") else (session.get("url") if isinstance(session, dict) else None)
+    if not url:
+        raise HTTPException(502, "Stripe portal session missing url")
+    return {"url": url}
 
 
 @router.post("/webhook")
@@ -580,14 +961,39 @@ def create_crypto_invoice(
         if plan not in PLANS or plan == "none":
             raise HTTPException(400, "Unknown plan")
         limits = plan_limits(plan)
-        amount_usd = float(limits.get("price") or 0)
+        # Pre-order: charge discounted price (10% off until launch)
+        amount_usd = plan_checkout_price(plan)
+        if amount_usd <= 0:
+            amount_usd = float(limits.get("price") or 0)
         if amount_usd <= 0 and not limits.get("requires_payment"):
-            # Free plan — activate immediately without crypto
+            # Free plan — activate immediately without crypto (same trial one-shot rules)
+            if plan == "trial":
+                u = db.get(models.User, user.id) or user
+                if _trial_live(u):
+                    return {
+                        "activated": True,
+                        "already_active": True,
+                        "plan": u.plan,
+                        "subscription_active": bool(u.subscription_active),
+                        "subscription_expires_at": (
+                            u.subscription_expires_at.isoformat() + "Z"
+                            if getattr(u, "subscription_expires_at", None)
+                            else None
+                        ),
+                        "meter": meter_snapshot(db, u),
+                    }
+                if _had_or_has_trial(db, u):
+                    raise HTTPException(402, TRIAL_ENDED_MSG)
             u = _activate_plan(db, user, plan, company_name or None)
             return {
                 "activated": True,
                 "plan": u.plan,
                 "subscription_active": True,
+                "subscription_expires_at": (
+                    u.subscription_expires_at.isoformat() + "Z"
+                    if getattr(u, "subscription_expires_at", None)
+                    else None
+                ),
                 "meter": meter_snapshot(db, u),
             }
         if amount_usd <= 0:
@@ -797,14 +1203,14 @@ def usage(db: Session = Depends(get_db), user=Depends(get_current_user)):
 
 @router.websocket("/ws/tokens")
 async def tokens_ws(ws: WebSocket, token: str = Query("")):
+    """Token usage meter WS. Auth: ?token= (legacy/mobile) or first-message {"type":"auth","token":...}."""
     db = SessionLocal()
-    user = user_from_ws_token(token, db)
+    user = await accept_and_authenticate_ws(ws, token, db)
     db.close()
     if not user:
-        await ws.close(code=4401)
         return
     channel = f"tokens:{user.id}"
-    await manager.connect(channel, ws)
+    manager.register(channel, ws)
     try:
         while True:
             await ws.receive_text()

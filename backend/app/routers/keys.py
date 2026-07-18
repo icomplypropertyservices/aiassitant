@@ -76,11 +76,18 @@ def list_keys(db: Session = Depends(get_db), user=Depends(get_current_user)):
                 "updated_at": None,
                 "encrypted": True,
                 "configured": False,
+                "status": meta.get("status"),
+                "help": meta.get("help"),
             })
     for extra in by_provider.values():
         extra["configured"] = True
         catalog.append(extra)
     for c in catalog:
+        meta = PROVIDERS.get(c.get("provider") or "", {})
+        if meta:
+            c.setdefault("status", meta.get("status"))
+            c.setdefault("help", meta.get("help"))
+            c.setdefault("provider_label", meta.get("label", c.get("provider")))
         if c.get("id"):
             c["configured"] = True
     return {"keys": catalog, "encryption": "fernet-aes", "note": "Plaintext keys are never returned after save."}

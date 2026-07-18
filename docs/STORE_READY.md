@@ -5,9 +5,11 @@
 | **Shell** | Capacitor 8 | Capacitor 8 |
 | **App ID** | `com.icomply.aibusinessassistant` | `com.icomply.aibusinessassistant` |
 | **Version** | 1.4.0 | 1.4.0 (`versionCode` 10400) |
-| **API** | `https://aiassitant-nu.vercel.app/api` | same |
-| **Privacy** | https://aiassitant-nu.vercel.app/privacy.html | same |
-| **Support** | https://aiassitant-nu.vercel.app/support.html | same |
+| **API** | `https://aibusinessagent.xyz/api` | same |
+| **App (web)** | https://aibusinessagent.xyz/agents | same |
+| **Privacy** | https://aibusinessagent.xyz/privacy.html | same |
+| **Terms** | https://aibusinessagent.xyz/terms.html | same |
+| **Support** | https://aibusinessagent.xyz/support.html | same |
 
 Payments: **web Stripe (sandbox `sk_test`) + crypto**. Mobile billing buttons open the website where required by store rules (`IS_NATIVE` paths already do this).
 
@@ -79,7 +81,9 @@ Before **real** money: set Vercel `STRIPE_SECRET_KEY=sk_live_…` and webhook se
 3. Signing: Play App Signing + upload keystore  
 4. Store listing: short + full description, icon 512×512, feature graphic 1024×500  
 5. Screenshots: phone (and tablet if supported)  
-6. Privacy policy URL: `https://aiassitant-nu.vercel.app/privacy`  
+6. Privacy policy URL: `https://aibusinessagent.xyz/privacy.html`  
+   Support URL: `https://aibusinessagent.xyz/support.html`  
+   Terms: `https://aibusinessagent.xyz/terms.html`  
 7. Content rating questionnaire  
 8. Target audience / data safety form (email, name, messages, payments via Stripe)  
 9. **Payments:** declare that digital subscriptions are managed outside the app / on the website for multi-platform SaaS (or implement Play Billing)  
@@ -109,7 +113,7 @@ See also [APP_STORE_IOS.md](./APP_STORE_IOS.md).
 6. Privacy Policy + Support URLs (above)  
 7. App Privacy labels (email, name, user content, usage)  
 8. **Guideline 3.1:** multi-platform SaaS — purchases on website; app already routes iOS billing to web  
-9. Review notes: demo login, needs network, mic for optional voice  
+9. Review notes: dedicated reviewer account only — **no** production use of `admin@local` (demo admin not seeded when `APP_ENV=production`); needs network to `aibusinessagent.xyz/api`; mic for optional voice  
 10. Submit for review  
 
 ---

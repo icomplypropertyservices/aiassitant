@@ -1,15 +1,23 @@
 # Plans for launch — AI Assistant
 
-**Product status (today):** live on Vercel · production API · Stripe **sandbox** · crypto placeholders · marketing site in `website/` · mobile shells ready.
+**Pre-order (now → 26 July 2026):** 10% off paid plans + early access. Public launch **27 July 2026**.
+- Grok: **API only**
+- Claude: **Coming soon**
+- VPS: **Coming soon** (small models only when live)
+- Payments: **Stripe + crypto** (ETH / SOL / BTC / XRP) ready for pre-order checkout
 
-**Target hosts**
+**Product status (today):** live on Vercel · production API · Stripe **sandbox** · crypto · marketing site · mobile shells ready.
 
-| Host | Role |
-|------|------|
-| `aiassistant.xyz` | Marketing / landing (`website/`) |
-| `app.aiassistant.xyz` | Product app + API |
+**Target host (paths — no subdomains)**
 
-Until DNS is wired, app remains at `https://aiassitant-nu.vercel.app`.
+| URL | Role |
+|-----|------|
+| `aibusinessagent.xyz/` | Marketing / landing (`website/`) |
+| `aibusinessagent.xyz/agents` | Product app SPA |
+| `aibusinessagent.xyz/api` | Product API |
+| `aibusinessagent.xyz/bay` | AgentBay marketplace |
+
+Until DNS is wired, app may still be at `https://aiassitant-nu.vercel.app` (then use `/agents` after path deploy).
 
 ---
 
@@ -54,11 +62,11 @@ Source of truth in code: `backend/app/plans.py` · shown on login, subscribe, bi
 - [x] Crypto UI (placeholder receive addresses)
 - [x] Marketing site folder (`website/`)
 - [x] iOS + Android Capacitor projects
-- [ ] Deploy `website/` to Vercel → domain **aiassistant.xyz**
-- [ ] Point **app.aiassistant.xyz** at the app project
+- [ ] Attach domain **aibusinessagent.xyz** to the monorepo Vercel project
 - [ ] Set app env:
-  - `FRONTEND_URL=https://app.aiassistant.xyz`
-  - `CORS_ORIGINS=https://app.aiassistant.xyz,https://aiassistant.xyz`
+  - `FRONTEND_URL=https://aibusinessagent.xyz/agents`
+  - `CORS_ORIGINS=https://aibusinessagent.xyz,https://www.aibusinessagent.xyz`
+  - `AGENTBAY_URL=https://aibusinessagent.xyz/bay`
 - [ ] Replace crypto placeholders with real wallets (if offering crypto at soft launch)
 - [ ] Create 1–2 **reviewer / demo** accounts (not personal admin)
 
@@ -72,17 +80,17 @@ Source of truth in code: `backend/app/plans.py` · shown on login, subscribe, bi
 
 1. **Stripe live**
    - Switch Vercel `STRIPE_SECRET_KEY` → `sk_live_…`
-   - Add webhook: `https://app.aiassistant.xyz/api/billing/webhook`
+   - Add webhook: `https://aibusinessagent.xyz/api/billing/webhook`
    - Event: `checkout.session.completed`
    - Set `STRIPE_WEBHOOK_SECRET`
 2. **Email**
-   - Resend (or similar): `RESEND_API_KEY`, verified domain on `aiassistant.xyz`
+   - Resend (or similar): `RESEND_API_KEY`, verified domain on `aibusinessagent.xyz`
 3. **Legal / store pages**
    - Privacy + support already on site; keep in sync with app
 4. **Smoke test**
    - Register → trial → paid plan (real $1 top-up or Starter) → chat → cancel test
 5. **Announce**
-   - Landing CTAs → `app.aiassistant.xyz/login`
+   - Landing CTAs → `aibusinessagent.xyz/agents/login`
    - Optional: waitlist / “Start free trial”
 
 ---
@@ -96,7 +104,7 @@ Source of truth in code: `backend/app/plans.py` · shown on login, subscribe, bi
 | Build | `npm run build:ios` (Mac) | `npm run build:android` |
 | Test | TestFlight | Play internal testing |
 | Payments | Web billing (already routed off-native) | same |
-| Listing URLs | privacy + support | same |
+| Listing URLs | `…/privacy.html` + `…/support.html` (+ terms) | same |
 | Bundle ID | `com.icomply.aibusinessassistant` | same |
 
 Details: `docs/STORE_READY.md`, `docs/APP_STORE_IOS.md`.
@@ -107,31 +115,43 @@ Details: `docs/STORE_READY.md`, `docs/APP_STORE_IOS.md`.
 
 ## 3. Go-live checklist (copy this)
 
-### Domains
-- [ ] `aiassistant.xyz` → marketing Vercel project (`website/`)
-- [ ] `app.aiassistant.xyz` → app Vercel project
-- [ ] SSL auto on both
+### Domains (path layout — no subdomains)
+- [ ] `aibusinessagent.xyz` (+ www → apex) → monorepo Vercel project
+- [ ] `https://aibusinessagent.xyz/` — marketing (`website/`)
+- [ ] `https://aibusinessagent.xyz/agents` — product SPA
+- [ ] `https://aibusinessagent.xyz/api` — product API (`/api/health` OK)
+- [ ] `https://aibusinessagent.xyz/bay` — AgentBay marketplace
+- [ ] SSL auto (Vercel)
+
+### Legal / store URLs (public)
+- [ ] Privacy: `https://aibusinessagent.xyz/privacy.html`
+- [ ] Terms: `https://aibusinessagent.xyz/terms.html`
+- [ ] Support: `https://aibusinessagent.xyz/support.html`
+- [ ] Store listings + app review notes use these URLs only (not `*.vercel.app`)
 
 ### Env (app project)
-- [ ] `APP_ENV=production`
+- [ ] `APP_ENV=production` (demo `admin@local` seed **disabled**)
 - [ ] `JWT_SECRET` / `ENCRYPTION_KEY` / `DATABASE_URL`
-- [ ] `FRONTEND_URL` + `CORS_ORIGINS` (custom domains)
+- [ ] `FRONTEND_URL=https://aibusinessagent.xyz/agents`
+- [ ] `CORS_ORIGINS=https://aibusinessagent.xyz,https://www.aibusinessagent.xyz`
+- [ ] `AGENTBAY_URL=https://aibusinessagent.xyz/bay` (if used)
 - [ ] `XAI_API_KEY` (and/or Anthropic)
-- [ ] `STRIPE_SECRET_KEY` live + webhook secret
+- [ ] `STRIPE_SECRET_KEY` live + webhook `https://aibusinessagent.xyz/api/billing/webhook`
 - [ ] Optional: `CRYPTO_*_ADDRESS` real wallets
 
 ### Product QA
-- [ ] Sign up / login
+- [ ] Sign up / login (real account — not `admin@local`)
 - [ ] Trial activation
 - [ ] Card checkout (live)
 - [ ] Crypto invoice (optional)
 - [ ] Chat reply (xAI)
 - [ ] Create company / project / agent
 - [ ] Token meter updates
+- [ ] Smoke: `/agents` + `/api/health` + legal pages load
 
 ### Launch day
-- [ ] Status check `/api/health`
-- [ ] Disable or hide demo-only copy on login if any
+- [ ] Status check `https://aibusinessagent.xyz/api/health`
+- [ ] No production demo-admin / `admin@local` credentials in docs or review notes
 - [ ] Support email monitored
 - [ ] Stripe dashboard open for first payments
 
@@ -159,10 +179,10 @@ Details: `docs/STORE_READY.md`, `docs/APP_STORE_IOS.md`.
 
 ## 6. Immediate next actions (recommended order)
 
-1. Deploy **website/** to Vercel and attach **aiassistant.xyz**  
-2. Attach **app.aiassistant.xyz** to the app project + update CORS/FRONTEND_URL  
+1. Attach **aibusinessagent.xyz** to the monorepo project; confirm `/`, `/agents`, `/api/health`  
+2. Set `FRONTEND_URL` + `CORS_ORIGINS` for path layout; redeploy  
 3. Soft-launch to 5–10 users on trial (Stripe still test if you want)  
-4. Flip Stripe to **live** when ready for real revenue  
+4. Ship AgentBay under `/bay` (build + optional API proxy)  
 5. Submit TestFlight / Play internal builds  
 
 When you want execution on a step (e.g. “deploy website project” or “switch Stripe live”), say which step and we’ll do it.

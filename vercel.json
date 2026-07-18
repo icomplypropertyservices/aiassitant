@@ -1,27 +1,94 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
-  "installCommand": "uv pip install --python .vercel/python/.venv/bin/python -r requirements.txt && cd frontend && npm ci",
-  "buildCommand": "cd frontend && npm run build && rm -rf ../public && mkdir -p ../public && cp -R dist/. ../public/",
+  "installCommand": "uv pip install --python .vercel/python/.venv/bin/python -r requirements.txt && cd frontend && npm install --legacy-peer-deps",
+  "buildCommand": "npm run vercel-build",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 300,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api"
     },
     {
-      "source": "/((?!api(?:/|$)|assets/|privacy\\.html$|support\\.html$|icons/|manifest\\.webmanifest$|favicon\\.ico$).*)",
-      "destination": "/index.html"
+      "source": "/bay/api/(.*)",
+      "destination": "/api/__bay__/$1"
+    },
+    {
+      "source": "/bay/api",
+      "destination": "/api/__bay__/health"
+    },
+    {
+      "source": "/agents",
+      "destination": "/agents/index.html"
+    },
+    {
+      "source": "/agents/",
+      "destination": "/agents/index.html"
+    },
+    {
+      "source": "/agents/assets/(.*)",
+      "destination": "/agents/assets/$1"
+    },
+    {
+      "source": "/agents/(.*)",
+      "destination": "/agents/index.html"
+    },
+    {
+      "source": "/bay",
+      "destination": "/bay/index.html"
+    },
+    {
+      "source": "/bay/",
+      "destination": "/bay/index.html"
+    },
+    {
+      "source": "/bay/assets/(.*)",
+      "destination": "/bay/assets/$1"
+    },
+    {
+      "source": "/bay/(.*)",
+      "destination": "/bay/index.html"
     }
   ],
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/agents/assets/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/bay/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), interest-cohort=()" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/ops/autonomy/tick-all",
+      "schedule": "0 6 * * *"
     }
   ]
 }

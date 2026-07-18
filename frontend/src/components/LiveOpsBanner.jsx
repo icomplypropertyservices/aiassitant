@@ -5,7 +5,8 @@ import {
   ClusterOutlined, CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
+import { hapticLight, hapticSuccess, hapticError, notifyLocal, isNative } from '../native'
 
 const KIND_ICON = {
   plan: <ClusterOutlined />,
@@ -48,6 +49,21 @@ export default function LiveOpsBanner() {
       return prev.filter((e) => e.id !== entry.id && e.plan_id !== entry.plan_id || entry.status !== 'done')
         .filter((e) => !(e.id === entry.id && (entry.status === 'done' || entry.status === 'failed')))
     })
+    // Native feedback on meaningful ops events
+    if (isNative()) {
+      if (entry.status === 'failed') {
+        hapticError()
+        notifyLocal({
+          title: entry.title || 'Agent issue',
+          body: entry.detail || entry.message || 'An agent step failed',
+          extra: { path: '/ops' },
+        })
+      } else if (entry.status === 'done') {
+        hapticSuccess()
+      } else if (entry.status === 'running') {
+        hapticLight()
+      }
+    }
   }
 
   useEffect(() => {
@@ -60,10 +76,11 @@ export default function LiveOpsBanner() {
 
     let ws
     try {
-      ws = new WebSocket(`${getWsBase()}/ops/ws?token=${getToken()}`)
+      ws = connectAuthedWs('/ops/ws')
       ws.onmessage = (ev) => {
         try {
           const m = JSON.parse(ev.data)
+          if (m.type === 'auth_ok') return
           if (m.event === 'ops' && m.entry) pushEntry(m.entry)
           if (m.event === 'snapshot' && m.snapshot) {
             setEvents(m.snapshot.events || [])

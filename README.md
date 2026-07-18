@@ -23,22 +23,24 @@ npm install
 npm run dev                 # http://localhost:5173
 ```
 
-Admin login: **admin@local / admin123**
+Local dev only (`APP_ENV` ≠ `production`): demo admin `admin@local` / `admin123` may be seeded. Create a dedicated reviewer account for production; never use `admin@local` in production (demo admin is not seeded when `APP_ENV=production`).
 
 ---
 
-## Marketing website vs app
+## Marketing website vs app (single domain)
 
-| Host | What | Folder |
-|------|------|--------|
-| **aiassistant.xyz** | Landing / marketing | [`website/`](website/) |
-| **app.aiassistant.xyz** | Product app + API | monorepo root |
+| URL | What | Folder |
+|-----|------|--------|
+| **aibusinessagent.xyz/** | Landing / marketing | [`website/`](website/) |
+| **aibusinessagent.xyz/agents** | Product SPA | [`frontend/`](frontend/) |
+| **aibusinessagent.xyz/api** | Product API | [`api/`](api/) + [`backend/`](backend/) |
+| **aibusinessagent.xyz/bay** | AgentBay marketplace | `agent-marketplace/` (sibling repo folder) |
 
 ```bash
 cd website && npm start   # http://localhost:5174
 ```
 
-Domain setup: [docs/DOMAINS.md](docs/DOMAINS.md) · website deploy: [website/README.md](website/README.md)
+Domain setup: [docs/DOMAINS.md](docs/DOMAINS.md) · website: [website/README.md](website/README.md)
 
 ---
 
@@ -66,8 +68,8 @@ npm run ios:sandbox
 
 Privacy / Support URLs for listings:
 
-- https://aiassitant-nu.vercel.app/privacy  
-- https://aiassitant-nu.vercel.app/support  
+- https://aibusinessagent.xyz/privacy.html  
+- https://aibusinessagent.xyz/support.html
 
 ---
 
@@ -106,9 +108,7 @@ Copy the connection string, e.g.:
 | `ANTHROPIC_API_KEY` / `XAI_API_KEY` | optional | platform LLM keys |
 | `STRIPE_*` | optional | payments |
 
-4. Deploy. First request runs DB `create_all` + seed (admin user).
-
-**Demo login after deploy:** `admin@local` / `admin123` — change immediately.
+4. Deploy. First request runs DB `create_all` + seed. Create a dedicated reviewer/admin account; never use `admin@local` in production (demo admin is not seeded when `APP_ENV=production`).
 
 ### 3. How routing works
 

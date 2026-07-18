@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   ShopOutlined, TeamOutlined, PlusOutlined, ReloadOutlined, DollarOutlined,
-  FunnelPlotOutlined, SearchOutlined, UserOutlined, HolderOutlined,
+  FunnelPlotOutlined, SearchOutlined, UserOutlined, HolderOutlined, CalendarOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
@@ -44,11 +44,15 @@ export default function Business() {
   const [custOpen, setCustOpen] = useState(false)
   const [dealOpen, setDealOpen] = useState(false)
   const [pipeOpen, setPipeOpen] = useState(false)
+  const [diaryOpen, setDiaryOpen] = useState(false)
+  const [selectedCustForDiary, setSelectedCustForDiary] = useState(null)
   const [custForm] = Form.useForm()
   const [dealForm] = Form.useForm()
   const [pipeForm] = Form.useForm()
+  const [diaryForm] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [dragDeal, setDragDeal] = useState(null)
+  const [upcomingDiary, setUpcomingDiary] = useState([])
 
   const loadOverview = async () => {
     const o = await api('/business/overview')
@@ -85,6 +89,7 @@ export default function Business() {
         api('/humans/').then((r) => setHumans(r.humans || [])).catch(() => {}),
         api('/agents/').then((a) => setAgents(Array.isArray(a) ? a : [])).catch(() => {}),
         api('/org/companies').then((c) => setCompanies(Array.isArray(c) ? c : c.companies || [])).catch(() => {}),
+        api('/business/diary?upcoming=true').then((d) => setUpcomingDiary(d.diary || [])).catch(() => {}),
       ])
     } catch (e) {
       message.error(e.message)
@@ -226,11 +231,12 @@ export default function Business() {
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <div>
           <Title level={3} style={{ margin: 0 }}><ShopOutlined /> Business</Title>
-          <Text type="secondary">Pipelines, customers, and full customer records</Text>
+          <Text type="secondary">Pipelines, customers, diary &amp; full records — your agents run this</Text>
         </div>
         <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
           <Button icon={<PlusOutlined />} onClick={() => setPipeOpen(true)}>New pipeline</Button>
+          <Button icon={<CalendarOutlined />} onClick={() => { setSelectedCustForDiary(null); setDiaryOpen(true) }}>Arrange diary</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCustOpen(true)}>Add customer</Button>
         </Space>
       </Space>
@@ -298,6 +304,26 @@ export default function Business() {
                         </Card>
                       ))}
                       {!overview?.pipelines?.length && <Empty description="No pipelines" />}
+                    </Card>
+                  </Col>
+                  <Col xs={24} md={24}>
+                    <Card type="inner" title="Upcoming diary / meetings" extra={<Button type="link" icon={<CalendarOutlined />} onClick={() => { setSelectedCustForDiary(null); setDiaryOpen(true) }}>Arrange new</Button>}>
+                      {(upcomingDiary || []).length ? (
+                        <Table
+                          size="small"
+                          rowKey="id"
+                          pagination={false}
+                          dataSource={upcomingDiary}
+                          columns={[
+                            { title: 'When', dataIndex: 'start_at', render: (v) => v ? new Date(v).toLocaleString() : 'TBD' },
+                            { title: 'Customer', render: (_, r) => <Button type="link" style={{padding:0}} onClick={() => nav(`/business/customers/${r.customer_id}`)}>{r.customer_name}</Button> },
+                            { title: 'Title', dataIndex: 'title' },
+                            { title: 'Location', dataIndex: 'location', render: (v) => v || '—' },
+                            { title: 'Owner', render: (_, r) => r.owner_human_name || r.owner_agent_name || '—' },
+                          ]}
+                          onRow={(r) => ({ onClick: () => nav(`/business/customers/${r.customer_id}`), style: { cursor: 'pointer' } })}
+                        />
+                      ) : <Text type="secondary">No upcoming diary items. Use “Arrange diary” to schedule meetings/calls for customers.</Text>}
                     </Card>
                   </Col>
                 </Row>
@@ -574,6 +600,76 @@ export default function Business() {
             <Select options={[{ value: false, label: 'Not default' }, { value: true, label: 'Make default' }]} />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving} block>Create pipeline</Button>
+        </Form>
+      </Modal>
+
+      {/* Arrange Diary (global from Business) */}
+      <Modal title="Arrange diary / meeting" open={diaryOpen} onCancel={() => { setDiaryOpen(false); setSelectedCustForDiary(null) }} footer={null} destroyOnClose width={560}>
+        <Form
+          form={diaryForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            setSaving(true)
+            try {
+              const custId = selectedCustForDiary || values.customer_id
+              if (!custId) throw new Error('Select a customer')
+              await api('/business/diary', {
+                method: 'POST',
+                body: {
+                  customer_id: Number(custId),
+                  title: values.title,
+                  start_at: values.start_at || null,
+                  end_at: values.end_at || null,
+                  location: values.location || '',
+                  notes: values.notes || '',
+                  owner_human_id: values.owner_human_id || null,
+                  owner_agent_id: values.owner_agent_id || null,
+                },
+              })
+              message.success('Diary entry added')
+              setDiaryOpen(false)
+              diaryForm.resetFields()
+              setSelectedCustForDiary(null)
+              await load()
+            } catch (e) {
+              message.error(e.message)
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
+          {!selectedCustForDiary && (
+            <Form.Item name="customer_id" label="Customer" rules={[{ required: true }]}>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={customers.map((c) => ({ value: c.id, label: `${c.name}${c.account_name ? ` · ${c.account_name}` : ''}` }))}
+                placeholder="Select customer"
+              />
+            </Form.Item>
+          )}
+          <Form.Item name="title" label="Title" rules={[{ required: true }]} initialValue="Follow-up call">
+            <Input />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}><Form.Item name="start_at" label="Start"><Input placeholder="2026-07-22T10:00" /></Form.Item></Col>
+            <Col span={12}><Form.Item name="end_at" label="End"><Input placeholder="2026-07-22T10:30" /></Form.Item></Col>
+          </Row>
+          <Form.Item name="location" label="Location / link"><Input placeholder="Zoom / Phone / Office" /></Form.Item>
+          <Form.Item name="notes" label="Notes"><TextArea rows={2} /></Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="owner_human_id" label="Owner (human)">
+                <Select allowClear options={humans.map((h) => ({ value: h.id, label: h.name }))} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="owner_agent_id" label="Owner (agent)">
+                <Select allowClear options={agents.map((a) => ({ value: a.id, label: a.name }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Button type="primary" htmlType="submit" loading={saving} block>Save to diary</Button>
         </Form>
       </Modal>
     </div>

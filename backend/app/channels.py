@@ -40,6 +40,49 @@ async def send_email(to: str, subject: str, body: str, credentials: dict | None 
         return False, f"Email to {to} failed: {e}"
 
 
+async def send_transactional_email(to: str, subject: str, html_body: str) -> dict:
+    """Platform transactional mail (auth verify/reset). Uses RESEND_API_KEY + RESEND_FROM only.
+
+    Returns a dict suitable for auth routes:
+      {ok: True, id?: str} on success
+      {ok: False, dev: True, detail: str} when Resend is not configured (safe for local/dev)
+      {ok: False, error: str} on API/network failure
+    """
+    api_key = (config.RESEND_API_KEY or "").strip()
+    from_addr = (config.RESEND_FROM or "").strip() or "assistant@yourdomain.com"
+    if not api_key:
+        return {
+            "ok": False,
+            "dev": True,
+            "detail": f"Email not sent (dev) — RESEND_API_KEY unset; would send to {to}: {subject}",
+        }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "from": from_addr,
+                    "to": [to],
+                    "subject": subject,
+                    "html": html_body,
+                },
+            )
+        if r.status_code in (200, 201):
+            data = {}
+            try:
+                data = r.json() or {}
+            except Exception:
+                pass
+            return {"ok": True, "id": data.get("id"), "to": to, "subject": subject}
+        return {
+            "ok": False,
+            "error": f"Resend {r.status_code}: {r.text[:200]}",
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 async def send_sms(to: str, body: str, credentials: dict | None = None, **kwargs):
     _, sid, token, from_num = _resolve_channel_creds(credentials, **kwargs)
     if not (sid and token and from_num):
@@ -75,3 +118,30 @@ async def make_call(to: str, message: str, credentials: dict | None = None, **kw
         return False, f"Call to {to} failed ({r.status_code}): {r.text[:120]}"
     except Exception as e:
         return False, f"Call to {to} failed: {e}"
+
+
+async def send_whatsapp(to: str, body: str, credentials: dict | None = None, **kwargs):
+    """Send WhatsApp message via Twilio WhatsApp Sandbox or approved number.
+    Phone numbers must be in E.164 and prefixed with 'whatsapp:' for Twilio.
+    Example to: 'whatsapp:+447700900123'
+    """
+    _, sid, token, from_num = _resolve_channel_creds(credentials, **kwargs)
+    if not (sid and token and from_num):
+        return False, f"WhatsApp drafted for {to} (not sent — Twilio not configured)"
+
+    # Ensure proper whatsapp: prefix
+    wa_to = to if to.startswith("whatsapp:") else f"whatsapp:{to}"
+    wa_from = from_num if from_num.startswith("whatsapp:") else f"whatsapp:{from_num}"
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+                auth=(sid, token),
+                data={"To": wa_to, "From": wa_from, "Body": body[:1500]},
+            )
+        if r.status_code in (200, 201):
+            return True, f"WhatsApp sent to {to}"
+        return False, f"WhatsApp to {to} failed ({r.status_code}): {r.text[:120]}"
+    except Exception as e:
+        return False, f"WhatsApp to {to} failed: {e}"

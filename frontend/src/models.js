@@ -1,31 +1,18 @@
-/** Shared model catalog for every picker in the app. */
+/** Shared model catalog for every picker in the app.
+ *  Clients only see neutral names. All routing and provider details are hidden.
+ */
 
 export const FALLBACK_MODELS = [
-  // VPS
-  { value: 'vps-fast', label: 'Our VPS – Fast', group: 'vps', group_label: 'Our VPS', provider: 'ollama' },
-  { value: 'vps-quality', label: 'Our VPS – Quality', group: 'vps', group_label: 'Our VPS', provider: 'ollama' },
-  // Qwen
-  { value: 'vps-qwen-fast', label: 'Our VPS – Qwen Fast', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-7b', label: 'Our VPS – Qwen 7B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-14b', label: 'Our VPS – Qwen 14B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-32b', label: 'Our VPS – Qwen 32B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-coder', label: 'Our VPS – Qwen Coder', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-coder-7b', label: 'Our VPS – Qwen Coder 7B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-coder-14b', label: 'Our VPS – Qwen Coder 14B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-coder-32b', label: 'Our VPS – Qwen Coder 32B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-large', label: 'Our VPS – Qwen Large', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  { value: 'vps-qwen-72b', label: 'Our VPS – Qwen 72B', group: 'qwen', group_label: 'Our VPS – Qwen', provider: 'ollama' },
-  // Claude
-  { value: 'claude-haiku', label: 'Premium Claude Haiku', group: 'anthropic', group_label: 'Premium Claude', provider: 'anthropic' },
-  { value: 'claude-sonnet', label: 'Premium Claude Sonnet', group: 'anthropic', group_label: 'Premium Claude', provider: 'anthropic' },
-  { value: 'claude-opus', label: 'Premium Claude Opus', group: 'anthropic', group_label: 'Premium Claude', provider: 'anthropic' },
-  // Grok
-  { value: 'grok-fast', label: 'Premium xAI Grok Fast', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
-  { value: 'grok-mini', label: 'Premium xAI Grok Mini', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
-  { value: 'grok', label: 'Premium xAI Grok', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
-  { value: 'grok-2', label: 'Premium xAI Grok 2', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
-  { value: 'grok-3', label: 'Premium xAI Grok 3', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
-  { value: 'grok-4', label: 'Premium xAI Grok 4', group: 'xai', group_label: 'Premium xAI Grok', provider: 'xai' },
+  // Clean, neutral names shown to clients.
+  { value: 'fast', label: 'Fast', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  { value: 'quality', label: 'Quality', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  { value: 'reasoning', label: 'Reasoning', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  { value: 'large', label: 'Large Context', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  { value: 'small', label: 'Small', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  { value: 'medium', label: 'Medium', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  // Media (also billed every use)
+  { value: 'image', label: 'Image', group: 'media', group_label: 'Media', provider: 'managed' },
+  { value: 'video', label: 'Video', group: 'media', group_label: 'Media', provider: 'managed' },
 ]
 
 let _cache = null

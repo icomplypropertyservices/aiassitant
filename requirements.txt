@@ -11,3 +11,8 @@ cryptography>=42.0.0
 # Postgres on Vercel (required — SQLite is not durable on serverless)
 psycopg2-binary>=2.9.9
 python-multipart>=0.0.9
+# AgentBay marketplace (password hashing)
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.1,<4.1
+# Optional: global rate limits (REDIS_URL / UPSTASH_REDIS_URL) — falls back to in-memory
+redis>=5.0.0

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product demo — AI Business Agent</title>
+  <meta name="description" content="Interactive demo of AI Business Agent: multi-company workspace, agent hierarchy, chat, training, and live token billing. No login required." />
+  <meta name="theme-color" content="#0b1f3a" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta property="og:title" content="Product demo — AI Business Agent" />
+  <meta property="og:description" content="Click through the real product flow: workspace, agents, chat, and tokens — no account needed." />
+  <meta property="og:url" content="https://aibusinessagent.xyz/demo.html" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header class="nav" data-site-header></header>
+
+  <div class="page-hero">
+    <div class="container">
+      <p class="section-kicker">Interactive demo</p>
+      <h1>See the full system in 60 seconds</h1>
+      <p>
+        Walk the product the way operators use it: company workspace → agent team → chat →
+        live token meter. No signup. This is a guided mock of the real console.
+      </p>
+    </div>
+  </div>
+
+  <section class="demo-section">
+    <div class="container">
+      <!-- Tour steps -->
+      <div class="demo-tour" role="tablist" aria-label="Demo steps">
+        <button type="button" class="demo-step is-active" data-demo-step="0" role="tab" aria-selected="true">
+          <span class="demo-step-num">1</span>
+          <span class="demo-step-label">Dashboard</span>
+        </button>
+        <button type="button" class="demo-step" data-demo-step="1" role="tab" aria-selected="false">
+          <span class="demo-step-num">2</span>
+          <span class="demo-step-label">Workspace</span>
+        </button>
+        <button type="button" class="demo-step" data-demo-step="2" role="tab" aria-selected="false">
+          <span class="demo-step-num">3</span>
+          <span class="demo-step-label">Agents</span>
+        </button>
+        <button type="button" class="demo-step" data-demo-step="3" role="tab" aria-selected="false">
+          <span class="demo-step-num">4</span>
+          <span class="demo-step-label">Chat</span>
+        </button>
+        <button type="button" class="demo-step" data-demo-step="4" role="tab" aria-selected="false">
+          <span class="demo-step-num">5</span>
+          <span class="demo-step-label">Billing</span>
+        </button>
+      </div>
+
+      <div class="demo-layout">
+        <!-- Narration panel -->
+        <aside class="demo-narration card">
+          <p class="demo-kicker" id="demo-kicker">Step 1 of 5</p>
+          <h2 id="demo-title">Your ops HQ at a glance</h2>
+          <p id="demo-body">
+            One login for multiple companies. See agents online, open tasks, and how much of your
+            included token pool you’ve used this month.
+          </p>
+          <ul class="demo-bullets" id="demo-bullets">
+            <li>Multi-company workspace under one account</li>
+            <li>Live agent status and recent activity</li>
+            <li>Token meter always visible — no surprise bills</li>
+          </ul>
+          <div class="demo-nav-btns">
+            <button type="button" class="btn btn-ghost" id="demo-prev" disabled>← Back</button>
+            <button type="button" class="btn btn-primary" id="demo-next">Next: Workspace →</button>
+          </div>
+          <p class="demo-hint muted">
+            Tip: click the sidebar inside the mock, or use the steps above.
+          </p>
+        </aside>
+
+        <!-- App mock shell -->
+        <div class="demo-frame" aria-label="Product console demo">
+          <div class="demo-chrome">
+            <span class="demo-dot"></span><span class="demo-dot"></span><span class="demo-dot"></span>
+            <span class="demo-url">aibusinessagent.xyz/agents</span>
+          </div>
+          <div class="demo-app">
+            <aside class="demo-side">
+              <div class="demo-logo"><span class="demo-mark">✦</span> AI Business Agent</div>
+              <button type="button" class="demo-nav-item is-active" data-demo-view="dashboard">📊 Dashboard</button>
+              <button type="button" class="demo-nav-item" data-demo-view="workspace">🏢 Workspace</button>
+              <button type="button" class="demo-nav-item" data-demo-view="agents">🤖 Agents</button>
+              <button type="button" class="demo-nav-item" data-demo-view="chat">💬 Chat</button>
+              <button type="button" class="demo-nav-item" data-demo-view="billing">💳 Billing</button>
+              <div class="demo-side-foot">
+                <div class="demo-mini-meter">
+                  <span>Tokens</span>
+                  <strong id="demo-token-label">1.7M / 10M</strong>
+                </div>
+                <div class="demo-meter-bar"><i id="demo-token-bar" style="width:17%"></i></div>
+              </div>
+            </aside>
+
+            <div class="demo-main">
+              <header class="demo-top">
+                <h1 id="demo-screen-title">Dashboard · Fire Alarms Dublin</h1>
+                <span class="demo-live-pill">● Agents online</span>
+              </header>
+
+              <!-- Views -->
+              <div class="demo-content">
+                <!-- Dashboard -->
+                <div class="demo-view is-active" data-view="dashboard" id="view-dashboard">
+                  <div class="demo-stats">
+                    <div class="demo-stat">
+                      <span class="lbl">Companies</span>
+                      <strong>3</strong>
+                      <span class="sub">Multi-company workspace</span>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Agents</span>
+                      <strong>12</strong>
+                      <span class="sub">1 orchestrator · 4 leads · 7 specialists</span>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Tokens used</span>
+                      <strong>1.7M</strong>
+                      <span class="sub">of 10M Pro pool</span>
+                      <div class="demo-meter-bar sm"><i style="width:17%"></i></div>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Credits</span>
+                      <strong>$50</strong>
+                      <span class="sub">Premium &amp; overage wallet</span>
+                    </div>
+                  </div>
+                  <div class="demo-split">
+                    <div class="demo-panel">
+                      <h3>Recent activity</h3>
+                      <div class="demo-row"><span>Ops Lead drafted site-visit checklist</span><span class="tag">Task</span></div>
+                      <div class="demo-row"><span>Field specialist assigned · Compliance 2026</span><span class="tag g">Done</span></div>
+                      <div class="demo-row"><span>Training: Fire safety SOPs uploaded</span><span class="tag">Files</span></div>
+                      <div class="demo-row"><span>AgentBay: Sales closer skill installed</span><span class="tag o">Bay</span></div>
+                    </div>
+                    <div class="demo-panel">
+                      <h3>Quick start</h3>
+                      <div class="demo-check done">✓ Create company</div>
+                      <div class="demo-check done">✓ Create project</div>
+                      <div class="demo-check done">✓ Add lead agent</div>
+                      <div class="demo-check">○ Start first chat</div>
+                      <button type="button" class="btn btn-primary demo-inline-btn" data-demo-goto="3">Open chat demo →</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Workspace -->
+                <div class="demo-view" data-view="workspace" id="view-workspace" hidden>
+                  <div class="demo-split">
+                    <div class="demo-panel">
+                      <h3>Companies</h3>
+                      <div class="demo-row active-row">
+                        <span><strong>Fire Alarms Dublin</strong><br><span class="sub">Primary · 4 projects</span></span>
+                        <span class="tag g">Active</span>
+                      </div>
+                      <div class="demo-row">
+                        <span><strong>iComply Property</strong><br><span class="sub">2 projects</span></span>
+                        <span class="tag">Client</span>
+                      </div>
+                      <div class="demo-row">
+                        <span><strong>Northside FM</strong><br><span class="sub">1 project</span></span>
+                        <span class="tag">Client</span>
+                      </div>
+                    </div>
+                    <div class="demo-panel">
+                      <h3>Projects · Fire Alarms Dublin</h3>
+                      <div class="demo-row"><span>Compliance 2026</span><span class="tag g">On track</span></div>
+                      <div class="demo-row"><span>Commercial quotes Q3</span><span class="tag o">In progress</span></div>
+                      <div class="demo-row"><span>Technician onboarding</span><span class="tag">Planning</span></div>
+                      <div class="demo-row"><span>Website &amp; leads</span><span class="tag">Planning</span></div>
+                      <p class="sub" style="margin-top:12px">
+                        Structure: <strong>Company → Projects → Tasks</strong>. Agents attach per company so client data stays separated.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Agents / hierarchy -->
+                <div class="demo-view" data-view="agents" id="view-agents" hidden>
+                  <div class="demo-split">
+                    <div class="demo-panel">
+                      <h3>Hierarchy</h3>
+                      <div class="demo-tree">
+                        <div class="demo-node root">
+                          <span class="crown">👑</span>
+                          <div>
+                            <strong>Main AI Orchestrator</strong>
+                            <div class="sub">Routes work · owns the team</div>
+                          </div>
+                          <span class="tag g">Online</span>
+                        </div>
+                        <div class="demo-tree-children">
+                          <div class="demo-node">
+                            <span>🎯</span>
+                            <div>
+                              <strong>Ops Lead</strong>
+                              <div class="sub">Lead · compliance &amp; field</div>
+                            </div>
+                            <span class="tag g">Online</span>
+                          </div>
+                          <div class="demo-tree-children">
+                            <div class="demo-node sm">
+                              <span>🔧</span>
+                              <div><strong>Field specialist</strong><div class="sub">Site checklists</div></div>
+                            </div>
+                            <div class="demo-node sm">
+                              <span>📋</span>
+                              <div><strong>Compliance writer</strong><div class="sub">SOPs &amp; reports</div></div>
+                            </div>
+                          </div>
+                          <div class="demo-node">
+                            <span>📈</span>
+                            <div>
+                              <strong>Sales Lead</strong>
+                              <div class="sub">Lead · quotes &amp; follow-ups</div>
+                            </div>
+                            <span class="tag g">Online</span>
+                          </div>
+                          <div class="demo-tree-children">
+                            <div class="demo-node sm">
+                              <span>💬</span>
+                              <div><strong>Quote drafter</strong><div class="sub">Proposals</div></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="demo-panel">
+                      <h3>Agent skills</h3>
+                      <div class="demo-row"><span>Training library access</span><span class="tag">4 folders</span></div>
+                      <div class="demo-row"><span>Integrations attached</span><span class="tag">Email · Sheets</span></div>
+                      <div class="demo-row"><span>Model preference</span><span class="tag">Quality</span></div>
+                      <div class="demo-row"><span>AgentBay skill</span><span class="tag o">Sales closer</span></div>
+                      <p class="sub" style="margin-top:12px">
+                        Orchestrator on top, leads below, specialists under leads — clear ownership when work is delegated.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="demo-view" data-view="chat" id="view-chat" hidden>
+                  <div class="demo-chat">
+                    <div class="demo-chat-head">
+                      <div>
+                        <strong>Ops Lead</strong>
+                        <span class="sub"> · Quality model · Fire Alarms Dublin</span>
+                      </div>
+                      <span class="demo-turn-cost">This turn: ~1.2k tokens</span>
+                    </div>
+                    <div class="demo-msgs" id="demo-msgs" aria-live="polite"></div>
+                    <div class="demo-chat-input">
+                      <div class="demo-prompts" id="demo-prompts"></div>
+                      <form class="demo-compose" id="demo-compose">
+                        <input type="text" id="demo-input" placeholder="Message Ops Lead…" autocomplete="off" maxlength="280" />
+                        <button type="submit" class="btn btn-primary">Send</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Billing -->
+                <div class="demo-view" data-view="billing" id="view-billing" hidden>
+                  <div class="demo-stats">
+                    <div class="demo-stat">
+                      <span class="lbl">Plan</span>
+                      <strong>Pro</strong>
+                      <span class="sub">$99/mo · 10M included tokens</span>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Pool used</span>
+                      <strong>17%</strong>
+                      <span class="sub">1.7M of 10M this cycle</span>
+                      <div class="demo-meter-bar sm"><i style="width:17%"></i></div>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Wallet</span>
+                      <strong>$50.00</strong>
+                      <span class="sub">Premium models &amp; overage</span>
+                    </div>
+                    <div class="demo-stat">
+                      <span class="lbl">Pay methods</span>
+                      <strong>Card + crypto</strong>
+                      <span class="sub">Stripe · ETH · SOL · XRP</span>
+                    </div>
+                  </div>
+                  <div class="demo-split">
+                    <div class="demo-panel">
+                      <h3>Usage this month</h3>
+                      <div class="demo-row"><span>Managed models (pool)</span><strong>1.52M</strong></div>
+                      <div class="demo-row"><span>Premium / long context</span><strong>180k · $4.20</strong></div>
+                      <div class="demo-row"><span>Image generations</span><strong>12 · $3.60</strong></div>
+                      <div class="demo-row"><span>Overage</span><strong class="ok">$0</strong></div>
+                    </div>
+                    <div class="demo-panel">
+                      <h3>Why teams like this</h3>
+                      <p class="sub" style="margin:0 0 10px">
+                        Included tokens first. Premium and overage pull from credits you control.
+                        The meter in the console matches what you see here.
+                      </p>
+                      <a class="btn btn-primary demo-inline-btn" data-app-href="/login" href="/agents/login">Start free trial →</a>
+                      <a class="btn btn-ghost demo-inline-btn" href="/pricing.html">Full pricing</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-cta-row">
+        <div class="card demo-cta-card">
+          <h3>Ready for the real console?</h3>
+          <p>Create an account, name your company, and spin up agents. AgentBay is free to browse without login.</p>
+          <div class="hero-actions" style="margin:0">
+            <a class="btn btn-primary" data-app-href="/login" href="/agents/login">Start free trial</a>
+            <a class="btn btn-ghost" data-bay-href="/browse" href="/bay/browse">Browse AgentBay free</a>
+            <a class="btn btn-ghost" data-app-href="/console" href="/agents/console">Open console</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="container">
+      <p class="section-kicker">What you just saw</p>
+      <h2 class="section-title">The same building blocks in production</h2>
+      <p class="section-sub">This demo mirrors the live product paths under <code>/agents</code> and marketplace under <code>/bay</code>.</p>
+      <div class="grid-3">
+        <article class="card">
+          <div class="icon-badge">🏢</div>
+          <h3>Workspace</h3>
+          <p>Companies, projects, and tasks stay structured so multi-client work never mixes.</p>
+        </article>
+        <article class="card">
+          <div class="icon-badge">🤖</div>
+          <h3>Agent hierarchy</h3>
+          <p>Orchestrator → leads → specialists, with training and skills attached per agent.</p>
+        </article>
+        <article class="card">
+          <div class="icon-badge">⚡</div>
+          <h3>Fair billing</h3>
+          <p>Plan token pool, live meter, wallet credits, card or crypto top-ups.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer" data-site-footer></footer>
+  <script src="/js/main.js"></script>
+  <script src="/js/demo.js"></script>
+</body>
+</html>

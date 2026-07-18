@@ -6,6 +6,7 @@ import {
 import {
   ArrowLeftOutlined, UserOutlined, MailOutlined, PhoneOutlined, GlobalOutlined,
   PlusOutlined, EditOutlined, ReloadOutlined, DollarOutlined, FunnelPlotOutlined,
+  CalendarOutlined, ClockCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
@@ -26,12 +27,14 @@ export default function CustomerDetail() {
   const [editOpen, setEditOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
   const [dealOpen, setDealOpen] = useState(false)
+  const [diaryOpen, setDiaryOpen] = useState(false)
   const [pipelines, setPipelines] = useState([])
   const [humans, setHumans] = useState([])
   const [agents, setAgents] = useState([])
   const [editForm] = Form.useForm()
   const [noteForm] = Form.useForm()
   const [dealForm] = Form.useForm()
+  const [diaryForm] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
@@ -148,6 +151,7 @@ export default function CustomerDetail() {
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setNoteOpen(true)}>Log activity</Button>
           <Button icon={<FunnelPlotOutlined />} onClick={() => setDealOpen(true)}>Add deal</Button>
+          <Button icon={<CalendarOutlined />} onClick={() => setDiaryOpen(true)}>Arrange diary / meeting</Button>
           <Popconfirm title="Delete this customer and their deals?" onConfirm={remove}>
             <Button danger>Delete</Button>
           </Popconfirm>
@@ -273,6 +277,30 @@ export default function CustomerDetail() {
               />
             </Card>
           )}
+
+          <Card title="Diary / Appointments" style={{ marginTop: 16 }} extra={<Button size="small" icon={<CalendarOutlined />} onClick={() => setDiaryOpen(true)}>Arrange</Button>}>
+            {!(c.diary || []).length ? (
+              <Empty description="No diary entries — schedule a meeting or call" />
+            ) : (
+              <Timeline
+                items={(c.diary || []).map((d) => ({
+                  color: d.status === 'completed' ? 'green' : d.status === 'cancelled' ? 'red' : 'blue',
+                  dot: <ClockCircleOutlined />,
+                  children: (
+                    <div>
+                      <Space wrap>
+                        <strong>{d.title}</strong>
+                        <Tag color={d.status === 'scheduled' ? 'blue' : d.status === 'completed' ? 'success' : 'default'}>{d.status}</Tag>
+                        {d.start_at && <Text type="secondary">{new Date(d.start_at).toLocaleString()}</Text>}
+                      </Space>
+                      {d.location && <div style={{ fontSize: 12, color: '#666' }}>📍 {d.location}</div>}
+                      {d.notes && <div style={{ whiteSpace: 'pre-wrap', marginTop: 2, fontSize: 12 }}>{d.notes}</div>}
+                    </div>
+                  ),
+                }))}
+              />
+            )}
+          </Card>
         </Col>
       </Row>
 
@@ -368,6 +396,76 @@ export default function CustomerDetail() {
             <TextArea rows={2} />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving} block>Create deal</Button>
+        </Form>
+      </Modal>
+
+      {/* Diary / Meeting */}
+      <Modal title={`Arrange diary for ${c.name}`} open={diaryOpen} onCancel={() => setDiaryOpen(false)} footer={null} destroyOnClose>
+        <Form
+          form={diaryForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            setSaving(true)
+            try {
+              await api(`/business/diary`, {
+                method: 'POST',
+                body: {
+                  customer_id: Number(id),
+                  title: values.title,
+                  start_at: values.start_at || null,
+                  end_at: values.end_at || null,
+                  location: values.location || '',
+                  notes: values.notes || '',
+                  owner_human_id: values.owner_human_id || null,
+                  owner_agent_id: values.owner_agent_id || null,
+                },
+              })
+              message.success('Diary entry scheduled')
+              setDiaryOpen(false)
+              diaryForm.resetFields()
+              load()
+            } catch (e) {
+              message.error(e.message)
+            } finally {
+              setSaving(false)
+            }
+          }}
+          initialValues={{ title: `Meeting / call with ${c.name}`, status: 'scheduled' }}
+        >
+          <Form.Item name="title" label="Title" rules={[{ required: true }]}>
+            <Input placeholder="Follow-up call, site visit, quarterly review…" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="start_at" label="Start (local ISO or datetime)">
+                <Input placeholder="2026-07-20T14:00" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="end_at" label="End">
+                <Input placeholder="2026-07-20T14:30" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="location" label="Location / link">
+            <Input placeholder="Zoom / Office / Phone" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes / agenda">
+            <TextArea rows={2} placeholder="Key topics or prep notes" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="owner_human_id" label="Owner (human)">
+                <Select allowClear options={humans.map((h) => ({ value: h.id, label: h.name }))} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="owner_agent_id" label="Owner (agent)">
+                <Select allowClear options={agents.map((a) => ({ value: a.id, label: a.name }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Button type="primary" htmlType="submit" loading={saving} block>Schedule in diary</Button>
         </Form>
       </Modal>
     </div>

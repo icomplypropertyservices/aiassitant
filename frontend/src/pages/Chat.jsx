@@ -5,9 +5,10 @@ import {
 } from 'antd'
 import { SendOutlined, ThunderboltOutlined, PlusOutlined, MessageOutlined } from '@ant-design/icons'
 import { useLocation } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
+import MediaActions from '../components/MediaActions'
 
 const TEMPLATES = ['Write a follow-up email', 'Summarise this for a customer', 'Draft a quote cover note', 'Reply to a bad review', 'Fix this Python bug', 'Write a FastAPI endpoint']
 
@@ -66,9 +67,10 @@ export default function Chat() {
     if (convRef.current) {
       loadConversation(convRef.current)
     }
-    const ws = new WebSocket(`${getWsBase()}/ws/chat?token=${getToken()}`)
+    const ws = connectAuthedWs('/ws/chat')
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
+      if (m.type === 'auth_ok') return
       if (m.type === 'conversation') {
         convRef.current = m.conversation_id
         setActiveConv(m.conversation_id)
@@ -220,6 +222,12 @@ export default function Chat() {
               onSpeakRepliesChange={(v) => {
                 setSpeakReplies(v)
                 localStorage.setItem('voice_speak_replies', v ? '1' : '0')
+              }}
+            />
+            <MediaActions
+              disabled={busy}
+              onUsage={(u) => {
+                if (u?.tokens) setSessionTokens((n) => n + (u.tokens || 0))
               }}
             />
             <Button size="small" icon={<PlusOutlined />} onClick={newChat}>New chat</Button>

@@ -6,6 +6,7 @@
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "vercel-build": "sh scripts/vercel-build.sh",
     "preview": "npm --prefix frontend run preview",
     "build:ios": "npm --prefix frontend run build:ios",
     "build:android": "npm --prefix frontend run build:android",

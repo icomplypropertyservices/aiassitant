@@ -394,6 +394,8 @@ body {
 @media (max-width: 768px) {
   .aba-content {
     padding: 12px 12px 88px !important;
+    overflow-x: hidden !important;
+    max-width: 100vw;
   }
   .aba-page-header h1 {
     font-size: 18px;
@@ -410,6 +412,45 @@ body {
   .aba-header {
     padding-inline: 12px !important;
   }
+  /* Prevent horizontal page overflow from tables / selects */
+  .aba-admin-page,
+  .aba-admin-page .ant-card,
+  .aba-admin-page .ant-table-wrapper {
+    max-width: 100%;
+  }
+  .aba-admin-tabs .ant-tabs-nav {
+    margin-bottom: 8px;
+  }
+  .aba-admin-tabs .ant-tabs-nav-list {
+    flex-wrap: nowrap;
+  }
+  .aba-admin-alert.ant-alert {
+    flex-wrap: wrap;
+  }
+  .aba-admin-alert .ant-alert-action {
+    margin-inline-start: 0 !important;
+    margin-top: 8px;
+    width: 100%;
+  }
+  /* Header meter: drop progress bar on very narrow chips */
+  .aba-meter-chip .ant-progress {
+    display: none;
+  }
+  .aba-header {
+    gap: 8px !important;
+  }
+}
+
+/* Never let layout children force horizontal page scroll */
+.aba-shell,
+.aba-shell > .ant-layout {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.aba-content {
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* Mobile bottom navigation */
@@ -755,4 +796,31 @@ body {
     min-height: 44px;
     font-size: 15px;
   }
+}
+
+/* Beautiful agent cards for 20+ agent teams */
+.aba-agent-card {
+  border-radius: 14px !important;
+  transition: all 0.2s ease;
+  border: 1px solid var(--aba-border) !important;
+}
+.aba-agent-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+.aba-agent-card .ant-card-body {
+  padding: 14px !important;
+}
+
+/* Dashboard polish */
+.aba-stat-card {
+  border-radius: 14px !important;
+}
+.aba-team-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.aba-quick-talk {
+  font-weight: 600;
 }

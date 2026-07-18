@@ -367,6 +367,12 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
         .order_by(models.Pipeline.is_default.desc(), models.Pipeline.id)
         .all()
     )
+    diary_upcoming = (
+        db.query(models.DiaryEntry)
+        .filter_by(owner_user_id=user.id, status="scheduled")
+        .filter((models.DiaryEntry.start_at >= datetime.utcnow()) | (models.DiaryEntry.start_at.is_(None)))
+        .count()
+    )
     return {
         "counts": {
             "customers": customers,
@@ -376,6 +382,7 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
             "pipeline_value": float(pipeline_value or 0),
             "won_value": float(won_value or 0),
             "pipelines": len(pipelines),
+            "diary_upcoming": diary_upcoming,
         },
         "recent_customers": [_customer_out(c, db, light=True) for c in recent],
         "pipelines": [_pipeline_out(p, db) for p in pipelines],
@@ -608,6 +615,13 @@ def get_customer(customer_id: int, db: Session = Depends(get_db), user=Depends(g
         .limit(20)
         .all()
     )
+    diary = (
+        db.query(models.DiaryEntry)
+        .filter_by(customer_id=c.id)
+        .order_by(models.DiaryEntry.start_at.asc().nullslast(), models.DiaryEntry.id.desc())
+        .limit(30)
+        .all()
+    )
     return {
         **_customer_out(c, db),
         "deals": [_deal_out(d, db) for d in deals],
@@ -623,6 +637,7 @@ def get_customer(customer_id: int, db: Session = Depends(get_db), user=Depends(g
             }
             for t in tasks
         ],
+        "diary": [_diary_out(d, db) for d in diary],
     }
 
 
@@ -861,6 +876,161 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db), user=Depends(get_cu
     if not d or d.owner_user_id != user.id:
         raise HTTPException(404, "Deal not found")
     db.query(models.CustomerActivity).filter_by(deal_id=d.id).delete()
+    db.delete(d)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Diary / Appointments (arrange diaries for customers) ─────────────────
+
+class DiaryIn(BaseModel):
+    customer_id: int
+    title: str
+    start_at: str | None = None  # ISO
+    end_at: str | None = None
+    location: str = ""
+    notes: str = ""
+    owner_human_id: int | None = None
+    owner_agent_id: int | None = None
+    deal_id: int | None = None
+
+
+class DiaryUpdate(BaseModel):
+    title: str | None = None
+    start_at: str | None = None
+    end_at: str | None = None
+    location: str | None = None
+    notes: str | None = None
+    status: str | None = None  # scheduled | completed | cancelled | no_show
+    owner_human_id: int | None = None
+    owner_agent_id: int | None = None
+    deal_id: int | None = None
+
+
+def _diary_out(d: models.DiaryEntry, db: Session) -> dict:
+    cust = db.get(models.Customer, d.customer_id)
+    human = db.get(models.Human, d.owner_human_id) if d.owner_human_id else None
+    agent = db.get(models.Agent, d.owner_agent_id) if d.owner_agent_id else None
+    deal = db.get(models.Deal, d.deal_id) if d.deal_id else None
+    return {
+        "id": d.id,
+        "customer_id": d.customer_id,
+        "customer_name": cust.name if cust else None,
+        "deal_id": d.deal_id,
+        "deal_title": deal.title if deal else None,
+        "title": d.title,
+        "start_at": d.start_at,
+        "end_at": d.end_at,
+        "location": d.location or "",
+        "notes": d.notes or "",
+        "status": d.status or "scheduled",
+        "owner_human_id": d.owner_human_id,
+        "owner_human_name": human.name if human else None,
+        "owner_agent_id": d.owner_agent_id,
+        "owner_agent_name": agent.name if agent else None,
+        "created_at": d.created_at,
+        "updated_at": d.updated_at,
+        "completed_at": d.completed_at,
+    }
+
+
+@router.get("/diary")
+def list_diary(
+    customer_id: int | None = None,
+    status: str | None = None,
+    upcoming: bool = False,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    q = db.query(models.DiaryEntry).filter_by(owner_user_id=user.id)
+    if customer_id is not None:
+        q = q.filter_by(customer_id=customer_id)
+    if status:
+        q = q.filter_by(status=status)
+    if upcoming:
+        now = datetime.utcnow()
+        q = q.filter(
+            models.DiaryEntry.status == "scheduled",
+            (models.DiaryEntry.start_at >= now) | (models.DiaryEntry.start_at.is_(None)),
+        )
+    rows = q.order_by(models.DiaryEntry.start_at.asc().nullslast(), models.DiaryEntry.id.desc()).limit(200).all()
+    return {"diary": [_diary_out(d, db) for d in rows]}
+
+
+@router.post("/diary")
+async def create_diary(data: DiaryIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    cust = _owned_customer(db, data.customer_id, user)
+    start = _parse_dt(data.start_at)
+    end = _parse_dt(data.end_at)
+    if not (data.title or "").strip():
+        raise HTTPException(400, "title required")
+    d = models.DiaryEntry(
+        owner_user_id=user.id,
+        customer_id=cust.id,
+        deal_id=data.deal_id,
+        title=data.title.strip(),
+        start_at=start,
+        end_at=end,
+        location=(data.location or "").strip(),
+        notes=(data.notes or "").strip(),
+        status="scheduled",
+        owner_human_id=data.owner_human_id,
+        owner_agent_id=data.owner_agent_id,
+    )
+    db.add(d)
+    db.flush()
+    # Log as activity too
+    db.add(models.CustomerActivity(
+        customer_id=cust.id,
+        owner_user_id=user.id,
+        kind="meeting",
+        title=f"Diary: {d.title}",
+        body=f"Scheduled {start.isoformat() if start else 'TBD'} @ {d.location or '—'}",
+        deal_id=d.deal_id,
+    ))
+    cust.last_contacted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(d)
+    await emit_ops(user.id, kind="action", status="info", title=f"Diary set: {d.title}", detail=cust.name, db=db)
+    return _diary_out(d, db)
+
+
+@router.put("/diary/{diary_id}")
+def update_diary(diary_id: int, data: DiaryUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    d = db.get(models.DiaryEntry, diary_id)
+    if not d or d.owner_user_id != user.id:
+        raise HTTPException(404, "Diary entry not found")
+    if data.title is not None:
+        d.title = data.title.strip()
+    if data.start_at is not None:
+        d.start_at = _parse_dt(data.start_at)
+    if data.end_at is not None:
+        d.end_at = _parse_dt(data.end_at)
+    if data.location is not None:
+        d.location = data.location.strip()
+    if data.notes is not None:
+        d.notes = data.notes.strip()
+    if data.status is not None:
+        d.status = data.status
+        if data.status in ("completed", "cancelled", "no_show"):
+            d.completed_at = datetime.utcnow()
+    if data.owner_human_id is not None:
+        d.owner_human_id = data.owner_human_id or None
+    if data.owner_agent_id is not None:
+        d.owner_agent_id = data.owner_agent_id or None
+    if data.deal_id is not None:
+        d.deal_id = data.deal_id
+    d.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(d)
+    return _diary_out(d, db)
+
+
+@router.delete("/diary/{diary_id}")
+def delete_diary(diary_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    d = db.get(models.DiaryEntry, diary_id)
+    if not d or d.owner_user_id != user.id:
+        raise HTTPException(404, "Diary entry not found")
     db.delete(d)
     db.commit()
     return {"ok": True}

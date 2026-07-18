@@ -1,6 +1,6 @@
 import React from 'react'
 import { Progress, Space, Typography, Tooltip, Tag } from 'antd'
-import { ThunderboltOutlined, WalletOutlined } from '@ant-design/icons'
+import { ThunderboltOutlined, WalletOutlined, FireOutlined } from '@ant-design/icons'
 
 function fmt(n) {
   if (n == null) return '0'
@@ -27,6 +27,15 @@ function meterSeverity(meter) {
   }
 }
 
+function trialDaysLeft(meter) {
+  const exp = meter?.subscription_expires_at
+  const plan = meter?.plan
+  if (!exp || plan !== 'trial') return null
+  const d = new Date(exp)
+  if (Number.isNaN(d.getTime())) return null
+  return Math.ceil((d.getTime() - Date.now()) / 86400000)
+}
+
 /** Compact header meter — clear for customers */
 export default function TokenMeter({ meter, compact = true }) {
   if (!meter) {
@@ -42,16 +51,26 @@ export default function TokenMeter({ meter, compact = true }) {
   const included = meter.tokens_included ?? 0
   const remaining = meter.tokens_remaining_included ?? Math.max(0, included - used)
   const { pct, tagColor, progressStatus, level } = meterSeverity(meter)
+  const trialDays = trialDaysLeft(meter)
   const title = (
     <div style={{ maxWidth: 280 }}>
       <div><strong>This month</strong></div>
       <div>Used: {fmt(used)} / {fmt(included)} included</div>
       <div>Remaining included: {fmt(remaining)}</div>
       <div>Wallet credits: ${Number(meter.credits || 0).toFixed(2)}</div>
+      {trialDays != null && (
+        <div style={{ marginTop: 4 }}>
+          {trialDays < 0
+            ? 'Trial expired'
+            : trialDays === 0
+              ? 'Trial ends today'
+              : `Trial · ${trialDays} day${trialDays === 1 ? '' : 's'} left`}
+        </div>
+      )}
       {level === 'hard' && <div style={{ color: '#ff4d4f', marginTop: 4 }}>Included pool exhausted</div>}
       {level === 'warn' && <div style={{ color: '#fa8c16', marginTop: 4 }}>Included tokens running low</div>}
       <div style={{ opacity: 0.8, marginTop: 4, fontSize: 12 }}>
-        Included tokens cover VPS/Qwen. Premium Claude/Grok bill credits.
+        Included pool first; overage uses wallet credits.
       </div>
     </div>
   )
@@ -75,6 +94,21 @@ export default function TokenMeter({ meter, compact = true }) {
           <Tag icon={<WalletOutlined />} color="gold" style={{ margin: 0 }}>
             ${Number(meter.credits || 0).toFixed(2)}
           </Tag>
+          {meter.auto_topup?.enabled && (
+            <Tag color="green" style={{ margin: 0 }} icon={<ThunderboltOutlined />}>
+              Auto
+            </Tag>
+          )}
+          {(level === 'hard' || level === 'warn') && (
+            <Tag color="error" style={{ margin: 0 }} icon={<FireOutlined />}>
+              Top up
+            </Tag>
+          )}
+          {trialDays != null && trialDays >= 0 && (
+            <Tag color={trialDays <= 3 ? 'orange' : 'cyan'} style={{ margin: 0 }}>
+              {trialDays === 0 ? 'Trial ends today' : `Trial ${trialDays}d`}
+            </Tag>
+          )}
         </span>
       </Tooltip>
     )
@@ -85,6 +119,15 @@ export default function TokenMeter({ meter, compact = true }) {
       <Space style={{ marginBottom: 8 }} wrap>
         <Typography.Text strong>Token usage this month</Typography.Text>
         <Tag>{meter.plan_name || meter.plan}</Tag>
+        {trialDays != null && (
+          <Tag color={trialDays < 0 ? 'error' : trialDays <= 3 ? 'orange' : 'cyan'}>
+            {trialDays < 0
+              ? 'Trial expired'
+              : trialDays === 0
+                ? 'Trial ends today'
+                : `Trial · ${trialDays}d left`}
+          </Tag>
+        )}
         {level === 'hard' && <Tag color="error">Hard limit</Tag>}
         {level === 'warn' && <Tag color="orange">Running low</Tag>}
       </Space>

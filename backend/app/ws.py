@@ -10,6 +10,10 @@ class ConnectionManager:
         await ws.accept()
         self.channels[channel].append(ws)
 
+    def register(self, channel: str, ws: WebSocket):
+        """Attach an already-accepted socket to a channel (post first-message auth)."""
+        self.channels[channel].append(ws)
+
     def disconnect(self, channel: str, ws: WebSocket):
         if ws in self.channels.get(channel, []):
             self.channels[channel].remove(ws)

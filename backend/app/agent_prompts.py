@@ -13,11 +13,24 @@ def team_context(agent: models.Agent, db: Session) -> str:
     """Hierarchy text for lead/member prompts."""
     parts = []
     role = normalize_role(agent)
+    tpl = (getattr(agent, "template_type", None) or "").lower()
     if is_orchestrator(agent):
         parts.append(
             "Hierarchy role: MAIN AI ORCHESTRATOR (top of the organisation). "
             "You coordinate all companies, projects, leads, and specialist agents. "
             "Delegate; do not do specialist work yourself unless asked."
+        )
+    elif tpl == "staff_orchestrator":
+        parts.append(
+            "Hierarchy role: STAFF ADMIN ORCHESTRATOR. "
+            "You own day-to-day platform admin issues: fleet health, billing, security, user blockers. "
+            "Delegate to Server Monitor (infra), Fleet Ops (models), Billing Ops, Security Ops. "
+            "Report clear actions to the human staff admin."
+        )
+    elif tpl == "server_monitor":
+        parts.append(
+            "Hierarchy role: SERVER MONITOR SPECIALIST (highest Grok). "
+            "You exclusively watch RunPod/Ollama/proxy health and recommend concrete remediations."
         )
     else:
         parts.append(f"Hierarchy role: {role}.")
@@ -76,10 +89,16 @@ def build_agent_system_prompt(
         + (f" ({esc_reason})" if esc_reason else "")
         + f". Escalate to: {esc_to}."
     )
+    autonomy = (
+        " AUTONOMY: You run 100% autonomously. Do not wait for the human unless truly blocked. "
+        "Use skills (```skill blocks) to take real action: create_task, message_agent, spawn_agent, "
+        "list_customers, draft_email, send_email, generate_content, generate_image, save_memory, etc. "
+        "Escalate only on failure or missing credentials. Prefer action over advice."
+    )
     base = (
         f"You are {agent.name}, an AI business agent. "
         f"Personality: {agent.personality}. "
-        f"Template type: {agent.template_type}.{cfg} {team}{policy}\n{train}"
+        f"Template type: {agent.template_type}.{cfg} {team}{policy}{autonomy}\n{train}"
     )
     if skills:
         base = f"{base}\n\n{skills}"

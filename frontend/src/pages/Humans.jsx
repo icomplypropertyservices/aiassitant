@@ -1,22 +1,32 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Table, Button, Space, Modal, Form, Input, Select, Tag, message, Popconfirm, Typography, InputNumber, Alert,
+  Card, Table, Button, Space, Modal, Form, Input, Select, Tag, message, Popconfirm,
+  Typography, InputNumber, Alert, Row, Col, Statistic, Avatar,
 } from 'antd'
-import { UserOutlined, PlusOutlined, SendOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  UserOutlined, PlusOutlined, SendOutlined, ReloadOutlined,
+  SafetyCertificateOutlined, TeamOutlined, BankOutlined,
+} from '@ant-design/icons'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
 
+const PERM_COLOR = { viewer: 'default', operator: 'blue', lead: 'purple', admin: 'gold' }
+
 export default function Humans() {
+  const nav = useNavigate()
   const [humans, setHumans] = useState([])
   const [loading, setLoading] = useState(true)
   const [companies, setCompanies] = useState([])
   const [projects, setProjects] = useState([])
   const [agents, setAgents] = useState([])
   const [open, setOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(null)
   const [assignOpen, setAssignOpen] = useState(null)
   const [form] = Form.useForm()
+  const [editForm] = Form.useForm()
   const [assignForm] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
@@ -46,9 +56,25 @@ export default function Humans() {
     setSaving(true)
     try {
       await api('/humans/', { method: 'POST', body: values })
-      message.success('Human teammate added')
+      message.success('Team member added')
       setOpen(false)
       form.resetFields()
+      load()
+    } catch (e) {
+      message.error(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveEdit = async (values) => {
+    if (!editOpen) return
+    setSaving(true)
+    try {
+      await api(`/humans/${editOpen.id}`, { method: 'PUT', body: values })
+      message.success('Updated')
+      setEditOpen(null)
+      editForm.resetFields()
       load()
     } catch (e) {
       message.error(e.message)
@@ -82,65 +108,180 @@ export default function Humans() {
     }
   }
 
+  const openEdit = (r) => {
+    setEditOpen(r)
+    editForm.setFieldsValue({
+      name: r.name,
+      email: r.email || '',
+      role_title: r.role_title || '',
+      skills: r.skills || '',
+      permission_level: r.permission_level || 'operator',
+      escalate_when: r.escalate_when || 'on_blocked',
+      escalate_reason: r.escalate_reason || '',
+      escalate_to: r.escalate_to || 'orchestrator',
+      company_id: r.company_id || undefined,
+      project_id: r.project_id || undefined,
+      capacity: r.capacity || 5,
+      status: r.status || 'active',
+      notes: r.notes || '',
+    })
+  }
+
+  const active = humans.filter((h) => h.status === 'active').length
+  const totalOpen = humans.reduce((s, h) => s + (h.open_tasks || 0), 0)
+  const totalCap = humans.reduce((s, h) => s + (h.capacity || 0), 0)
+
+  const humanFormFields = (
+    <>
+      <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+        <Input placeholder="Jane Smith" prefix={<UserOutlined />} />
+      </Form.Item>
+      <Form.Item name="email" label="Email">
+        <Input placeholder="jane@company.com" type="email" />
+      </Form.Item>
+      <Form.Item name="role_title" label="Role / title">
+        <Input placeholder="Sales manager" />
+      </Form.Item>
+      <Form.Item name="skills" label="Skills">
+        <Input placeholder="negotiation, CRM, onboarding" />
+      </Form.Item>
+      <Form.Item name="permission_level" label="Permission level" rules={[{ required: true }]}>
+        <Select options={[
+          { value: 'viewer', label: 'Viewer — read only' },
+          { value: 'operator', label: 'Operator — execute work' },
+          { value: 'lead', label: 'Lead — delegate & escalate' },
+          { value: 'admin', label: 'Admin — full control' },
+        ]} />
+      </Form.Item>
+      <Form.Item name="escalate_when" label="When to escalate" rules={[{ required: true }]}>
+        <Select options={[
+          { value: 'never', label: 'Never auto-escalate' },
+          { value: 'on_failure', label: 'On failure' },
+          { value: 'on_blocked', label: 'When blocked' },
+          { value: 'high_priority', label: 'High / urgent priority' },
+          { value: 'sla_breach', label: 'SLA / stuck too long' },
+          { value: 'always_review', label: 'Always review' },
+          { value: 'custom', label: 'Custom (use reason)' },
+        ]} />
+      </Form.Item>
+      <Form.Item name="escalate_reason" label="Escalation reason / rule">
+        <TextArea rows={2} placeholder="e.g. Escalate if customer asks for legal review" />
+      </Form.Item>
+      <Form.Item name="escalate_to" label="Escalate to">
+        <Select options={[
+          { value: 'orchestrator', label: 'Main orchestrator' },
+          { value: 'parent', label: 'Reporting lead' },
+          { value: 'human', label: 'Another human' },
+          { value: 'owner', label: 'Workspace owner' },
+        ]} />
+      </Form.Item>
+      <Form.Item name="company_id" label="Company">
+        <Select
+          allowClear
+          options={companies.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Optional — scopes this person to a company"
+        />
+      </Form.Item>
+      <Form.Item name="project_id" label="Project">
+        <Select allowClear options={projects.map((p) => ({ value: p.id, label: p.name }))} placeholder="Optional" />
+      </Form.Item>
+      <Form.Item name="capacity" label="Capacity (open tasks)">
+        <InputNumber min={1} max={50} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item name="status" label="Status">
+        <Select options={[
+          { value: 'active', label: 'Active' },
+          { value: 'away', label: 'Away' },
+          { value: 'offline', label: 'Offline' },
+        ]} />
+      </Form.Item>
+      <Form.Item name="notes" label="Notes">
+        <TextArea rows={2} />
+      </Form.Item>
+    </>
+  )
+
   const columns = [
     {
-      title: 'Name',
+      title: 'Person',
       dataIndex: 'name',
+      fixed: 'left',
+      width: 200,
       render: (n, r) => (
         <Space>
-          <UserOutlined />
+          <Avatar style={{ background: '#1668dc' }} size="small">
+            {(n || '?')[0].toUpperCase()}
+          </Avatar>
           <div>
             <strong>{n}</strong>
-            <div><Text type="secondary">{r.email || '—'}</Text></div>
+            <div><Text type="secondary" style={{ fontSize: 12 }}>{r.email || '—'}</Text></div>
           </div>
         </Space>
       ),
     },
-    { title: 'Role', dataIndex: 'role_title', render: (v) => v || '—' },
+    { title: 'Title', dataIndex: 'role_title', width: 120, render: (v) => v || '—' },
     {
       title: 'Permission',
       dataIndex: 'permission_level',
-      render: (v) => <Tag color="blue">{v || 'operator'}</Tag>,
+      width: 110,
+      render: (v) => <Tag color={PERM_COLOR[v] || 'blue'}>{v || 'operator'}</Tag>,
     },
     {
-      title: 'Escalate when',
+      title: 'Escalate',
       dataIndex: 'escalate_when',
+      width: 130,
       render: (v, r) => (
         <div>
           <Tag color="orange">{v || 'on_blocked'}</Tag>
-          {r.escalate_reason && <div><Text type="secondary" style={{ fontSize: 11 }}>{r.escalate_reason}</Text></div>}
+          {r.escalate_reason && (
+            <div><Text type="secondary" style={{ fontSize: 11 }}>{r.escalate_reason}</Text></div>
+          )}
         </div>
       ),
     },
-    { title: 'Skills', dataIndex: 'skills', ellipsis: true, render: (v) => v || '—' },
+    { title: 'Skills', dataIndex: 'skills', ellipsis: true, width: 140, render: (v) => v || '—' },
     {
-      title: 'Scope',
+      title: 'Company',
+      width: 140,
       render: (_, r) => (
-        <Space direction="vertical" size={0}>
-          {r.company_name && <Tag>{r.company_name}</Tag>}
-          {r.project_name && <Tag color="blue">{r.project_name}</Tag>}
-        </Space>
+        r.company_id ? (
+          <Link to={`/companies/${r.company_id}`}>
+            <Tag icon={<BankOutlined />}>{r.company_name || 'Company'}</Tag>
+          </Link>
+        ) : <Text type="secondary">Workspace</Text>
       ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
-      render: (s) => <Tag color={s === 'active' ? 'green' : s === 'away' ? 'orange' : 'default'}>{s}</Tag>,
+      width: 90,
+      render: (s) => (
+        <Tag color={s === 'active' ? 'green' : s === 'away' ? 'orange' : 'default'}>{s}</Tag>
+      ),
     },
     {
       title: 'Load',
+      width: 100,
       render: (_, r) => (
-        <span>{r.open_tasks || 0} / {r.capacity || 5} open</span>
+        <Text>
+          {r.open_tasks || 0} / {r.capacity || 5}
+        </Text>
       ),
     },
     {
       title: 'Actions',
+      fixed: 'right',
+      width: 220,
       render: (_, r) => (
-        <Space>
-          <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => { setAssignOpen(r); assignForm.resetFields() }}>
-            Assign work
+        <Space wrap size={4}>
+          <Button size="small" type="primary" icon={<SendOutlined />} onClick={() => {
+            setAssignOpen(r)
+            assignForm.resetFields()
+          }}>
+            Assign
           </Button>
-          <Popconfirm title="Remove this human?" onConfirm={() => remove(r.id)}>
+          <Button size="small" onClick={() => openEdit(r)}>Edit</Button>
+          <Popconfirm title="Remove this person from the team?" onConfirm={() => remove(r.id)}>
             <Button size="small" danger>Remove</Button>
           </Popconfirm>
         </Space>
@@ -149,24 +290,61 @@ export default function Humans() {
   ]
 
   return (
-    <div>
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <div>
-          <Title level={3} style={{ margin: 0 }}><UserOutlined /> Humans</Title>
-          <Text type="secondary">Add teammates and allocate work from agents or yourself</Text>
+          <Title level={3} style={{ margin: 0 }}>
+            <TeamOutlined /> Users / Team
+          </Title>
+          <Text type="secondary">
+            Add human teammates, set permissions, and allocate work from agents
+          </Text>
         </div>
-        <Space>
+        <Space wrap>
+          <Button icon={<SafetyCertificateOutlined />} onClick={() => nav('/permissions')}>
+            Permissions matrix
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>Add human</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            Add person
+          </Button>
         </Space>
       </Space>
+
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic title="Team members" value={humans.length} prefix={<TeamOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic title="Active" value={active} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic title="Open tasks" value={totalOpen} suffix={`/ ${totalCap || '—'}`} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic title="Companies" value={companies.length} prefix={<BankOutlined />} />
+          </Card>
+        </Col>
+      </Row>
 
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Agents can assign work to humans using the assign_human skill"
-        description="When an orchestrator or lead runs a plan, it can allocate tasks to people here. Track open load vs capacity."
+        message="Humans in the org chart"
+        description={
+          <>
+            Add real people your agents can assign work to. Set permission levels here or on the{' '}
+            <Link to="/permissions">Permissions</Link> page. Scope someone to a company so they show on that company’s profile.
+          </>
+        }
       />
 
       <Card>
@@ -175,84 +353,52 @@ export default function Humans() {
           loading={loading}
           dataSource={humans}
           columns={columns}
-          pagination={{ pageSize: 12 }}
-          locale={{ emptyText: 'No humans yet — add your first teammate' }}
+          scroll={{ x: 1100 }}
+          pagination={{ pageSize: 12, showSizeChanger: true }}
+          locale={{ emptyText: 'No people yet — add your first teammate with “Add person”' }}
         />
       </Card>
 
       <Modal
-        title="Add human teammate"
+        title="Add person to team"
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}
         destroyOnClose
+        width={520}
       >
-        <Form form={form} layout="vertical" onFinish={save} initialValues={{
-          status: 'active', capacity: 5, permission_level: 'operator',
-          escalate_when: 'on_blocked', escalate_to: 'orchestrator',
-        }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-            <Input placeholder="Jane Smith" />
-          </Form.Item>
-          <Form.Item name="email" label="Email">
-            <Input placeholder="jane@company.com" />
-          </Form.Item>
-          <Form.Item name="role_title" label="Role / title">
-            <Input placeholder="Sales manager" />
-          </Form.Item>
-          <Form.Item name="skills" label="Skills">
-            <Input placeholder="negotiation, CRM, onboarding" />
-          </Form.Item>
-          <Form.Item name="permission_level" label="Permission level" rules={[{ required: true }]}>
-            <Select options={[
-              { value: 'viewer', label: 'Viewer — read only' },
-              { value: 'operator', label: 'Operator — execute work' },
-              { value: 'lead', label: 'Lead — delegate & escalate' },
-              { value: 'admin', label: 'Admin — full control' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="escalate_when" label="When to escalate" rules={[{ required: true }]}>
-            <Select options={[
-              { value: 'never', label: 'Never auto-escalate' },
-              { value: 'on_failure', label: 'On failure' },
-              { value: 'on_blocked', label: 'When blocked' },
-              { value: 'high_priority', label: 'High / urgent priority' },
-              { value: 'sla_breach', label: 'SLA / stuck too long' },
-              { value: 'always_review', label: 'Always review' },
-              { value: 'custom', label: 'Custom (use reason)' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="escalate_reason" label="Escalation reason / rule">
-            <TextArea rows={2} placeholder="e.g. Escalate if customer asks for legal review" />
-          </Form.Item>
-          <Form.Item name="escalate_to" label="Escalate to">
-            <Select options={[
-              { value: 'orchestrator', label: 'Main orchestrator' },
-              { value: 'parent', label: 'Reporting lead' },
-              { value: 'human', label: 'Another human' },
-              { value: 'owner', label: 'Workspace owner' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="company_id" label="Company">
-            <Select allowClear options={companies.map((c) => ({ value: c.id, label: c.name }))} placeholder="Optional" />
-          </Form.Item>
-          <Form.Item name="project_id" label="Project">
-            <Select allowClear options={projects.map((p) => ({ value: p.id, label: p.name }))} placeholder="Optional" />
-          </Form.Item>
-          <Form.Item name="capacity" label="Capacity (open tasks)">
-            <InputNumber min={1} max={50} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="status" label="Status">
-            <Select options={[
-              { value: 'active', label: 'Active' },
-              { value: 'away', label: 'Away' },
-              { value: 'offline', label: 'Offline' },
-            ]} />
-          </Form.Item>
-          <Form.Item name="notes" label="Notes">
-            <TextArea rows={2} />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={saving} block>Save human</Button>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={save}
+          initialValues={{
+            status: 'active',
+            capacity: 5,
+            permission_level: 'operator',
+            escalate_when: 'on_blocked',
+            escalate_to: 'orchestrator',
+          }}
+        >
+          {humanFormFields}
+          <Button type="primary" htmlType="submit" loading={saving} block icon={<PlusOutlined />}>
+            Save person
+          </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editOpen ? `Edit ${editOpen.name}` : 'Edit'}
+        open={!!editOpen}
+        onCancel={() => setEditOpen(null)}
+        footer={null}
+        destroyOnClose
+        width={520}
+      >
+        <Form form={editForm} layout="vertical" onFinish={saveEdit}>
+          {humanFormFields}
+          <Button type="primary" htmlType="submit" loading={saving} block>
+            Update person
+          </Button>
         </Form>
       </Modal>
 
@@ -279,7 +425,11 @@ export default function Humans() {
             ]} />
           </Form.Item>
           <Form.Item name="agent_id" label="From agent (optional)">
-            <Select allowClear options={agents.map((a) => ({ value: a.id, label: a.name }))} placeholder="Who delegated" />
+            <Select
+              allowClear
+              options={agents.map((a) => ({ value: a.id, label: a.name }))}
+              placeholder="Who delegated"
+            />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={saving} block icon={<SendOutlined />}>
             Allocate work

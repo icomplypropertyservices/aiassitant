@@ -120,7 +120,7 @@ export default function Hierarchy() {
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Button type="primary" onClick={() => nav('/agents')}>Manage agents</Button>
+          <Button type="primary" onClick={() => nav('/console')}>Open console</Button>
         </Space>
       </Space>
 
@@ -145,7 +145,7 @@ export default function Hierarchy() {
           <Card title="Org tree" extra={<Typography.Text type="secondary">Click a node to edit</Typography.Text>}>
             {!data?.tree?.length ? (
               <Empty description="No agents yet — create a Lead Agent from Agents or Templates">
-                <Button type="primary" onClick={() => nav('/agents')}>Create agents</Button>
+                <Button type="primary" onClick={() => nav('/console')}>Create agents</Button>
               </Empty>
             ) : (
               <Tree

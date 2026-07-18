@@ -1,8 +1,24 @@
-"""Catalog of connectable third-party apps (OAuth + API key)."""
+"""Catalog of connectable third-party apps (OAuth + API key).
+
+Launch rule:
+  - Google family apps → live 1-click OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET)
+  - Everything else → coming_soon (still listed, not connectable via 1-click yet)
+"""
+
+# Sorted list for 1-click OAuth UI (first = top of list)
+OAUTH_ONE_CLICK_ORDER = [
+    "google",           # Workspace hub
+    "gmail",
+    "google_sheets",
+    "google_business",
+    "youtube",
+]
+
+GOOGLE_FAMILY = frozenset(OAUTH_ONE_CLICK_ORDER)
 
 # Each app:
 #   id, name, category, description, auth_modes, fields (for API connect),
-#   oauth (optional env client ids), scopes, icon (antd-friendly key)
+#   oauth (optional env client ids), scopes, coming_soon, family
 
 INTEGRATION_APPS = {
     "shopify": {
@@ -30,16 +46,17 @@ INTEGRATION_APPS = {
     },
     "google": {
         "id": "google",
-        "name": "Google (Workspace / Gemini)",
+        "name": "Google (Workspace)",
         "category": "productivity",
-        "description": "Google account for Calendar, Drive context, and Gemini API access.",
-        "auth_modes": ["api_key", "oauth"],
+        "description": "One-click Google sign-in: profile, Calendar, and Drive context for agents.",
+        "auth_modes": ["oauth"],
         "color": "#4285F4",
         "docs_url": "https://console.cloud.google.com/",
+        "family": "google",
+        "coming_soon": False,
+        "one_click_oauth": True,
         "fields": [
-            {"name": "api_key", "label": "Google API key (Gemini / Maps etc.)", "placeholder": "AIza…", "secret": True, "required": False},
-            {"name": "client_email", "label": "Service account email (optional)", "placeholder": "bot@project.iam.gserviceaccount.com", "secret": False, "required": False},
-            {"name": "private_key", "label": "Service account private key (optional)", "placeholder": "-----BEGIN PRIVATE KEY-----", "secret": True, "required": False},
+            {"name": "api_key", "label": "Google API key (optional extras)", "placeholder": "AIza…", "secret": True, "required": False},
         ],
         "oauth": {
             "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
@@ -48,52 +65,34 @@ INTEGRATION_APPS = {
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
             "scopes": "openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly",
             "needs_shop": False,
+            "access_type": "offline",
+            "prompt": "consent",
         },
-        "agent_capabilities": ["Read calendar context", "Use Gemini key", "Summarise Drive docs (when OAuth connected)"],
-    },
-    "google_business": {
-        "id": "google_business",
-        "name": "Google Business Profile",
-        "category": "reviews",
-        "description": "Reviews and local listing replies for reputation agents.",
-        "auth_modes": ["oauth", "api_key"],
-        "color": "#34A853",
-        "docs_url": "https://developers.google.com/my-business",
-        "fields": [
-            {"name": "account_id", "label": "Account / location ID", "placeholder": "accounts/123/locations/456", "secret": False, "required": False},
-            {"name": "access_token", "label": "OAuth access token (if you have one)", "placeholder": "ya29.…", "secret": True, "required": False},
-            {"name": "refresh_token", "label": "Refresh token", "placeholder": "1//…", "secret": True, "required": False},
-        ],
-        "oauth": {
-            "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
-            "token_url": "https://oauth2.googleapis.com/token",
-            "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
-            "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "https://www.googleapis.com/auth/business.manage",
-            "needs_shop": False,
-        },
-        "agent_capabilities": ["List reviews", "Draft review replies", "Flag low ratings"],
+        "agent_capabilities": ["Read calendar context", "Summarise Drive docs", "Confirm Google identity"],
     },
     "gmail": {
         "id": "gmail",
         "name": "Gmail",
         "category": "communication",
-        "description": "Send and draft emails via Gmail for support & sales agents.",
+        "description": "One-click Gmail for send, draft, and inbox summaries.",
         "auth_modes": ["oauth"],
         "color": "#EA4335",
         "docs_url": "https://developers.google.com/gmail/api",
+        "family": "google",
+        "coming_soon": False,
+        "one_click_oauth": True,
         "fields": [
-            {"name": "access_token", "label": "Access token", "placeholder": "ya29.…", "secret": True, "required": False},
-            {"name": "refresh_token", "label": "Refresh token", "placeholder": "1//…", "secret": True, "required": False},
-            {"name": "from_email", "label": "From address", "placeholder": "you@company.com", "secret": False, "required": False},
+            {"name": "from_email", "label": "From address (optional)", "placeholder": "you@company.com", "secret": False, "required": False},
         ],
         "oauth": {
             "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
             "token_url": "https://oauth2.googleapis.com/token",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly",
+            "scopes": "openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly",
             "needs_shop": False,
+            "access_type": "offline",
+            "prompt": "consent",
         },
         "agent_capabilities": ["Draft emails", "Send via connected Gmail", "Summarise inbox threads"],
     },
@@ -101,24 +100,53 @@ INTEGRATION_APPS = {
         "id": "google_sheets",
         "name": "Google Sheets",
         "category": "productivity",
-        "description": "Read/write spreadsheets for ops and reporting agents.",
-        "auth_modes": ["oauth", "api_key"],
+        "description": "One-click Sheets for ops tables and reporting agents.",
+        "auth_modes": ["oauth"],
         "color": "#0F9D58",
         "docs_url": "https://developers.google.com/sheets/api",
+        "family": "google",
+        "coming_soon": False,
+        "one_click_oauth": True,
         "fields": [
-            {"name": "spreadsheet_id", "label": "Default spreadsheet ID", "placeholder": "1BxiM…", "secret": False, "required": False},
-            {"name": "api_key", "label": "API key (public sheets)", "placeholder": "AIza…", "secret": True, "required": False},
-            {"name": "access_token", "label": "OAuth access token", "placeholder": "ya29.…", "secret": True, "required": False},
+            {"name": "spreadsheet_id", "label": "Default spreadsheet ID (optional)", "placeholder": "1BxiM…", "secret": False, "required": False},
         ],
         "oauth": {
             "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
             "token_url": "https://oauth2.googleapis.com/token",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "https://www.googleapis.com/auth/spreadsheets",
+            "scopes": "openid email profile https://www.googleapis.com/auth/spreadsheets",
             "needs_shop": False,
+            "access_type": "offline",
+            "prompt": "consent",
         },
         "agent_capabilities": ["Read rows", "Append rows", "Build reports from sheet data"],
+    },
+    "google_business": {
+        "id": "google_business",
+        "name": "Google Business Profile",
+        "category": "reviews",
+        "description": "One-click Business Profile for reviews and local replies.",
+        "auth_modes": ["oauth"],
+        "color": "#34A853",
+        "docs_url": "https://developers.google.com/my-business",
+        "family": "google",
+        "coming_soon": False,
+        "one_click_oauth": True,
+        "fields": [
+            {"name": "account_id", "label": "Account / location ID (optional)", "placeholder": "accounts/123/locations/456", "secret": False, "required": False},
+        ],
+        "oauth": {
+            "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+            "token_url": "https://oauth2.googleapis.com/token",
+            "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+            "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+            "scopes": "openid email profile https://www.googleapis.com/auth/business.manage",
+            "needs_shop": False,
+            "access_type": "offline",
+            "prompt": "consent",
+        },
+        "agent_capabilities": ["List reviews", "Draft review replies", "Flag low ratings"],
     },
     "slack": {
         "id": "slack",
@@ -128,6 +156,8 @@ INTEGRATION_APPS = {
         "auth_modes": ["api_key", "oauth"],
         "color": "#4A154B",
         "docs_url": "https://api.slack.com/apps",
+        "coming_soon": True,
+        "one_click_oauth": False,
         "fields": [
             {"name": "bot_token", "label": "Bot user OAuth token", "placeholder": "xoxb-…", "secret": True, "required": True},
             {"name": "default_channel", "label": "Default channel", "placeholder": "#ops", "secret": False, "required": False},
@@ -385,21 +415,23 @@ INTEGRATION_APPS = {
         "id": "youtube",
         "name": "YouTube",
         "category": "social",
-        "description": "YouTube channel stats and content planning (Google OAuth).",
+        "description": "One-click YouTube for channel stats and content planning.",
         "auth_modes": ["oauth"],
         "color": "#FF0000",
         "docs_url": "https://developers.google.com/youtube/v3",
-        "fields": [
-            {"name": "access_token", "label": "Access token", "placeholder": "ya29.…", "secret": True, "required": False},
-            {"name": "refresh_token", "label": "Refresh token", "placeholder": "1//…", "secret": True, "required": False},
-        ],
+        "family": "google",
+        "coming_soon": False,
+        "one_click_oauth": True,
+        "fields": [],
         "oauth": {
             "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
             "token_url": "https://oauth2.googleapis.com/token",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload",
+            "scopes": "openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload",
             "needs_shop": False,
+            "access_type": "offline",
+            "prompt": "consent",
         },
         "agent_capabilities": ["List channels", "Plan video titles", "Read stats"],
     },
@@ -467,8 +499,30 @@ INTEGRATION_APPS = {
 }
 
 
-def list_apps() -> list[dict]:
-    return [public_app(a) for a in INTEGRATION_APPS.values()]
+def _is_coming_soon(app: dict) -> bool:
+    if "coming_soon" in app:
+        return bool(app.get("coming_soon"))
+    # Default: only Google family is live at launch
+    return app.get("id") not in GOOGLE_FAMILY and app.get("family") != "google"
+
+
+def _oauth_sort_index(app_id: str) -> int:
+    try:
+        return OAUTH_ONE_CLICK_ORDER.index(app_id)
+    except ValueError:
+        return 1000 + hash(app_id) % 100
+
+
+def list_apps(*, oauth_ready_fn=None) -> list[dict]:
+    apps = []
+    for a in INTEGRATION_APPS.values():
+        ready = None
+        if oauth_ready_fn and a.get("oauth"):
+            ready = bool(oauth_ready_fn(a))
+        apps.append(public_app(a, oauth_ready=ready))
+    # Live 1-click Google first (sorted), then coming soon by name
+    apps.sort(key=lambda x: (1 if x.get("coming_soon") else 0, x.get("oauth_sort", 999), x.get("name") or ""))
+    return apps
 
 
 def get_app(app_id: str) -> dict | None:
@@ -478,14 +532,25 @@ def get_app(app_id: str) -> dict | None:
 def public_app(app: dict, *, oauth_ready: bool | None = None) -> dict:
     """Safe catalog entry for the frontend (no secrets)."""
     oauth = app.get("oauth")
+    aid = app["id"]
+    coming = _is_coming_soon(app)
+    one_click = bool(app.get("one_click_oauth")) and not coming and bool(oauth)
+    # Force coming_soon for non-Google unless explicitly live
+    if aid not in GOOGLE_FAMILY and app.get("family") != "google":
+        coming = True
+        one_click = False
     return {
-        "id": app["id"],
+        "id": aid,
         "name": app["name"],
         "category": app["category"],
         "description": app["description"],
         "auth_modes": list(app.get("auth_modes") or []),
         "color": app.get("color"),
         "docs_url": app.get("docs_url"),
+        "family": app.get("family") or ("google" if aid in GOOGLE_FAMILY else None),
+        "coming_soon": coming,
+        "one_click_oauth": one_click,
+        "oauth_sort": _oauth_sort_index(aid) if aid in GOOGLE_FAMILY else 2000,
         "fields": [
             {
                 "name": f["name"],
@@ -496,9 +561,23 @@ def public_app(app: dict, *, oauth_ready: bool | None = None) -> dict:
             }
             for f in (app.get("fields") or [])
         ],
-        "supports_oauth": bool(oauth),
-        "oauth_ready": oauth_ready,
+        "supports_oauth": bool(oauth) and not coming,
+        "oauth_ready": False if coming else oauth_ready,
         "oauth_scopes": (oauth or {}).get("scopes") if oauth else None,
         "oauth_needs_shop": bool((oauth or {}).get("needs_shop")),
         "agent_capabilities": list(app.get("agent_capabilities") or []),
+        "status_label": "Coming soon" if coming else ("1-click OAuth" if one_click else "Available"),
     }
+
+
+def one_click_oauth_list(*, oauth_ready_fn=None) -> list[dict]:
+    """Ordered list of live Google 1-click apps only."""
+    out = []
+    for aid in OAUTH_ONE_CLICK_ORDER:
+        app = INTEGRATION_APPS.get(aid)
+        if not app:
+            continue
+        ready = oauth_ready_fn(app) if oauth_ready_fn and app.get("oauth") else None
+        entry = public_app(app, oauth_ready=ready)
+        out.append(entry)
+    return out

@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Assistant — Companies, agents &amp; AI chat for teams</title>
-  <meta name="description" content="AI Business Assistant: multi-company workspaces, AI agents, training library, and clear token billing. Card or crypto. Open the app at app.aiassistant.xyz." />
+  <title>AI Business Agent — Console for teams &amp; agents</title>
+  <meta name="description" content="AI Business Agent: multi-company workspaces, agent console, AgentBay marketplace, training, and clear billing. Try the interactive product demo — no login required." />
   <meta name="theme-color" content="#0b1f3a" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/styles.css" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <meta property="og:title" content="AI Assistant — AI workspace for businesses" />
-  <meta property="og:description" content="Companies → projects → agents. Token meter, Stripe sandbox, crypto pay. Start free." />
-  <meta property="og:url" content="https://aiassistant.xyz/" />
+  <meta property="og:title" content="AI Business Agent — Console for teams" />
+  <meta property="og:description" content="Workspaces, agent console, AgentBay marketplace, fair token billing. Browse free." />
+  <meta property="og:url" content="https://aibusinessagent.xyz/" />
   <meta property="og:type" content="website" />
 </head>
 <body>
@@ -23,39 +23,83 @@
     <div class="container hero-grid">
       <div>
         <div class="pill-row" style="margin-bottom: 16px">
-          <span class="pill">Multi-company</span>
-          <span class="pill">AI agents</span>
+          <span class="pill">Browse free</span>
+          <span class="pill">AgentBay marketplace</span>
           <span class="pill">Card &amp; crypto</span>
         </div>
-        <h1>Run your business with an AI team that actually stays organised.</h1>
+        <h1>Your AI agent console for real businesses.</h1>
         <p class="lead">
-          AI Assistant gives every company a workspace of projects, agents, training files,
-          and live chat — with a transparent token meter and fair public pricing.
+          One place for companies, projects, and agents — with a clear token meter and a marketplace
+          you can browse without signing in. Open the console when you’re ready to work.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-primary btn-lg" data-app-href="/login" href="https://app.aiassistant.xyz/login">Start free trial</a>
-          <a class="btn btn-ghost btn-lg" href="/pricing.html" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.25)">See pricing</a>
+          <a class="btn btn-primary btn-lg" href="/demo.html">Try product demo</a>
+          <a class="btn btn-ghost btn-lg" data-bay-href="/browse" href="/bay/browse" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.25)">Browse AgentBay free</a>
+          <a class="btn btn-ghost btn-lg" data-app-href="/login" href="/agents/login" style="background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)">Open console</a>
         </div>
         <div class="pill-row">
+          <span class="pill">Interactive demo · no login</span>
           <span class="pill">Web · iOS · Android</span>
-          <span class="pill">Grok &amp; Claude ready</span>
           <span class="pill">Stripe + ETH/SOL/XRP</span>
         </div>
       </div>
       <div class="hero-card" aria-hidden="true">
-        <div class="row"><span class="muted">Workspace</span><strong>Fire Alarms Dublin</strong></div>
+        <div class="row"><span class="muted">Workspace</span><strong>iComply Property Services</strong></div>
         <div class="row"><span class="muted">Agents online</span><strong>Ops Lead · 4 specialists</strong></div>
         <div class="row" style="flex-direction:column;align-items:stretch">
           <div style="display:flex;justify-content:space-between"><span class="muted">Tokens this month</span><strong>1.7M / 40M</strong></div>
           <div class="meter"><span></span></div>
         </div>
         <div class="row"><span class="muted">Credits</span><strong>$50.00</strong></div>
-        <p class="muted" style="margin:8px 4px 0">Company → Projects → Tasks → Agents. Always clear what you’re burning.</p>
+        <p class="muted" style="margin:8px 4px 0">Company → Projects → Tasks → Agents. Always clear what you’re using.</p>
       </div>
     </div>
   </section>
 
   <section>
+    <div class="container">
+      <p class="section-kicker">Three doors — all friendly</p>
+      <h2 class="section-title">Demo the system. Browse the bay. Or open the console.</h2>
+      <p class="section-sub">Pick what you need right now. Same domain, same login when you want it.</p>
+      <div class="grid-3" style="gap: 20px">
+        <article class="card" style="border: 2px solid var(--primary-soft)">
+          <div class="icon-badge">▶</div>
+          <h3>Product demo</h3>
+          <p>
+            Interactive walkthrough of workspace, agent hierarchy, chat, and token billing —
+            <strong>no account needed</strong>. See the full system in about a minute.
+          </p>
+          <p style="margin-top: 16px">
+            <a class="btn btn-primary" href="/demo.html">Launch demo →</a>
+          </p>
+        </article>
+        <article class="card">
+          <div class="icon-badge">🛒</div>
+          <h3>AgentBay</h3>
+          <p>
+            Browse agents, skills, and services. Search and open listings —
+            no account needed. Sign in only to buy, sell, or message.
+          </p>
+          <p style="margin-top: 16px">
+            <a class="btn btn-ghost" data-bay-href="/browse" href="/bay/browse">Browse free →</a>
+          </p>
+        </article>
+        <article class="card">
+          <div class="icon-badge">🖥️</div>
+          <h3>Agent console</h3>
+          <p>
+            The product app: multi-company workspaces, hierarchy, training files, live token meter.
+            Create your company and manage agents from one console.
+          </p>
+          <p style="margin-top: 16px">
+            <a class="btn btn-ghost" data-app-href="/console" href="/agents/console">Open console →</a>
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
     <div class="container">
       <p class="section-kicker">Why teams switch</p>
       <h2 class="section-title">Everything your AI ops need — in one place</h2>
@@ -72,52 +116,52 @@
           <p>Main AI Orchestrator on top, leads and specialists below. Delegate tasks and keep ownership clear.</p>
         </article>
         <article class="card">
+          <div class="icon-badge">🛒</div>
+          <h3>AgentBay marketplace</h3>
+          <p>Discover agents and skills from the community. Browse free — hire when it clicks.</p>
+        </article>
+        <article class="card">
           <div class="icon-badge">📚</div>
           <h3>Training library</h3>
-          <p>Upload files and programs. Choose which agents can see which knowledge — local, GCS, or Dropbox-ready.</p>
+          <p>Upload files and programs. Choose which agents can see which knowledge.</p>
         </article>
         <article class="card">
           <div class="icon-badge">⚡</div>
           <h3>Live token meter</h3>
-          <p>Included pool for VPS models, wallet credits for premium Grok/Claude and overage. Always visible.</p>
+          <p>Included token pool for managed models, wallet credits for premium models and overage.</p>
         </article>
         <article class="card">
           <div class="icon-badge">💳</div>
           <h3>Flexible payments</h3>
-          <p>Subscribe or top up with Stripe (card) or crypto — ETH, SOL, and XRP. Built for real businesses.</p>
+          <p>Subscribe or top up with Stripe (card) or crypto — ETH, SOL, and XRP.</p>
         </article>
-        <article class="card">
-          <div class="icon-badge">🔗</div>
-          <h3>Integrations vault</h3>
-          <p>Connect Shopify, Google, Slack, and more with encrypted keys. Agents only get the access you grant.</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section class="alt">
-    <div class="container">
-      <p class="section-kicker">How it works</p>
-      <h2 class="section-title">Live in minutes</h2>
-      <p class="section-sub">No complex setup. Create an account, pick a plan, and start building your AI team.</p>
-      <div class="steps">
-        <div class="step">
-          <h3>Create your account</h3>
-          <p>Sign up on the app, add your company name, and choose trial or a paid plan.</p>
-        </div>
-        <div class="step">
-          <h3>Spin up agents</h3>
-          <p>Use templates or custom roles. Attach them to projects and set the hierarchy.</p>
-        </div>
-        <div class="step">
-          <h3>Chat, train, ship</h3>
-          <p>Talk to agents, load training files, track tokens, and scale when you’re ready.</p>
-        </div>
       </div>
     </div>
   </section>
 
   <section>
+    <div class="container">
+      <p class="section-kicker">How it works</p>
+      <h2 class="section-title">Live in minutes</h2>
+      <p class="section-sub">Browse first if you like. When you’re ready, open the console and start working.</p>
+      <div class="steps">
+        <div class="step">
+          <h3>1. Browse free</h3>
+          <p>Open AgentBay, search listings, peek at agent profiles. No login wall.</p>
+        </div>
+        <div class="step">
+          <h3>2. Open the console</h3>
+          <p>Create an account, name your company, pick a trial or plan, and add agents.</p>
+        </div>
+        <div class="step">
+          <h3>3. Chat, train, grow</h3>
+          <p>Talk to agents, load training files, track tokens, hire more from AgentBay.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
     <div class="container">
       <p class="section-kicker">Pricing snapshot</p>
       <h2 class="section-title">Simple plans. Public rates.</h2>
@@ -127,26 +171,26 @@
           <div class="name">Trial</div>
           <div class="price">$0 <span>/mo</span></div>
           <p class="blurb">50k tokens · 3 agents · try the product</p>
-          <a class="btn btn-ghost" data-app-href="/login" href="https://app.aiassistant.xyz/login">Start free</a>
+          <a class="btn btn-ghost" data-app-href="/login" href="/agents/login">Start free</a>
         </div>
         <div class="price-card">
           <div class="name">Starter</div>
           <div class="price">$39 <span>/mo</span></div>
           <p class="blurb">2M tokens · 5 agents · freelancers &amp; trades</p>
-          <a class="btn btn-ghost" data-app-href="/login" href="https://app.aiassistant.xyz/login">Get Starter</a>
+          <a class="btn btn-ghost" data-app-href="/login" href="/agents/login">Get Starter</a>
         </div>
         <div class="price-card highlight">
           <span class="tag">Popular</span>
           <div class="name">Pro</div>
           <div class="price">$99 <span>/mo</span></div>
           <p class="blurb">10M tokens · 20 agents · growing teams</p>
-          <a class="btn btn-primary" data-app-href="/login" href="https://app.aiassistant.xyz/login">Get Pro</a>
+          <a class="btn btn-primary" data-app-href="/login" href="/agents/login">Get Pro</a>
         </div>
         <div class="price-card">
           <div class="name">Business</div>
           <div class="price">$249 <span>/mo</span></div>
           <p class="blurb">40M tokens · 100 agents · agencies</p>
-          <a class="btn btn-ghost" data-app-href="/login" href="https://app.aiassistant.xyz/login">Get Business</a>
+          <a class="btn btn-ghost" data-app-href="/login" href="/agents/login">Get Business</a>
         </div>
       </div>
     </div>
@@ -155,8 +199,12 @@
   <div class="container">
     <div class="cta-band">
       <h2>Ready when you are</h2>
-      <p>Open the product app, create your first company, and put AI to work on real projects today.</p>
-      <a class="btn btn-primary btn-lg" data-app-href="/login" href="https://app.aiassistant.xyz/login" style="background:#fff;color:#0b1f3a">Go to app.aiassistant.xyz</a>
+      <p>Try the interactive demo, browse AgentBay free, or open the console and create your first company.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+        <a class="btn btn-primary btn-lg" href="/demo.html" style="background:#fff;color:#0b1f3a">Try product demo</a>
+        <a class="btn btn-ghost btn-lg" data-bay-href="/browse" href="/bay/browse" style="border-color:rgba(255,255,255,0.4);color:#fff">Browse AgentBay</a>
+        <a class="btn btn-ghost btn-lg" data-app-href="/login" href="/agents/login" style="border-color:rgba(255,255,255,0.4);color:#fff">Start free trial</a>
+      </div>
     </div>
   </div>
 

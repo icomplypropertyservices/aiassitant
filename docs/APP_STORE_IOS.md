@@ -1,14 +1,18 @@
 # iOS App Store readiness — AI Business Assistant
 
-This app is a **Capacitor** shell around the existing React SPA. The API stays on
-**Vercel**: https://aiassitant-nu.vercel.app
+This app is a **Capacitor** shell around the existing React SPA. Production host
+(path layout on **aibusinessagent.xyz**):
 
 | Item | Value |
 |------|--------|
 | Bundle ID | `com.icomply.aibusinessassistant` |
 | Display name | AI Business Assistant |
-| Web / API | `https://aiassitant-nu.vercel.app` |
-| Native API base | `https://aiassitant-nu.vercel.app/api` |
+| App (web) | `https://aibusinessagent.xyz/agents` |
+| API | `https://aibusinessagent.xyz/api` |
+| Native API base | `https://aibusinessagent.xyz/api` |
+| Privacy | `https://aibusinessagent.xyz/privacy.html` |
+| Terms | `https://aibusinessagent.xyz/terms.html` |
+| Support | `https://aibusinessagent.xyz/support.html` |
 | Min tooling | macOS + Xcode 15+ + Apple Developer Program ($99/yr) |
 
 > **Windows note:** You can build the web bundle and Capacitor config on Windows.
@@ -77,12 +81,10 @@ Capture: Login, Dashboard, Agents, Chat (with voice if possible), Billing meter.
 - **Promotional text** (optional, editable without review)
 - **Description** — what the app does, who it’s for
 - **Keywords** — comma separated, no competitor names
-- **Support URL** — your site or help desk
-- **Marketing URL** (optional)
-- **Privacy Policy URL** — **required**  
-  Host something public, e.g.  
-  `https://aiassitant-nu.vercel.app/privacy`  
-  (static page included in repo — deploy with the web app)
+- **Support URL** — `https://aibusinessagent.xyz/support.html`
+- **Marketing URL** (optional) — `https://aibusinessagent.xyz/`
+- **Privacy Policy URL** — **required** — `https://aibusinessagent.xyz/privacy.html`
+- **Terms of Use** (if requested) — `https://aibusinessagent.xyz/terms.html`
 
 ### Age rating
 
@@ -93,8 +95,8 @@ you collect account data; no unrestricted web browsing.
 
 Provide:
 
-- Demo account: `admin@local` / `admin123` (or a dedicated reviewer account)
-- Note that AI replies need network access to your Vercel backend
+- Create a **dedicated reviewer account** (email/password you control). Do **not** put production review credentials as `admin@local` — demo admin is **not** seeded when `APP_ENV=production`.
+- Note that AI replies need network access to `https://aibusinessagent.xyz/api`
 - Mic permission is only for optional voice chat
 
 ---
@@ -133,7 +135,7 @@ Flag this before submission so review does not reject for payments.
 ## 6. Technical readiness (already done in repo)
 
 - [x] Capacitor 8 + iOS package
-- [x] Native API base → production Vercel `/api`
+- [x] Native API base → production `https://aibusinessagent.xyz/api`
 - [x] HashRouter in native shell
 - [x] Safe-area / notch CSS
 - [x] Status bar + splash + keyboard plugins
@@ -147,7 +149,7 @@ Flag this before submission so review does not reject for payments.
 - [ ] Apple Developer enrollment
 - [ ] `npx cap add ios` + Xcode signing
 - [ ] Screenshots + listing copy
-- [ ] Privacy Policy live URL
+- [ ] Confirm live: Privacy / Terms / Support on `aibusinessagent.xyz`
 - [ ] Decide IAP vs web billing for iOS
 - [ ] TestFlight internal build
 - [ ] Submit for review
@@ -165,7 +167,7 @@ npm run build:ios
 npx cap open ios   # then Run on simulator / device
 ```
 
-Change production API URL in `frontend/.env.native` if the Vercel domain changes.
+Change production API URL in `frontend/.env.native` if the API host changes (default: `https://aibusinessagent.xyz/api`).
 
 ---
 

@@ -18,8 +18,9 @@ __pycache__
 *.pyc
 .DS_Store
 docs
-scripts
-website
+# Keep scripts/vercel-build.sh + website for production static layout
+scripts/*
+!scripts/vercel-build.sh
 *.md
 !README.md
 .env.production.local

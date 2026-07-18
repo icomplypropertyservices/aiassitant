@@ -1,58 +1,292 @@
-# Domains: marketing vs app
+# Domains — path layout (no subdomains)
 
-| URL | Purpose | Deploy from |
-|-----|---------|-------------|
-| **https://aiassistant.xyz** | Marketing / landing site | `website/` (separate Vercel project) |
-| **https://www.aiassistant.xyz** | Redirect or alias to marketing | same |
-| **https://app.aiassistant.xyz** | Product app + API | monorepo root (current `aiassitant` project) |
+**Canonical host:** [https://aibusinessagent.xyz](https://aibusinessagent.xyz)
 
-## Why two projects
+Full production env list: **[PRODUCTION_APIS.md](./PRODUCTION_APIS.md)**. Audit ops items: **[AUDIT_FIXES.md](./AUDIT_FIXES.md)**.
 
-- Marketing is static HTML — fast CDN, independent deploys.
-- App is FastAPI + React SPA — needs Python env vars, Neon, Stripe, etc.
-- Clear split: ads land on the root domain; login opens the app subdomain.
+---
+
+## aibusinessagent.xyz path layout
+
+| URL | Purpose | Built from |
+|-----|---------|------------|
+| **https://aibusinessagent.xyz/** | Marketing / landing | `website/` |
+| **https://aibusinessagent.xyz/agents** | Product app (SPA) | `frontend/` (`base: /agents/`) |
+| **https://aibusinessagent.xyz/api/** | Product API (FastAPI) | `api/index.py` + `backend/` |
+| **https://aibusinessagent.xyz/bay** | AgentBay marketplace (SPA) | `agent-marketplace/frontend` (`base: /bay/`) or `bay-dist/` |
+| **https://aibusinessagent.xyz/bay/api/** | AgentBay API | AgentBay backend (separate project or proxy) |
+| **https://www.aibusinessagent.xyz** | Redirect → apex | DNS / Vercel |
+
+No `app.` or `bay.` subdomains — one domain, path prefixes only.
+
+```
+aibusinessagent.xyz
+├── /                 marketing site
+├── /agents/*         AI Business Assistant UI
+├── /api/*            Assistant API (Stripe, auth, chat, cron, …)
+├── /bay/*            AgentBay UI
+└── /bay/api/*        AgentBay API
+```
+
+| Public path | Notes |
+|-------------|--------|
+| `/agents` | Product home after login CTAs |
+| `/agents/login` | SPA route (rewrite → `index.html`) |
+| `/api/health` | Deploy smoke |
+| `/api/billing/webhook` | **Stripe webhook URL** (live) |
+| `/api/ops/autonomy/tick-all` | Vercel Cron target (needs `CRON_SECRET`) |
+| `/privacy.html`, `/terms.html`, `/support.html` | Legal / store |
+
+---
+
+## Why paths instead of subdomains
+
+- One SSL cert, one DNS record, simpler brand.
+- Marketing CTAs are same-origin (`/agents/login`).
+- Cookies / CORS simpler for the main product (`CORS_ORIGINS` = apex + www).
+
+---
 
 ## Setup checklist
 
-### 1. Marketing project
+### 1. Vercel project (monorepo root)
+
+Attach domain:
 
 ```text
-Root Directory: website
-Output: .
-Domains: aiassistant.xyz, www.aiassistant.xyz
+aibusinessagent.xyz
+www.aibusinessagent.xyz   → redirect to apex (Vercel UI)
 ```
 
-### 2. App project (existing)
+Root directory: repository root (uses root `vercel.json`).
+
+Build already:
+
+1. Builds React app with `VITE_BASE=/agents/`
+2. Copies SPA → `public/agents/`
+3. Copies `website/` → `public/` (marketing at `/`)
+4. Optionally copies `bay-dist/` → `public/bay/` if present
+
+Cron (root `vercel.json`):
 
 ```text
-Domain: app.aiassistant.xyz
-FRONTEND_URL=https://app.aiassistant.xyz
-CORS_ORIGINS=https://app.aiassistant.xyz,https://aiassistant.xyz
+schedule: 0 6 * * *
+path:     /api/ops/autonomy/tick-all
 ```
 
-Optional keep old `*.vercel.app` in CORS while migrating.
+Requires env **`CRON_SECRET`** (see below). Vercel may send `Authorization: Bearer <CRON_SECRET>` if configured; the API also accepts `X-Cron-Secret`.
+
+### 2. Environment variables (app project) — launch set
+
+#### Path / origin (required)
+
+```env
+APP_ENV=production
+FRONTEND_URL=https://aibusinessagent.xyz/agents
+CORS_ORIGINS=https://aibusinessagent.xyz,https://www.aibusinessagent.xyz
+API_PUBLIC_URL=https://aibusinessagent.xyz/api
+AGENTBAY_URL=https://aibusinessagent.xyz/bay
+AGENTBAY_PUBLIC_URL=https://aibusinessagent.xyz/bay
+```
+
+| Variable | Why |
+|----------|-----|
+| **`FRONTEND_URL`** | Must include **`/agents`**. Stripe success/cancel and auth email links use this base. |
+| **`CORS_ORIGINS`** | Browser calls from marketing apex and product SPA. |
+| **`API_PUBLIC_URL`** | OAuth callback base when integrations OAuth is enabled. |
+
+#### Secrets & data (required)
+
+```env
+JWT_SECRET=<openssl rand -hex 32>
+DATABASE_URL=postgresql+psycopg2://user:pass@host/db?sslmode=require
+ENCRYPTION_KEY=<fernet key>
+```
+
+#### LLM (required for real AI — at least one)
+
+```env
+XAI_API_KEY=xai-...
+# and/or
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+- Prefer **`XAI_API_KEY`** in production (multi-tenant safe). Do not rely on a personal Super/CLI JWT alone (`XAI_USE_JWT_ONLY` should be false/unset in prod).
+
+#### Cron (required for scheduled autonomy)
+
+```env
+CRON_SECRET=<openssl rand -hex 32>
+```
+
+- Protects `POST /api/ops/autonomy/tick-all`.
+- Production without secret: non-admin → **503**.
+
+#### Rate limits (recommended / launch for multi-instance)
+
+```env
+REDIS_URL=rediss://default:PASSWORD@HOST:6379
+# or
+UPSTASH_REDIS_URL=rediss://...
+```
+
+Without Redis, limits are per Vercel isolate only.
+
+#### Email — Resend (agent mail + password reset)
+
+```env
+RESEND_API_KEY=re_...
+RESEND_FROM=assistant@aibusinessagent.xyz
+```
+
+1. Verify domain `aibusinessagent.xyz` (or mail subdomain) in Resend DNS.
+2. `RESEND_FROM` must use the verified domain.
+3. Password-reset emails (when N7 is live) use Resend + links under  
+   `https://aibusinessagent.xyz/agents/...` via `FRONTEND_URL`.
+4. Agent `notify_email` uses the same key; without it, mail is drafted not sent.
+
+#### Stripe
+
+```env
+STRIPE_SECRET_KEY=sk_live_...   # or sk_test_ for sandbox
+STRIPE_WEBHOOK_SECRET=whsec_...
+# optional:
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_BUSINESS=price_...
+```
+
+#### Stripe webhook URL
+
+In Stripe Dashboard → Developers → Webhooks → Add endpoint:
+
+```text
+https://aibusinessagent.xyz/api/billing/webhook
+```
+
+| Item | Value |
+|------|--------|
+| Endpoint URL | `https://aibusinessagent.xyz/api/billing/webhook` |
+| Events | at least `checkout.session.completed` |
+| Signing secret | paste into Vercel as `STRIPE_WEBHOOK_SECRET` |
+
+Do **not** point the live webhook at a stale `*.vercel.app` host after the custom domain is primary.
+
+#### AgentBay (if enabled)
+
+```env
+AGENTBAY_BRIDGE_SECRET=<strong random ≥32 chars>
+```
+
+#### Crypto (optional if Stripe-only)
+
+```env
+CRYPTO_ETH_ADDRESS=0x...
+CRYPTO_SOL_ADDRESS=...
+CRYPTO_BTC_ADDRESS=...
+CRYPTO_XRP_ADDRESS=r...
+```
+
+Full matrix and optional OAuth/Twilio/RunPod: **[PRODUCTION_APIS.md](./PRODUCTION_APIS.md)**.
 
 ### 3. DNS
 
-Point records as shown in the Vercel domain UI for each project.
+At your registrar for `aibusinessagent.xyz`, add the records Vercel shows (usually A/CNAME for apex + www).
 
-### 4. Mobile / native
+### 4. AgentBay (`/bay`) — same Vercel project
+
+```powershell
+cd C:\Users\E-Store\agent-marketplace
+.\scripts\sync-to-monorepo.ps1
+# Then redeploy AI Business Assistant monorepo
+```
+
+| Path | Handler |
+|------|---------|
+| `/bay/*` | Static SPA (`bay-dist` → `public/bay`) |
+| `/bay/api/*` | Rewrite → `/api/__bay__/*` → AgentBay routers |
+
+Env (Vercel project):
 
 ```env
-VITE_PROD_API_URL=https://app.aiassistant.xyz/api
+PUBLIC_APP_URL=https://aibusinessagent.xyz/bay
+PUBLIC_API_URL=https://aibusinessagent.xyz/bay/api
+BRIDGE_SECRET=...
+AGENTBAY_URL=https://aibusinessagent.xyz/bay
+AGENTBAY_BRIDGE_SECRET=...   # same as BRIDGE_SECRET
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Stripe webhook: `https://aibusinessagent.xyz/bay/api/webhooks/stripe`
+
+### 5. Mobile / native
+
+Native shells keep `base: /` + HashRouter. Point API at domain root:
+
+```env
+VITE_PROD_API_URL=https://aibusinessagent.xyz/api
 ```
 
 Rebuild: `npm run build:mobile` (or `:sandbox`).
 
-### 5. Stripe webhook
+Privacy / Support (store listings):
 
-When live:
+- https://aibusinessagent.xyz/privacy.html  
+- https://aibusinessagent.xyz/support.html  
+- https://aibusinessagent.xyz/terms.html  
 
-```text
-https://app.aiassistant.xyz/api/billing/webhook
-```
+### 6. Local dev (unchanged ergonomics)
+
+| Piece | Command | URL |
+|-------|---------|-----|
+| Marketing | `cd website && npm start` | http://localhost:5174 |
+| App UI | `cd frontend && npm run dev` | http://localhost:5173 (base `/`) |
+| App API | `uvicorn app.main:app --port 8000` | http://localhost:8000 |
+| AgentBay | `cd agent-marketplace/frontend && npm run dev` | http://localhost:5173 |
+
+Path prefixes apply in **production** builds only (or set `VITE_BASE` explicitly). Locally, `FRONTEND_URL=http://localhost:5173` is fine (no `/agents` prefix).
+
+---
+
+## Post-deploy smoke checklist (domain-focused)
+
+After DNS + env + redeploy:
+
+| # | Action | Pass |
+|---|--------|------|
+| 1 | Open `/` | Marketing 200 |
+| 2 | Open `/agents` | Product SPA 200 |
+| 3 | `GET /api/health` | 200 |
+| 4 | Login / register on `/agents` | JWT session works |
+| 5 | Stripe test or live checkout | Return URL under `/agents` (`FRONTEND_URL`) |
+| 6 | Stripe webhook | Endpoint URL = `https://aibusinessagent.xyz/api/billing/webhook`; Dashboard shows success |
+| 7 | Cron | tick-all without secret fails; with `CRON_SECRET` succeeds; Vercel Cron history green |
+| 8 | Resend | Domain verified; test agent email (and reset mail when N7 ships) |
+| 9 | Redis | Optional: burst auth → consistent 429 across instances when `REDIS_URL` set |
+| 10 | Headers / legal | Security headers present; privacy/terms/support load |
+
+Expanded smoke table: **[PRODUCTION_APIS.md § Post-deploy smoke checklist](./PRODUCTION_APIS.md)**.
+
+---
 
 ## Until custom DNS is live
 
-App remains at: https://aiassitant-nu.vercel.app  
-Marketing can be previewed with `cd website && npm start` or a Vercel preview URL.
+App may still be on the old Vercel host (`*.vercel.app`). Temporary values:
+
+```env
+FRONTEND_URL=https://YOUR-PROJECT.vercel.app/agents
+CORS_ORIGINS=https://YOUR-PROJECT.vercel.app
+```
+
+Stripe webhook (temporary):
+
+```text
+https://YOUR-PROJECT.vercel.app/api/billing/webhook
+```
+
+After attaching **aibusinessagent.xyz**:
+
+1. Set `FRONTEND_URL=https://aibusinessagent.xyz/agents` and apex `CORS_ORIGINS`.
+2. Move Stripe webhook to `https://aibusinessagent.xyz/api/billing/webhook`.
+3. Redeploy and run the smoke checklist on the custom domain.

@@ -35,8 +35,9 @@ def get_or_create_settings(db: Session, user_id: int) -> models.WorkspaceSetting
         return row
     row = models.WorkspaceSettings(
         user_id=user_id,
+        # Default on, but interval is long so RunPod is not hammered
         autonomy_enabled=True,
-        autonomy_interval_sec=45,
+        autonomy_interval_sec=300,
         task_stuck_minutes=30,
     )
     db.add(row)
@@ -49,7 +50,7 @@ def settings_out(row: models.WorkspaceSettings) -> dict:
     return {
         "user_id": row.user_id,
         "autonomy_enabled": bool(row.autonomy_enabled),
-        "autonomy_interval_sec": row.autonomy_interval_sec or 45,
+        "autonomy_interval_sec": row.autonomy_interval_sec or 300,
         "task_stuck_minutes": row.task_stuck_minutes or 30,
         "last_autonomy_run": row.last_autonomy_run,
         "last_autonomy_summary": row.last_autonomy_summary or "",
@@ -175,9 +176,13 @@ def should_escalate_for_policy(when: str, *, reason_code: str, priority: str = "
 
 
 async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> None:
-    from .routers.agents import _run_task  # local import avoids circular at module load
+    from .task_runner import run_agent_task
     from .async_jobs import schedule
+    from .agent_scaffold import resolve_runtime
 
+    from . import config as app_config
+
+    max_tasks = int(getattr(app_config, "AUTONOMY_MAX_TASKS_PER_TICK", 1) or 1)
     queued = (
         db.query(models.Task)
         .filter(
@@ -186,14 +191,15 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
             models.Task.agent_id.isnot(None),
         )
         .order_by(models.Task.id)
-        .limit(8)
+        .limit(max(1, max_tasks))
         .all()
     )
     for t in queued:
         agent = db.get(models.Agent, t.agent_id)
-        if not agent or agent.status != "active":
+        if not agent:
             continue
-        if not can_execute(getattr(agent, "permission_level", None)):
+        rt = resolve_runtime(agent)
+        if not rt.can_execute:
             if should_escalate_for_policy(
                 getattr(agent, "escalate_when", None) or "on_blocked",
                 reason_code="permission",
@@ -202,7 +208,7 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
                 await escalate_task(
                     db, t,
                     reason_code="permission",
-                    reason_text=f"Agent {agent.name} lacks execute permission ({agent.permission_level})",
+                    reason_text=f"Agent {agent.name} cannot execute ({rt.permission_level}/{rt.status})",
                     from_agent=agent,
                 )
                 summary["escalated"] += 1
@@ -210,11 +216,11 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
         summary["tasks_started"] += 1
         await emit_ops(
             user.id, kind="action", status="running",
-            title=f"Autonomy running task",
+            title="Autonomy running task",
             detail=(t.title or t.description or "")[:160],
             agent_id=agent.id, task_id=t.id, db=db,
         )
-        await schedule(_run_task(agent.id, user.id, t.id, t.description, agent.name))
+        await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
 
 
 async def _check_stuck_and_failed(db: Session, user: models.User, settings: models.WorkspaceSettings, summary: dict) -> None:
@@ -302,14 +308,32 @@ async def _check_stuck_and_failed(db: Session, user: models.User, settings: mode
 
 
 async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> None:
-    """Give never_idle active agents a small autonomous improvement task if they have no open work."""
+    """
+    Give up to N never_idle agents proactive work when they have no open tasks.
+    Prefer orchestrator → leads → others. Does not mutate idle_mode/permissions.
+    Hard-capped to protect RunPod GPU (default 1 feed / tick).
+    """
+    from . import config as app_config
+    from .agent_roles import agent_sort_key
+    from .agent_scaffold import resolve_runtime
+
+    max_feeds = int(getattr(app_config, "AUTONOMY_MAX_IDLE_FEEDS", 1) or 0)
+    if max_feeds <= 0:
+        return
+
     agents = (
         db.query(models.Agent)
         .filter_by(user_id=user.id, status="active", idle_mode="never_idle")
         .all()
     )
+    agents = sorted(agents, key=agent_sort_key)
+
+    fed = 0
     for a in agents:
-        if not can_execute(getattr(a, "permission_level", None)):
+        if fed >= max_feeds:
+            break
+        rt = resolve_runtime(a)
+        if not rt.can_execute:
             continue
         open_n = (
             db.query(models.Task)
@@ -321,12 +345,17 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
         )
         if open_n > 0:
             continue
-        # Create a lightweight self-task
-        title = f"Autonomy sweep · {a.name}"
+
+        role = rt.hierarchy_role
+        title = f"Autonomy cycle · {a.name}"
         desc = (
-            f"As {a.name}, review your open scope (company/project if any), "
-            f"summarise top 3 actions for the business today, and save any useful facts "
-            f"using save_memory skill format if needed. Be concise."
+            f"You are {a.name} ({role}), running autonomously.\n"
+            f"1) Review your scope (company/project if set).\n"
+            f"2) List top 3 concrete actions for the business today.\n"
+            f"3) Use free skills when useful (save_memory, create_task, list_customers, "
+            f"generate_content, draft_email). Do NOT use paid send/call/image skills "
+            f"unless essential and already enabled.\n"
+            f"4) Be concise. Escalate only if blocked.\n"
         )
         t = models.Task(
             user_id=user.id,
@@ -342,16 +371,19 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
         )
         db.add(t)
         db.commit()
+        fed += 1
         summary["idle_tasks"] += 1
         await emit_ops(
             user.id, kind="action", status="queued",
-            title=f"{a.name} self-task",
-            detail="Never-idle agent assigned autonomy sweep",
+            title=f"{a.name} autonomy task",
+            detail="Idle never_idle agent assigned capped self-run",
             agent_id=a.id, task_id=t.id, db=db,
         )
 
 
 async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
+    from . import config as app_config
+
     settings = get_or_create_settings(db, user.id)
     summary = {
         "user_id": user.id,
@@ -366,7 +398,16 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
         summary["reason"] = "autonomy_disabled"
         return summary
 
-    # Ensure top of hierarchy exists
+    # Respect min interval so rapid UI ticks / cron overlaps do not flood the GPU
+    min_iv = int(getattr(app_config, "AUTONOMY_MIN_INTERVAL_SEC", 300) or 300)
+    user_iv = max(min_iv, int(settings.autonomy_interval_sec or min_iv))
+    last = settings.last_autonomy_run
+    if last and (datetime.utcnow() - last) < timedelta(seconds=user_iv):
+        summary["skipped"] = True
+        summary["reason"] = f"cooldown_{user_iv}s"
+        return summary
+
+    # Ensure orchestrator exists only — do NOT rewrite every agent each tick
     try:
         ensure_main_orchestrator(db, user)
     except Exception as e:

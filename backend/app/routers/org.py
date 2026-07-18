@@ -12,8 +12,13 @@ from ..task_status import normalize_status
 from ..org_templates import (
     COMPANY_TEMPLATES,
     PROJECT_TEMPLATES,
+    TASK_TEMPLATES,
     get_company_template,
     get_project_template,
+    get_task_template,
+    public_company_templates,
+    public_project_templates,
+    public_task_templates,
 )
 from ..agent_roles import is_orchestrator
 
@@ -72,8 +77,10 @@ class ProjectAgentsIn(BaseModel):
 class TaskIn(BaseModel):
     project_id: int
     title: str = ""
-    description: str = Field(min_length=1)
+    description: str = ""
     agent_id: int | None = None
+    # Optional universal task template id
+    template_id: str | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -211,10 +218,13 @@ def org_tree(db: Session = Depends(get_db), user=Depends(get_current_user)):
 
 @router.get("/templates")
 def list_org_templates(user=Depends(get_current_user)):
-    """Company + project templates for one-click setup."""
+    """Company types + project/task starter packs for one-click setup."""
     return {
-        "companies": COMPANY_TEMPLATES,
-        "projects": PROJECT_TEMPLATES,
+        "companies": public_company_templates(),
+        "projects": public_project_templates(),
+        "tasks": public_task_templates(),
+        "personal_id": "personal",
+        "note": "Pick a company type (or Personal). Projects and starter tasks are created for you. Task options work on every project.",
     }
 
 
@@ -259,36 +269,232 @@ def create_company(data: CompanyIn, db: Session = Depends(get_db), user=Depends(
     db.refresh(c)
 
     created_projects = []
+    created_tasks = []
     if tpl and data.create_suggested_projects and tpl.get("suggested_projects"):
         max_p = int(limits.get("projects") or 0)
         pcount = db.query(models.Project).filter_by(owner_user_id=user.id).count()
-        for pname in tpl["suggested_projects"]:
+        for item in tpl["suggested_projects"]:
             if user.role != "admin" and pcount >= max_p:
                 break
+            if isinstance(item, str):
+                pname, pdesc, ptasks = item, f"Suggested from {tpl['name']}", []
+            else:
+                pname = item.get("name") or "Project"
+                pdesc = item.get("description") or f"Suggested from {tpl['name']}"
+                ptasks = item.get("tasks") or []
             p = models.Project(
                 company_id=c.id,
                 owner_user_id=user.id,
                 name=pname,
-                description=f"Suggested from company template: {tpl['name']}",
+                description=pdesc,
                 status="active",
             )
             db.add(p)
+            db.flush()
             pcount += 1
             created_projects.append(pname)
+            for tk in ptasks:
+                title = (tk.get("title") if isinstance(tk, dict) else str(tk)) or "Task"
+                desc = (tk.get("description") if isinstance(tk, dict) else title) or title
+                t = models.Task(
+                    user_id=user.id,
+                    company_id=c.id,
+                    project_id=p.id,
+                    title=title,
+                    description=desc,
+                    status="todo",
+                    assignee_type="agent",
+                )
+                db.add(t)
+                created_tasks.append(title)
         db.commit()
 
     out = company_out(c, db)
     out["created_from_template"] = data.template_id
     out["created_projects"] = created_projects
+    out["created_tasks"] = created_tasks
+    out["kind"] = (tpl or {}).get("kind") or "business"
     return out
+
+
+@router.get("/companies/{company_id}")
+def get_company_profile(company_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Full company profile: team, projects, AI cost, pipeline, simple P&L."""
+    c = _company_owned(db, company_id, user)
+    projects = (
+        db.query(models.Project)
+        .filter_by(company_id=c.id)
+        .order_by(models.Project.id.desc())
+        .all()
+    )
+    agents = (
+        db.query(models.Agent)
+        .filter_by(company_id=c.id)
+        .order_by(models.Agent.name)
+        .all()
+    )
+    humans = (
+        db.query(models.Human)
+        .filter_by(owner_user_id=user.id, company_id=c.id)
+        .order_by(models.Human.name)
+        .all()
+    )
+    customers = (
+        db.query(models.Customer)
+        .filter_by(owner_user_id=user.id, company_id=c.id)
+        .count()
+    )
+    # AI / token spend attributed to this company
+    usage_rows = (
+        db.query(models.TokenUsage)
+        .filter_by(user_id=user.id, company_id=c.id)
+        .all()
+    )
+    ai_cost = round(sum(r.cost or 0 for r in usage_rows), 4)
+    ai_tokens = sum((r.input_tokens or 0) + (r.output_tokens or 0) for r in usage_rows)
+    task_cost = round(
+        sum(
+            (t.cost or 0)
+            for t in db.query(models.Task).filter_by(company_id=c.id).all()
+        ),
+        4,
+    )
+    # Pipeline / deals for this company
+    deals = (
+        db.query(models.Deal)
+        .filter_by(owner_user_id=user.id, company_id=c.id)
+        .all()
+    )
+    open_value = sum(d.value or 0 for d in deals if (d.status or "open") == "open")
+    won_value = sum(d.value or 0 for d in deals if (d.status or "") == "won")
+    lost_value = sum(d.value or 0 for d in deals if (d.status or "") == "lost")
+    # Simple P&L: revenue (won deals) − AI spend (primary controllable cost we track)
+    revenue = float(won_value)
+    expenses_ai = float(ai_cost)
+    profit = round(revenue - expenses_ai, 2)
+
+    return {
+        **company_out(c, db),
+        "projects": [project_out(p, db, include_agents=True) for p in projects],
+        "agents": [
+            {
+                "id": a.id,
+                "name": a.name,
+                "template_type": a.template_type,
+                "status": a.status,
+                "model": a.model,
+                "hierarchy_role": a.hierarchy_role,
+                "permission_level": getattr(a, "permission_level", None) or "operator",
+                "idle_mode": a.idle_mode,
+            }
+            for a in agents
+        ],
+        "humans": [
+            {
+                "id": h.id,
+                "name": h.name,
+                "email": h.email,
+                "role_title": h.role_title,
+                "permission_level": getattr(h, "permission_level", None) or "operator",
+                "status": h.status,
+            }
+            for h in humans
+        ],
+        "stats": {
+            "customers": customers,
+            "deals_open": sum(1 for d in deals if (d.status or "open") == "open"),
+            "deals_won": sum(1 for d in deals if d.status == "won"),
+            "pipeline_open_value": round(open_value, 2),
+            "pipeline_won_value": round(won_value, 2),
+            "pipeline_lost_value": round(lost_value, 2),
+            "ai_cost": ai_cost,
+            "ai_tokens": ai_tokens,
+            "task_cost": task_cost,
+            "revenue": revenue,
+            "profit": profit,
+            "margin_pct": round((profit / revenue) * 100, 1) if revenue else 0,
+        },
+    }
+
+
+@router.get("/companies/{company_id}/finance")
+def company_finance(
+    company_id: int,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Time-series for charts: AI cost by day, pipeline snapshot, P&L summary."""
+    from collections import defaultdict
+    from datetime import timedelta
+
+    c = _company_owned(db, company_id, user)
+    days = max(7, min(int(days or 30), 90))
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    usage = (
+        db.query(models.TokenUsage)
+        .filter(
+            models.TokenUsage.user_id == user.id,
+            models.TokenUsage.company_id == c.id,
+            models.TokenUsage.created_at >= cutoff,
+        )
+        .all()
+    )
+    by_day: dict[str, dict] = defaultdict(lambda: {"day": "", "tokens": 0, "ai_cost": 0.0})
+    by_model: dict[str, dict] = defaultdict(lambda: {"model": "", "tokens": 0, "cost": 0.0})
+    for r in usage:
+        day = (r.created_at or datetime.utcnow()).strftime("%Y-%m-%d")
+        by_day[day]["day"] = day
+        toks = (r.input_tokens or 0) + (r.output_tokens or 0)
+        by_day[day]["tokens"] += toks
+        by_day[day]["ai_cost"] = round(by_day[day]["ai_cost"] + (r.cost or 0), 4)
+        mid = r.model or "unknown"
+        by_model[mid]["model"] = mid
+        by_model[mid]["tokens"] += toks
+        by_model[mid]["cost"] = round(by_model[mid]["cost"] + (r.cost or 0), 4)
+
+    deals = db.query(models.Deal).filter_by(owner_user_id=user.id, company_id=c.id).all()
+    pipeline_by_status = [
+        {"status": "open", "value": round(sum(d.value or 0 for d in deals if (d.status or "open") == "open"), 2),
+         "count": sum(1 for d in deals if (d.status or "open") == "open")},
+        {"status": "won", "value": round(sum(d.value or 0 for d in deals if d.status == "won"), 2),
+         "count": sum(1 for d in deals if d.status == "won")},
+        {"status": "lost", "value": round(sum(d.value or 0 for d in deals if d.status == "lost"), 2),
+         "count": sum(1 for d in deals if d.status == "lost")},
+    ]
+    revenue = pipeline_by_status[1]["value"]
+    ai_total = round(sum(v["ai_cost"] for v in by_day.values()), 4)
+    daily = sorted(by_day.values(), key=lambda x: x["day"])
+    # Fill empty days for smoother charts
+    if daily:
+        # leave sparse — frontend can handle
+        pass
+
+    return {
+        "company_id": c.id,
+        "days": days,
+        "daily_ai": daily,
+        "by_model": sorted(by_model.values(), key=lambda x: -x["cost"]),
+        "pipeline": pipeline_by_status,
+        "pnl": {
+            "revenue_won": revenue,
+            "ai_cost": ai_total,
+            "profit": round(revenue - ai_total, 2),
+            "note": "P&L uses won deal value as revenue and attributed AI token spend as AI expense.",
+        },
+    }
 
 
 @router.patch("/companies/{company_id}")
 def update_company(company_id: int, data: CompanyIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     c = _company_owned(db, company_id, user)
-    c.name = data.name.strip()
-    c.industry = data.industry.strip()
-    c.notes = data.notes.strip()
+    if data.name and data.name.strip():
+        c.name = data.name.strip()
+    if data.industry is not None:
+        c.industry = data.industry.strip()
+    if data.notes is not None:
+        c.notes = data.notes.strip()
     db.commit()
     return company_out(c, db)
 
@@ -357,11 +563,30 @@ def create_project(data: ProjectIn, db: Session = Depends(get_db), user=Depends(
         status=status,
     )
     db.add(p)
+    db.flush()
+    seeded = []
+    # Seed starter tasks from project template (universal task options)
+    for tid in (tpl or {}).get("suggested_task_ids") or []:
+        tt = get_task_template(tid)
+        if not tt:
+            continue
+        t = models.Task(
+            project_id=p.id,
+            company_id=p.company_id,
+            user_id=user.id,
+            title=tt.get("title") or tt.get("name") or tid,
+            description=tt.get("description") or tt.get("title") or tid,
+            status="todo",
+            assignee_type="agent",
+        )
+        db.add(t)
+        seeded.append(t.title)
     db.commit()
     db.refresh(p)
     out = project_out(p, db, include_agents=True)
     out["created_from_template"] = data.template_id
     out["suggested_agent_roles"] = (tpl or {}).get("suggested_agent_roles") or []
+    out["created_tasks"] = seeded
     return out
 
 
@@ -463,19 +688,36 @@ def create_task(data: TaskIn, db: Session = Depends(get_db), user=Depends(get_cu
         a = db.get(models.Agent, data.agent_id)
         if not a or a.user_id != user.id:
             raise HTTPException(400, "Invalid agent")
+    title = (data.title or "").strip()
+    description = (data.description or "").strip()
+    tpl = get_task_template(data.template_id)
+    if tpl:
+        if not title:
+            title = tpl.get("title") or tpl.get("name") or "Task"
+        if not description:
+            description = tpl.get("description") or title
+    if not description and not title:
+        raise HTTPException(400, "Task description or template is required")
+    if not title:
+        title = description[:60]
+    if not description:
+        description = title
     t = models.Task(
         project_id=p.id,
         company_id=p.company_id,
         user_id=user.id,
         agent_id=data.agent_id,
-        title=(data.title or data.description[:60]).strip(),
-        description=data.description.strip(),
+        title=title,
+        description=description,
         status="todo",
+        assignee_type="agent",
     )
     db.add(t)
     db.commit()
     db.refresh(t)
-    return task_out(t)
+    out = task_out(t)
+    out["created_from_template"] = data.template_id
+    return out
 
 
 @router.patch("/tasks/{task_id}")

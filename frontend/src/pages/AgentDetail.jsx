@@ -11,9 +11,10 @@ import {
   ReloadOutlined, CrownOutlined, TeamOutlined, RobotOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
+import MediaActions from '../components/MediaActions'
 import { modelLabel } from '../models'
 
 const ICONS = {
@@ -131,9 +132,10 @@ export default function AgentDetail() {
     api('/agents/').then(setAllAgents).catch(() => setAllAgents([]))
 
     // Live activity feed
-    const aws = new WebSocket(`${getWsBase()}/agents/ws?token=${getToken()}`)
+    const aws = connectAuthedWs('/agents/ws')
     aws.onmessage = (e) => {
       const m = JSON.parse(e.data)
+      if (m.type === 'auth_ok') return
       if (m.event === 'activity' && String(m.agent_id) === String(id)) {
         setAgent(prev => prev ? {
           ...prev,
@@ -146,12 +148,13 @@ export default function AgentDetail() {
     activityWs.current = aws
 
     // Streaming chat socket
-    const cws = new WebSocket(`${getWsBase()}/agents/${id}/ws/chat?token=${getToken()}`)
+    const cws = connectAuthedWs(`/agents/${id}/ws/chat`)
     cws.onopen = () => setLive(true)
     cws.onclose = () => setLive(false)
     cws.onerror = () => setLive(false)
     cws.onmessage = (e) => {
       const m = JSON.parse(e.data)
+      if (m.type === 'auth_ok') return
       if (m.type === 'error') {
         message.error(m.content)
         setBusy(false)
@@ -430,6 +433,7 @@ export default function AgentDetail() {
                           localStorage.setItem('voice_speak_replies', v ? '1' : '0')
                         }}
                       />
+                      <MediaActions disabled={busy} />
                     </Space>
                   </div>
                   <div style={{ flex: 1, overflowY: 'auto', background: '#fafafa', borderRadius: 8, padding: 12 }}>
@@ -506,8 +510,21 @@ export default function AgentDetail() {
                         ]}
                       >
                         <List.Item.Meta
-                          title={<Space><ThunderboltOutlined /><span>{s.name}</span><Tag>{s.id}</Tag>{!s.role_allowed && <Tag color="orange">role blocked</Tag>}</Space>}
-                          description={s.description}
+                          title={
+                            <Space>
+                              <ThunderboltOutlined />
+                              <span>{s.name}</span>
+                              <Tag>{s.id}</Tag>
+                              {s.premium && <Tag color="gold">PREMIUM • {s.cost_credits || 0.02} credits</Tag>}
+                              {!s.role_allowed && <Tag color="orange">role blocked</Tag>}
+                            </Space>
+                          }
+                          description={
+                            <div>
+                              {s.description}
+                              {s.premium && <div style={{ fontSize: 11, color: '#d48806', marginTop: 2 }}>Real delivery (Email/SMS/WhatsApp/Voice) — charged per use</div>}
+                            </div>
+                          }
                         />
                       </List.Item>
                     )}

@@ -8,8 +8,10 @@ import {
   CheckCircleOutlined, PauseCircleOutlined, PlayCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, getToken, getWsBase } from '../api'
+import { api, connectAuthedWs } from '../api'
+import { hapticMedium } from '../native'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
+import MediaActions from '../components/MediaActions'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -65,56 +67,75 @@ export default function AgentChat() {
       })
       .catch((e) => {
         message.error(e.message)
-        nav('/agents')
+        nav('/console')
       })
       .finally(() => setLoading(false))
   }, [id, nav])
 
   useEffect(() => {
     load()
-    // WebSocket live chat
+    // Vercel serverless does not support durable WebSockets (handshake 403).
+    // Production chat always uses REST POST /agents/:id/chat.
+    // Local/native may still use WS for streaming.
+    const allowWs = !import.meta.env.PROD
     let cws
-    try {
-      cws = new WebSocket(`${getWsBase()}/agents/${id}/ws/chat?token=${getToken()}`)
-      cws.onopen = () => setLive(true)
-      cws.onclose = () => setLive(false)
-      cws.onerror = () => setLive(false)
-      cws.onmessage = (e) => {
-        const m = JSON.parse(e.data)
-        if (m.type === 'error') {
-          message.error(m.content)
-          setBusy(false)
+    if (allowWs) {
+      try {
+        cws = connectAuthedWs(`/agents/${id}/ws/chat`)
+        cws.onopen = () => setLive(true)
+        cws.onclose = () => setLive(false)
+        cws.onerror = () => setLive(false)
+        cws.onmessage = (e) => {
+          const m = JSON.parse(e.data)
+          if (m.type === 'auth_ok') return
+          if (m.type === 'error') {
+            message.error(m.content)
+            setBusy(false)
+          }
+          if (m.type === 'start') {
+            setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true }])
+            scrollBottom()
+          }
+          if (m.type === 'chunk') {
+            setMessages((prev) => {
+              const next = [...prev]
+              const last = next[next.length - 1]
+              if (last?.streaming) last.content += m.content
+              else next.push({ role: 'assistant', content: m.content, streaming: true })
+              return next
+            })
+            scrollBottom(false)
+          }
+          if (m.type === 'done') {
+            setBusy(false)
+            setSessionTokens((t) => t + (m.tokens || 0))
+            try {
+              window.dispatchEvent(new CustomEvent('aba-usage', {
+                detail: {
+                  tokens: m.tokens,
+                  tokens_used_period: m.tokens_used_period,
+                  credits: m.credits,
+                  cost: m.cost,
+                },
+              }))
+            } catch { /* ignore */ }
+            setMessages((prev) => {
+              const next = prev.map((x) => ({ ...x, streaming: false }))
+              if (speakRef.current) {
+                const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
+                if (last?.content) speakText(last.content)
+              }
+              return next
+            })
+          }
         }
-        if (m.type === 'start') {
-          setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true }])
-          scrollBottom()
-        }
-        if (m.type === 'chunk') {
-          setMessages((prev) => {
-            const next = [...prev]
-            const last = next[next.length - 1]
-            if (last?.streaming) last.content += m.content
-            else next.push({ role: 'assistant', content: m.content, streaming: true })
-            return next
-          })
-          scrollBottom(false)
-        }
-        if (m.type === 'done') {
-          setBusy(false)
-          setSessionTokens((t) => t + (m.tokens || 0))
-          setMessages((prev) => {
-            const next = prev.map((x) => ({ ...x, streaming: false }))
-            if (speakRef.current) {
-              const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
-              if (last?.content) speakText(last.content)
-            }
-            return next
-          })
-        }
+        wsRef.current = cws
+      } catch {
+        setLive(false)
       }
-      wsRef.current = cws
-    } catch {
+    } else {
       setLive(false)
+      wsRef.current = null
     }
     return () => {
       try { cws?.close() } catch { /* ignore */ }
@@ -125,6 +146,7 @@ export default function AgentChat() {
   useEffect(() => { scrollBottom() }, [messages.length, scrollBottom])
 
   const send = async (text) => {
+    hapticMedium()
     const msg = (text ?? input).trim()
     if (!msg || busy) return
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
@@ -133,18 +155,31 @@ export default function AgentChat() {
     if (taRef.current) taRef.current.style.height = 'auto'
     scrollBottom()
 
-    if (wsRef.current?.readyState === 1) {
+    // Prefer REST always in production; WS only if fully open (local)
+    if (!import.meta.env.PROD && wsRef.current?.readyState === 1) {
       wsRef.current.send(JSON.stringify({ message: msg }))
       return
     }
     try {
       const r = await api(`/agents/${id}/chat`, { method: 'POST', body: { message: msg } })
-      setMessages((prev) => [...prev, { role: 'assistant', content: r.reply }])
+      const text = (r.reply || '').trim() || 'No reply from the model. The GPU fleet may be offline — check RunPod / Ollama.'
+      setMessages((prev) => [...prev, { role: 'assistant', content: text }])
       setSessionTokens((t) => t + (r.tokens || 0))
-      if (speakRef.current && r.reply) speakText(r.reply)
+      try {
+        window.dispatchEvent(new CustomEvent('aba-usage', {
+          detail: {
+            tokens: r.tokens,
+            tokens_used_period: r.tokens_used_period,
+            credits: r.credits,
+            cost: r.cost,
+          },
+        }))
+      } catch { /* ignore */ }
+      if (speakRef.current && text) speakText(text)
     } catch (e) {
-      message.error(e.message)
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Sorry — ${e.message}` }])
+      const err = e.message || 'Chat failed'
+      message.error(err)
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Sorry — ${err}` }])
     } finally {
       setBusy(false)
     }
@@ -158,9 +193,15 @@ export default function AgentChat() {
   }
 
   const autoGrow = (e) => {
-    const el = e.target
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    const el = e?.target
+    if (!el || !el.style) {
+      setInput(e?.target?.value ?? '')
+      return
+    }
+    try {
+      el.style.height = 'auto'
+      el.style.height = `${Math.min(el.scrollHeight || 40, 160)}px`
+    } catch { /* ignore measure errors */ }
     setInput(el.value)
   }
 
@@ -192,7 +233,7 @@ export default function AgentChat() {
           type="text"
           className="agent-chat-icon-btn"
           icon={<ArrowLeftOutlined />}
-          onClick={() => nav('/agents')}
+          onClick={() => nav('/console')}
           aria-label="Back to agents"
         />
         <button type="button" className="agent-chat-identity" onClick={() => setMenuOpen(true)}>
@@ -301,6 +342,7 @@ export default function AgentChat() {
                 localStorage.setItem('voice_speak_replies', v ? '1' : '0')
               }}
             />
+            <MediaActions disabled={busy} />
             <Tooltip title="Agent workspace">
               <Button
                 type="text"
@@ -350,7 +392,7 @@ export default function AgentChat() {
         <List
           dataSource={[
             { label: 'Open full workspace', icon: <SettingOutlined />, go: () => nav(`/agents/${id}/manage`) },
-            { label: 'All agents', icon: <MenuOutlined />, go: () => nav('/agents') },
+            { label: 'Console', icon: <MenuOutlined />, go: () => nav('/console') },
             { label: 'Business CRM', icon: <AppstoreOutlined />, go: () => nav('/business') },
             { label: 'Live ops', icon: <ThunderboltOutlined />, go: () => nav('/ops') },
           ]}

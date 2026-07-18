@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /agents
+Disallow: /bay
+Disallow: /api
+
+Sitemap: https://aibusinessagent.xyz/sitemap.xml

@@ -15,7 +15,14 @@ function isNative() {
 }
 
 // HashRouter is more reliable inside the iOS WebView (no server-side fallbacks).
-const Router = isNative() || import.meta.env.VITE_NATIVE === '1' ? HashRouter : BrowserRouter
+const useHash = isNative() || import.meta.env.VITE_NATIVE === '1'
+const Router = useHash ? HashRouter : BrowserRouter
+// Path deploy: https://aibusinessagent.xyz/agents  (Vite base → import.meta.env.BASE_URL)
+const routerBasename = (() => {
+  if (useHash) return undefined
+  const raw = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+  return raw && raw !== '/' ? raw : undefined
+})()
 
 const theme = {
   token: {
@@ -73,7 +80,7 @@ async function boot() {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <ConfigProvider theme={theme}>
       <AntApp>
-        <Router>
+        <Router basename={routerBasename}>
           <App />
         </Router>
       </AntApp>

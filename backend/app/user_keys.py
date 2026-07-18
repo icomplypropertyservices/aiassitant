@@ -6,16 +6,18 @@ from .crypto import decrypt_secret
 # Canonical provider ids used in vault + LLM router
 PROVIDERS = {
     "anthropic": {
-        "label": "Anthropic (Claude)",
+        "label": "Anthropic (Claude) — Coming soon",
         "placeholder": "sk-ant-…",
-        "help": "Used for Premium Claude models",
+        "help": "Coming soon — Claude models are not live yet.",
         "category": "llm",
+        "status": "coming_soon",
     },
     "xai": {
-        "label": "xAI (Grok)",
+        "label": "xAI (Grok) — API only",
         "placeholder": "xai-…",
-        "help": "Used for Premium Grok models",
+        "help": "Grok works via API only (your xAI key or platform key). Not available on VPS.",
         "category": "llm",
+        "status": "api_only",
     },
     "openai": {
         "label": "OpenAI",

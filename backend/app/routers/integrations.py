@@ -16,7 +16,15 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models, config
 from ..auth_utils import get_current_user
-from ..integrations_catalog import INTEGRATION_APPS, get_app, public_app, list_apps
+from ..integrations_catalog import (
+    INTEGRATION_APPS,
+    get_app,
+    public_app,
+    list_apps,
+    one_click_oauth_list,
+    OAUTH_ONE_CLICK_ORDER,
+    GOOGLE_FAMILY,
+)
 from ..integrations_service import (
     connection_out,
     set_secrets,
@@ -98,12 +106,56 @@ def _oauth_redirect_uri() -> str:
 
 @router.get("/catalog")
 def catalog(user=Depends(get_current_user)):
-    apps = []
-    for app in INTEGRATION_APPS.values():
-        entry = public_app(app, oauth_ready=oauth_env_ready(app) if app.get("oauth") else False)
-        apps.append(entry)
+    apps = list_apps(oauth_ready_fn=lambda a: oauth_env_ready(a) if a.get("oauth") else False)
+    one_click = one_click_oauth_list(
+        oauth_ready_fn=lambda a: oauth_env_ready(a) if a.get("oauth") else False
+    )
     categories = sorted({a["category"] for a in apps})
-    return {"apps": apps, "categories": categories, "count": len(apps)}
+    google_ready = all(a.get("oauth_ready") for a in one_click) if one_click else False
+    return {
+        "apps": apps,
+        "one_click_oauth": one_click,
+        "one_click_order": list(OAUTH_ONE_CLICK_ORDER),
+        "google_family": list(GOOGLE_FAMILY),
+        "google_oauth_configured": google_ready,
+        "categories": categories,
+        "count": len(apps),
+        "live_count": sum(1 for a in apps if not a.get("coming_soon")),
+        "coming_soon_count": sum(1 for a in apps if a.get("coming_soon")),
+    }
+
+
+@router.get("/oauth/google-status")
+def google_oauth_status(user=Depends(get_current_user)):
+    """Verify Google OAuth client env is present for all Google apps."""
+    import os
+    cid = (os.getenv("GOOGLE_OAUTH_CLIENT_ID") or "").strip()
+    csec = (os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or "").strip()
+    redirect = _oauth_redirect_uri()
+    apps = []
+    for aid in OAUTH_ONE_CLICK_ORDER:
+        app = get_app(aid)
+        if not app:
+            continue
+        apps.append({
+            "id": aid,
+            "name": app.get("name"),
+            "scopes": (app.get("oauth") or {}).get("scopes"),
+            "oauth_ready": bool(cid and csec),
+            "coming_soon": False,
+        })
+    return {
+        "ok": bool(cid and csec),
+        "client_id_set": bool(cid),
+        "client_secret_set": bool(csec),
+        "client_id_preview": (cid[:12] + "…") if len(cid) > 12 else (cid or None),
+        "redirect_uri": redirect,
+        "apps": apps,
+        "note": (
+            "Add this redirect URI in Google Cloud Console → Credentials → OAuth client. "
+            "Enable Gmail, Sheets, Calendar, Drive, Business Profile, YouTube APIs as needed."
+        ),
+    }
 
 
 @router.get("/connections")
@@ -373,6 +425,14 @@ def oauth_start(
     app = get_app(app_id)
     if not app:
         raise HTTPException(404, "Unknown app")
+    # Launch: only Google family is 1-click live
+    if app.get("coming_soon") or (
+        app.get("id") not in GOOGLE_FAMILY and app.get("family") != "google"
+    ):
+        raise HTTPException(
+            503,
+            f"{app.get('name') or app_id} is coming soon. Google apps are available for 1-click connect.",
+        )
     oauth = app.get("oauth")
     if not oauth:
         raise HTTPException(400, "This app does not support OAuth — use API credentials instead")

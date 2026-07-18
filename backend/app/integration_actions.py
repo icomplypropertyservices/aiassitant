@@ -2,15 +2,89 @@
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
+import re
 from email.mime.text import MIMEText
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import httpx
 
 from . import models
 from .integrations_service import secrets_from_row, meta_from_row
+
+# Hostnames / patterns blocked for user-supplied webhook URLs (SSRF).
+_BLOCKED_WEBHOOK_HOSTS = frozenset(
+    {
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "169.254.169.254",
+        "metadata.google.internal",
+        "metadata",
+    }
+)
+_PRIVATE_IP_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),  # 172.16–31.*
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+)
+
+
+def validate_webhook_url(url: str | None) -> str | None:
+    """Return an error message if *url* is unsafe for server-side fetch, else None.
+
+    Rejects non-http(s) schemes and hosts that resolve to loopback, link-local,
+    private ranges, cloud metadata, or well-known internal names.
+    """
+    if not url or not str(url).strip():
+        return "webhook_url missing"
+    raw = str(url).strip()
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return "Invalid webhook_url"
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return "webhook_url must use http or https"
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        return "webhook_url missing host"
+    # Strip trailing dots / brackets noise
+    host = host.rstrip(".")
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    if host in _BLOCKED_WEBHOOK_HOSTS:
+        return "webhook_url host is not allowed"
+    if host.endswith(".localhost") or host.endswith(".local"):
+        return "webhook_url host is not allowed"
+    # Literal IP address
+    try:
+        ip = ipaddress.ip_address(host)
+        for net in _PRIVATE_IP_NETWORKS:
+            if ip in net:
+                return "webhook_url must not target private or link-local addresses"
+        if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_multicast:
+            return "webhook_url must not target private or link-local addresses"
+    except ValueError:
+        # Hostname: block obvious private-range dotted patterns if mis-parsed as host
+        if re.match(r"^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$", host):
+            return "webhook_url must not target private or link-local addresses"
+        if re.match(r"^192\.168\.\d{1,3}\.\d{1,3}$", host):
+            return "webhook_url must not target private or link-local addresses"
+        m = re.match(r"^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$", host)
+        if m and 16 <= int(m.group(1)) <= 31:
+            return "webhook_url must not target private or link-local addresses"
+        if host == "169.254.169.254" or host.startswith("169.254."):
+            return "webhook_url must not target private or link-local addresses"
+    return None
 
 
 async def run_app_action(
@@ -259,8 +333,9 @@ async def _notion(action, secrets, meta, payload):
 
 async def _zapier(action, secrets, meta, payload):
     url = secrets.get("webhook_url")
-    if not url:
-        return {"ok": False, "error": "webhook_url missing"}
+    err = validate_webhook_url(url)
+    if err:
+        return {"ok": False, "error": err}
     body = payload or {"event": action or "agent_event"}
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.post(url, json=body)
@@ -428,6 +503,9 @@ async def _discord(action, secrets, meta, payload):
     webhook = secrets.get("webhook_url")
     bot = secrets.get("bot_token")
     if action in ("post", "send", "notify") and webhook:
+        err = validate_webhook_url(webhook)
+        if err:
+            return {"ok": False, "error": err}
         async with httpx.AsyncClient(timeout=20) as client:
             r = await client.post(webhook, json={"content": payload.get("text") or payload.get("message") or "Update"})
             return {"ok": r.status_code < 400, "message": f"Discord webhook {r.status_code}"}

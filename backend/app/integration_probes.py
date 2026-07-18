@@ -5,6 +5,8 @@ from typing import Any, Awaitable, Callable
 
 import httpx
 
+from .integration_actions import validate_webhook_url
+
 ProbeFn = Callable[[dict, dict], Awaitable[dict[str, Any]]]
 
 
@@ -135,8 +137,9 @@ async def _probe_mailchimp(secrets: dict, meta: dict) -> dict[str, Any]:
 
 async def _probe_zapier(secrets: dict, meta: dict) -> dict[str, Any]:
     url = (secrets.get("webhook_url") or "").strip()
-    if not url.startswith("http"):
-        return {"ok": False, "message": "Valid webhook URL required"}
+    err = validate_webhook_url(url)
+    if err:
+        return {"ok": False, "message": err}
     return {"ok": True, "message": "Webhook URL saved (will fire when agents use it)"}
 
 
