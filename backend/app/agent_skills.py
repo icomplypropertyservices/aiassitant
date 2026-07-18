@@ -2673,7 +2673,6 @@ async def _skill_message(db: Session, agent: models.Agent, user: models.User, ar
         to_agent_id=target.id,
         thread_key=thread_key,
         content=content,
-        status="open",
     )
     db.add(msg)
     db.commit()
@@ -2688,15 +2687,18 @@ async def _skill_message(db: Session, agent: models.Agent, user: models.User, ar
 
         system = build_agent_system_prompt(db, target)
         prompt = (
-            f"{system}\n\nYou received an internal message from teammate agent "
+            f"You received an internal message from teammate agent "
             f"{agent.name} (id={agent.id}):\n\n{content}\n\n"
             "Reply helpfully in 1-3 short paragraphs. Do not emit skill blocks."
         )
         creds = credentials_for_user(db, user.id)
         try:
             reply_text = await complete(
-                [{"role": "user", "content": prompt}],
-                target.model or "fast",
+                [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                target.model or "quality",
                 "general",
                 credentials=creds,
             )
@@ -2708,7 +2710,6 @@ async def _skill_message(db: Session, agent: models.Agent, user: models.User, ar
                     to_agent_id=agent.id,
                     thread_key=thread_key,
                     content=reply_text,
-                    status="acknowledged",
                 )
                 db.add(reply)
                 db.commit()
