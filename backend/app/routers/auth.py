@@ -457,13 +457,14 @@ async def register(data: RegisterIn, request: Request, db: Session = Depends(get
     except Exception as e:
         log.warning("ensure_my_human failed for user_id=%s: %s", user.id, e)
 
-    # Standing Core Team (orchestrator + leads) when trial/subscription is active
+    # Fresh accounts: Main AI Orchestrator only (no shared/demo team data).
+    # Users hire extra agents later via spawn / Core Team ensure / seed-starter-team.
     try:
         if user.subscription_active or user.role == "admin":
-            from ..core_team import ensure_core_team
-            ensure_core_team(db, user)
+            from ..agent_hierarchy import ensure_main_orchestrator
+            ensure_main_orchestrator(db, user)
     except Exception as e:
-        log.warning("ensure_core_team failed for user_id=%s: %s", user.id, e)
+        log.warning("ensure_main_orchestrator failed for user_id=%s: %s", user.id, e)
 
     raw_token = _issue_email_token(db, user, purpose="verify")
     sent, detail = await _send_verification_email(user, raw_token)
@@ -616,7 +617,7 @@ async def _bootstrap_new_user(
     *,
     company_name: str | None = None,
 ) -> None:
-    """Trial + My Human + core team for newly created Google accounts."""
+    """Trial + My Human + Main Orchestrator only for newly created Google accounts."""
     try:
         from .billing import _activate_plan
 
@@ -651,12 +652,13 @@ async def _bootstrap_new_user(
         db.commit()
     except Exception as e:
         log.warning("google_auth ensure_my_human failed: %s", e)
+    # Orchestrator only — do not seed a full shared-looking core team
     try:
         if user.subscription_active or user.role == "admin":
-            from ..core_team import ensure_core_team
-            ensure_core_team(db, user)
+            from ..agent_hierarchy import ensure_main_orchestrator
+            ensure_main_orchestrator(db, user)
     except Exception as e:
-        log.warning("google_auth ensure_core_team failed: %s", e)
+        log.warning("google_auth ensure_main_orchestrator failed: %s", e)
 
 
 @router.get("/oauth/providers")

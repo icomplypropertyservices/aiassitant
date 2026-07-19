@@ -147,15 +147,19 @@ def bootstrap_workspace(
     *,
     companies: list[dict] | None = None,
     create_wallets: bool = True,
-    create_leads: bool = True,
+    create_leads: bool = False,
+    create_seed_tasks: bool = False,
 ) -> dict[str, Any]:
     """
-    Orchestrator-driven setup:
+    Orchestrator-driven setup (private to this user only):
     1. Heal plan tokens
     2. Ensure Main AI Orchestrator
-    3. Ensure 3 companies + projects + starter tasks
-    4. Company leads under orchestrator
-    5. Crypto wallets per orchestrator + leads
+    3. Optionally ensure companies + projects
+    4. Optional company leads (default OFF — new accounts stay orchestrator-only)
+    5. Optional starter tasks (default OFF)
+    6. Crypto wallets for orchestrator (+ leads if created)
+
+    Never copies another account's brands, agents, or CRM rows.
     """
     # Always private to this user — never inject another tenant's brand names
     if companies is None:
@@ -258,25 +262,27 @@ def bootstrap_workspace(
                 db.add(proj)
                 db.flush()
                 report["projects_created"] += 1
-                from .task_status import initial_task_status
+                # Seed tasks are opt-in — fresh accounts start empty except orchestrator
+                if create_seed_tasks:
+                    from .task_status import initial_task_status
 
-                seed_status = initial_task_status(
-                    agent=orch, assignee_type="agent", run_now=True
-                )
-                for title in pspec.get("tasks") or []:
-                    t = models.Task(
-                        user_id=user.id,
-                        company_id=co.id,
-                        project_id=proj.id,
-                        title=title,
-                        description=title,
-                        status=seed_status,
-                        assignee_type="agent",
-                        agent_id=orch.id,
-                        priority="medium",
+                    seed_status = initial_task_status(
+                        agent=orch, assignee_type="agent", run_now=True
                     )
-                    db.add(t)
-                    report["tasks_created"] += 1
+                    for title in pspec.get("tasks") or []:
+                        t = models.Task(
+                            user_id=user.id,
+                            company_id=co.id,
+                            project_id=proj.id,
+                            title=title,
+                            description=title,
+                            status=seed_status,
+                            assignee_type="agent",
+                            agent_id=orch.id,
+                            priority="medium",
+                        )
+                        db.add(t)
+                        report["tasks_created"] += 1
             co_report["projects"].append({"id": proj.id, "name": proj.name})
 
         lead = None

@@ -23,12 +23,20 @@ router = APIRouter()
 
 @router.post("/ensure-orchestrator")
 async def ensure_orchestrator(
-    bootstrap: bool = Query(True, description="Also create 3 guided companies + wallets"),
+    bootstrap: bool = Query(
+        False,
+        description=(
+            "If true, also seed guided companies (no extra agents). "
+            "Default false: new accounts only get Main AI Orchestrator."
+        ),
+    ),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     """Create the Main AI Orchestrator if missing — always sits at top of hierarchy.
-    When bootstrap=true (default), also sets up the 3 guided companies, leads, and wallets.
+
+    Default: orchestrator only (no leads / starter team). Optional bootstrap=true
+    creates private companies for this user without hiring extra agents.
 
     Always applies the full orchestrator skill pack via ensure_main_orchestrator
     (create_task, execute_goal, message_agent, open_meeting, spawn_*, …).
@@ -49,10 +57,13 @@ async def ensure_orchestrator(
     if bootstrap:
         from ..orchestrator_bootstrap import bootstrap_workspace
         try:
-            out["bootstrap"] = bootstrap_workspace(db, user)
+            # Companies only for this user — never auto-hire leads (shared-looking data)
+            out["bootstrap"] = bootstrap_workspace(
+                db, user, create_leads=False, create_wallets=True,
+            )
             await log_activity(
                 a.id, user.id, "action",
-                "Orchestrator bootstrap: 3 companies + wallets ready",
+                "Orchestrator bootstrap: private companies ready (orchestrator only)",
             )
         except Exception as e:
             out["bootstrap_error"] = str(e)

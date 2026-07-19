@@ -18,7 +18,8 @@ export default function OrchestratorBanner({ orchestrator, onChanged, compact = 
 
   const ensure = async () => {
     try {
-      const a = await api('/agents/ensure-orchestrator', { method: 'POST' })
+      // bootstrap=false: only Main Orchestrator — no auto-hired team / demo data
+      const a = await api('/agents/ensure-orchestrator?bootstrap=false', { method: 'POST' })
       message.success(`${a.name} ready — pinned at top of hierarchy`)
       onChanged?.()
       if (a?.id) nav(`/agents/${a.id}`)

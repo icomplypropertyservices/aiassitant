@@ -111,7 +111,10 @@ def _create_core_member(
 
 def ensure_core_team(db: Session, user: models.User) -> dict[str, Any]:
     """
-    Ensure the user's core team exists (respecting plan agent caps).
+    Explicitly hire the standing Core Team (leads + specialists).
+
+    Not called on register — new accounts only get Main AI Orchestrator.
+    Trigger via POST /agents/core-team/ensure or product UI.
     Idempotent — re-marks existing agents as core_team.
     """
     max_agents = int(plan_limits(user.plan or "none").get("agents") or 0)

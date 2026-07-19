@@ -112,6 +112,7 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
             "can_hire": True,
             "sort_late_projects": True,
             "model_note": "grok-4.3",
+            "core_team": True,
         }),
         is_lead=True,
         hierarchy_role="orchestrator",
