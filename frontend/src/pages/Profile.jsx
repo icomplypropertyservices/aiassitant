@@ -1,15 +1,23 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Form, Input, Button, Descriptions, Tag, Statistic, Row, Col, message, Space, Typography, Divider, Modal,
+  Card, Form, Input, Button, Descriptions, Tag, Statistic, Row, Col, message, Space, Typography, Divider, Modal, Progress, Alert,
 } from 'antd'
 import {
   UserOutlined, MailOutlined, CrownOutlined, CreditCardOutlined,
   DeleteOutlined, DownloadOutlined, ExclamationCircleOutlined, SafetyCertificateOutlined,
+  ThunderboltOutlined, WalletOutlined, ReloadOutlined, TeamOutlined, RocketOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser, setAuth, getToken, clearAuth } from '../api'
 
 const { Title, Text, Paragraph } = Typography
+
+function formatTokens(n) {
+  const v = Number(n) || 0
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`
+  if (v >= 1_000) return `${(v / 1_000).toFixed(v % 1_000 === 0 ? 0 : 1)}k`
+  return v.toLocaleString()
+}
 
 export default function Profile() {
   const nav = useNavigate()
@@ -18,6 +26,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [reconciling, setReconciling] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [form] = Form.useForm()
   const [deleteForm] = Form.useForm()
@@ -29,17 +38,51 @@ export default function Profile() {
       setMe(u)
       setAuth(getToken(), u)
       form.setFieldsValue({ name: u.name || '', email: u.email })
-      if (u.meter) setMeter(u.meter)
-      else {
-        const m = await api('/billing/meter').catch(() => null)
-        setMeter(m)
+      let m = u.meter
+      if (!m) {
+        m = await api('/billing/meter').catch(() => null)
       }
+      // Auto-heal: business/pro/starter with empty token pool
+      const plan = (u.plan || m?.plan || '').toLowerCase()
+      const included = Number(m?.tokens_included || 0)
+      const paidPlans = ['starter', 'pro', 'business', 'trial']
+      if (u.subscription_active && paidPlans.includes(plan) && included <= 0) {
+        try {
+          const fixed = await api('/billing/reconcile-plan', { method: 'POST', body: {} })
+          if (fixed?.meter) m = fixed.meter
+          if (fixed?.plan) setMe((prev) => ({ ...prev, plan: fixed.plan, subscription_expires_at: fixed.subscription_expires_at }))
+          if (fixed?.tokens_included_after > 0) {
+            message.success(fixed.message || 'Token pool restored from your plan')
+          }
+        } catch {
+          /* ignore — user can click Fix token pool */
+        }
+      }
+      setMeter(m)
     } catch (e) {
       message.error(e.message)
     }
   }
 
   useEffect(() => { load() }, [])
+
+  const reconcile = async () => {
+    setReconciling(true)
+    try {
+      const r = await api('/billing/reconcile-plan', { method: 'POST', body: {} })
+      if (r?.meter) setMeter(r.meter)
+      setMe((prev) => ({
+        ...prev,
+        plan: r.plan || prev?.plan,
+        subscription_expires_at: r.subscription_expires_at ?? prev?.subscription_expires_at,
+      }))
+      message.success(r.message || 'Plan token pool updated')
+    } catch (e) {
+      message.error(e?.message || 'Could not sync plan tokens')
+    } finally {
+      setReconciling(false)
+    }
+  }
 
   const save = async (values) => {
     setSaving(true)
@@ -95,46 +138,146 @@ export default function Profile() {
     }
   }
 
+  const planLabel = (me?.plan || meter?.plan || 'none').replace(/_/g, ' ')
+  const included = Number(meter?.tokens_included ?? 0)
+  const used = Number(meter?.tokens_used_period ?? 0)
+  const remaining = Number(meter?.tokens_remaining_included ?? Math.max(0, included - used))
+  const pct = included > 0 ? Math.min(100, Math.round((used / included) * 1000) / 10) : 0
+  const emptyPool = (me?.subscription_active || meter?.subscription_active) && included <= 0
+    && ['starter', 'pro', 'business', 'trial'].includes((me?.plan || '').toLowerCase())
+
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <Title level={3}><UserOutlined /> Your profile</Title>
-      <Text type="secondary">Account owner settings for this workspace.</Text>
+      <Text type="secondary">
+        Account owner settings for this workspace
+        {me?.name ? ` · ${me.name}` : ''}.
+      </Text>
+
+      {emptyPool && (
+        <Alert
+          style={{ marginTop: 16 }}
+          type="warning"
+          showIcon
+          message="Token pool not applied"
+          description={(
+            <span>
+              Your plan is <strong>{planLabel}</strong> but the included token pool is still 0.
+              Click <strong>Fix token pool</strong> to load the Business/Pro monthly tokens so agents can run.
+            </span>
+          )}
+          action={(
+            <Button type="primary" size="small" icon={<ReloadOutlined />} loading={reconciling} onClick={reconcile}>
+              Fix token pool
+            </Button>
+          )}
+        />
+      )}
 
       <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 16 }}>
         <Col xs={12} md={8}>
           <Card size="small">
-            <Statistic title="Plan" value={(me?.plan || 'none').replace(/_/g, ' ')} prefix={<CrownOutlined />} />
+            <Statistic
+              title="Plan"
+              value={planLabel}
+              prefix={<CrownOutlined />}
+              valueStyle={{ textTransform: 'capitalize', fontSize: 22 }}
+            />
+            <Tag color={me?.subscription_active || meter?.subscription_active ? 'green' : 'red'} style={{ marginTop: 8 }}>
+              {(me?.subscription_active || meter?.subscription_active) ? 'Subscription active' : 'Inactive'}
+            </Tag>
           </Card>
         </Col>
         <Col xs={12} md={8}>
           <Card size="small">
-            <Statistic title="Wallet" prefix="$" value={meter?.credits ?? 0} precision={2} />
+            <Statistic
+              title="Wallet credits"
+              prefix={<WalletOutlined />}
+              value={meter?.credits ?? 0}
+              precision={2}
+              suffix="USD"
+            />
+            <Button type="link" size="small" style={{ padding: 0, marginTop: 4 }} onClick={() => nav('/billing')}>
+              Top up wallet →
+            </Button>
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card size="small">
             <Statistic
               title="Tokens this period"
-              value={meter?.tokens_used_period ?? 0}
-              suffix={`/ ${(meter?.tokens_included ?? 0).toLocaleString()}`}
+              value={formatTokens(used)}
+              suffix={`/ ${formatTokens(included)}`}
+              prefix={<ThunderboltOutlined />}
             />
+            {included > 0 ? (
+              <Progress
+                percent={pct}
+                size="small"
+                status={pct >= 95 ? 'exception' : pct >= 80 ? 'active' : 'normal'}
+                style={{ marginTop: 8 }}
+                format={() => `${formatTokens(remaining)} left`}
+              />
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                No included pool yet — reconcile plan or top up wallet.
+              </Text>
+            )}
           </Card>
         </Col>
       </Row>
 
+      <Card title="Workspace & agents" size="small" style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Button type="primary" icon={<RocketOutlined />} onClick={() => nav('/agents')}>
+            Open agents
+          </Button>
+          <Button icon={<TeamOutlined />} onClick={() => nav('/hierarchy')}>
+            Agent hierarchy
+          </Button>
+          <Button onClick={() => nav('/companies')}>Companies</Button>
+          <Button onClick={() => nav('/ops')}>Live ops</Button>
+          <Button icon={<ReloadOutlined />} loading={reconciling} onClick={reconcile}>
+            Sync plan tokens
+          </Button>
+        </Space>
+        <Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+          Business plan includes up to <strong>40M tokens/month</strong>, 100 agents and 15 companies.
+          If Live Ops says “waiting”, open Agents and ensure the Main Orchestrator is created.
+        </Paragraph>
+      </Card>
+
       <Card title="Account" style={{ marginBottom: 16 }}>
         <Descriptions column={1} size="small" bordered>
           <Descriptions.Item label="Email"><MailOutlined /> {me?.email}</Descriptions.Item>
+          <Descriptions.Item label="Display name">{me?.name || '—'}</Descriptions.Item>
           <Descriptions.Item label="Role">
             <Tag color={me?.role === 'admin' ? 'gold' : 'blue'}>{me?.role || 'user'}</Tag>
           </Descriptions.Item>
+          <Descriptions.Item label="Plan">
+            <Tag color="purple" style={{ textTransform: 'capitalize' }}>{planLabel}</Tag>
+            {(meter?.plan_name || me?.plan) && (
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                {meter?.plan_name || ''} · {formatTokens(included)} tokens/mo
+              </Text>
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="Subscription">
-            <Tag color={me?.subscription_active ? 'green' : 'red'}>
-              {me?.subscription_active ? 'Active' : 'Inactive'}
+            <Tag color={me?.subscription_active || meter?.subscription_active ? 'green' : 'red'}>
+              {(me?.subscription_active || meter?.subscription_active) ? 'Active' : 'Inactive'}
             </Tag>
           </Descriptions.Item>
-          {me?.subscription_expires_at && (
-            <Descriptions.Item label="Expires">{new Date(me.subscription_expires_at).toLocaleString()}</Descriptions.Item>
+          {(me?.subscription_expires_at || meter?.subscription_expires_at) ? (
+            <Descriptions.Item label="Access ends">
+              {new Date(me?.subscription_expires_at || meter?.subscription_expires_at).toLocaleString()}
+              <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+                Paid Business/Pro plans should not use a trial end date — use Sync plan tokens if this looks wrong.
+              </Text>
+            </Descriptions.Item>
+          ) : (
+            <Descriptions.Item label="Access ends">
+              <Text type="secondary">No end date (open subscription)</Text>
+            </Descriptions.Item>
           )}
         </Descriptions>
         <Space style={{ marginTop: 12 }} wrap>
@@ -148,7 +291,7 @@ export default function Profile() {
       <Card title="Edit profile">
         <Form form={form} layout="vertical" onFinish={save}>
           <Form.Item name="name" label="Display name" rules={[{ required: true }]}>
-            <Input prefix={<UserOutlined />} placeholder="Your name" />
+            <Input prefix={<UserOutlined />} placeholder="Your name (e.g. Jack Scott)" />
           </Form.Item>
           <Form.Item name="email" label="Email">
             <Input disabled prefix={<MailOutlined />} />
@@ -211,12 +354,12 @@ export default function Profile() {
       </Card>
 
       <Modal
-        title={
+        title={(
           <Space>
             <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
             Delete your account?
           </Space>
-        }
+        )}
         open={deleteOpen}
         onCancel={() => {
           if (!deleting) {

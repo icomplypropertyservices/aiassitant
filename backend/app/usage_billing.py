@@ -14,15 +14,55 @@ from .pricing import cost_for, estimate_tokens, event_usd, event_meter_tokens
 _ALWAYS_CREDITS_PREFIX = ("premium-", "image", "video", "premium-comm")
 
 
-def ensure_period(bal: models.Balance, user: models.User):
-    """Reset monthly counters if a new calendar month started."""
+def ensure_period(bal: models.Balance, user: models.User) -> bool:
+    """Reset monthly counters if a new calendar month started.
+    Also heals missing included-token pools for active paid/trial plans
+    (e.g. plan marked business but tokens_included left at 0).
+    Returns True if bal was mutated.
+    """
+    changed = False
     now = datetime.utcnow()
     start = bal.period_start or now
+    limits = plan_limits(user.plan or "none")
+    expected = int(limits.get("tokens_included") or 0)
+
     if start.year != now.year or start.month != now.month:
         bal.period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         bal.tokens_used_period = 0
-        limits = plan_limits(user.plan)
-        bal.tokens_included = int(limits.get("tokens_included") or 0)
+        bal.tokens_included = expected
+        changed = True
+    else:
+        # Heal zero pool when the active plan includes tokens
+        current = int(bal.tokens_included or 0)
+        active = bool(getattr(user, "subscription_active", False) or getattr(user, "role", "") == "admin")
+        if active and expected > 0 and current <= 0:
+            bal.tokens_included = expected
+            if not bal.period_start:
+                bal.period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            changed = True
+        # If plan was upgraded mid-period to a larger pool, raise included (never shrink mid-period)
+        elif active and expected > current > 0:
+            bal.tokens_included = expected
+            changed = True
+
+    return changed
+
+
+def heal_subscription_flags(db: Session, user: models.User) -> bool:
+    """Clear trial-style expiry on paid plans that should not time out."""
+    plan = (user.plan or "").strip()
+    limits = plan_limits(plan)
+    changed = False
+    if (
+        limits.get("requires_payment")
+        and plan not in ("none", "", "trial", "pay_as_you_go")
+        and getattr(user, "subscription_active", False)
+        and getattr(user, "subscription_expires_at", None) is not None
+    ):
+        # Paid business/pro/starter: open-ended until cancelled (not a 14-day trial stamp)
+        user.subscription_expires_at = None
+        changed = True
+    return changed
 
 
 def meter_snapshot(db: Session, user: models.User) -> dict:
@@ -32,10 +72,18 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         db.add(bal)
         db.commit()
         db.refresh(bal)
-    ensure_period(bal, user)
-    db.commit()
-    limits = plan_limits(user.plan)
-    included = int(bal.tokens_included or limits.get("tokens_included") or 0)
+    dirty = ensure_period(bal, user)
+    dirty = heal_subscription_flags(db, user) or dirty
+    if dirty:
+        db.commit()
+        db.refresh(bal)
+        db.refresh(user)
+    else:
+        db.commit()
+    limits = plan_limits(user.plan or "none")
+    included = int(bal.tokens_included or 0)
+    if included <= 0:
+        included = int(limits.get("tokens_included") or 0)
     used = int(bal.tokens_used_period or 0)
     remaining_included = max(0, included - used)
     credits = round(bal.credits or 0.0, 4)

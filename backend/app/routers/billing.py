@@ -274,6 +274,56 @@ def meter(db: Session = Depends(get_db), user=Depends(get_current_user)):
     return snap
 
 
+@router.post("/reconcile-plan")
+def reconcile_plan(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    Sync included token pool (and paid-plan expiry flags) from the user's plan.
+    Fixes profiles that show plan=business but Tokens 0/0 after a partial activate.
+    """
+    from ..usage_billing import ensure_period, heal_subscription_flags
+
+    u = db.get(models.User, user.id) or user
+    bal = db.query(models.Balance).filter_by(user_id=u.id).first()
+    if not bal:
+        bal = models.Balance(user_id=u.id, credits=0.0)
+        db.add(bal)
+        db.flush()
+    limits = plan_limits(u.plan or "none")
+    expected = int(limits.get("tokens_included") or 0)
+    before = int(bal.tokens_included or 0)
+    # Force-apply plan pool for active subscriptions
+    if u.subscription_active or u.role == "admin":
+        if expected > 0:
+            bal.tokens_included = expected
+        if not bal.period_start:
+            from datetime import datetime as _dt
+            bal.period_start = _dt.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    ensure_period(bal, u)
+    heal_subscription_flags(db, u)
+    db.commit()
+    db.refresh(u)
+    db.refresh(bal)
+    snap = meter_snapshot(db, u)
+    return {
+        "ok": True,
+        "plan": u.plan,
+        "tokens_included_before": before,
+        "tokens_included_after": int(bal.tokens_included or 0),
+        "expected_from_plan": expected,
+        "subscription_expires_at": (
+            u.subscription_expires_at.isoformat() + "Z"
+            if getattr(u, "subscription_expires_at", None)
+            else None
+        ),
+        "meter": snap,
+        "message": (
+            f"Token pool set to {expected:,} for plan {u.plan}."
+            if expected
+            else "Plan has no included tokens (wallet / PAYG)."
+        ),
+    }
+
+
 @router.get("/payment-options")
 def payment_options():
     """Public-ish status: card (Stripe sandbox/live) + crypto availability."""
