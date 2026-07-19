@@ -193,8 +193,29 @@ export default function HumanDashboard() {
 
   const my = dash?.my_human
   const stats = dash?.stats || {}
-  const unread = stats.unread ?? dash?.unread_count ?? 0
-  const tasks = dash?.open_human_tasks || []
+  const unread = Number(stats.unread ?? dash?.unread_count ?? 0) || 0
+  const tasks = Array.isArray(dash?.open_human_tasks) ? dash.open_human_tasks : []
+  const safeInbox = Array.isArray(inbox) ? inbox : []
+
+  if (!loading && !dash && !safeInbox.length) {
+    return (
+      <PageShell>
+        <PageHeader title="Human Dashboard" subtitle="Inbox for agent messages" />
+        <Alert
+          type="error"
+          showIcon
+          message="Could not load human dashboard"
+          description="Session may have expired or the API is still starting. Open Team admin or retry."
+          action={(
+            <Space>
+              <Button size="small" type="primary" onClick={load}>Retry</Button>
+              <Button size="small" onClick={() => nav('/humans')}>Team</Button>
+            </Space>
+          )}
+        />
+      </PageShell>
+    )
+  }
 
   return (
     <PageShell>
@@ -214,7 +235,7 @@ export default function HumanDashboard() {
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
               Refresh
             </Button>
-            <Button icon={<CheckOutlined />} onClick={markAllRead} disabled={!unread && !inbox.length}>
+            <Button icon={<CheckOutlined />} onClick={markAllRead} disabled={!unread && !safeInbox.length}>
               Mark all read
             </Button>
             <Button icon={<TeamOutlined />} onClick={() => nav('/humans')}>
@@ -284,15 +305,15 @@ export default function HumanDashboard() {
                 {unread > 0 && <Badge count={unread} />}
               </Space>
             )}
-            loading={loading && !inbox.length}
+            loading={loading && !safeInbox.length}
             extra={<Text type="secondary">Agent updates appear here</Text>}
           >
-            {inbox.length === 0 && !loading ? (
+            {safeInbox.length === 0 && !loading ? (
               <Empty description="No messages yet. When agents run status_update or notify_human, they appear here." />
             ) : (
               <List
                 itemLayout="vertical"
-                dataSource={inbox}
+                dataSource={safeInbox}
                 renderItem={(m) => (
                   <List.Item
                     key={m.id}

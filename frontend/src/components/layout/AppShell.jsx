@@ -191,7 +191,8 @@ export default function AppShell() {
         >
           <div className="aba-page-center" data-aba-layout="page-center">
             <div className="aba-page-shell" data-aba-layout="page-shell">
-              <ErrorBoundary title="This page crashed">
+              {/* key resets error UI when user navigates — avoids stuck "page crashed" */}
+              <ErrorBoundary key={loc.pathname} title="This page crashed">
                 <Outlet />
               </ErrorBoundary>
             </div>

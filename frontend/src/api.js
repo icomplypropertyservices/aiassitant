@@ -321,6 +321,64 @@ export function invalidateApiCache(prefix = '') {
   }
 }
 
+/** Soft 401 bookkeeping — avoid logout thrash on cold starts / aborted races */
+let _authFailCount = 0
+let _authFailAt = 0
+let _logoutScheduled = false
+
+function _scheduleLogoutRedirect() {
+  if (typeof window === 'undefined' || _logoutScheduled) return
+  _logoutScheduled = true
+  try {
+    clearAuth()
+  } catch { /* ignore */ }
+  try {
+    const base = (import.meta.env.BASE_URL || '/agents/').replace(/\/+$/, '') || '/agents'
+    const loginUrl = `${base}/login`
+    const here = window.location.pathname || ''
+    if (!here.includes('/login') && !here.endsWith('/login')) {
+      // Defer so in-flight renders finish without mid-paint white screen
+      setTimeout(() => {
+        try {
+          window.location.replace(loginUrl)
+        } catch {
+          window.location.href = loginUrl
+        }
+      }, 50)
+    }
+  } catch { /* ignore */ }
+}
+
+/**
+ * Decide whether a 401 should wipe the session.
+ * - /auth/me always counts (identity is gone)
+ * - Otherwise require 2 failures within 12s so one flaky serverless 401
+ *   does not boot the user mid-navigation
+ */
+function _handleUnauthorized(path) {
+  const now = Date.now()
+  if (now - _authFailAt > 12000) _authFailCount = 0
+  _authFailAt = now
+  _authFailCount += 1
+
+  const p = path.startsWith('/') ? path : `/${path}`
+  const identityCheck = p === '/auth/me' || p.startsWith('/auth/me?')
+  const hard = identityCheck || _authFailCount >= 2
+
+  if (hard) {
+    _scheduleLogoutRedirect()
+    const err = new Error('Session expired — please sign in again')
+    err.status = 401
+    err.authExpired = true
+    throw err
+  }
+
+  const err = new Error('Not authorized — retrying may help')
+  err.status = 401
+  err.softAuth = true
+  throw err
+}
+
 /**
  * Unified API fetch. Paths start with / (e.g. /auth/login).
  * GETs for list-ish endpoints are cached ~8s for snappy UI.
@@ -419,19 +477,10 @@ export async function api(path, options = {}) {
     if (timeoutId) clearTimeout(timeoutId)
   }
 
-  // Auth expired / missing — force re-login (except on auth endpoints)
+  // Auth expired — careful logout. A single flaky 401 on a side request must NOT
+  // wipe the session and hard-redirect (that feels like "pages keep crashing").
   if (res.status === 401 && !path.startsWith('/auth/')) {
-    clearAuth()
-    if (typeof window !== 'undefined') {
-      // App lives at /agents/* — never bounce to bare /login (that hit the wrong route)
-      const base = (import.meta.env.BASE_URL || '/agents/').replace(/\/+$/, '') || '/agents'
-      const loginUrl = `${base}/login`
-      const here = window.location.pathname || ''
-      if (!here.includes('/login') && !here.endsWith('/login')) {
-        window.location.href = loginUrl
-      }
-    }
-    throw new Error('Session expired — please sign in again')
+    _handleUnauthorized(path)
   }
 
   const contentType = (res.headers.get('content-type') || '').toLowerCase()

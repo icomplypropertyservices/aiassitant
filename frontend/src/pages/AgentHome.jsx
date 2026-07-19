@@ -235,13 +235,29 @@ export default function AgentHome() {
     )
   }
 
-  const agent = data?.agent
+  if (!data) {
+    return (
+      <PageShell title="Agent dashboard" showBack backTo="/agent-dash">
+        <Alert
+          type="error"
+          showIcon
+          message={error || 'Could not load this agent dashboard'}
+          description="The API may still be starting (cold start) or your session expired. Try again."
+          action={<Button size="small" type="primary" onClick={load}>Retry</Button>}
+        />
+      </PageShell>
+    )
+  }
+
+  const agent = data?.agent || {}
   const settings = data?.settings || {}
   const stats = data?.stats || {}
-  const workflows = data?.workflows || data?.all_workflows || []
-  const patterns = data?.patterns || []
-  const tasks = data?.tasks || []
-  const activity = data?.activity || []
+  const workflows = Array.isArray(data?.workflows)
+    ? data.workflows
+    : (Array.isArray(data?.all_workflows) ? data.all_workflows : [])
+  const patterns = Array.isArray(data?.patterns) ? data.patterns : []
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+  const activity = Array.isArray(data?.activity) ? data.activity : []
   const canCreateFlows = !!(
     data?.can_create_flows
     || isLead(agent)
@@ -734,7 +750,7 @@ export default function AgentHome() {
         onOk={submitCustomFlow}
         okText="Start flow"
         confirmLoading={flowBusy}
-        destroyOnClose
+        destroyOnHidden
         width={640}
       >
         <Paragraph type="secondary" style={{ marginTop: 0 }}>

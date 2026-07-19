@@ -12,14 +12,21 @@
 export const APEX_HOST = 'aibusinessagent.xyz'
 export const APEX_ORIGIN = `https://${APEX_HOST}`
 
-/** Prefer apex origin in production; localhost keeps current origin. */
+/**
+ * Prefer the browser's current origin in production.
+ * Forcing apex (no-www) caused 308 redirects to www and broken navigations
+ * that felt like "pages keep crashing".
+ */
 export function siteOrigin() {
   if (typeof window === 'undefined') return APEX_ORIGIN
   const h = window.location.hostname || ''
   if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) {
     return window.location.origin
   }
-  if (h === APEX_HOST || h === `www.${APEX_HOST}`) return APEX_ORIGIN
+  // Stay on whatever host the user is already on (www or apex)
+  if (h === APEX_HOST || h === `www.${APEX_HOST}`) {
+    return window.location.origin || APEX_ORIGIN
+  }
   return window.location.origin
 }
 

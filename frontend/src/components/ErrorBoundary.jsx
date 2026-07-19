@@ -24,6 +24,32 @@ export default class ErrorBoundary extends React.Component {
     try {
       this.props.onError?.(error, info)
     } catch { /* ignore */ }
+    // Stale JS chunks after deploy: one automatic reload (session-scoped)
+    try {
+      const msg = String(error?.message || error || '')
+      if (
+        /Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(
+          msg,
+        )
+      ) {
+        const key = 'aba_chunk_reload_v1'
+        if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1')
+          window.location.reload()
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  componentDidUpdate(prevProps) {
+    // Allow parent to reset via key=pathname; also support resetKey prop
+    if (
+      this.state.error
+      && this.props.resetKey != null
+      && prevProps.resetKey !== this.props.resetKey
+    ) {
+      this.setState({ error: null, info: null })
+    }
   }
 
   reset = () => {

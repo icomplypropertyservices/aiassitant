@@ -45,9 +45,27 @@ function PageFallback() {
   return <LogoLoading tip="Loading…" minHeight={280} />
 }
 
+/** After a deploy, old tabs often fail to load stale chunks — reload once. */
+function isChunkLoadError(error) {
+  const msg = String(error?.message || error || '')
+  return /Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(
+    msg,
+  )
+}
+
+function onPageCrash(error) {
+  try {
+    if (!isChunkLoadError(error) || typeof window === 'undefined') return
+    const key = 'aba_chunk_reload_v1'
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    window.location.reload()
+  } catch { /* ignore */ }
+}
+
 function Lazy({ children }) {
   return (
-    <ErrorBoundary compact title="This page crashed">
+    <ErrorBoundary compact title="This page crashed" onError={onPageCrash}>
       <Suspense fallback={<PageFallback />}>{children}</Suspense>
     </ErrorBoundary>
   )
