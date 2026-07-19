@@ -1,14 +1,33 @@
 /**
  * Shared nav/footer + mobile menu for marketing site.
- * Single domain: aibusinessagent.xyz
- *   /           marketing
- *   /agents     product app
- *   /bay        AgentBay marketplace
+ *
+ * Apex path layout (aibusinessagent.xyz — no subdomains):
+ *   /           this marketing site
+ *   /agents/*   product app SPA
+ *   /bay/*      AgentBay marketplace SPA
+ *   /api/*      product API
  */
 (function () {
-  const ORIGIN = typeof location !== "undefined" ? location.origin : "https://aibusinessagent.xyz";
+  const APEX = "https://aibusinessagent.xyz";
+
+  function publicOrigin() {
+    try {
+      const h = location.hostname || "";
+      if (h === "localhost" || h === "127.0.0.1") return location.origin;
+      // Prefer apex so deep links stay on the canonical host
+      if (h === "aibusinessagent.xyz" || h === "www.aibusinessagent.xyz") return APEX;
+      return location.origin;
+    } catch (_) {
+      return APEX;
+    }
+  }
+
+  const ORIGIN = publicOrigin();
   const APP_URL = ORIGIN + "/agents";
   const BAY_URL = ORIGIN + "/bay";
+  // Same-origin path form (works even if host flips www↔apex mid-session)
+  const APP_PATH = "/agents";
+  const BAY_PATH = "/bay";
   const SITE_NAME = "AI Business Agent";
 
   const path = (location.pathname.split("/").pop() || "index.html").toLowerCase();
@@ -33,13 +52,13 @@
             ${navLink("/features.html", "Features")}
             ${navLink("/demo.html", "Demo")}
             ${navLink("/pricing.html", "Pricing")}
-            <a href="${BAY_URL}/browse">AgentBay</a>
+            <a href="${BAY_PATH}/browse" data-bay-href="/browse">AgentBay</a>
             ${navLink("/about.html", "About")}
             ${navLink("/support.html", "Support")}
           </nav>
           <div class="nav-cta" data-nav-cta>
-            <a class="btn btn-ghost" href="/demo.html">Demo</a>
-            <a class="btn btn-primary" href="${APP_URL}/console">Console</a>
+            <a class="btn btn-ghost" href="${BAY_PATH}/browse" data-bay-href="/browse">AgentBay</a>
+            <a class="btn btn-primary" href="${APP_PATH}/login" data-app-href="/login">Open app</a>
           </div>
         </div>`;
     }
@@ -51,15 +70,15 @@
           <div class="footer-grid">
             <div>
               <strong>${SITE_NAME}</strong>
-              AI workspaces, agent console, AgentBay marketplace, and clear billing for teams.
+              Landing site, agent console, and AgentBay marketplace — one apex domain.
             </div>
             <div>
               <strong>Product</strong>
               <a href="/features.html">Features</a>
               <a href="/demo.html">Product demo</a>
               <a href="/pricing.html">Pricing</a>
-              <a href="${APP_URL}">App</a>
-              <a href="${BAY_URL}/browse">AgentBay (browse free)</a>
+              <a href="${APP_PATH}/login" data-app-href="/login">Open app (/agents)</a>
+              <a href="${BAY_PATH}/browse" data-bay-href="/browse">AgentBay (/bay)</a>
             </div>
             <div>
               <strong>Company</strong>
@@ -77,23 +96,27 @@
           <div class="footer-bottom">
             <span>© ${new Date().getFullYear()} ${SITE_NAME}. All rights reserved.</span>
             <span>
-              <a href="${APP_URL}">/agents</a>
+              <a href="/">Landing</a>
               ·
-              <a href="${BAY_URL}">/bay</a>
+              <a href="${APP_PATH}" data-app-href="">App</a>
+              ·
+              <a href="${BAY_PATH}" data-bay-href="">AgentBay</a>
             </span>
           </div>
         </div>`;
     }
 
-    // App CTAs: data-app-href="/login") → /agents/login
+    // App CTAs: data-app-href="/login") → /agents/login (path layout; works on apex + www)
     document.querySelectorAll("[data-app-href]").forEach((el) => {
-      const pathSuffix = el.getAttribute("data-app-href") || "";
-      el.setAttribute("href", APP_URL + pathSuffix);
+      const pathSuffix = el.getAttribute("data-app-href");
+      if (pathSuffix === null) return;
+      el.setAttribute("href", APP_PATH + (pathSuffix || ""));
     });
-    // Bay CTAs: data-bay-href="/" → /bay/
+    // Bay CTAs: data-bay-href="/browse") → /bay/browse
     document.querySelectorAll("[data-bay-href]").forEach((el) => {
-      const pathSuffix = el.getAttribute("data-bay-href") || "";
-      el.setAttribute("href", BAY_URL + pathSuffix);
+      const pathSuffix = el.getAttribute("data-bay-href");
+      if (pathSuffix === null) return;
+      el.setAttribute("href", BAY_PATH + (pathSuffix || ""));
     });
 
     const toggle = document.querySelector("[data-nav-toggle]");

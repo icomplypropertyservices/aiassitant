@@ -35,9 +35,9 @@
           you can browse without signing in. Open the console when you’re ready to work.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-primary btn-lg" href="/demo.html">Try product demo</a>
+          <a class="btn btn-primary btn-lg" data-app-href="/login" href="/agents/login">Open app →</a>
           <a class="btn btn-ghost btn-lg" data-bay-href="/browse" href="/bay/browse" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.25)">Browse AgentBay free</a>
-          <a class="btn btn-ghost btn-lg" data-app-href="/login" href="/agents/login" style="background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)">Open console</a>
+          <a class="btn btn-ghost btn-lg" href="/demo.html" style="background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)">Try demo</a>
         </div>
         <div class="pill-row">
           <span class="pill">Interactive demo · no login</span>
@@ -61,41 +61,47 @@
 
   <section>
     <div class="container">
-      <p class="section-kicker">Three doors — all friendly</p>
-      <h2 class="section-title">Demo the system. Browse the bay. Or open the console.</h2>
-      <p class="section-sub">Pick what you need right now. Same domain, same login when you want it.</p>
+      <p class="section-kicker">One apex domain · three paths</p>
+      <h2 class="section-title">Landing · App · AgentBay</h2>
+      <p class="section-sub">
+        All on <strong>aibusinessagent.xyz</strong> —
+        <code>/</code> marketing ·
+        <code>/agents</code> product app ·
+        <code>/bay</code> marketplace.
+      </p>
       <div class="grid-3" style="gap: 20px">
         <article class="card" style="border: 2px solid var(--primary-soft)">
           <div class="icon-badge">▶</div>
-          <h3>Product demo</h3>
+          <h3>Landing &amp; demo</h3>
           <p>
-            Interactive walkthrough of workspace, agent hierarchy, chat, and token billing —
-            <strong>no account needed</strong>. See the full system in about a minute.
+            This site and the interactive product demo —
+            <strong>no account needed</strong>. See workspaces, hierarchy, and billing in about a minute.
           </p>
           <p style="margin-top: 16px">
-            <a class="btn btn-primary" href="/demo.html">Launch demo →</a>
+            <a class="btn btn-ghost" href="/demo.html">Launch demo →</a>
           </p>
         </article>
-        <article class="card">
+        <article class="card" style="border: 2px solid var(--primary-soft)">
+          <div class="icon-badge">🖥️</div>
+          <h3>Product app <span class="muted" style="font-size:0.85em">/agents</span></h3>
+          <p>
+            Multi-company workspaces, agent console, training, live token meter, and billing.
+            Sign in or start a free trial — loads the same SPA path used in production.
+          </p>
+          <p style="margin-top: 16px;display:flex;flex-wrap:wrap;gap:8px">
+            <a class="btn btn-primary" data-app-href="/login" href="/agents/login">Open app →</a>
+            <a class="btn btn-ghost" data-app-href="/console" href="/agents/console">Console</a>
+          </p>
+        </article>
+        <article class="card" style="border: 2px solid var(--primary-soft)">
           <div class="icon-badge">🛒</div>
-          <h3>AgentBay</h3>
+          <h3>AgentBay <span class="muted" style="font-size:0.85em">/bay</span></h3>
           <p>
             Browse agents, skills, and services. Search and open listings —
             no account needed. Sign in only to buy, sell, or message.
           </p>
           <p style="margin-top: 16px">
-            <a class="btn btn-ghost" data-bay-href="/browse" href="/bay/browse">Browse free →</a>
-          </p>
-        </article>
-        <article class="card">
-          <div class="icon-badge">🖥️</div>
-          <h3>Agent console</h3>
-          <p>
-            The product app: multi-company workspaces, hierarchy, training files, live token meter.
-            Create your company and manage agents from one console.
-          </p>
-          <p style="margin-top: 16px">
-            <a class="btn btn-ghost" data-app-href="/console" href="/agents/console">Open console →</a>
+            <a class="btn btn-primary" data-bay-href="/browse" href="/bay/browse">Browse free →</a>
           </p>
         </article>
       </div>

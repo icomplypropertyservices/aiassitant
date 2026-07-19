@@ -104,7 +104,7 @@ def _decode_oauth_state(state: str) -> dict:
 
 
 def _canonicalize_oauth_redirect(uri: str) -> str:
-    """Stable production redirect_uri for aibusinessagent.xyz (www).
+    """Stable production redirect_uri for aibusinessagent.xyz (apex).
 
     Google Error 400 redirect_uri_mismatch is almost always www vs apex,
     trailing slash, or /agents/api/... wrong path.
@@ -114,13 +114,13 @@ def _canonicalize_oauth_redirect(uri: str) -> str:
         return u
     # Never allow SPA-prefixed API paths
     u = u.replace("/agents/api/", "/api/")
-    # Pin our product domain to one canonical host (www)
+    # Pin our product domain to one canonical host (apex)
     if "aibusinessagent.xyz" in u:
-        u = u.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
+        u = u.replace("://www.aibusinessagent.xyz", "://aibusinessagent.xyz")
         # Prefer configured canonical when env/request drifts
         if u.endswith("/api/integrations/oauth/callback"):
             return getattr(config, "PROD_OAUTH_REDIRECT_URI", None) or (
-                "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
+                "https://aibusinessagent.xyz/api/integrations/oauth/callback"
             )
     return u
 
@@ -132,10 +132,10 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
     Authorized redirect URIs in Cloud Console **exactly**.
 
     Canonical production value (add this in Google Console):
-      https://www.aibusinessagent.xyz/api/integrations/oauth/callback
-
-    Also whitelist apex if users hit non-www (optional, we send www):
       https://aibusinessagent.xyz/api/integrations/oauth/callback
+
+    Also whitelist www during transition (optional, we send apex):
+      https://www.aibusinessagent.xyz/api/integrations/oauth/callback
 
     Never use FRONTEND_URL + /api/... when FRONTEND is .../agents.
     """
@@ -156,7 +156,7 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
             return getattr(
                 config,
                 "PROD_OAUTH_REDIRECT_URI",
-                "https://www.aibusinessagent.xyz/api/integrations/oauth/callback",
+                "https://aibusinessagent.xyz/api/integrations/oauth/callback",
             )
 
     # 2) API_PUBLIC_URL from config / env
@@ -190,7 +190,7 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
                     return getattr(
                         config,
                         "PROD_OAUTH_REDIRECT_URI",
-                        "https://www.aibusinessagent.xyz/api/integrations/oauth/callback",
+                        "https://aibusinessagent.xyz/api/integrations/oauth/callback",
                     )
                 return _canonicalize_oauth_redirect(
                     f"{proto}://{host}/api/integrations/oauth/callback"
@@ -275,8 +275,8 @@ def google_oauth_status(request: Request, user=Depends(get_current_user)):
             "oauth_ready": bool(cid and csec),
             "coming_soon": bool(app.get("coming_soon")),
         })
-    apex = getattr(config, "PROD_OAUTH_REDIRECT_URI_APEX", None) or (
-        "https://aibusinessagent.xyz/api/integrations/oauth/callback"
+    www_alt = getattr(config, "PROD_OAUTH_REDIRECT_URI_WWW", None) or (
+        "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
     )
     return {
         "ok": bool(cid and csec and redirect),
@@ -284,7 +284,7 @@ def google_oauth_status(request: Request, user=Depends(get_current_user)):
         "client_secret_set": bool(csec),
         "client_id_preview": (cid[:12] + "…") if len(cid) > 12 else (cid or None),
         "redirect_uri": redirect,
-        "redirect_uri_alternates": [apex] if redirect != apex else [],
+        "redirect_uri_alternates": [www_alt] if redirect != www_alt else [],
         "api_public_url": getattr(config, "API_PUBLIC_URL", None) or os.getenv("API_PUBLIC_URL") or None,
         "frontend_url": getattr(config, "FRONTEND_URL", None),
         "apps": apps,
@@ -292,8 +292,8 @@ def google_oauth_status(request: Request, user=Depends(get_current_user)):
             "Open Google Cloud Console → APIs & Services → Credentials",
             "OAuth 2.0 Client IDs → Web application client (not iOS/Android)",
             f"Authorized redirect URIs → ADD EXACTLY (copy-paste): {redirect}",
-            f"Also add (optional apex): {apex}",
-            "Authorized JavaScript origins → https://www.aibusinessagent.xyz and https://aibusinessagent.xyz",
+            f"Also add (optional www transition): {www_alt}",
+            "Authorized JavaScript origins → https://aibusinessagent.xyz and https://www.aibusinessagent.xyz",
             "OAuth consent screen → Publishing status Testing → Test users → Add the Google email you will use",
             "Error 403 access_denied = email not in Test users (or app not published)",
             "Enable APIs: Gmail, Sheets, Calendar, Drive, YouTube Data (as needed)",

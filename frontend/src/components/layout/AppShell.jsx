@@ -19,6 +19,7 @@ import AppHeader from './AppHeader'
 import BottomNav from './BottomNav'
 import NavDrawer from './NavDrawer'
 import DesktopSider from './DesktopSider'
+import { goBay, goMarketing } from '../../publicPaths'
 
 const { Content } = Layout
 
@@ -66,7 +67,12 @@ export default function AppShell() {
     setMenuOpen(false)
     setExploreOpen(false)
     if (key === '__bay__') {
-      window.location.href = '/bay'
+      goBay('/browse')
+      return
+    }
+    if (key === '__site__') {
+      // Marketing landing at apex root (outside /agents SPA)
+      goMarketing('/')
       return
     }
     if (key === '__explore__') {

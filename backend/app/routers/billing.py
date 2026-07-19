@@ -62,10 +62,10 @@ def _stripe_ready() -> bool:
 
 
 def _plan_line_item(plan: str, limits: dict) -> dict:
-    """Prefer configured Price ID; otherwise inline price_data (sandbox-friendly).
+    """Prefer configured Stripe Price ID; else inline monthly recurring price_data.
 
-    During pre-order we always use inline price_data at the discounted amount so
-    the 10% off is applied even if fixed Stripe Price IDs are configured.
+    Live mode (default): full list price, mode=subscription at Checkout.
+    Pre-order (PREORDER_FORCE only): inline discounted price_data.
     """
     amount = plan_checkout_price(plan)
     if amount <= 0:
@@ -73,7 +73,9 @@ def _plan_line_item(plan: str, limits: dict) -> dict:
     if amount <= 0:
         raise HTTPException(400, "Plan has no price for Stripe checkout")
 
-    # Fixed Price IDs skip pre-order discount — only use them after launch
+    # Fixed recurring Price IDs when live (real subscription products in Stripe).
+    # Price objects must be monthly recurring at list amounts: starter $39, pro $99,
+    # business $249 — mismatch vs plans.py will charge Stripe's amount, not list price.
     price_id = (PLAN_PRICE_IDS.get(plan) or "").strip()
     if price_id and not preorder_active():
         return {"price": price_id, "quantity": 1}
@@ -86,15 +88,19 @@ def _plan_line_item(plan: str, limits: dict) -> dict:
             f"Pre-order · 10% off (list ${list_price:.0f}/mo) · early access · "
             f"launch 27 July 2026. {desc}"
         )
+    else:
+        desc = f"Monthly subscription · access starts on payment. {desc}"
     product_name = f"AI Business Assistant — {name}"
     if preorder_active():
         product_name = f"AI Business Assistant — {name} (Pre-order 10% off)"
+    else:
+        product_name = f"AI Business Assistant — {name} (Monthly)"
     return {
         "price_data": {
             "currency": "usd",
             "product_data": {
                 "name": product_name,
-                "description": desc,
+                "description": desc[:500],
             },
             "unit_amount": int(round(amount * 100)),
             "recurring": {"interval": "month"},

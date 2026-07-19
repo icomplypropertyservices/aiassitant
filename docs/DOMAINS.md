@@ -62,18 +62,30 @@ aibusinessagent.xyz
 Attach domain:
 
 ```text
-aibusinessagent.xyz
-www.aibusinessagent.xyz   → redirect to apex (Vercel UI)
+aibusinessagent.xyz          ← primary (apex)
+www.aibusinessagent.xyz      → 301 redirect to apex (Vercel Domains UI)
 ```
+
+**Important:** In Vercel → Project → Settings → Domains, set **aibusinessagent.xyz** as primary
+and enable “Redirect www to aibusinessagent.xyz”. Do **not** redirect apex → www
+(that breaks “apex path layout” docs and some native clients).
 
 Root directory: repository root (uses root `vercel.json`).
 
-Build already:
+Build already (`scripts/vercel-build.sh`):
 
 1. Builds React app with `VITE_BASE=/agents/`
-2. Copies SPA → `public/agents/`
-3. Copies `website/` → `public/` (marketing at `/`)
-4. Optionally copies `bay-dist/` → `public/bay/` if present
+2. Copies SPA → `public/agents/`  → loads at `/agents/*`
+3. Copies `website/` → `public/`  → landing at `/`
+4. Copies `bay-dist/` → `public/bay/` if present → `/bay/*`
+
+Click-through (same host, path-only):
+
+| From | To app | To AgentBay |
+|------|--------|-------------|
+| Landing `/` | `/agents/login` | `/bay/browse` |
+| App menu | (in-app) | `/bay/browse` + Website `/` |
+| Login | — | Website `/` · AgentBay `/bay/browse` |
 
 Cron (root `vercel.json`):
 

@@ -163,7 +163,7 @@ export default function PlanCards({
             : {
                 label: isFree
                   ? freeCtaLabel
-                  : `${p.cta || (preorderOn ? `Pre-order ${p.name}` : `Get ${p.name}`)} · $${formatPrice(checkout)}/mo${stripeSandbox ? ' (test)' : ''}`,
+                  : `${p.cta || (preorderOn ? `Pre-order ${p.name}` : `Subscribe to ${p.name}`)} · $${formatPrice(checkout)}/mo${stripeSandbox ? ' (test)' : ''}`,
                 disabled: isCurrent,
                 // Free trial is the one-click path for new users — keep CTA primary
                 type: isFree || isHighlight || isCurrent ? 'primary' : 'default',

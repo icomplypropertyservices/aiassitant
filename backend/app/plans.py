@@ -3,11 +3,12 @@
 Customer-facing copy stays provider-neutral: managed/premium model tiers
 (Fast / Quality / Reasoning / Large) and included token pools only.
 
-Pre-order window (until launch): 10% off paid plans + early access.
-Launch date: 27 July 2026.
+Live mode: paid plans are real monthly Stripe/crypto subscriptions at list price.
+Pre-order discount is permanently off (see preorder_active).
 """
 from __future__ import annotations
 
+import os
 from datetime import date, datetime, timezone
 
 # Order for UI cards
@@ -81,10 +82,13 @@ STORAGE_ADDONS: dict[str, dict] = {
     },
 }
 
-# ── Pre-order / launch ──────────────────────────────────────────────────────
-# Pre-orders open now; public launch 27 July 2026. Pre-orders get 10% off and early access.
+# ── Pre-order / launch (disabled — live subscriptions) ──────────────────────
+# Historical launch marker only. Pre-order discount is OFF so Stripe Checkout
+# charges full list price as a real monthly subscription (mode=subscription).
 LAUNCH_DATE = date(2026, 7, 27)
 PREORDER_DISCOUNT_PERCENT = 10
+# Set PREORDER_FORCE=1 only to temporarily re-open the pre-order discount window.
+PREORDER_FORCE = (os.getenv("PREORDER_FORCE") or "").strip().lower() in ("1", "true", "yes")
 
 MODEL_AVAILABILITY = {
     "grok": {
@@ -106,7 +110,9 @@ MODEL_AVAILABILITY = {
 
 
 def preorder_active(today: date | None = None) -> bool:
-    """True until the calendar launch day (exclusive of launch day full price)."""
+    """Live mode: pre-order is off unless PREORDER_FORCE=1 and before LAUNCH_DATE."""
+    if not PREORDER_FORCE:
+        return False
     d = today or datetime.now(timezone.utc).date()
     return d < LAUNCH_DATE
 
@@ -115,33 +121,38 @@ def preorder_meta() -> dict:
     active = preorder_active()
     return {
         "active": active,
+        "live": not active,
         "launch_date": LAUNCH_DATE.isoformat(),
-        "launch_label": "27 July 2026",
+        "launch_label": "27 July 2026" if active else "Live now",
         "discount_percent": PREORDER_DISCOUNT_PERCENT if active else 0,
-        "early_access": active,
+        "early_access": bool(active),
         "cta_label": "Pre-order" if active else "Create account",
         "headline": (
             f"Pre-order now — {PREORDER_DISCOUNT_PERCENT}% off + early access"
             if active
-            else "Choose your plan"
+            else "Subscribe — live monthly plans"
         ),
         "blurb": (
             f"Launch 27 July 2026. Pre-orders get {PREORDER_DISCOUNT_PERCENT}% off paid plans "
             "and early access before open."
             if active
-            else "Pay with card (Stripe) or crypto (ETH / SOL / BTC / XRP)."
+            else (
+                "Live subscriptions at full list price. Pay monthly with card (Stripe) "
+                "or crypto (ETH / SOL / BTC / XRP). Access starts as soon as payment confirms."
+            )
         ),
         "payments": {
             "stripe": True,
             "crypto": True,
             "chains": ["ETH", "SOL", "BTC", "XRP"],
+            "mode": "subscription",
         },
         "models": MODEL_AVAILABILITY,
     }
 
 
 def apply_preorder_discount(list_price: float) -> float:
-    """Return checkout price after pre-order discount (if active)."""
+    """Return checkout price (list price when live; discounted only if pre-order forced on)."""
     price = float(list_price or 0)
     if price <= 0 or not preorder_active():
         return round(price, 2)
@@ -248,8 +259,8 @@ PLANS = {
         "requires_payment": True,
         "highlight": False,
         "badge": None,
-        "cta": "Pre-order Starter",
-        "cta_upgrade": "Pre-order Starter",
+        "cta": "Subscribe to Starter",
+        "cta_upgrade": "Upgrade to Starter",
         "upgrade_teaser": "Pro: 10M tokens, 40 agents, 500 skills/agent, all 20 packs.",
         "next_plan": "pro",
         "sort": 1,
@@ -286,8 +297,8 @@ PLANS = {
         "requires_payment": True,
         "highlight": True,
         "badge": "Most popular",
-        "cta": "Pre-order Pro",
-        "cta_upgrade": "Pre-order Pro",
+        "cta": "Subscribe to Pro",
+        "cta_upgrade": "Upgrade to Pro",
         "upgrade_teaser": "Business: 40M tokens, 120 agents, 1,000 skills/agent for agencies.",
         "next_plan": "business",
         "sort": 2,
@@ -324,8 +335,8 @@ PLANS = {
         "requires_payment": True,
         "highlight": False,
         "badge": "Scale",
-        "cta": "Pre-order Business",
-        "cta_upgrade": "Pre-order Business",
+        "cta": "Subscribe to Business",
+        "cta_upgrade": "Upgrade to Business",
         "upgrade_teaser": "You're on the top public tier — top up wallet for spikes.",
         "next_plan": None,
         "sort": 3,
@@ -405,7 +416,7 @@ def max_enabled_skills(plan_id: str | None) -> int:
 
 
 def enrich_plan_for_public(plan_id: str, p: dict | None = None) -> dict:
-    """Attach pre-order pricing fields for UI / checkout display."""
+    """Attach checkout pricing fields for UI (list price; discount only if pre-order forced)."""
     base = dict(p or plan_limits(plan_id))
     list_price = float(base.get("price") or 0)
     checkout = apply_preorder_discount(list_price)
@@ -414,25 +425,30 @@ def enrich_plan_for_public(plan_id: str, p: dict | None = None) -> dict:
     base["price"] = list_price  # list price stays for comparison
     base["price_checkout"] = checkout
     base["preorder_active"] = active
+    base["live_subscription"] = not active
     base["preorder_discount_percent"] = PREORDER_DISCOUNT_PERCENT if active and list_price > 0 else 0
     if active and list_price > 0:
         base["price_display"] = checkout
         base["preorder_savings"] = round(list_price - checkout, 2)
         if not (base.get("badge") and base.get("highlight")):
-            base["badge"] = base.get("badge") or f"{PREORDER_DISCOUNT_PERCENT}% off pre-order"
-        # Prefer pre-order CTAs while window is open
+            base["badge"] = f"{PREORDER_DISCOUNT_PERCENT}% off pre-order"
+        # Force pre-order CTAs when discount window is active (overwrite live CTAs)
         name = base.get("name") or plan_id.title()
         if base.get("requires_payment"):
-            base["cta"] = base.get("cta") or f"Pre-order {name}"
-            base["cta_upgrade"] = base.get("cta_upgrade") or f"Pre-order {name}"
+            base["cta"] = f"Pre-order {name}"
+            base["cta_upgrade"] = f"Pre-order {name}"
     else:
         base["price_display"] = list_price
         base["preorder_savings"] = 0
-        # Post-launch CTAs
-        if base.get("requires_payment") and str(base.get("cta") or "").lower().startswith("pre-order"):
+        # Live monthly subscription CTAs
+        if base.get("requires_payment"):
             name = base.get("name") or plan_id.title()
-            base["cta"] = f"Get {name}"
-            base["cta_upgrade"] = f"Upgrade to {name}"
+            cta = str(base.get("cta") or "")
+            if not cta or cta.lower().startswith("pre-order"):
+                base["cta"] = f"Subscribe to {name}"
+            up = str(base.get("cta_upgrade") or "")
+            if not up or up.lower().startswith("pre-order"):
+                base["cta_upgrade"] = f"Upgrade to {name}"
     return base
 
 

@@ -6,9 +6,11 @@ import {
   ApartmentOutlined, CheckSquareOutlined, ClusterOutlined, BookOutlined,
   UserOutlined, ThunderboltOutlined, ShopOutlined, SafetyCertificateOutlined,
   TeamOutlined, GlobalOutlined, CommentOutlined, RightOutlined, PhoneOutlined,
+  HomeOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getUser } from '../api'
+import { goBay, goMarketing } from '../publicPaths'
 
 /**
  * Every major surface of the product — single source of truth for
@@ -34,7 +36,8 @@ export function getSystemNavItems({ isAdmin = false } = {}) {
     { key: '/billing', icon: <CreditCardOutlined />, title: 'Billing', blurb: 'Plans, tokens, storage', group: 'Account' },
     { key: '/analytics', icon: <BarChartOutlined />, title: 'Analytics', blurb: 'Usage charts', group: 'Account' },
     { key: '/settings', icon: <SettingOutlined />, title: 'Settings', blurb: 'Keys, apps, mobile', group: 'Account' },
-    { key: '__bay__', icon: <GlobalOutlined />, title: 'AgentBay', blurb: 'Marketplace of agents', group: 'More', external: true },
+    { key: '__bay__', icon: <GlobalOutlined />, title: 'AgentBay', blurb: 'Marketplace at /bay', group: 'More', external: true },
+    { key: '__site__', icon: <HomeOutlined />, title: 'Website', blurb: 'Marketing landing at /', group: 'More', external: true },
   ]
   if (isAdmin) {
     items.push({
@@ -58,8 +61,18 @@ export default function SystemNav({ compact = false, groups = true, onNavigate, 
   const items = getSystemNavItems({ isAdmin: user?.role === 'admin' })
 
   const go = (item) => {
-    if (item.external || item.key === '__bay__') {
-      window.location.href = '/bay'
+    if (item.key === '__bay__') {
+      goBay('/browse')
+      onNavigate?.()
+      return
+    }
+    if (item.key === '__site__') {
+      goMarketing('/')
+      onNavigate?.()
+      return
+    }
+    if (item.external && typeof item.key === 'string' && item.key.startsWith('http')) {
+      window.location.href = item.key
       onNavigate?.()
       return
     }

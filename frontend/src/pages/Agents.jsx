@@ -19,6 +19,7 @@ import { modelLabel } from '../models'
 import { isOrchestrator, isLead, sortAgents } from '../agents/roles'
 import PageShell from '../components/PageShell'
 import CoreTeam from '../components/CoreTeam'
+import { goBay } from '../publicPaths'
 
 
 const ICONS = {
@@ -508,7 +509,7 @@ export default function Agents() {
               </Space>
               <Space wrap>
                 <Button onClick={() => nav('/tasks')}>Tasks board</Button>
-                <Button type="link" href="/bay/browse" style={{ paddingInline: 0 }}>
+                <Button type="link" href="/bay/browse" style={{ paddingInline: 0 }} onClick={(e) => { e.preventDefault(); goBay('/browse') }}>
                   Browse AgentBay →
                 </Button>
               </Space>

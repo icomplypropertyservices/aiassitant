@@ -565,12 +565,17 @@ def _google_auth_redirect_uri() -> str:
     """Must be listed in Google Cloud Console → Authorized redirect URIs."""
     explicit = (os.getenv("GOOGLE_AUTH_REDIRECT_URI") or "").strip().rstrip("/")
     if explicit:
+        # Prefer apex when product host is used
+        if "://www.aibusinessagent.xyz/" in explicit:
+            explicit = explicit.replace(
+                "://www.aibusinessagent.xyz/", "://aibusinessagent.xyz/"
+            )
         return explicit
-    # Prefer production pin
+    # Prefer production apex pin
     if getattr(config, "IS_PRODUCTION", False) or "aibusinessagent.xyz" in (
         (config.API_PUBLIC_URL or "") + (config.FRONTEND_URL or "")
     ):
-        return "https://www.aibusinessagent.xyz/api/auth/google/callback"
+        return "https://aibusinessagent.xyz/api/auth/google/callback"
     api = (config.API_PUBLIC_URL or "").rstrip("/")
     # Local SPA (Vite :5173) is not the API host — FastAPI defaults to :8000
     if api and "localhost:5173" not in api and "127.0.0.1:5173" not in api:

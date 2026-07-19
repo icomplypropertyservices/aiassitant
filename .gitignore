@@ -15,6 +15,11 @@ scripts/_login_body.json
 
 # Local smoke artifacts
 scripts/live-screenshots/
+scripts/*_report.json
+scripts/live_*_report.json
+scripts/assert_*_report.json
+scripts/skill_test_report.json
+scripts/_test_skill_parse.py
 backend/scripts/*_report.json
 backend/app/skills/*.bak
 backend/app/skills/handlers_all.py.bak

@@ -68,7 +68,7 @@ export default function Settings() {
           + 'Add your Google email under Google Cloud Console → OAuth consent screen → Test users, then Connect again with that account.'
         )
       } else if (/invalid_request|redirect_uri|redirect uri|mismatch/i.test(friendly)) {
-        friendly = `${friendly} — Add this exact Redirect URI in Google Cloud Console → Credentials → Web client: https://www.aibusinessagent.xyz/api/integrations/oauth/callback`
+        friendly = `${friendly} — Add this exact Redirect URI in Google Cloud Console → Credentials → Web client: https://aibusinessagent.xyz/api/integrations/oauth/callback`
       }
       message.error(friendly, 14)
       setTab('apps')

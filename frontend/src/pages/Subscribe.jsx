@@ -22,8 +22,8 @@ export default function Subscribe() {
   const [companyName, setCompanyName] = useState(
     localStorage.getItem('preferred_company_name') || '',
   )
-  // Default to pre-order messaging until API says the window closed
-  const preorderOn = preorder == null ? true : Boolean(preorder.active)
+  // Live subscriptions by default; pre-order only when API says active
+  const preorderOn = Boolean(preorder?.active)
   const user = getUser()
   const expiresAt = user?.subscription_expires_at || null
   const planKey = String(user?.plan || 'none').toLowerCase()
@@ -63,11 +63,12 @@ export default function Subscribe() {
     }).catch(() => {})
     api('/billing/preorder').then(setPreorder).catch(() => {
       setPreorder({
-        active: true,
-        launch_label: '27 July 2026',
-        discount_percent: 10,
-        early_access: true,
-        headline: 'Pre-order now — 10% off + early access',
+        active: false,
+        live: true,
+        launch_label: 'Live now',
+        discount_percent: 0,
+        early_access: false,
+        headline: 'Subscribe — live monthly plans',
       })
     })
     const q = new URLSearchParams(window.location.search)
@@ -146,7 +147,7 @@ export default function Subscribe() {
     const checkout = preorderOn && p.price_checkout != null ? p.price_checkout : p.price
     const priceLabel = Number(checkout) % 1 ? Number(checkout).toFixed(2) : String(checkout)
     return {
-      label: `${p.cta || (preorderOn ? `Pre-order ${p.name}` : `Get ${p.name}`)} · $${priceLabel}/mo${payOpts?.stripe?.sandbox ? ' (test)' : ''}`,
+      label: `${p.cta || (preorderOn ? `Pre-order ${p.name}` : `Subscribe to ${p.name}`)} · $${priceLabel}/mo${payOpts?.stripe?.sandbox ? ' (test)' : ''}`,
       disabled: false,
       type: p.highlight ? 'primary' : 'default',
     }
@@ -180,7 +181,7 @@ export default function Subscribe() {
             <Typography.Title level={2} style={{ color: '#fff', margin: '0 0 6px', letterSpacing: '-0.03em' }}>
               {trialEnded
                 ? 'Pick a paid plan to continue'
-                : 'Start free — or pre-order a paid plan'}
+                : 'Start free — or subscribe'}
             </Typography.Title>
             <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.88)', margin: '0 auto 12px', maxWidth: 560 }}>
               Signed in as <strong>{user?.email}</strong>.
@@ -188,7 +189,7 @@ export default function Subscribe() {
                 ? ' Your free trial has ended — choose Starter or higher to keep agents, tokens, and workspace access.'
                 : preorderOn
                   ? ` Start the free trial with one click (no card), or pre-order before launch (${preorder?.launch_label || '27 July 2026'}) for ${preorder?.discount_percent || 10}% off + early access.`
-                  : ' Start free with one click (no card), then upgrade when you need more agents and tokens.'}
+                  : ' Start free with one click (no card), or subscribe to a monthly plan (card or crypto). Access starts when payment confirms.'}
             </Typography.Paragraph>
             {expiresMeta && (
               <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -221,7 +222,7 @@ export default function Subscribe() {
                 <WalletOutlined /> Crypto ETH · SOL · BTC · XRP
                 {payOpts?.crypto?.ready === false && !cryptoEnabled ? ' · setup pending' : ''}
               </span>
-              <span className="aba-feature-pill"><CrownOutlined /> Early access for pre-orders</span>
+              <span className="aba-feature-pill"><CrownOutlined /> Live monthly subscriptions</span>
             </Space>
             <div className="aba-subscribe-company-wrap">
               <div className="aba-subscribe-company-row">
@@ -342,14 +343,14 @@ export default function Subscribe() {
                 title={
                   trialEnded
                     ? 'Choose a paid plan'
-                    : (preorderOn ? 'Pre-order plans' : 'Choose a plan')
+                    : (preorderOn ? 'Pre-order plans' : 'Live subscription plans')
                 }
                 subtitle={
                   trialEnded
                     ? 'Starter, Pro, or Business — pay with Stripe or crypto to restore access.'
                     : preorderOn
                       ? 'Centered pricing — 10% off until launch. Free trial is highlighted; paid tiers unlock more capacity.'
-                      : 'Free trial is highlighted. Pick a paid tier when you need more agents and tokens.'
+                      : 'Real monthly subscriptions at list price. Free trial is highlighted; paid tiers unlock more capacity.'
                 }
                 centered
               />

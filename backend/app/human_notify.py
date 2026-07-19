@@ -24,8 +24,8 @@ from .user_keys import credentials_for_user
 
 log = logging.getLogger("app.human_notify")
 
-# Canonical production origin (www avoids apex redirect issues for POSTs/links)
-_PROD_ORIGIN = "https://www.aibusinessagent.xyz"
+# Canonical production origin (apex path layout; www should 301 → apex)
+_PROD_ORIGIN = "https://aibusinessagent.xyz"
 _PROD_APP = f"{_PROD_ORIGIN}/agents"
 _FAVICON = f"{_PROD_ORIGIN}/agents/favicon-32.png"
 _LOGO = f"{_PROD_ORIGIN}/agents/logo-256.png"
@@ -33,12 +33,12 @@ _ICON_192 = f"{_PROD_ORIGIN}/agents/icons/icon-192.png"
 
 
 def public_origin() -> str:
-    """https://www.aibusinessagent.xyz (or local origin)."""
+    """https://aibusinessagent.xyz (or local origin)."""
     fu = (getattr(config, "FRONTEND_URL", None) or "").strip().rstrip("/")
     if fu:
-        # Normalize apex → www for production links
-        if "aibusinessagent.xyz" in fu and "www." not in fu:
-            fu = fu.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
+        # Normalize www → apex for production links
+        if "://www.aibusinessagent.xyz" in fu:
+            fu = fu.replace("://www.aibusinessagent.xyz", "://aibusinessagent.xyz")
         try:
             p = urlparse(fu)
             if p.scheme and p.netloc:
@@ -62,9 +62,9 @@ def _app_base() -> str:
     base = (getattr(config, "FRONTEND_URL", None) or "").strip().rstrip("/")
     if not base:
         return _PROD_APP if getattr(config, "IS_PRODUCTION", False) else "http://localhost:5173"
-    # Normalize production domain to www
-    if "aibusinessagent.xyz" in base and "www." not in base:
-        base = base.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
+    # Normalize production domain to apex
+    if "://www.aibusinessagent.xyz" in base:
+        base = base.replace("://www.aibusinessagent.xyz", "://aibusinessagent.xyz")
     if base.endswith("/agents"):
         return base
     if "aibusinessagent" in base or getattr(config, "IS_PRODUCTION", False):

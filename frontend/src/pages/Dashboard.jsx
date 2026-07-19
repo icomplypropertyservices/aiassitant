@@ -16,6 +16,7 @@ import PageShell from '../components/PageShell'
 import { LogoLoading } from '../components/BrandLogo'
 import SystemNav from '../components/SystemNav'
 import CoreTeam from '../components/CoreTeam'
+import { goBay, goMarketing } from '../publicPaths'
 
 /**
  * Dashboard — every block lives inside an Ant Design Card within the
@@ -412,7 +413,8 @@ export default function Dashboard() {
             <Button onClick={() => nav('/training')}>Training</Button>
             <Button onClick={() => nav('/comms')}>Calls · SMS · Email</Button>
             <Button onClick={() => nav('/settings')}>Settings</Button>
-            <Button onClick={() => { window.location.href = '/bay' }}>AgentBay</Button>
+            <Button onClick={() => goBay('/browse')}>AgentBay</Button>
+            <Button onClick={() => goMarketing('/')}>Website</Button>
           </Space>
         </Card>
 

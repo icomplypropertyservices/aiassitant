@@ -36,7 +36,7 @@ export default function Billing() {
   const [autoBusy, setAutoBusy] = useState(false)
   const [storage, setStorage] = useState(null)
   const [storageBusy, setStorageBusy] = useState(null)
-  const preorderOn = preorder == null ? true : Boolean(preorder.active)
+  const preorderOn = Boolean(preorder?.active)
 
   const load = () => {
     api('/billing/balance').then((b) => {
@@ -638,7 +638,7 @@ export default function Billing() {
             subtitle={
               preorderOn
                 ? 'Pre-order 10% off · upgrade anytime. Higher tiers unlock more agents, companies, and tokens.'
-                : 'Upgrade anytime. Higher tiers unlock more agents, companies, and included tokens.'
+                : 'Live monthly subscriptions. Upgrade anytime. Higher tiers unlock more agents, companies, and included tokens.'
             }
             centered
           />

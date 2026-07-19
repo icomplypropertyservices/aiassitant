@@ -10,6 +10,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { api, setAuth, getToken, getUser } from '../api'
 import PlanCards from '../components/PlanCards'
 import BrandLogo from '../components/BrandLogo'
+import { goBay, goMarketing } from '../publicPaths'
 
 const PASSWORD_PLACEHOLDER = 'At least 8 characters, include a letter and number'
 
@@ -92,7 +93,7 @@ export default function Login() {
       if (/redirect_uri/i.test(friendly)) {
         friendly = (
           'Google redirect URI mismatch — in Google Cloud Console add: '
-          + 'https://www.aibusinessagent.xyz/api/auth/google/callback'
+          + 'https://aibusinessagent.xyz/api/auth/google/callback'
         )
       }
       message.error(friendly, 12)
@@ -108,13 +109,14 @@ export default function Login() {
     api('/billing/plans').then(setPlans).catch(() => {})
     api('/billing/preorder').then(setPreorder).catch(() => {
       setPreorder({
-        active: true,
-        launch_label: '27 July 2026',
-        discount_percent: 10,
-        early_access: true,
-        cta_label: 'Pre-order',
-        headline: 'Pre-order now — 10% off + early access',
-        blurb: 'Launch 27 July 2026. Pre-orders get 10% off and early access.',
+        active: false,
+        live: true,
+        launch_label: 'Live now',
+        discount_percent: 0,
+        early_access: false,
+        cta_label: 'Create account',
+        headline: 'Subscribe — live monthly plans',
+        blurb: 'Live subscriptions at full list price. Pay monthly with Stripe or crypto.',
       })
     })
     api('/auth/oauth/providers')
@@ -122,7 +124,7 @@ export default function Login() {
       .catch(() => setGoogleEnabled(true))
   }, [nav, searchParams])
 
-  const preorderOn = preorder?.active !== false
+  const preorderOn = Boolean(preorder?.active)
 
   const finishAuth = (data, isRegister) => {
     const sessionKey = data?.api_key || data?.token
@@ -306,6 +308,22 @@ export default function Login() {
               <span className="aba-feature-pill"><ThunderboltOutlined /> Live token meter</span>
               <span className="aba-feature-pill"><SafetyCertificateOutlined /> Stripe + crypto</span>
             </Space>
+            <Space wrap style={{ justifyContent: 'center', marginTop: 14 }}>
+              <Button
+                type="link"
+                style={{ color: 'rgba(255,255,255,0.92)' }}
+                onClick={() => goMarketing('/')}
+              >
+                ← Website
+              </Button>
+              <Button
+                type="link"
+                style={{ color: 'rgba(255,255,255,0.92)' }}
+                onClick={() => goBay('/browse')}
+              >
+                AgentBay →
+              </Button>
+            </Space>
           </div>
 
           {/* Auth form — narrow centered Ant Design Card */}
@@ -478,7 +496,7 @@ export default function Login() {
                   <Typography.Paragraph type="secondary" className="aba-auth-form-note">
                     {preorderOn
                       ? 'After pre-order, pick a plan — 10% off until launch. Stripe card or crypto (ETH / SOL / BTC / XRP).'
-                      : 'After sign-up, choose a plan. Pay with card or crypto (ETH / SOL / XRP).'}
+                      : 'After sign-up, choose a plan. Live monthly subscriptions via Stripe card or crypto (ETH / SOL / XRP).'}
                   </Typography.Paragraph>
                 </>
               )}
@@ -492,12 +510,12 @@ export default function Login() {
               title={
                 <div className="aba-auth-plans-head">
                   <span className="aba-auth-plans-card-title">
-                    {preorderOn ? 'Pre-order plans' : 'Plans'}
+                    {preorderOn ? 'Pre-order plans' : 'Live subscription plans'}
                   </span>
                   <Typography.Text type="secondary" className="aba-auth-plans-sub">
                     {preorderOn
                       ? '10% off · early access · launch 27 July 2026'
-                      : 'Stripe card or crypto at checkout'}
+                      : 'Monthly at list price · Stripe or crypto'}
                   </Typography.Text>
                 </div>
               }

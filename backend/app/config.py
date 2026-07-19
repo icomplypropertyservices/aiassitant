@@ -122,13 +122,15 @@ def _env_str(name: str, default: str = "") -> str:
 
 # Product UI path on aibusinessagent.xyz is /agents (not a subdomain).
 # Stripe success/cancel URLs are built from FRONTEND_URL.
+# Canonical host is APEX; www should 301 → apex in Vercel Domains.
+_PROD_APEX = "https://aibusinessagent.xyz"
 FRONTEND_URL = _env_str(
     "FRONTEND_URL",
-    "http://localhost:5173" if not IS_PRODUCTION else "https://www.aibusinessagent.xyz/agents",
+    "http://localhost:5173" if not IS_PRODUCTION else f"{_PROD_APEX}/agents",
 ).rstrip("/")
-# Prefer www on production so email/SMS/OAuth links don't bounce apex redirects
-if IS_PRODUCTION and "aibusinessagent.xyz" in FRONTEND_URL and "www." not in FRONTEND_URL:
-    FRONTEND_URL = FRONTEND_URL.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
+# Prefer apex on production so links/OAuth match path layout docs
+if IS_PRODUCTION and "://www.aibusinessagent.xyz" in FRONTEND_URL:
+    FRONTEND_URL = FRONTEND_URL.replace("://www.aibusinessagent.xyz", "://aibusinessagent.xyz")
 _default_cors = (
     "https://aibusinessagent.xyz,https://www.aibusinessagent.xyz"
     if IS_PRODUCTION
@@ -137,16 +139,22 @@ _default_cors = (
 CORS_ORIGINS = [o.strip() for o in _env_str("CORS_ORIGINS", _default_cors).split(",") if o.strip()]
 DATABASE_URL = _env_str("DATABASE_URL", "sqlite:///./app.db")
 # AgentBay marketplace (same domain path /bay)
-AGENTBAY_PUBLIC_URL = _env_str("AGENTBAY_PUBLIC_URL", "https://www.aibusinessagent.xyz/bay").rstrip("/")
+AGENTBAY_PUBLIC_URL = _env_str("AGENTBAY_PUBLIC_URL", f"{_PROD_APEX}/bay").rstrip("/")
+if IS_PRODUCTION and "://www.aibusinessagent.xyz" in AGENTBAY_PUBLIC_URL:
+    AGENTBAY_PUBLIC_URL = AGENTBAY_PUBLIC_URL.replace(
+        "://www.aibusinessagent.xyz", "://aibusinessagent.xyz"
+    )
 
 # Canonical production OAuth callback (Google redirect_uri_mismatch if wrong host/path).
 # Must match Google Cloud Console → Credentials → Web client → Authorized redirect URIs
-# EXACTLY (https, no trailing slash). Prefer www to match FRONTEND_URL.
-PROD_OAUTH_REDIRECT_URI = "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
-PROD_OAUTH_REDIRECT_URI_APEX = "https://aibusinessagent.xyz/api/integrations/oauth/callback"
+# EXACTLY (https, no trailing slash). Apex is canonical; also register www as optional.
+PROD_OAUTH_REDIRECT_URI = f"{_PROD_APEX}/api/integrations/oauth/callback"
+PROD_OAUTH_REDIRECT_URI_WWW = "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
+# Back-compat alias used by older call sites
+PROD_OAUTH_REDIRECT_URI_APEX = PROD_OAUTH_REDIRECT_URI
 
 # Public API origin (no trailing slash). Used for OAuth redirect_uri.
-# Production path deploy: https://www.aibusinessagent.xyz/api
+# Production path deploy: https://aibusinessagent.xyz/api
 _api_public_env = _env_str("API_PUBLIC_URL").rstrip("/")
 _oauth_redirect_env = _env_str("OAUTH_REDIRECT_URI")
 if _api_public_env:
@@ -165,17 +173,20 @@ else:
             API_PUBLIC_URL = ""
     else:
         API_PUBLIC_URL = (
-            "http://localhost:8000" if not IS_PRODUCTION else "https://www.aibusinessagent.xyz/api"
+            "http://localhost:8000" if not IS_PRODUCTION else f"{_PROD_APEX}/api"
         )
+if IS_PRODUCTION and "://www.aibusinessagent.xyz" in (API_PUBLIC_URL or ""):
+    API_PUBLIC_URL = API_PUBLIC_URL.replace(
+        "://www.aibusinessagent.xyz", "://aibusinessagent.xyz"
+    )
 
 # Exact callback Google/Slack/etc. must redirect to.
-# Production product domain ALWAYS pins to canonical www URI so Google Console
-# has one stable value (Error 400 redirect_uri_mismatch = www vs apex or drifted env).
+# Production pins to apex so FRONTEND/API/OAuth share one host contract.
 _product_host = "aibusinessagent.xyz" in (
     f"{API_PUBLIC_URL} {FRONTEND_URL} {_oauth_redirect_env}"
 )
 if IS_PRODUCTION and _product_host:
-    # Force www canonical — ignore apex / wrong host in OAUTH_REDIRECT_URI env
+    # Force apex canonical — ignore www / wrong host in OAUTH_REDIRECT_URI env
     OAUTH_REDIRECT_URI = PROD_OAUTH_REDIRECT_URI
 elif IS_PRODUCTION and not _oauth_redirect_env:
     OAUTH_REDIRECT_URI = PROD_OAUTH_REDIRECT_URI
@@ -186,10 +197,10 @@ else:
     )
 # Normalize accidental trailing slash (Google treats as different URI)
 OAUTH_REDIRECT_URI = (OAUTH_REDIRECT_URI or "").rstrip("/")
-# Final pin: never leave product domain on apex host
-if "://aibusinessagent.xyz/" in (OAUTH_REDIRECT_URI or "") and "://www." not in OAUTH_REDIRECT_URI:
+# Final pin: product domain always apex (www → apex)
+if "://www.aibusinessagent.xyz/" in (OAUTH_REDIRECT_URI or ""):
     OAUTH_REDIRECT_URI = OAUTH_REDIRECT_URI.replace(
-        "://aibusinessagent.xyz/", "://www.aibusinessagent.xyz/"
+        "://www.aibusinessagent.xyz/", "://aibusinessagent.xyz/"
     )
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

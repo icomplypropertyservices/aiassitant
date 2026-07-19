@@ -1,7 +1,12 @@
 User-agent: *
 Allow: /
+Allow: /features.html
+Allow: /demo.html
+Allow: /pricing.html
+Allow: /bay/browse
 Disallow: /agents
-Disallow: /bay
+Disallow: /bay/api
 Disallow: /api
 
 Sitemap: https://aibusinessagent.xyz/sitemap.xml
+

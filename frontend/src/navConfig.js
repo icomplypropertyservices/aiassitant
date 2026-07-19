@@ -33,7 +33,8 @@ export function buildMenuItems({ isAdmin = false } = {}) {
     { key: '/training', label: 'Training', icon: 'training', group: 'Grow' },
     { key: '/analytics', label: 'Analytics', icon: 'analytics', group: 'Grow' },
     { key: '/billing', label: 'Billing', icon: 'billing', group: 'Account' },
-    { key: '__bay__', label: 'AgentBay', icon: 'bay', group: 'Account' },
+    { key: '__bay__', label: 'AgentBay', icon: 'bay', group: 'Account', external: true },
+    { key: '__site__', label: 'Website', icon: 'home', group: 'Account', external: true },
     { key: '/profile', label: 'Profile', icon: 'profile', group: 'Account' },
     { key: '/settings', label: 'Settings', icon: 'settings', group: 'Account' },
   ]

@@ -10,9 +10,8 @@
  * Native default: VITE_PROD_API_URL or https://aibusinessagent.xyz/api
  */
 
-// Prefer www: apex currently 308-redirects some POSTs to www, which breaks
-// non-browser clients (urllib / some native stacks) that do not re-POST.
-const PROD_API_DEFAULT = 'https://www.aibusinessagent.xyz/api'
+// Apex path layout (no subdomains). Prefer apex so native/clients match production.
+const PROD_API_DEFAULT = 'https://aibusinessagent.xyz/api'
 
 function isNativeShell() {
   try {
