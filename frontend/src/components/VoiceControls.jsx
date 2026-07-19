@@ -145,6 +145,8 @@ export default function VoiceControls({
 
   const recRef = useRef(null)
   const finalRef = useRef('')
+  /** Latest interim (non-final) words — browsers often never mark isFinal before silence */
+  const interimRef = useRef('')
   const listeningRef = useRef(false)
   const wantListenRef = useRef(false)
   const heardSpeechRef = useRef(false)
@@ -152,6 +154,11 @@ export default function VoiceControls({
   const maxTimerRef = useRef(null)
   const restartTimerRef = useRef(null)
   const mountedRef = useRef(true)
+  /** Parent callbacks in refs so finishListening always uses latest send/busy handlers */
+  const onTranscriptRef = useRef(onTranscript)
+  const onPartialRef = useRef(onPartial)
+  useEffect(() => { onTranscriptRef.current = onTranscript }, [onTranscript])
+  useEffect(() => { onPartialRef.current = onPartial }, [onPartial])
 
   // Volume meter (Web Audio)
   const streamRef = useRef(null)
@@ -367,6 +374,12 @@ export default function VoiceControls({
     }
   }
 
+  const combinedTranscript = () => {
+    const fin = String(finalRef.current || '').trim()
+    const inter = String(interimRef.current || '').trim()
+    return `${fin}${fin && inter ? ' ' : ''}${inter}`.replace(/\s+/g, ' ').trim()
+  }
+
   const finishListening = (sendText, { forceSend = false } = {}) => {
     wantListenRef.current = false
     listeningRef.current = false
@@ -377,15 +390,30 @@ export default function VoiceControls({
     stopVolumeMeter()
     releaseKeepAwake().catch(() => {})
 
-    const text = String(sendText ?? finalRef.current ?? '').trim()
+    // Prefer explicit text; else final + interim (interim alone is common on mobile Chrome)
+    const text = String(
+      sendText != null && String(sendText).trim()
+        ? sendText
+        : combinedTranscript(),
+    ).trim()
     if (mountedRef.current) setPartial('')
     finalRef.current = ''
+    interimRef.current = ''
     heardSpeechRef.current = false
-    if (text) {
-      meterVoice('voice_stt', text)
-      // forceSend = user tapped the Send button while talking
-      if ((autoSend || forceSend) && onTranscript) onTranscript(text)
-      else if (onPartial) onPartial(text)
+    if (!text) {
+      message.info('No speech captured — hold the mic a moment longer, then pause or tap Send')
+      return
+    }
+    meterVoice('voice_stt', text)
+    // Always put text in the composer first so a failed auto-send is not lost
+    try { onPartialRef.current?.(text) } catch { /* ignore */ }
+    // forceSend = user tapped the Send button while talking
+    if ((autoSend || forceSend) && onTranscriptRef.current) {
+      try {
+        onTranscriptRef.current(text)
+      } catch (e) {
+        message.warning(e?.message || 'Could not send voice message — text is in the box, tap Send')
+      }
     }
   }
 
@@ -418,6 +446,13 @@ export default function VoiceControls({
       }
     }
     rec.onend = () => {
+      // Fold non-final words into the committed buffer before Chrome restarts
+      if (interimRef.current) {
+        const fin = String(finalRef.current || '').trim()
+        const inter = String(interimRef.current || '').trim()
+        finalRef.current = `${fin}${fin && inter ? ' ' : ''}${inter} `.replace(/\s+/g, ' ')
+        interimRef.current = ''
+      }
       // Chrome ends continuous sessions periodically — restart while user still wants mic
       if (wantListenRef.current) {
         restartTimerRef.current = setTimeout(() => {
@@ -439,6 +474,7 @@ export default function VoiceControls({
         }, 120)
         return
       }
+      // User already called finishListening/hardStop — do not double-send
       listeningRef.current = false
       if (mountedRef.current) setListening(false)
     }
@@ -448,20 +484,24 @@ export default function VoiceControls({
       try {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const r = event.results[i]
-          const t = r?.[0]?.transcript || ''
+          const t = (r?.[0]?.transcript || '').trim()
+          if (!t) continue
           if (r.isFinal) {
-            final = `${final}${t} `.replace(/\s+/g, ' ')
+            final = `${final}${final.endsWith(' ') || !final ? '' : ' '}${t} `.replace(/\s+/g, ' ')
             heardSpeechRef.current = true
+            // Clear interim when a final segment lands (avoids double words)
+            interim = ''
           } else {
-            interim += t
-            if (t.trim()) heardSpeechRef.current = true
+            interim = interim ? `${interim} ${t}` : t
+            heardSpeechRef.current = true
           }
         }
       } catch { /* ignore malformed result */ }
       finalRef.current = final
-      const display = (final + interim).trim()
+      interimRef.current = interim
+      const display = combinedTranscript()
       if (mountedRef.current) setPartial(display)
-      try { onPartial?.(display) } catch { /* ignore parent errors */ }
+      try { onPartialRef.current?.(display) } catch { /* ignore parent errors */ }
       armSilenceTimer()
     }
   }
@@ -491,6 +531,7 @@ export default function VoiceControls({
     stopSpeaking()
     if (mountedRef.current) setSpeaking(false)
     finalRef.current = ''
+    interimRef.current = ''
     if (mountedRef.current) setPartial('')
     heardSpeechRef.current = false
     wantListenRef.current = true

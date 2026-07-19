@@ -296,7 +296,13 @@ export default function AgentChat() {
   const send = async (text) => {
     hapticMedium()
     const msg = (text ?? input).trim()
-    if (!msg || busy) return
+    if (!msg) return
+    // Voice can finish while a reply is still streaming — keep text, don't drop it
+    if (busy) {
+      setInput(msg)
+      message.info('Agent is still replying — your speech is in the box. Tap Send when ready.')
+      return
+    }
     // Stop any ongoing TTS before sending a new message
     try { stopSpeaking() } catch { /* ignore */ }
     setMessages((prev) => [...prev, { role: 'user', content: msg }])

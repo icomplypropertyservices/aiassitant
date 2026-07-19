@@ -221,7 +221,12 @@ export default function AgentDetail() {
 
   const send = async (text) => {
     const msg = (text ?? input).trim()
-    if (!msg || busy) return
+    if (!msg) return
+    if (busy) {
+      setInput(msg)
+      message.info('Agent is still replying — speech is in the box. Tap Send when ready.')
+      return
+    }
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
     setInput('')
     setBusy(true)
