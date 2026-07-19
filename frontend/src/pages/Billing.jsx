@@ -335,7 +335,17 @@ export default function Billing() {
           showIcon
           style={{ marginBottom: 16, borderRadius: 12 }}
           message="In-app subscriptions"
-          description="Tap a plan or top-up to pay securely in the system browser (Stripe). Return to the app when done — your plan and credits update automatically."
+          description="Tap a plan or top-up to pay with Apple Pay, Google Pay, or card (Stripe Checkout in the system browser). Return to the app when done — your plan and credits update automatically."
+        />
+      )}
+
+      {payOpts?.stripe?.wallets?.enabled && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 16, borderRadius: 12 }}
+          message="Apple Pay & Google Pay enabled"
+          description="They appear on the Stripe Checkout page when your device supports them (Safari / Chrome / phone wallet). Card and Link still work everywhere."
         />
       )}
 
@@ -657,7 +667,8 @@ export default function Billing() {
             <Space style={{ marginTop: 12 }} wrap>
               <InputNumber min={5} max={1000} prefix="$" value={amount} onChange={setAmount} />
               <Button type="primary" onClick={topup} loading={busy} disabled={payOpts && !payOpts.stripe?.enabled}>
-                Top up card{payOpts?.stripe?.sandbox ? ' (test)' : ''}
+                Top up{payOpts?.stripe?.wallets?.enabled ? ' · Pay / Card' : ' card'}
+                {payOpts?.stripe?.sandbox ? ' (test)' : ''}
               </Button>
               <Button
                 onClick={() => {

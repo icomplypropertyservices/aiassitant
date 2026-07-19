@@ -420,6 +420,10 @@ STRIPE_PRICE_BUSINESS = os.getenv("STRIPE_PRICE_BUSINESS", "")
 STRIPE_PRICE_STARTER_ANNUAL = os.getenv("STRIPE_PRICE_STARTER_ANNUAL", "")
 STRIPE_PRICE_PRO_ANNUAL = os.getenv("STRIPE_PRICE_PRO_ANNUAL", "")
 STRIPE_PRICE_BUSINESS_ANNUAL = os.getenv("STRIPE_PRICE_BUSINESS_ANNUAL", "")
+# Apple Pay + Google Pay on Checkout (1 = on). Domain must be registered in Stripe Dashboard.
+STRIPE_WALLETS_ENABLED = os.getenv("STRIPE_WALLETS_ENABLED", "1")
+# Full contents of Apple domain association file from Stripe (optional; for domain verify)
+STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION = os.getenv("STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION", "")
 
 # AgentBay host (bridge posts to {AGENTBAY_URL}/api/bridge/...).
 # Production path deploy: https://aibusinessagent.xyz/bay  → API at /bay/api/...

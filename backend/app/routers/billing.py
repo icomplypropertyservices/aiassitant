@@ -1,5 +1,7 @@
+import os
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, HTTPException, Request
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from ..database import get_db, SessionLocal
@@ -66,6 +68,51 @@ def _stripe_mode() -> str | None:
 
 def _stripe_ready() -> bool:
     return bool(config.STRIPE_SECRET_KEY)
+
+
+def _wallets_enabled() -> bool:
+    """Apple Pay + Google Pay ride on card when domain is verified in Stripe Dashboard."""
+    raw = (getattr(config, "STRIPE_WALLETS_ENABLED", None) or os.getenv("STRIPE_WALLETS_ENABLED", "1"))
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _checkout_wallet_kwargs(*, mode: str = "payment") -> dict:
+    """
+    Enable Apple Pay, Google Pay, and Link on Stripe Checkout.
+
+    Wallets show automatically under the card payment method when:
+      - Domain is registered in Stripe → Settings → Payment methods → Apple Pay
+      - Customer device supports the wallet (Safari/iOS for Apple Pay, Chrome/Android for Google Pay)
+      - Checkout is HTTPS on a verified domain (aibusinessagent.xyz)
+
+    We explicitly pass payment_method_types so wallets are not disabled by Dashboard-only filters.
+    """
+    if not _wallets_enabled():
+        return {"payment_method_types": ["card"]}
+    # card → Apple Pay + Google Pay; link → Stripe Link (1-click email wallet)
+    types = ["card", "link"]
+    kwargs: dict = {
+        "payment_method_types": types,
+        "payment_method_options": {
+            "card": {
+                # Wallets + cards; 3DS only when required
+                "request_three_d_secure": "automatic",
+            },
+        },
+    }
+    # Subscriptions: save card/wallet for renewals
+    if mode == "subscription":
+        kwargs["payment_method_collection"] = "always"
+    return kwargs
+
+
+def _merge_checkout_kwargs(base: dict, *, mode: str) -> dict:
+    """Merge wallet payment methods into a Checkout Session.create dict."""
+    out = dict(base)
+    for k, v in _checkout_wallet_kwargs(mode=mode).items():
+        if k not in out:
+            out[k] = v
+    return out
 
 
 def _plan_line_item(plan: str, limits: dict, interval: str = "month") -> dict:
@@ -342,6 +389,27 @@ def native_store_products():
     }
 
 
+@router.get("/apple-pay-domain", response_class=PlainTextResponse)
+def apple_pay_domain_association():
+    """
+    Apple Pay domain verification file content (also served at
+    /.well-known/apple-developer-merchantid-domain-association via root rewrite if configured).
+
+    Set STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION to the full file body from Stripe Dashboard
+    (Settings → Payment methods → Apple Pay → Add domain → download).
+    """
+    body = (getattr(config, "STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION", None) or "").strip()
+    if not body:
+        body = (os.getenv("STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION") or "").strip()
+    if not body:
+        raise HTTPException(
+            404,
+            "Set STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION to the domain association file from Stripe "
+            "(Dashboard → Settings → Payment methods → Apple Pay → your domain).",
+        )
+    return PlainTextResponse(body, media_type="text/plain")
+
+
 @router.get("/plans")
 def plans():
     """Public tiers with upgrade teasers — login / subscribe / billing."""
@@ -463,15 +531,32 @@ def payment_options():
             # Works with secret key alone via price_data when price IDs missing
             "ready": _stripe_ready(),
             "intervals": ["month", "year"],
+            "wallets": {
+                "enabled": _wallets_enabled() and _stripe_ready(),
+                "apple_pay": _wallets_enabled() and _stripe_ready(),
+                "google_pay": _wallets_enabled() and _stripe_ready(),
+                "link": _wallets_enabled() and _stripe_ready(),
+                "label": "Apple Pay · Google Pay · Link · Card",
+                "setup_hint": (
+                    "In Stripe Dashboard → Settings → Payment methods: enable Apple Pay & Google Pay, "
+                    "then add domain aibusinessagent.xyz (and www). Host the Apple domain association "
+                    "file if Stripe asks (see /api/billing/apple-pay-domain)."
+                ),
+            },
             "label": (
-                "Card (Stripe test / sandbox)"
+                "Apple Pay · Google Pay · Card (Stripe test)"
                 if mode == "test"
-                else ("Card (Stripe live)" if mode == "live" else "Card (Stripe)")
+                else (
+                    "Apple Pay · Google Pay · Card (Stripe live)"
+                    if mode == "live"
+                    else "Apple Pay · Google Pay · Card (Stripe)"
+                )
             ),
             "test_card_hint": (
-                "Use card 4242 4242 4242 4242, any future expiry, any CVC, any ZIP."
+                "Use card 4242 4242 4242 4242, any future expiry, any CVC, any ZIP. "
+                "Apple Pay / Google Pay appear in Checkout when the device supports them (even in test mode)."
                 if mode == "test"
-                else None
+                else "Apple Pay and Google Pay appear on Checkout when available on your device."
             ),
         },
         "crypto": {
@@ -528,27 +613,32 @@ def buy_storage_addon(
         success, cancel = _checkout_urls("/billing", "/billing")
         try:
             session = stripe.checkout.Session.create(
-                mode="payment",
-                line_items=[{
-                    "price_data": {
-                        "currency": "usd",
-                        "product_data": {
-                            "name": addon.get("name") or f"Storage {addon_id}",
-                            "description": addon.get("blurb") or f"+{addon.get('gb')} GB training storage",
+                **_merge_checkout_kwargs(
+                    {
+                        "mode": "payment",
+                        "line_items": [{
+                            "price_data": {
+                                "currency": "usd",
+                                "product_data": {
+                                    "name": addon.get("name") or f"Storage {addon_id}",
+                                    "description": addon.get("blurb") or f"+{addon.get('gb')} GB training storage",
+                                },
+                                "unit_amount": int(round(price * 100)),
+                            },
+                            "quantity": 1,
+                        }],
+                        "success_url": success,
+                        "cancel_url": cancel,
+                        "customer_email": user.email,
+                        "metadata": {
+                            "kind": "storage",
+                            "user_id": str(user.id),
+                            "addon_id": addon_id,
+                            "amount": str(price),
                         },
-                        "unit_amount": int(round(price * 100)),
                     },
-                    "quantity": 1,
-                }],
-                success_url=success,
-                cancel_url=cancel,
-                customer_email=user.email,
-                metadata={
-                    "kind": "storage",
-                    "user_id": str(user.id),
-                    "addon_id": addon_id,
-                    "amount": str(price),
-                },
+                    mode="payment",
+                )
             )
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
@@ -586,25 +676,30 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
         success, cancel = _checkout_urls("/billing", "/billing")
         try:
             session = stripe.checkout.Session.create(
-                mode="payment",
-                line_items=[{
-                    "price_data": {
-                        "currency": "usd",
-                        "product_data": {"name": "AI Business Assistant credit top-up"},
-                        "unit_amount": int(round(data.amount * 100)),
+                **_merge_checkout_kwargs(
+                    {
+                        "mode": "payment",
+                        "line_items": [{
+                            "price_data": {
+                                "currency": "usd",
+                                "product_data": {"name": "AI Business Assistant credit top-up"},
+                                "unit_amount": int(round(data.amount * 100)),
+                            },
+                            "quantity": 1,
+                        }],
+                        "success_url": success,
+                        "cancel_url": cancel,
+                        "customer_email": user.email,
+                        "metadata": {
+                            "kind": "topup",
+                            "user_id": str(user.id),
+                            "amount": str(data.amount),
+                            "platform": (data.platform or "web")[:32],
+                            "client": (data.client or "web")[:32],
+                        },
                     },
-                    "quantity": 1,
-                }],
-                success_url=success,
-                cancel_url=cancel,
-                customer_email=user.email,
-                metadata={
-                    "kind": "topup",
-                    "user_id": str(user.id),
-                    "amount": str(data.amount),
-                    "platform": (data.platform or "web")[:32],
-                    "client": (data.client or "web")[:32],
-                },
+                    mode="payment",
+                )
             )
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
@@ -718,27 +813,32 @@ def trigger_auto_topup(db: Session = Depends(get_db), user=Depends(get_current_u
         success, cancel = _checkout_urls("/billing", "/billing")
         try:
             session = stripe.checkout.Session.create(
-                mode="payment",
-                line_items=[{
-                    "price_data": {
-                        "currency": "usd",
-                        "product_data": {
-                            "name": "AI Assistant auto top-up",
-                            "description": f"Wallet refill ${amount:.0f} — keep agents running",
+                **_merge_checkout_kwargs(
+                    {
+                        "mode": "payment",
+                        "line_items": [{
+                            "price_data": {
+                                "currency": "usd",
+                                "product_data": {
+                                    "name": "AI Assistant auto top-up",
+                                    "description": f"Wallet refill ${amount:.0f} — keep agents running",
+                                },
+                                "unit_amount": int(round(amount * 100)),
+                            },
+                            "quantity": 1,
+                        }],
+                        "success_url": success,
+                        "cancel_url": cancel,
+                        "customer_email": user.email,
+                        "metadata": {
+                            "kind": "topup",
+                            "user_id": str(user.id),
+                            "amount": str(amount),
+                            "auto": "1",
                         },
-                        "unit_amount": int(round(amount * 100)),
                     },
-                    "quantity": 1,
-                }],
-                success_url=success,
-                cancel_url=cancel,
-                customer_email=user.email,
-                metadata={
-                    "kind": "topup",
-                    "user_id": str(user.id),
-                    "amount": str(amount),
-                    "auto": "1",
-                },
+                    mode="payment",
+                )
             )
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
@@ -941,24 +1041,27 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
                 "platform": (data.platform or "web")[:32],
                 "client": (data.client or "web")[:32],
             }
-            session_kwargs = {
-                "mode": "subscription",
-                "line_items": [line_item],
-                "success_url": success,
-                "cancel_url": cancel,
-                "customer_email": user.email,
-                "metadata": meta,
-                "allow_promotion_codes": True,
-                "subscription_data": {
-                    "metadata": {
-                        "user_id": str(user.id),
-                        "plan": data.plan,
-                        "kind": "plan",
-                        "interval": interval,
-                        "platform": (data.platform or "web")[:32],
+            session_kwargs = _merge_checkout_kwargs(
+                {
+                    "mode": "subscription",
+                    "line_items": [line_item],
+                    "success_url": success,
+                    "cancel_url": cancel,
+                    "customer_email": user.email,
+                    "metadata": meta,
+                    "allow_promotion_codes": True,
+                    "subscription_data": {
+                        "metadata": {
+                            "user_id": str(user.id),
+                            "plan": data.plan,
+                            "kind": "plan",
+                            "interval": interval,
+                            "platform": (data.platform or "web")[:32],
+                        },
                     },
                 },
-            }
+                mode="subscription",
+            )
             session = stripe.checkout.Session.create(**session_kwargs)
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e

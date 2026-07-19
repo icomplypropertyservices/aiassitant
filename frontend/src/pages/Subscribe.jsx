@@ -277,7 +277,7 @@ export default function Subscribe() {
               Signed in as <strong>{user?.email}</strong>.
               {trialEnded
                 ? ' Your free trial has ended — choose Starter, Pro, or Business (monthly subscription). Access unlocks as soon as payment confirms.'
-                : ' Start free with one click (no card), or subscribe to a live monthly plan with card (Stripe) or crypto. Not a pre-order — full access when you pay.'}
+                : ' Start free with one click (no card), or subscribe with Apple Pay, Google Pay, card (Stripe), or crypto. Full access when payment confirms.'}
             </Typography.Paragraph>
             {payOpts && !payOpts.ready_for_payments && (
               <Alert
@@ -321,7 +321,11 @@ export default function Subscribe() {
               )}
               <span className="aba-feature-pill">
                 <CreditCardOutlined />{' '}
-                {payOpts?.stripe?.sandbox ? 'Card (Stripe test)' : 'Card (Stripe)'}
+                {payOpts?.stripe?.wallets?.enabled
+                  ? (payOpts?.stripe?.sandbox
+                    ? 'Apple Pay · Google Pay · Card (test)'
+                    : 'Apple Pay · Google Pay · Card')
+                  : (payOpts?.stripe?.sandbox ? 'Card (Stripe test)' : 'Card (Stripe)')}
                 {payOpts?.stripe?.ready === false ? ' · setup pending' : ''}
               </span>
               <span className="aba-feature-pill">

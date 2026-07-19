@@ -14,9 +14,22 @@
 |--------|----------------|
 | Free trial | Starts **inside the app** (API) — no card |
 | Starter / Pro / Business (month or year) | Opens **Stripe Checkout** in the **system browser** (secure sheet) |
-| Credit top-up | Same Stripe Checkout flow |
+| **Apple Pay / Google Pay** | Shown on Checkout when the device supports them (card + Link also available) |
+| Credit top-up | Same Stripe Checkout flow (wallets + card) |
 | After payment | Return to the app → plan / credits refresh automatically |
 | Manage card / cancel | “Manage subscription” → Stripe Customer Portal in browser |
+
+### Enable Apple Pay + Google Pay in Stripe (required once)
+
+1. Open [Stripe Dashboard → Settings → Payment methods](https://dashboard.stripe.com/settings/payment_methods)  
+2. Turn **on** **Apple Pay** and **Google Pay** (and keep **Cards** on)  
+3. Under Apple Pay → **Add domain**: `aibusinessagent.xyz` and `www.aibusinessagent.xyz`  
+4. If Stripe asks for a domain file, paste its contents into Vercel env  
+   `STRIPE_APPLE_PAY_DOMAIN_ASSOCIATION` (served at  
+   `https://aibusinessagent.xyz/.well-known/apple-developer-merchantid-domain-association`)  
+5. Use **live** keys for real wallets on production; test mode still shows wallets on supported devices  
+
+Checkout sessions already request `card` + `link` so wallets appear automatically after domain setup.
 
 Product IDs for optional pure Store IAP later are listed at  
 `GET /api/billing/native/products` and in `frontend/src/nativeBilling.js`.
