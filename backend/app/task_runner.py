@@ -66,24 +66,30 @@ async def kick_queued_task(
 
         # Never start multi-turn runner inside interactive chat (504 / browser timeouts).
         # Logs showed POST /agents/*/chat running 5× quality LLM turns + re-queue in one request.
+        #
+        # Offline / cron path: run_inline=True MUST execute now (owner not logged in).
+        # Only defer when chat scope or caller explicitly asked to queue-only.
         from .request_context import defer_task_runs
-        defer = (
-            run_inline is False
-            or defer_task_runs()
-            or (
-                run_inline is None
-                and is_serverless()
-                and any(
-                    tag in labels
-                    for tag in (
-                        "post-chat", "auto-workflow", "self-run", "autonomy",
-                        "auto-chain", "goal", "self-assigned",
+        if run_inline is True:
+            defer = False
+        else:
+            defer = (
+                run_inline is False
+                or defer_task_runs()
+                or (
+                    run_inline is None
+                    and is_serverless()
+                    and any(
+                        tag in labels
+                        for tag in (
+                            "post-chat", "auto-workflow", "self-run", "autonomy",
+                            "auto-chain", "goal", "self-assigned",
+                        )
                     )
                 )
+                # Serverless default: queue only unless caller forces run_inline=True
+                or (run_inline is None and is_serverless())
             )
-            # Serverless default: queue only unless caller forces run_inline=True
-            or (run_inline is None and is_serverless())
-        )
         if defer:
             t.updated_at = datetime.utcnow()
             db.commit()
@@ -111,21 +117,50 @@ async def kick_queued_task(
         db.close()
 
     try:
-        # Short budget on serverless so API handlers still return
+        # Autonomy ticks get a longer budget so agents finish work while owner is offline.
+        # Chat still uses short budgets / defer.
         budget = timeout_sec
         if budget is None and is_serverless():
-            budget = 25.0
+            budget = 90.0 if run_inline is True else 25.0
         await schedule(run_agent_task(a_id, u_id, tid, tdesc, aname), timeout_sec=budget)
-        log.info("kicked task_id=%s agent_id=%s", tid, a_id)
+        log.info("kicked task_id=%s agent_id=%s budget=%s", tid, a_id, budget)
+        # If the runner timed out mid-flight, put work back on the queue so the
+        # next offline tick continues (owner does not need to be logged in).
+        db3 = SessionLocal()
+        try:
+            t3 = db3.get(models.Task, tid)
+            if t3 and (t3.status or "") == "in_progress":
+                # incomplete — leave markers so requeue / next tick continues
+                res = (t3.result or "")
+                if "complete_task" not in res.lower() and "[AUTO-REQUEUE]" not in res:
+                    t3.status = "queued"
+                    t3.updated_at = datetime.utcnow()
+                    t3.result = (
+                        res.rstrip()
+                        + "\n\n[AUTO-REQUEUE] Serverless budget ended — continuing offline."
+                    )[:12000]
+                    db3.commit()
+                    log.info("re-queued unfinished task_id=%s after budget", tid)
+        except Exception:
+            try:
+                db3.rollback()
+            except Exception:
+                pass
+        finally:
+            db3.close()
         return True
     except Exception as e:
         log.warning("kick_queued_task schedule failed task=%s: %s", task_id, e)
-        # Re-queue so autonomy can retry
+        # Re-queue so autonomy can retry offline
         db2 = SessionLocal()
         try:
             t2 = db2.get(models.Task, tid)
-            if t2 and (t2.status or "") == "in_progress" and not (t2.result or "").strip():
+            if t2 and (t2.status or "") == "in_progress":
                 t2.status = "queued"
+                t2.updated_at = datetime.utcnow()
+                t2.result = (
+                    ((t2.result or "").rstrip() + f"\n\n[AUTO-REQUEUE] kick failed: {e}")[:12000]
+                )
                 db2.commit()
         except Exception:
             try:

@@ -257,8 +257,12 @@ async def _requeue_stalled_in_progress(db: Session, user: models.User, summary: 
     """
     from .agent_scaffold import resolve_runtime
 
-    # Longer than a full multi-turn run so we do not interrupt live workers
-    idle_mins = 6
+    # Short enough that offline cron (every 5m) recovers interrupted serverless runs
+    try:
+        from .async_jobs import is_serverless
+        idle_mins = 3 if is_serverless() else 6
+    except Exception:
+        idle_mins = 4
     cutoff = datetime.utcnow() - timedelta(minutes=idle_mins)
     rows = (
         db.query(models.Task)
@@ -327,6 +331,16 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
         pass
 
     max_tasks = int(getattr(app_config, "AUTONOMY_MAX_TASKS_PER_TICK", 3) or 3)
+    # Offline ticks must actually run agent LLM work (owner may not be logged in).
+    try:
+        from .async_jobs import is_serverless
+        offline_budget = 120.0 if is_serverless() else 180.0
+        if is_serverless():
+            # Stay under Vercel maxDuration while still finishing real work
+            max_tasks = min(max_tasks, 4)
+    except Exception:
+        offline_budget = 120.0
+
     queued = (
         db.query(models.Task)
         .filter(
@@ -360,11 +374,11 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
         summary["tasks_started"] += 1
         await emit_ops(
             user.id, kind="action", status="running",
-            title="Autonomy running task",
+            title="Autonomy running task (offline OK)",
             detail=(t.title or t.description or "")[:160],
             agent_id=agent.id, task_id=t.id, db=db,
         )
-        # Prefer kick helper (same path as skills)
+        # Always run_inline=True so work proceeds without a browser session
         try:
             ok = await kick_queued_task(
                 t.id,
@@ -372,13 +386,19 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
                 agent_id=agent.id,
                 description=t.description,
                 agent_name=agent.name,
-                run_inline=True,  # autonomy tick is allowed to run work
-                timeout_sec=45.0,
+                run_inline=True,
+                timeout_sec=offline_budget,
             )
             if not ok:
-                await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
+                await schedule(
+                    run_agent_task(agent.id, user.id, t.id, t.description, agent.name),
+                    timeout_sec=offline_budget,
+                )
         except Exception:
-            await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
+            await schedule(
+                run_agent_task(agent.id, user.id, t.id, t.description, agent.name),
+                timeout_sec=offline_budget,
+            )
 
 
 async def _check_stuck_and_failed(db: Session, user: models.User, settings: models.WorkspaceSettings, summary: dict) -> None:
@@ -536,11 +556,7 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
             db.commit()
             fed += 1
             summary["idle_tasks"] += 1
-            try:
-                from .task_runner import kick_queued_task
-                await kick_queued_task(open_unassigned.id, user_id=user.id, agent_id=a.id)
-            except Exception:
-                pass
+            # Leave queued — _run_queued_tasks (same tick) runs with run_inline=True offline
             await emit_ops(
                 user.id, kind="action", status="queued",
                 title=f"{a.name} claimed board task",
@@ -578,11 +594,7 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
         db.refresh(t)
         fed += 1
         summary["idle_tasks"] += 1
-        try:
-            from .task_runner import kick_queued_task
-            await kick_queued_task(t.id, user_id=user.id, agent_id=a.id)
-        except Exception:
-            pass
+        # Queue only here — same-tick _run_queued_tasks executes offline (no login)
         await emit_ops(
             user.id, kind="action", status="queued",
             title=f"{a.name} autonomy task",
@@ -682,11 +694,12 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
 
 def _users_needing_autonomy(db: Session, *, limit: int = 80) -> list[models.User]:
     """
-    Workspaces that must keep running even when the owner is offline / not logged in:
-      - active trial/paid/admin
-      - autonomy_enabled (default True)
-      - OR open queued/in_progress tasks
-      - OR never_idle agents
+    Workspaces that keep running when the owner is offline / not logged in:
+      - open agent tasks (queued / in_progress / todo)
+      - never_idle active agents
+      - autonomy_enabled workspaces
+      - active agents (so default workspaces still tick)
+    No browser session required — cron/tick-all drives this.
     """
     from sqlalchemy import or_, and_
 
@@ -700,38 +713,54 @@ def _users_needing_autonomy(db: Session, *, limit: int = 80) -> list[models.User
                 models.Task.agent_id.isnot(None),
             )
             .distinct()
-            .limit(limit * 2)
+            .limit(limit * 3)
             .all()
         )
         if r[0]
     }
 
-    # 2) Users with never_idle / active agents
-    agent_uids = {
+    # 2) never_idle agents must keep getting self-work offline
+    never_idle_uids = {
         r[0]
         for r in (
             db.query(models.Agent.user_id)
             .filter(
                 models.Agent.status == "active",
+                models.Agent.idle_mode == "never_idle",
             )
             .distinct()
-            .limit(limit * 2)
+            .limit(limit * 3)
             .all()
         )
         if r[0]
     }
 
-    # 3) Explicit autonomy settings (include disabled so we skip cleanly)
+    # 3) Any workspace with active agents
+    agent_uids = {
+        r[0]
+        for r in (
+            db.query(models.Agent.user_id)
+            .filter(models.Agent.status == "active")
+            .distinct()
+            .limit(limit * 3)
+            .all()
+        )
+        if r[0]
+    }
+
+    # 4) Explicit autonomy_enabled
     settings_on = {
         r.user_id
         for r in db.query(models.WorkspaceSettings)
         .filter(models.WorkspaceSettings.autonomy_enabled == True)  # noqa: E712
-        .limit(limit * 2)
+        .limit(limit * 3)
         .all()
         if r.user_id
     }
 
-    candidate_ids = list(busy_uids | (agent_uids & settings_on) | settings_on)
+    # Busy queues always win; never_idle and autonomy-on always included;
+    # active agents included so work continues without login.
+    candidate_ids = list(busy_uids | never_idle_uids | settings_on | agent_uids)
     if not candidate_ids:
         # Fall back: anyone with a real plan / admin
         return (
@@ -751,10 +780,14 @@ def _users_needing_autonomy(db: Session, *, limit: int = 80) -> list[models.User
             .all()
         )
 
-    # Prefer users with busy queues first
+    # Prefer users with busy queues, then never_idle, then others
     ordered = sorted(
         set(candidate_ids),
-        key=lambda uid: (0 if uid in busy_uids else 1, uid),
+        key=lambda uid: (
+            0 if uid in busy_uids else 1,
+            0 if uid in never_idle_uids else 1,
+            uid,
+        ),
     )[:limit]
 
     users = (
@@ -762,13 +795,16 @@ def _users_needing_autonomy(db: Session, *, limit: int = 80) -> list[models.User
         .filter(models.User.id.in_(ordered))
         .all()
     )
-    # re-order
     by_id = {u.id: u for u in users}
     return [by_id[i] for i in ordered if i in by_id]
 
 
 async def run_global_tick() -> dict[str, Any]:
-    """One tick across all eligible users (local loop or cron) — no login required."""
+    """One tick across all eligible users (local loop or cron) — no login required.
+
+    Agents continue tasks while the human is logged out: this is the production
+    offline engine driven by GET /api/ops/autonomy/tick-all.
+    """
     from . import config as app_config
 
     db = SessionLocal()
@@ -790,19 +826,40 @@ async def run_global_tick() -> dict[str, Any]:
                     continue
                 # Ensure autonomy defaults on so offline work is not stuck disabled forever
                 settings = get_or_create_settings(db, u.id)
-                if settings.autonomy_enabled is None:
+                has_open = (
+                    db.query(models.Task)
+                    .filter(
+                        models.Task.user_id == u.id,
+                        models.Task.status.in_(["queued", "in_progress", "todo"]),
+                        models.Task.agent_id.isnot(None),
+                    )
+                    .first()
+                    is not None
+                )
+                # Default on; force on when open agent work exists so offline ticks drain queues
+                if settings.autonomy_enabled is not True and (
+                    has_open or settings.autonomy_enabled is None
+                ):
                     settings.autonomy_enabled = True
                     db.commit()
                 r = await run_user_cycle(db, u)
+                r["offline"] = True
+                r["login_required"] = False
                 results.append(r)
             except Exception as e:
-                results.append({"user_id": getattr(u, "id", None), "error": str(e)[:300]})
+                results.append({
+                    "user_id": getattr(u, "id", None),
+                    "error": str(e)[:300],
+                    "offline": True,
+                })
         return {
             "ok": True,
             "users": len(results),
             "results": results,
             "at": datetime.utcnow().isoformat() + "Z",
             "offline": True,
+            "login_required": False,
+            "note": "Agents keep running tasks without an owner browser session",
         }
     finally:
         db.close()
