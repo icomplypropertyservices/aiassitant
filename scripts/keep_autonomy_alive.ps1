@@ -32,12 +32,19 @@ $headers = @{
 function Invoke-Tick {
     $ts = Get-Date -Format "o"
     try {
-        $resp = Invoke-RestMethod -Method GET -Uri $url -Headers $headers -TimeoutSec 280
+        # Autonomy can run near Vercel maxDuration (300s). Use 290s so one tick finishes when possible.
+        $resp = Invoke-RestMethod -Method GET -Uri $url -Headers $headers -TimeoutSec 290
         $users = $resp.result.users
         Write-Host "[$ts] ok via=$($resp.via) users=$users"
         return $true
     } catch {
-        Write-Host "[$ts] FAIL $($_.Exception.Message)"
+        $msg = $_.Exception.Message
+        # Timeout often means the serverless function is still draining the queue — that is OK.
+        if ($msg -match 'timed out|Timeout|time(?:d)?\s*out') {
+            Write-Host "[$ts] STARTED (client wait timed out; server may still finish tick within maxDuration)"
+            return $true
+        }
+        Write-Host "[$ts] FAIL $msg"
         return $false
     }
 }
