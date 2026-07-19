@@ -41,8 +41,8 @@ export default function SettingsMobile({ active }) {
           message={isNative() ? `Native ${getNativePlatform()} app` : 'Web preview'}
           description={
             isNative()
-              ? 'Haptics and notifications use the device OS.'
-              : 'Open the iOS/Android app for full haptics and push. On web these controls are previews only.'
+              ? 'Haptics use the device motor; notifications use the OS push/local APIs.'
+              : 'On mobile browsers we use the Vibration API when available. Install the iOS/Android app for strongest haptics + push.'
           }
         />
       </Card>
@@ -64,7 +64,8 @@ export default function SettingsMobile({ active }) {
             <Button size="small" onClick={() => { hapticSuccess(); message.success('Success') }}>Test success</Button>
           </Space>
           <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
-            Used when you send chat, complete agent steps, and navigate on device.
+            Fires on voice mic start/stop, send, nav tabs, agent replies, and important actions.
+            Works in the native app and on mobile web (vibrate where the browser allows).
           </Paragraph>
         </Space>
       </Card>

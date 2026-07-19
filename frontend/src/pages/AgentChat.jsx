@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, connectAuthedWs } from '../api'
-import { hapticMedium, acquireKeepAwake, releaseKeepAwake, forceAllowSleep } from '../native'
+import { hapticMedium, hapticSuccess, hapticError, acquireKeepAwake, releaseKeepAwake, forceAllowSleep } from '../native'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
 
@@ -294,7 +294,6 @@ export default function AgentChat() {
   }, [busy])
 
   const send = async (text) => {
-    hapticMedium()
     const msg = (text ?? input).trim()
     if (!msg) return
     // Voice can finish while a reply is still streaming — keep text, don't drop it
@@ -303,6 +302,7 @@ export default function AgentChat() {
       message.info('Agent is still replying — your speech is in the box. Tap Send when ready.')
       return
     }
+    hapticMedium()
     // Stop any ongoing TTS before sending a new message
     try { stopSpeaking() } catch { /* ignore */ }
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
@@ -366,12 +366,14 @@ export default function AgentChat() {
           },
         }))
       } catch { /* ignore */ }
+      hapticSuccess()
       if (speakRef.current && replyText) {
         // Speak the human-facing text only (no skill/questions fences)
         const spoken = splitAssistantContent(replyText).display || replyText
         speakText(spoken)
       }
     } catch (e) {
+      hapticError()
       const aborted = e?.name === 'AbortError' || /abort/i.test(String(e?.message || ''))
       const err = aborted
         ? 'Reply timed out. Try a shorter message, or wait a moment and send again (cold start can take ~30s once).'

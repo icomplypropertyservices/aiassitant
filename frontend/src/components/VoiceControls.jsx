@@ -4,7 +4,15 @@ import {
   AudioOutlined, AudioMutedOutlined, SoundOutlined, StopOutlined, SendOutlined,
 } from '@ant-design/icons'
 import { api } from '../api'
-import { acquireKeepAwake, releaseKeepAwake } from '../native'
+import {
+  acquireKeepAwake,
+  releaseKeepAwake,
+  hapticLight,
+  hapticMedium,
+  hapticSuccess,
+  hapticError,
+  hapticSelect,
+} from '../native'
 
 /** Clamp a number into [lo, hi]; non-finite values fall back to `fallback`. */
 function clampNum(value, lo, hi, fallback) {
@@ -401,6 +409,7 @@ export default function VoiceControls({
     interimRef.current = ''
     heardSpeechRef.current = false
     if (!text) {
+      hapticSelect()
       message.info('No speech captured — hold the mic a moment longer, then pause or tap Send')
       return
     }
@@ -410,10 +419,15 @@ export default function VoiceControls({
     // forceSend = user tapped the Send button while talking
     if ((autoSend || forceSend) && onTranscriptRef.current) {
       try {
+        hapticMedium()
         onTranscriptRef.current(text)
+        hapticSuccess()
       } catch (e) {
+        hapticError()
         message.warning(e?.message || 'Could not send voice message — text is in the box, tap Send')
       }
+    } else {
+      hapticLight()
     }
   }
 
@@ -435,6 +449,7 @@ export default function VoiceControls({
       const err = ev?.error || ''
       // continuous sessions often emit no-speech / aborted — ignore those
       if (err === 'not-allowed') {
+        hapticError()
         message.error('Microphone permission denied. Allow mic access for this site.')
         wantListenRef.current = false
         finishListening('')
@@ -442,6 +457,7 @@ export default function VoiceControls({
       }
       if (err === 'aborted' || err === 'no-speech') return
       if (err === 'network') {
+        hapticSelect()
         message.warning('Voice network glitch — try the mic again')
       }
     }
@@ -525,9 +541,11 @@ export default function VoiceControls({
     if (disabled) return
     const SR = getSpeechRecognition()
     if (!SR) {
+      hapticError()
       message.warning('Voice input is not supported in this browser. Try Chrome or Edge.')
       return
     }
+    hapticLight()
     stopSpeaking()
     if (mountedRef.current) setSpeaking(false)
     finalRef.current = ''
@@ -576,7 +594,8 @@ export default function VoiceControls({
 
   const toggleMic = () => {
     if (listening || wantListenRef.current) {
-      // Manual stop → send whatever we have
+      // Manual stop → send whatever we have (haptic in finishListening)
+      hapticSelect()
       finishListening()
     } else {
       startListen()
@@ -652,6 +671,7 @@ export default function VoiceControls({
                 size="small"
                 checked={!!speakReplies}
                 onChange={(v) => {
+                  hapticSelect()
                   if (!v) {
                     stopSpeaking()
                     if (mountedRef.current) setSpeaking(false)
@@ -695,7 +715,10 @@ export default function VoiceControls({
           size="large"
           icon={<SendOutlined />}
           className="aba-voice-send-btn"
-          onClick={() => finishListening(undefined, { forceSend: true })}
+          onClick={() => {
+            hapticMedium()
+            finishListening(undefined, { forceSend: true })
+          }}
           disabled={disabled}
         >
           Send

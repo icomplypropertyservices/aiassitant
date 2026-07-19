@@ -10,6 +10,7 @@ import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
 import PageShell from '../components/PageShell'
+import { hapticMedium, hapticSuccess, hapticError } from '../native'
 
 const TEMPLATES = ['Write a follow-up email', 'Summarise this for a customer', 'Draft a quote cover note', 'Reply to a bad review', 'Fix this Python bug', 'Write a FastAPI endpoint']
 
@@ -123,6 +124,7 @@ export default function Chat() {
       antdMessage.info('Still generating a reply — your speech is in the box. Tap Send when ready.')
       return
     }
+    hapticMedium()
     setMessages(prev => [...prev, { role: 'user', content: msg }])
     setInput('')
     setBusy(true)
@@ -139,9 +141,11 @@ export default function Chat() {
       setActiveConv(r.conversation_id)
       setMessages(prev => [...prev, { role: 'assistant', content: r.reply }])
       setSessionTokens(t => t + (r.tokens || 0))
+      hapticSuccess()
       if (speakRepliesRef.current && r.reply) speakText(r.reply)
       loadConversations()
     } catch (e) {
+      hapticError()
       antdMessage.error(e.message)
     } finally {
       setBusy(false)

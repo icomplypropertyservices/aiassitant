@@ -13,6 +13,7 @@ import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
 import AgentSkillsPanel from '../components/AgentSkillsPanel'
 import { speakText, stopSpeaking } from '../components/VoiceControls'
+import { hapticMedium, hapticSuccess, hapticError } from '../native'
 import { modelLabel } from '../models'
 import { STATUS_COLOR } from './agent-detail/constants'
 import AgentConfigTab from './agent-detail/AgentConfigTab'
@@ -227,6 +228,7 @@ export default function AgentDetail() {
       message.info('Agent is still replying — speech is in the box. Tap Send when ready.')
       return
     }
+    hapticMedium()
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
     setInput('')
     setBusy(true)
@@ -238,8 +240,10 @@ export default function AgentDetail() {
       const r = await api(`/agents/${id}/chat`, { method: 'POST', body: { message: msg } })
       setMessages((prev) => [...prev, { role: 'assistant', content: r.reply }])
       setSessionTokens((t) => t + (r.tokens || 0))
+      hapticSuccess()
       if (speakRepliesRef.current && r.reply) speakText(r.reply)
     } catch (e) {
+      hapticError()
       message.error(e.message)
     } finally {
       setBusy(false)

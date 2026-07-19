@@ -24,6 +24,13 @@ export function getNativePlatform() {
 
 async function loadPrefs() {
   try {
+    // Web / PWA: localStorage so Settings toggles work outside Capacitor
+    if (typeof localStorage !== 'undefined') {
+      const hWeb = localStorage.getItem('haptics_enabled')
+      const nWeb = localStorage.getItem('notifications_enabled')
+      if (hWeb != null) _hapticsEnabled = hWeb !== '0' && hWeb !== 'false'
+      if (nWeb != null) _notifEnabled = nWeb !== '0' && nWeb !== 'false'
+    }
     if (!isNative()) return
     const h = await Preferences.get({ key: 'haptics_enabled' })
     const n = await Preferences.get({ key: 'notifications_enabled' })
@@ -37,6 +44,9 @@ async function loadPrefs() {
 export async function setHapticsEnabled(on) {
   _hapticsEnabled = !!on
   try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('haptics_enabled', on ? '1' : '0')
+    }
     if (isNative()) await Preferences.set({ key: 'haptics_enabled', value: on ? '1' : '0' })
   } catch { /* ignore */ }
 }
@@ -44,6 +54,9 @@ export async function setHapticsEnabled(on) {
 export async function setNotificationsEnabled(on) {
   _notifEnabled = !!on
   try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('notifications_enabled', on ? '1' : '0')
+    }
     if (isNative()) await Preferences.set({ key: 'notifications_enabled', value: on ? '1' : '0' })
   } catch { /* ignore */ }
   if (on) {
@@ -61,40 +74,69 @@ export function getNotificationsEnabled() {
 
 // ─── Haptics ───────────────────────────────────────────────────────────────
 
-async function impact(style = 'Medium') {
-  if (!_native || !_hapticsEnabled) return
+/** Web Vibration API fallback (mobile Chrome / Android PWA). No-op if denied. */
+function webVibrate(pattern) {
   try {
-    const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
-    const map = {
-      Light: ImpactStyle.Light,
-      Medium: ImpactStyle.Medium,
-      Heavy: ImpactStyle.Heavy,
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern)
+      return true
     }
-    await Haptics.impact({ style: map[style] || ImpactStyle.Medium })
-  } catch { /* web / simulator */ }
+  } catch { /* ignore */ }
+  return false
+}
+
+async function impact(style = 'Medium') {
+  if (!_hapticsEnabled) return
+  // Capacitor native (iOS / Android app)
+  if (_native || isNative()) {
+    try {
+      const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
+      const map = {
+        Light: ImpactStyle.Light,
+        Medium: ImpactStyle.Medium,
+        Heavy: ImpactStyle.Heavy,
+      }
+      await Haptics.impact({ style: map[style] || ImpactStyle.Medium })
+      return
+    } catch { /* fall through to web vibrate */ }
+  }
+  // Mobile browser / PWA
+  const ms = style === 'Light' ? 10 : style === 'Heavy' ? 32 : 18
+  webVibrate(ms)
 }
 
 async function notificationHaptic(type = 'SUCCESS') {
-  if (!_native || !_hapticsEnabled) return
-  try {
-    const { Haptics, NotificationType } = await import('@capacitor/haptics')
-    const map = {
-      SUCCESS: NotificationType.Success,
-      WARNING: NotificationType.Warning,
-      ERROR: NotificationType.Error,
-    }
-    await Haptics.notification({ type: map[type] || NotificationType.Success })
-  } catch { /* ignore */ }
+  if (!_hapticsEnabled) return
+  if (_native || isNative()) {
+    try {
+      const { Haptics, NotificationType } = await import('@capacitor/haptics')
+      const map = {
+        SUCCESS: NotificationType.Success,
+        WARNING: NotificationType.Warning,
+        ERROR: NotificationType.Error,
+      }
+      await Haptics.notification({ type: map[type] || NotificationType.Success })
+      return
+    } catch { /* fall through */ }
+  }
+  // Pattern: success short-short, warning long, error triple
+  if (type === 'WARNING') webVibrate([20, 40, 20])
+  else if (type === 'ERROR') webVibrate([30, 40, 30, 40, 30])
+  else webVibrate([12, 30, 12])
 }
 
 async function selectionChanged() {
-  if (!_native || !_hapticsEnabled) return
-  try {
-    const { Haptics } = await import('@capacitor/haptics')
-    await Haptics.selectionStart()
-    await Haptics.selectionChanged()
-    await Haptics.selectionEnd()
-  } catch { /* ignore */ }
+  if (!_hapticsEnabled) return
+  if (_native || isNative()) {
+    try {
+      const { Haptics } = await import('@capacitor/haptics')
+      await Haptics.selectionStart()
+      await Haptics.selectionChanged()
+      await Haptics.selectionEnd()
+      return
+    } catch { /* fall through */ }
+  }
+  webVibrate(8)
 }
 
 /** Light tap — nav, toggles */
