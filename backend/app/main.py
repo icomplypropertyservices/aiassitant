@@ -14,6 +14,7 @@ from .ws import manager
 from .routers import (
     auth, templates, agents, chat, billing, dashboard, admin, org, keys,
     integrations, training, humans, ops, business, devices, marketplace,
+    cli_api,
 )
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
@@ -191,6 +192,7 @@ for r in (
     billing.router, dashboard.router, admin.router, org.router, keys.router,
     integrations.router, training.router, humans.router, ops.router, business.router,
     media_router.router, permissions_router.router, devices.router, marketplace.router,
+    cli_api.router,
 ):
     app.include_router(r)
 
@@ -200,7 +202,7 @@ def health():
     return {
         "ok": True,
         "service": "ai-business-assistant",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "environment": config.APP_ENV,
         "serverless": bool(__import__("os").getenv("VERCEL")),
         # Non-secret readiness flags (no secret values)
@@ -208,6 +210,8 @@ def health():
         "docs_enabled": not config.IS_PRODUCTION,
         "cron_secret_configured": bool(config.CRON_SECRET),
         "path_frontend_hint": config.FRONTEND_URL,
+        "cli_api": True,
+        "features": ["agent_wallets", "git_repos", "local_machines", "orchestrator_bootstrap"],
     }
 
 

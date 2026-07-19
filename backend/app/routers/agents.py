@@ -222,13 +222,26 @@ def agent_hierarchy(db: Session = Depends(get_db), user=Depends(get_current_user
 
 
 @router.post("/ensure-orchestrator")
-async def ensure_orchestrator(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Create the Main AI Orchestrator if missing — always sits at top of hierarchy."""
+async def ensure_orchestrator(
+    bootstrap: bool = Query(True, description="Also create 3 guided companies + wallets"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Create the Main AI Orchestrator if missing — always sits at top of hierarchy.
+    When bootstrap=true (default), also sets up the 3 guided companies, leads, and wallets.
+    """
     existing = find_orchestrator(db, user.id)
     if existing:
         promote_orchestrator(db, existing)
         db.commit()
-        return agent_out(existing, db, include_team=True)
+        out = agent_out(existing, db, include_team=True)
+        if bootstrap:
+            from ..orchestrator_bootstrap import bootstrap_workspace
+            try:
+                out["bootstrap"] = bootstrap_workspace(db, user)
+            except Exception as e:
+                out["bootstrap_error"] = str(e)
+        return out
 
     ensure_credits(db, user.id)
     count = db.query(models.Agent).filter_by(user_id=user.id).count()
@@ -238,7 +251,18 @@ async def ensure_orchestrator(db: Session = Depends(get_db), user=Depends(get_cu
 
     a = ensure_main_orchestrator(db, user)
     await log_activity(a.id, user.id, "info", "Main AI Orchestrator created — pinned at top of hierarchy")
-    return agent_out(a, db, include_team=True)
+    out = agent_out(a, db, include_team=True)
+    if bootstrap:
+        from ..orchestrator_bootstrap import bootstrap_workspace
+        try:
+            out["bootstrap"] = bootstrap_workspace(db, user)
+            await log_activity(
+                a.id, user.id, "action",
+                "Orchestrator bootstrap: 3 companies + wallets ready",
+            )
+        except Exception as e:
+            out["bootstrap_error"] = str(e)
+    return out
 
 
 @router.post("/ensure-designer")
@@ -1283,8 +1307,8 @@ def list_agent_messages(agent_id: int, db: Session = Depends(get_db), user=Depen
             "to_name": ta.name if ta else "?",
             "thread_key": m.thread_key,
             "content": m.content,
-            "status": m.status,
-            "created_at": m.created_at,
+            "status": getattr(m, "status", "sent"),
+            "created_at": getattr(m, "created_at", None),
         })
     return {"messages": out}
 

@@ -20,6 +20,9 @@ class User(Base):
     subscription_expires_at = Column(DateTime, nullable=True)
     # Email ownership confirmed via /auth/verify-email (admins/dev seed may start True)
     email_verified = Column(Boolean, default=False)
+    # Session API key (aba_…) — preferred auth site-wide (no JWT for sessions)
+    api_key_hash = Column(String, nullable=True, index=True)
+    api_key_prefix = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -443,6 +446,8 @@ class AgentMessage(Base):
     # thread key = min(id)-max(id) pair or explicit thread id
     thread_key = Column(String, index=True, default="")
     content = Column(Text, default="")
+    status = Column(String, default="sent")  # sent | delivered | read | failed
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class PlatformSetting(Base):
@@ -630,3 +635,103 @@ class DiaryEntry(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+
+
+# ── Agent CLI / crypto wallets / git / local machines ─────────────────────
+
+class AgentWallet(Base):
+    """Per-agent multi-chain crypto wallet + platform credit slice."""
+    __tablename__ = "agent_wallets"
+    id = Column(Integer, primary_key=True)
+    public_id = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    agent_id = Column(Integer, ForeignKey("agents.id"), unique=True, index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    # Platform credits attributed to this agent (USD)
+    credits_usd = Column(Float, default=0.0)
+    # On-chain linked or generated addresses
+    eth_address = Column(String, default="")
+    sol_address = Column(String, default="")
+    btc_address = Column(String, default="")
+    xrp_address = Column(String, default="")
+    xrp_dest_tag = Column(Integer, nullable=True)
+    # Encrypted JSON of private material (optional custodial keys) — never returned raw
+    encrypted_keys = Column(Text, default="")
+    # Virtual chain balances (bookkeeping; on-chain verified separately)
+    bal_eth = Column(Float, default=0.0)
+    bal_sol = Column(Float, default=0.0)
+    bal_btc = Column(Float, default=0.0)
+    bal_xrp = Column(Float, default=0.0)
+    label = Column(String, default="")
+    status = Column(String, default="active")  # active | frozen | archived
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentWalletTx(Base):
+    """Ledger for agent wallet movements."""
+    __tablename__ = "agent_wallet_txs"
+    id = Column(Integer, primary_key=True)
+    wallet_id = Column(Integer, ForeignKey("agent_wallets.id"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # deposit | withdraw | transfer_in | transfer_out | skill_spend | topup | adjust
+    kind = Column(String, default="adjust", index=True)
+    asset = Column(String, default="usd")  # usd | eth | sol | btc | xrp
+    amount = Column(Float, default=0.0)
+    balance_after = Column(Float, default=0.0)
+    counterparty_wallet_id = Column(Integer, nullable=True)
+    tx_hash = Column(String, default="", index=True)
+    note = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GitRepoConnection(Base):
+    """Connected git repository for agents (GitHub / GitLab / local path)."""
+    __tablename__ = "git_repo_connections"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    # github | gitlab | bitbucket | local
+    provider = Column(String, default="github", index=True)
+    name = Column(String, nullable=False)
+    full_name = Column(String, default="")  # owner/repo
+    clone_url = Column(String, default="")
+    html_url = Column(String, default="")
+    default_branch = Column(String, default="main")
+    local_path = Column(String, default="")  # absolute path on machine node
+    machine_id = Column(Integer, ForeignKey("machine_nodes.id"), nullable=True, index=True)
+    # Encrypted PAT / deploy key material
+    encrypted_token = Column(Text, default="")
+    token_hint = Column(String, default="")
+    scopes = Column(String, default="")
+    status = Column(String, default="connected")  # connected | error | revoked
+    last_sync_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, default="")
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MachineNode(Base):
+    """Registered local / remote machine visible to orchestrator and CLI."""
+    __tablename__ = "machine_nodes"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    public_id = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    # local | remote | ci | laptop | server
+    kind = Column(String, default="local")
+    hostname = Column(String, default="")
+    os_name = Column(String, default="")
+    arch = Column(String, default="")
+    # agent-reported status
+    status = Column(String, default="online")  # online | offline | unknown
+    agent_version = Column(String, default="")
+    # Encrypted JSON snapshot from last heartbeat
+    snapshot_json = Column(Text, default="{}")
+    labels = Column(String, default="")  # comma tags
+    last_seen_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
