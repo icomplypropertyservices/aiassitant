@@ -7,7 +7,7 @@ import {
   PlusOutlined, CheckSquareOutlined, ApartmentOutlined,
   CheckCircleFilled, CheckCircleOutlined, CrownOutlined,
   BankOutlined, TeamOutlined, SafetyCertificateOutlined, UserOutlined,
-  CommentOutlined, NodeIndexOutlined,
+  CommentOutlined, NodeIndexOutlined, BellOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api'
@@ -171,10 +171,17 @@ export default function Dashboard() {
 
   const quickActions = [
     {
+      key: 'human',
+      label: 'Human inbox',
+      icon: <BellOutlined />,
+      type: 'primary',
+      onClick: () => nav('/human'),
+    },
+    {
       key: 'agents',
       label: 'Agents',
       icon: <RobotOutlined />,
-      type: 'primary',
+      type: 'default',
       onClick: () => nav('/console'),
     },
     {

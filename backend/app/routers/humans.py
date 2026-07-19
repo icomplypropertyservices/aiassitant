@@ -190,6 +190,150 @@ def list_subcontractors(db: Session = Depends(get_db), user=Depends(get_current_
     return human_service.list_agentbay_subcontractors(db, user)
 
 
+@router.get("/inbox")
+def human_inbox(
+    limit: int = 60,
+    unread_only: bool = False,
+    mark_read: bool = False,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Aggregated notification + message feed for the logged-in owner as human.
+    Includes agent status updates, system notes, and owner messages on My Human.
+    """
+    my = human_service.ensure_my_human(db, user)
+    db.commit()
+    q = (
+        db.query(models.HumanMessage)
+        .filter_by(user_id=user.id, human_id=my.id)
+        .order_by(models.HumanMessage.id.desc())
+    )
+    if unread_only:
+        q = q.filter(models.HumanMessage.read_at.is_(None))
+    rows = q.limit(min(200, max(1, int(limit or 60)))).all()
+    items = []
+    for m in rows:
+        agent_name = None
+        if m.sender_agent_id:
+            a = db.get(models.Agent, m.sender_agent_id)
+            agent_name = a.name if a else None
+        items.append({
+            "id": m.id,
+            "human_id": m.human_id,
+            "sender_role": m.sender_role,
+            "sender_agent_id": m.sender_agent_id,
+            "sender_agent_name": agent_name,
+            "task_id": m.task_id,
+            "content": m.content,
+            "kind": m.kind or "message",
+            "unread": m.read_at is None and (m.sender_role or "") != "owner",
+            "read_at": m.read_at.isoformat() + "Z" if m.read_at else None,
+            "created_at": m.created_at.isoformat() + "Z" if m.created_at else None,
+        })
+    unread = _unread_count(db, my.id, user.id)
+    if mark_read:
+        human_service.mark_messages_read(db, user, my.id)
+        db.commit()
+        unread = 0
+        for it in items:
+            it["unread"] = False
+    return {
+        "ok": True,
+        "my_human": _out(my, db),
+        "messages": items,
+        "count": len(items),
+        "unread_count": unread,
+    }
+
+
+@router.get("/dashboard")
+def human_dashboard(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Human desk: inbox summary, open tasks assigned to humans, recent agent notifications."""
+    my = human_service.ensure_my_human(db, user)
+    db.commit()
+    unread = _unread_count(db, my.id, user.id)
+    recent = human_service.list_human_messages(db, user, my.id, limit=30)
+    # Open tasks for any human on this account (human assignee or human_id set)
+    open_tasks = (
+        db.query(models.Task)
+        .filter(
+            models.Task.user_id == user.id,
+            models.Task.status.in_(("todo", "queued", "in_progress", "review")),
+            models.Task.human_id.isnot(None),
+        )
+        .order_by(models.Task.id.desc())
+        .limit(40)
+        .all()
+    )
+    task_items = []
+    for t in open_tasks:
+        h = db.get(models.Human, t.human_id) if t.human_id else None
+        a = db.get(models.Agent, t.agent_id) if t.agent_id else None
+        task_items.append({
+            "id": t.id,
+            "title": t.title,
+            "status": t.status,
+            "priority": t.priority,
+            "human_id": t.human_id,
+            "human_name": h.name if h else None,
+            "agent_id": t.agent_id,
+            "agent_name": a.name if a else None,
+            "labels": t.labels or "",
+            "updated_at": t.updated_at.isoformat() + "Z" if getattr(t, "updated_at", None) else None,
+        })
+    # Recent ops of kind human / notify
+    ops = []
+    try:
+        from ..live_ops import list_ops
+        for ev in list_ops(db, user.id, limit=40):
+            kind = (ev.get("kind") or "") if isinstance(ev, dict) else getattr(ev, "kind", "")
+            title = (ev.get("title") or "") if isinstance(ev, dict) else getattr(ev, "title", "")
+            if kind in ("human", "action") or "human" in (title or "").lower() or "notify" in (title or "").lower():
+                ops.append(ev if isinstance(ev, dict) else {
+                    "kind": kind,
+                    "title": title,
+                    "detail": getattr(ev, "detail", None),
+                    "status": getattr(ev, "status", None),
+                    "created_at": getattr(ev, "created_at", None),
+                })
+    except Exception:
+        ops = []
+
+    humans = (
+        db.query(models.Human)
+        .filter_by(owner_user_id=user.id)
+        .order_by(models.Human.is_my_human.desc(), models.Human.name)
+        .all()
+    )
+    return {
+        "ok": True,
+        "my_human": _out(my, db),
+        "unread_count": unread,
+        "recent_messages": recent,
+        "open_human_tasks": task_items,
+        "ops": ops[:20],
+        "team": [_out(h, db) for h in humans],
+        "stats": {
+            "team_size": len(humans),
+            "unread": unread,
+            "open_tasks": len(task_items),
+            "messages": len(recent),
+        },
+    }
+
+
+@router.post("/inbox/mark-read")
+def mark_inbox_read(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    my = human_service.ensure_my_human(db, user)
+    n = human_service.mark_messages_read(db, user, my.id)
+    db.commit()
+    return {"ok": True, "marked": n, "human_id": my.id}
+
+
 @router.post("/")
 async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     # Ensure primary exists first

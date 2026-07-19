@@ -32,6 +32,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Training = lazy(() => import('./pages/Training'))
 const CommsPractice = lazy(() => import('./pages/CommsPractice'))
 const Humans = lazy(() => import('./pages/Humans'))
+const HumanDashboard = lazy(() => import('./pages/HumanDashboard'))
 const Ops = lazy(() => import('./pages/Ops'))
 const Business = lazy(() => import('./pages/Business'))
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail'))
@@ -111,6 +112,8 @@ export default function App() {
         <Route path="training" element={<Lazy><Training /></Lazy>} />
         <Route path="comms" element={<Lazy><CommsPractice /></Lazy>} />
         <Route path="calls" element={<Lazy><CommsPractice /></Lazy>} />
+        <Route path="human" element={<Lazy><HumanDashboard /></Lazy>} />
+        <Route path="human/inbox" element={<Lazy><HumanDashboard /></Lazy>} />
         <Route path="humans" element={<Lazy><Humans /></Lazy>} />
         <Route path="users" element={<Lazy><Humans /></Lazy>} />
         <Route path="profile" element={<Lazy><Profile /></Lazy>} />

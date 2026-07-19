@@ -9,7 +9,7 @@ export const BOTTOM_PRIMARY = [
   { key: '/', label: 'Home', icon: 'home' },
   { key: '/console', label: 'Agents', icon: 'agents' },
   { key: '/tasks', label: 'Tasks', icon: 'tasks' },
-  { key: '/business', label: 'Biz', icon: 'business' },
+  { key: '/human', label: 'Human', icon: 'team' },
   { key: '__more__', label: 'More', icon: 'more' },
 ]
 
@@ -17,6 +17,7 @@ export const BOTTOM_PRIMARY = [
 export function buildMenuItems({ isAdmin = false } = {}) {
   const main = [
     { key: '/', label: 'Dashboard', icon: 'home', group: 'Work' },
+    { key: '/human', label: 'Human inbox', icon: 'team', group: 'Work' },
     { key: '/console', label: 'Agent console', icon: 'agents', group: 'Work' },
     { key: '/agent-dash', label: 'Agent dashboard', icon: 'ops', group: 'Work' },
     { key: '/tasks', label: 'Tasks board', icon: 'tasks', group: 'Work' },
@@ -27,7 +28,7 @@ export function buildMenuItems({ isAdmin = false } = {}) {
     { key: '/chat', label: 'AI Chat', icon: 'chat', group: 'Work' },
     { key: '/workspace', label: 'Workspace', icon: 'workspace', group: 'Org' },
     { key: '/hierarchy', label: 'Hierarchy', icon: 'hierarchy', group: 'Org' },
-    { key: '/humans', label: 'Team', icon: 'team', group: 'Org' },
+    { key: '/humans', label: 'Team admin', icon: 'team', group: 'Org' },
     { key: '/permissions', label: 'Permissions', icon: 'permissions', group: 'Org' },
     { key: '/templates', label: 'Templates', icon: 'templates', group: 'Grow' },
     { key: '/training', label: 'Training', icon: 'training', group: 'Grow' },
@@ -66,6 +67,7 @@ export function activeNavKey(pathname) {
   if (p.startsWith('/meetings')) return '/meetings'
   if (p.startsWith('/companies/')) return '/workspace'
   if (p === '/users') return '/humans'
+  if (p.startsWith('/human')) return '/human'
   if (p === '/calls') return '/comms'
   return p
 }

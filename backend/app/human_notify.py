@@ -386,12 +386,41 @@ async def notify_human(
         return {"ok": False, "error": target.get("error") or "No active human", "channels": {}}
 
     path = _normalize_app_path(link_path)
+    # Prefer Human Dashboard for in-app notifications
+    if path in ("/tasks", "/tasks/", "/"):
+        path = "/human"
     link = shortcut_url(path)
     one = (details or "").replace("\n", " ")[:160]
     title_s = (title or "Update").strip()[:80]
     sms_body = _short_body(title_s, details, link)
     email_subject = f"[AI Business Agent] {title_s}"
     agent_name = agent.name if agent else "AI Agent"
+
+    # Always land a copy in the Human inbox (so humans see messages without email/SMS)
+    inbox_id = target.get("human_id")
+    inbox_msg_id = None
+    try:
+        from . import human_service
+        if not inbox_id:
+            mh = human_service.ensure_my_human(db, user)
+            inbox_id = mh.id
+        body = f"{title_s}\n\n{(details or '').strip()}"[:8000]
+        if one and title_s not in (details or ""):
+            body = f"{title_s}\n\n{(details or one).strip()}"[:8000]
+        hm = human_service.post_human_message(
+            db,
+            user=user,
+            human_id=int(inbox_id),
+            content=body,
+            sender_role="agent" if agent else "system",
+            sender_agent_id=agent.id if agent else None,
+            kind="status" if agent else "system",
+        )
+        inbox_msg_id = hm.id
+        db.flush()
+    except Exception as e:
+        log.warning("inbox post failed: %s", e)
+
     plain_body = (
         f"From: {agent_name}\n"
         f"To: {target.get('name')}\n\n"
@@ -466,7 +495,16 @@ async def notify_human(
         channels_out["sms"] = sms_r
     if push_r:
         channels_out["push"] = push_r
-    any_ok = any(bool(channels_out.get(k, {}).get("ok")) for k in ("email", "sms", "push"))
+    any_channel = any(bool(channels_out.get(k, {}).get("ok")) for k in ("email", "sms", "push"))
+    inbox_ok = bool(inbox_msg_id)
+    any_ok = any_channel or inbox_ok
+    if inbox_ok:
+        channels_out["inbox"] = {
+            "ok": True,
+            "message_id": inbox_msg_id,
+            "human_id": inbox_id,
+            "path": "/human",
+        }
 
     # Live ops banner
     try:
@@ -477,12 +515,13 @@ async def notify_human(
             status="done" if any_ok else "failed",
             title=f"Notify human: {title_s}"[:120],
             detail=(
-                f"{target.get('name')}: email={channels_out.get('email', {}).get('ok')} "
+                f"{target.get('name')}: inbox={inbox_ok} "
+                f"email={channels_out.get('email', {}).get('ok')} "
                 f"sms={channels_out.get('sms', {}).get('ok')} "
                 f"push={channels_out.get('push', {}).get('ok')} link={link}"
             )[:400],
             agent_id=agent.id if agent else None,
-            human_id=target.get("human_id"),
+            human_id=target.get("human_id") or inbox_id,
             db=db,
         )
     except Exception:
@@ -492,7 +531,11 @@ async def notify_human(
     sms_ok = channels_out.get("sms", {}).get("ok")
     push_ok = channels_out.get("push", {}).get("ok")
     ok = bool(any_ok)
-    if email_ok and sms_ok:
+    if inbox_ok and (email_ok or sms_ok or push_ok):
+        message = "Posted to Human inbox + external notify"
+    elif inbox_ok:
+        message = "Posted to Human inbox (open Human Dashboard) — email/SMS optional if configured"
+    elif email_ok and sms_ok:
         message = "Human notified by email + SMS shortcut"
     elif email_ok:
         message = "Human notified by email only (SMS missing/failed)"
@@ -506,9 +549,10 @@ async def notify_human(
     return {
         "ok": ok,
         "message": message,
+        "inbox_message_id": inbox_msg_id,
         "target": {
             "kind": target.get("kind"),
-            "human_id": target.get("human_id"),
+            "human_id": target.get("human_id") or inbox_id,
             "name": target.get("name"),
             "email": email or None,
             "phone": phone or None,
