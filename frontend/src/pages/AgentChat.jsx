@@ -631,9 +631,17 @@ export default function AgentChat() {
           <div className="agent-chat-composer-inner">
             <div className="agent-chat-tools">
               <VoiceControls
-                disabled={busy}
-                onTranscript={(text) => send(text)}
-                onPartial={(t) => setInput(t)}
+                disabled={false}
+                onTranscript={(text) => {
+                  const t = String(text || '').trim()
+                  if (!t) return
+                  // Always keep spoken text in the box; send() queues if still busy
+                  setInput(t)
+                  send(t)
+                }}
+                onPartial={(t) => {
+                  if (t != null) setInput(String(t))
+                }}
                 speakReplies={speakReplies}
                 onSpeakRepliesChange={(v) => {
                   setSpeakReplies(v)

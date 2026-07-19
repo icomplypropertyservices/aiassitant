@@ -70,11 +70,24 @@ export function defaultSpeechLang() {
 function prefersNonContinuousSpeech() {
   try {
     const ua = navigator.userAgent || ''
-    // continuous=true drops/breaks interim results on many mobile WebViews
-    return /Android|iPhone|iPad|iPod|Mobile|webOS|CriOS|FxiOS/i.test(ua)
-  } catch {
+    // continuous=true drops/breaks interim results on many mobile WebViews + Safari
+    if (/Android|iPhone|iPad|iPod|Mobile|webOS|CriOS|FxiOS|EdgiOS/i.test(ua)) return true
+    // iPadOS 13+ reports as Macintosh — detect touch
+    if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true
     return false
+  } catch {
+    return true
   }
+}
+
+/** SpeechRecognition prefers a concrete BCP-47 tag; bare "en" often yields silence. */
+function normalizeSpeechLang(lang) {
+  const raw = String(lang || '').trim() || 'en-US'
+  if (/^[a-z]{2}$/i.test(raw)) {
+    const map = { en: 'en-US', gb: 'en-GB', uk: 'en-GB', es: 'es-ES', fr: 'fr-FR', de: 'de-DE' }
+    return map[raw.toLowerCase()] || `${raw}-US`
+  }
+  return raw
 }
 
 export function canSpeak() {
@@ -165,7 +178,7 @@ export default function VoiceControls({
   maxListenMs = 120000,
   silenceMs = 3500,
 }) {
-  const speechLang = lang || defaultSpeechLang()
+  const speechLang = normalizeSpeechLang(lang || defaultSpeechLang())
   const [supported, setSupported] = useState(true)
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -182,9 +195,12 @@ export default function VoiceControls({
   const silenceTimerRef = useRef(null)
   const maxTimerRef = useRef(null)
   const restartTimerRef = useRef(null)
+  const lateResultTimerRef = useRef(null)
   const mountedRef = useRef(true)
   /** false on mobile — continuous mode often never delivers usable text */
   const continuousRef = useRef(!prefersNonContinuousSpeech())
+  /** Mobile: skip second getUserMedia for meters (steals mic from STT) */
+  const mobileMicRef = useRef(prefersNonContinuousSpeech())
   /** Parent callbacks in refs so finishListening always uses latest send/busy handlers */
   const onTranscriptRef = useRef(onTranscript)
   const onPartialRef = useRef(onPartial)
@@ -235,6 +251,10 @@ export default function VoiceControls({
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current)
       restartTimerRef.current = null
+    }
+    if (lateResultTimerRef.current) {
+      clearTimeout(lateResultTimerRef.current)
+      lateResultTimerRef.current = null
     }
   }
 
@@ -421,7 +441,7 @@ export default function VoiceControls({
   }
 
   const finishListening = (sendText, { forceSend = false, quiet = false } = {}) => {
-    // Snapshot FIRST — stop() can clear browser buffers / race onend
+    // Snapshot FIRST — stop() races onend; never abort() here (abort drops finals)
     foldInterimIntoFinal()
     const snapped = String(
       sendText != null && String(sendText).trim() ? sendText : combinedTranscript(),
@@ -431,95 +451,106 @@ export default function VoiceControls({
     listeningRef.current = false
     if (mountedRef.current) setListening(false)
     clearTimers()
+    if (lateResultTimerRef.current) {
+      clearTimeout(lateResultTimerRef.current)
+      lateResultTimerRef.current = null
+    }
     const rec = recRef.current
     recRef.current = null
+    // stop() only — abort() discards the last utterance on Chrome/Android
     try { rec?.stop?.() } catch { /* ignore */ }
-    try { rec?.abort?.() } catch { /* ignore */ }
     stopVolumeMeter()
     releaseKeepAwake().catch(() => {})
 
-    // Merge anything onend folded after snapshot
-    foldInterimIntoFinal()
-    const text = (snapped || combinedTranscript()).trim()
+    // Late finals sometimes arrive after stop; wait briefly then merge
+    const deliver = () => {
+      foldInterimIntoFinal()
+      const text = (snapped || combinedTranscript()).trim()
 
-    if (mountedRef.current) setPartial(text || '')
-    finalRef.current = ''
-    interimRef.current = ''
-    heardSpeechRef.current = false
+      if (mountedRef.current) setPartial(text || '')
+      finalRef.current = ''
+      interimRef.current = ''
+      heardSpeechRef.current = false
 
-    if (!text) {
-      if (!quiet) {
-        hapticSelect()
-        message.info('No speech captured — speak clearly, wait for the text under the mic, then tap Send')
+      // Always put text in the composer so user can edit/send if auto-send fails
+      if (text) {
+        try { onPartialRef.current?.(text) } catch { /* ignore */ }
+      }
+
+      if (!text) {
+        if (!quiet) {
+          hapticSelect()
+          message.info('No speech captured — speak, wait for words under the mic, then tap Send')
+        }
+        if (mountedRef.current) setPartial('')
+        return
+      }
+      meterVoice('voice_stt', text).catch(() => {})
+      if ((autoSend || forceSend) && onTranscriptRef.current) {
+        try {
+          hapticMedium()
+          onTranscriptRef.current(text)
+          hapticSuccess()
+        } catch (e) {
+          hapticError()
+          message.warning(e?.message || 'Voice text is in the box — tap Send')
+        }
+      } else {
+        hapticLight()
+        message.success('Voice text ready in the box — tap Send')
       }
       if (mountedRef.current) setPartial('')
-      return
     }
-    // Billing must not block send
-    meterVoice('voice_stt', text).catch(() => {})
-    try { onPartialRef.current?.(text) } catch { /* ignore */ }
-    if ((autoSend || forceSend) && onTranscriptRef.current) {
-      try {
-        hapticMedium()
-        onTranscriptRef.current(text)
-        hapticSuccess()
-      } catch (e) {
-        hapticError()
-        message.warning(e?.message || 'Could not send voice message — text is in the box, tap Send')
-      }
-    } else {
-      hapticLight()
-    }
-    if (mountedRef.current) setPartial('')
+
+    // Give the engine ~180ms to flush final results after stop()
+    lateResultTimerRef.current = setTimeout(deliver, 180)
   }
   finishRef.current = finishListening
 
   const armSilenceTimer = () => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     if (!heardSpeechRef.current) return
-    // Longer silence on mobile non-continuous mode so users can pause mid-sentence
-    const base = continuousRef.current ? silenceMs : Math.max(silenceMs, 2200)
+    // Mobile: longer pause so multi-word phrases aren't cut mid-sentence
+    const base = continuousRef.current ? silenceMs : Math.max(silenceMs, 2800)
     silenceTimerRef.current = setTimeout(() => {
       if (wantListenRef.current) finishRef.current?.()
-    }, clampNum(base, 800, 30000, 3500))
+    }, clampNum(base, 1200, 30000, 3500))
   }
 
-  const startRecognitionEngine = () => {
+  const startRecognitionEngine = (langOverride) => {
     const SR = getSpeechRecognition()
     if (!SR || !wantListenRef.current) return false
-    try {
-      const rec = new SR()
-      rec.lang = speechLang
-      rec.interimResults = true
-      rec.continuous = !!continuousRef.current
-      rec.maxAlternatives = 1
-      attachRecHandlers(rec)
-      recRef.current = rec
-      rec.start()
-      listeningRef.current = true
-      if (mountedRef.current) setListening(true)
-      return true
-    } catch (e) {
-      // Fallback: continuous not supported
-      if (continuousRef.current) {
-        continuousRef.current = false
+    const langs = []
+    const primary = normalizeSpeechLang(langOverride || speechLang)
+    langs.push(primary)
+    if (primary !== 'en-US') langs.push('en-US')
+    if (primary !== 'en-GB') langs.push('en-GB')
+
+    for (const useLang of langs) {
+      for (const continuous of [!!continuousRef.current, false]) {
         try {
+          // stop any prior instance
+          try { recRef.current?.stop?.() } catch { /* ignore */ }
+          recRef.current = null
           const rec = new SR()
-          rec.lang = speechLang
+          rec.lang = useLang
           rec.interimResults = true
-          rec.continuous = false
-          rec.maxAlternatives = 1
+          rec.continuous = continuous
+          rec.maxAlternatives = 3
           attachRecHandlers(rec)
           recRef.current = rec
           rec.start()
+          continuousRef.current = continuous
           listeningRef.current = true
           if (mountedRef.current) setListening(true)
           return true
-        } catch { /* fall through */ }
+        } catch {
+          /* try next combo */
+        }
       }
-      console.warn('[voice] start failed', e)
-      return false
     }
+    console.warn('[voice] start failed for all lang/continuous combos')
+    return false
   }
 
   const attachRecHandlers = (rec) => {
@@ -531,37 +562,50 @@ export default function VoiceControls({
       const err = ev?.error || ''
       if (err === 'not-allowed' || err === 'service-not-allowed') {
         hapticError()
-        message.error('Microphone / speech permission denied. Allow mic access and try Chrome.')
+        message.error('Mic / speech blocked. Allow microphone for this site (Chrome works best).')
         wantListenRef.current = false
         finishRef.current?.('', { quiet: true })
         return
       }
-      // continuous mode unsupported → switch to one-shot + restart loop
-      if (err === 'network' || err === 'service-not-allowed') {
-        continuousRef.current = false
-      }
-      if (err === 'aborted' || err === 'no-speech') return
       if (err === 'network') {
-        hapticSelect()
-        // keep listening if possible; restart path will recover
+        // Google STT backend unreachable — keep trying non-continuous restarts
+        continuousRef.current = false
+        return
       }
+      // aborted: ignore (we called stop)
+      // no-speech: engine ends; onend will restart if still listening
+      if (err === 'aborted' || err === 'no-speech') return
       if (err === 'audio-capture') {
         hapticError()
-        message.error('No microphone found or mic is in use by another app.')
+        message.error('No microphone found, or another app is using the mic.')
         wantListenRef.current = false
         finishRef.current?.('', { quiet: true })
+      }
+      if (err === 'language-not-supported') {
+        continuousRef.current = false
+        // Restart with en-US on next onend cycle
+        try { rec.lang = 'en-US' } catch { /* ignore */ }
       }
     }
     rec.onend = () => {
       foldInterimIntoFinal()
-      // Keep listening: restart engine (required for continuous=false phones)
+      // Brief wait so a late onresult can land before restart
       if (wantListenRef.current) {
         restartTimerRef.current = setTimeout(() => {
           if (!wantListenRef.current) return
-          if (!startRecognitionEngine()) {
-            finishRef.current?.()
+          // Prefer non-continuous after first cycle if we heard nothing
+          if (!heardSpeechRef.current && continuousRef.current) {
+            continuousRef.current = false
           }
-        }, continuousRef.current ? 150 : 80)
+          if (!startRecognitionEngine()) {
+            // If we have text, finish with it; else keep trying once more en-US
+            if (combinedTranscript()) {
+              finishRef.current?.()
+            } else if (!startRecognitionEngine('en-US')) {
+              finishRef.current?.()
+            }
+          }
+        }, continuousRef.current ? 200 : 120)
         return
       }
       listeningRef.current = false
@@ -570,27 +614,60 @@ export default function VoiceControls({
     rec.onresult = (event) => {
       try {
         let interim = ''
-        // Rebuild from resultIndex so we don't drop late interim chunks
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const r = event.results[i]
-          if (!r) continue
-          const t = String(r[0]?.transcript || '')
-          if (!t) continue
-          if (r.isFinal) {
-            const fin = String(finalRef.current || '').trim()
-            finalRef.current = `${fin}${fin ? ' ' : ''}${t.trim()}`.replace(/\s+/g, ' ')
-            heardSpeechRef.current = true
-          } else {
-            interim += t
-            if (t.trim()) heardSpeechRef.current = true
+        // Scan full result list (not only resultIndex) — some mobile engines
+        // re-emit earlier finals or only interim until stop
+        const start = continuousRef.current ? event.resultIndex : 0
+        if (!continuousRef.current) {
+          // One-shot session: rebuild entire session transcript
+          let sessionFinal = ''
+          for (let i = 0; i < event.results.length; i++) {
+            const r = event.results[i]
+            if (!r) continue
+            const t = String(r[0]?.transcript || r[1]?.transcript || '')
+            if (!t.trim()) continue
+            if (r.isFinal) sessionFinal += (sessionFinal ? ' ' : '') + t.trim()
+            else interim += t
           }
+          if (sessionFinal) {
+            // One-shot: sessionFinal is the whole utterance so far
+            const base = String(finalRef.current || '').trim()
+            // Avoid duplicating if engine re-sends same final
+            if (!base.endsWith(sessionFinal)) {
+              finalRef.current = `${base}${base ? ' ' : ''}${sessionFinal}`.replace(/\s+/g, ' ').trim()
+            }
+            heardSpeechRef.current = true
+          }
+          if (interim.trim()) heardSpeechRef.current = true
+          interimRef.current = interim
+        } else {
+          for (let i = start; i < event.results.length; i++) {
+            const r = event.results[i]
+            if (!r) continue
+            const t = String(r[0]?.transcript || r[1]?.transcript || '')
+            if (!t) continue
+            if (r.isFinal) {
+              const fin = String(finalRef.current || '').trim()
+              const piece = t.trim()
+              if (piece && !fin.endsWith(piece)) {
+                finalRef.current = `${fin}${fin ? ' ' : ''}${piece}`.replace(/\s+/g, ' ')
+              }
+              heardSpeechRef.current = true
+            } else {
+              interim += t
+              if (t.trim()) heardSpeechRef.current = true
+            }
+          }
+          interimRef.current = interim
         }
-        // Only replace interim with latest non-final stream (API replaces, does not append)
-        interimRef.current = interim
       } catch { /* ignore malformed result */ }
       const display = combinedTranscript()
       if (mountedRef.current) setPartial(display)
       try { onPartialRef.current?.(display) } catch { /* ignore parent errors */ }
+      // Fake meter pulse when speech heard (no second mic stream)
+      if (heardSpeechRef.current && mobileMicRef.current && mountedRef.current) {
+        const pulse = IDLE_LEVELS().map((_, i) => 0.25 + 0.55 * Math.abs(Math.sin(Date.now() / 120 + i)))
+        setLevels(pulse)
+      }
       armSilenceTimer()
     }
   }
@@ -599,8 +676,13 @@ export default function VoiceControls({
     wantListenRef.current = false
     listeningRef.current = false
     clearTimers()
-    try { recRef.current?.abort?.() } catch { /* ignore */ }
+    if (lateResultTimerRef.current) {
+      clearTimeout(lateResultTimerRef.current)
+      lateResultTimerRef.current = null
+    }
     try { recRef.current?.stop?.() } catch { /* ignore */ }
+    // abort only after stop when discarding session
+    try { recRef.current?.abort?.() } catch { /* ignore */ }
     recRef.current = null
     stopVolumeMeter()
     releaseKeepAwake().catch(() => {})
@@ -617,7 +699,7 @@ export default function VoiceControls({
     const SR = getSpeechRecognition()
     if (!SR) {
       hapticError()
-      message.warning('Voice input needs Chrome or Edge (speech recognition not available here).')
+      message.warning('Voice needs Chrome or Edge on this device (speech recognition unavailable).')
       return
     }
     hapticLight()
@@ -628,27 +710,40 @@ export default function VoiceControls({
     if (mountedRef.current) setPartial('')
     heardSpeechRef.current = false
     wantListenRef.current = true
-    continuousRef.current = !prefersNonContinuousSpeech()
+    mobileMicRef.current = prefersNonContinuousSpeech()
+    continuousRef.current = !mobileMicRef.current
     clearTimers()
     acquireKeepAwake('mic').catch(() => {})
 
-    // Prime mic permission BEFORE SpeechRecognition (critical on Android Chrome)
+    // Request mic permission once. Do NOT open a second stream for meters on
+    // mobile — that steals the mic from SpeechRecognition (empty transcripts).
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const probe = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
           video: false,
         })
-        // Release probe tracks — startVolumeMeter opens its own stream for meters
-        try { probe.getTracks?.().forEach((t) => t.stop()) } catch { /* ignore */ }
+        if (mobileMicRef.current) {
+          // Release immediately so STT owns the mic exclusively
+          try { probe.getTracks?.().forEach((t) => t.stop()) } catch { /* ignore */ }
+        } else {
+          // Desktop: stop probe, then volume meter can open its own stream
+          try { probe.getTracks?.().forEach((t) => t.stop()) } catch { /* ignore */ }
+          startVolumeMeter()
+        }
+      } else if (!mobileMicRef.current) {
+        startVolumeMeter()
       }
     } catch {
       hapticError()
-      message.error('Microphone permission denied. Allow the mic for this site and try again.')
+      message.error('Microphone permission denied. Allow the mic for this site, then try again.')
       hardStopMic()
       return
     }
-    startVolumeMeter()
 
     maxTimerRef.current = setTimeout(() => {
       if (wantListenRef.current) {
@@ -657,10 +752,21 @@ export default function VoiceControls({
       }
     }, clampNum(maxListenMs, 5000, 600000, 120000))
 
-    if (!startRecognitionEngine()) {
-      message.error('Could not start speech recognition — try Chrome, or reload the page')
-      hardStopMic()
+    // Start STT after a tick so released probe tracks fully free the device
+    const kick = () => {
+      if (!wantListenRef.current) return
+      if (!startRecognitionEngine()) {
+        // Last try: en-US non-continuous
+        continuousRef.current = false
+        if (!startRecognitionEngine('en-US')) {
+          message.error('Could not start speech recognition — use Chrome, check mic permission, reload')
+          hardStopMic()
+          return
+        }
+      }
+      message.info('Listening — speak now. Tap Send when done.', 2)
     }
+    setTimeout(kick, mobileMicRef.current ? 120 : 40)
   }
 
   const toggleMic = () => {
