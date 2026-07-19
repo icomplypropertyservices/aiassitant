@@ -13,6 +13,7 @@ import {
 import LiveOpsBanner from '../LiveOpsBanner'
 import TopUpModal from '../TopUpModal'
 import SystemNav from '../SystemNav'
+import ErrorBoundary from '../ErrorBoundary'
 import useShellSession, { snoozeTopup } from './useShellSession'
 import AppHeader from './AppHeader'
 import BottomNav from './BottomNav'
@@ -89,7 +90,9 @@ export default function AppShell() {
   if (isAgentChatPath(loc.pathname)) {
     return (
       <div className="aba-agent-chat-host aba-v2-chat-host">
-        <Outlet />
+        <ErrorBoundary fullPage title="Chat crashed">
+          <Outlet />
+        </ErrorBoundary>
       </div>
     )
   }
@@ -182,7 +185,9 @@ export default function AppShell() {
         >
           <div className="aba-page-center" data-aba-layout="page-center">
             <div className="aba-page-shell" data-aba-layout="page-shell">
-              <Outlet />
+              <ErrorBoundary title="This page crashed">
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </div>
         </Content>

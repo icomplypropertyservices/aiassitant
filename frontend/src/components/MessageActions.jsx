@@ -24,22 +24,31 @@ export default function MessageActions({
   if (!body) return null
 
   const onPlay = () => {
-    if (playing) {
-      stopSpeaking()
+    try {
+      if (playing) {
+        stopSpeaking()
+        setPlaying(false)
+        try { hapticSelect() } catch { /* ignore */ }
+        return
+      }
+      if (!canSpeak()) {
+        message.warning('Speech playback is not supported in this browser')
+        return
+      }
+      try { hapticLight() } catch { /* ignore */ }
+      setPlaying(true)
+      // Cap spoken length — very long TTS can freeze mobile WebViews
+      const spoken = body.length > 4000 ? `${body.slice(0, 4000)}…` : body
+      speakText(spoken, {
+        bill: true,
+        onEnd: () => {
+          try { setPlaying(false) } catch { /* unmounted */ }
+        },
+      })
+    } catch (e) {
       setPlaying(false)
-      hapticSelect()
-      return
+      message.error(e?.message || 'Playback failed')
     }
-    if (!canSpeak()) {
-      message.warning('Speech playback is not supported in this browser')
-      return
-    }
-    hapticLight()
-    setPlaying(true)
-    speakText(body, {
-      bill: true,
-      onEnd: () => setPlaying(false),
-    })
   }
 
   const onCopy = async () => {
@@ -56,7 +65,7 @@ export default function MessageActions({
         document.execCommand('copy')
         document.body.removeChild(ta)
       }
-      hapticSuccess()
+      try { hapticSuccess() } catch { /* ignore */ }
       message.success('Copied to clipboard')
     } catch (e) {
       message.error(e?.message || 'Copy failed')
@@ -78,7 +87,7 @@ export default function MessageActions({
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      hapticLight()
+      try { hapticLight() } catch { /* ignore */ }
       message.success('Download started')
     } catch (e) {
       message.error(e?.message || 'Download failed')

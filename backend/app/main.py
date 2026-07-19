@@ -204,6 +204,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request, exc):
+    """Catch unexpected errors → stable JSON 500 (no HTML / silent disconnect).
+
+    Starlette prefers more specific handlers (HTTPException, validation) first,
+    so this only runs for truly unhandled exceptions on HTTP routes.
+    """
+    import logging
+    from fastapi.responses import JSONResponse
+    from fastapi.exceptions import HTTPException as FastAPIHTTPException, RequestValidationError
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    # Defensive: if a specific exception still lands here, preserve status
+    if isinstance(exc, (FastAPIHTTPException, StarletteHTTPException)):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    logging.getLogger("aba.api").exception(
+        "unhandled path=%s method=%s err=%s",
+        getattr(getattr(request, "url", None), "path", "?"),
+        getattr(request, "method", "?"),
+        exc,
+    )
+    detail = "Internal server error — please try again"
+    if not config.IS_PRODUCTION:
+        detail = f"{type(exc).__name__}: {exc}"
+    return JSONResponse(status_code=500, content={"detail": detail, "ok": False})
 from .routers import media as media_router
 from .routers import permissions_api as permissions_router
 from .routers import comms as comms_router

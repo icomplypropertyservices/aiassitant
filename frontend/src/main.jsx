@@ -3,8 +3,30 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { ConfigProvider, App as AntApp } from 'antd'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 import { initNativeShell } from './native'
 import './styles/global.css'
+
+/** Prevent uncaught promise / script errors from blanking the UI silently. */
+function installGlobalHandlers() {
+  if (typeof window === 'undefined') return
+  window.addEventListener('unhandledrejection', (ev) => {
+    try {
+      console.warn('[unhandledrejection]', ev?.reason)
+      // Stop some mobile WebViews from treating rejection as fatal
+      ev?.preventDefault?.()
+    } catch { /* ignore */ }
+  })
+  window.addEventListener('error', (ev) => {
+    try {
+      // ResizeObserver / script load noise — log only
+      const msg = String(ev?.message || '')
+      if (/ResizeObserver|Script error\.?/i.test(msg)) return
+      console.warn('[window.error]', msg, ev?.filename, ev?.lineno)
+    } catch { /* ignore */ }
+  })
+}
+installGlobalHandlers()
 
 function isNative() {
   try {
@@ -86,17 +108,47 @@ const theme = {
   },
 }
 
+function renderBootError(err) {
+  const el = document.getElementById('root')
+  if (!el) return
+  const msg = String(err?.message || err || 'Failed to start')
+  el.innerHTML = `
+    <div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif;background:#f1f5f9">
+      <div style="max-width:420px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;text-align:center;box-shadow:0 4px 24px rgba(15,23,42,.08)">
+        <h1 style="font-size:18px;margin:0 0 8px;color:#0f172a">App failed to start</h1>
+        <p style="font-size:13px;color:#64748b;margin:0 0 16px">${msg.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</p>
+        <button type="button" onclick="location.reload()" style="background:#1668dc;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer">
+          Reload
+        </button>
+      </div>
+    </div>
+  `
+}
+
 async function boot() {
-  await initNativeShell()
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <ConfigProvider theme={theme}>
-      <AntApp>
-        <Router basename={routerBasename}>
-          <App />
-        </Router>
-      </AntApp>
-    </ConfigProvider>
-  )
+  try {
+    try {
+      await initNativeShell()
+    } catch (e) {
+      console.warn('[boot] native shell init failed (continuing)', e)
+    }
+    const root = document.getElementById('root')
+    if (!root) throw new Error('Missing #root element')
+    ReactDOM.createRoot(root).render(
+      <ErrorBoundary fullPage title="App crashed">
+        <ConfigProvider theme={theme}>
+          <AntApp>
+            <Router basename={routerBasename}>
+              <App />
+            </Router>
+          </AntApp>
+        </ConfigProvider>
+      </ErrorBoundary>,
+    )
+  } catch (err) {
+    console.error('[boot]', err)
+    renderBootError(err)
+  }
 }
 
 boot()

@@ -10,7 +10,7 @@ import {
   ApartmentOutlined, HomeOutlined, CreditCardOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { api, connectAuthedWs } from '../api'
+import { api, connectAuthedWs, safeJsonParse } from '../api'
 import { hapticMedium, hapticSuccess, hapticError, acquireKeepAwake, releaseKeepAwake, forceAllowSleep } from '../native'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
@@ -209,56 +209,70 @@ export default function AgentChat() {
         cws.onclose = () => setLive(false)
         cws.onerror = () => setLive(false)
         cws.onmessage = (e) => {
-          const m = JSON.parse(e.data)
-          if (m.type === 'auth_ok') return
-          if (m.type === 'error') {
-            message.error(m.content)
-            setBusy(false)
-          }
-          if (m.type === 'start') {
-            setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true }])
-            scrollBottom()
-          }
-          if (m.type === 'chunk') {
-            setMessages((prev) => {
-              const next = [...prev]
-              const last = next[next.length - 1]
-              if (last?.streaming) last.content += m.content
-              else next.push({ role: 'assistant', content: m.content, streaming: true })
-              return next
-            })
-            scrollBottom(false)
-          }
-          if (m.type === 'done') {
-            setBusy(false)
-            setSessionTokens((t) => t + (m.tokens || 0))
-            try {
-              window.dispatchEvent(new CustomEvent('aba-usage', {
-                detail: {
-                  tokens: m.tokens,
-                  tokens_used_period: m.tokens_used_period,
-                  credits: m.credits,
-                  cost: m.cost,
-                },
-              }))
-            } catch { /* ignore */ }
-            const goalChainMeta = parseGoalChain(m.goal_chain)
-            setMessages((prev) => {
-              const next = prev.map((x) => ({ ...x, streaming: false }))
-              if (goalChainMeta) {
-                for (let i = next.length - 1; i >= 0; i -= 1) {
-                  if (next[i].role === 'assistant') {
-                    next[i] = { ...next[i], goal_chain: goalChainMeta }
-                    break
+          const m = safeJsonParse(e?.data)
+          if (!m || typeof m !== 'object') return
+          try {
+            if (m.type === 'auth_ok') return
+            if (m.type === 'error') {
+              message.error(m.content || 'Chat error')
+              setBusy(false)
+            }
+            if (m.type === 'start') {
+              setMessages((prev) => {
+                const next = [...prev, { role: 'assistant', content: '', streaming: true }]
+                return next.length > 80 ? next.slice(-80) : next
+              })
+              scrollBottom()
+            }
+            if (m.type === 'chunk') {
+              setMessages((prev) => {
+                const next = [...prev]
+                const last = next[next.length - 1]
+                if (last?.streaming) last.content += (m.content || '')
+                else next.push({ role: 'assistant', content: m.content || '', streaming: true })
+                return next
+              })
+              scrollBottom(false)
+            }
+            if (m.type === 'done') {
+              setBusy(false)
+              setSessionTokens((t) => t + (m.tokens || 0))
+              try {
+                window.dispatchEvent(new CustomEvent('aba-usage', {
+                  detail: {
+                    tokens: m.tokens,
+                    tokens_used_period: m.tokens_used_period,
+                    credits: m.credits,
+                    cost: m.cost,
+                  },
+                }))
+              } catch { /* ignore */ }
+              const goalChainMeta = parseGoalChain(m.goal_chain)
+              setMessages((prev) => {
+                const next = prev.map((x) => ({ ...x, streaming: false }))
+                if (goalChainMeta) {
+                  for (let i = next.length - 1; i >= 0; i -= 1) {
+                    if (next[i].role === 'assistant') {
+                      next[i] = { ...next[i], goal_chain: goalChainMeta }
+                      break
+                    }
                   }
                 }
-              }
-              if (speakRef.current) {
-                const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
-                if (last?.content) speakText(last.content)
-              }
-              return next
-            })
+                if (speakRef.current) {
+                  try {
+                    const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
+                    if (last?.content) {
+                      const spoken = splitAssistantContent(last.content).display || last.content
+                      speakText(spoken)
+                    }
+                  } catch { /* TTS must never break chat */ }
+                }
+                return next.length > 80 ? next.slice(-80) : next
+              })
+            }
+          } catch (err) {
+            console.warn('[agent-chat ws]', err)
+            setBusy(false)
           }
         }
         wsRef.current = cws
@@ -304,14 +318,16 @@ export default function AgentChat() {
       message.info('Agent is still replying — your speech is in the box. Tap Send when ready.')
       return
     }
-    hapticMedium()
+    try { hapticMedium() } catch { /* ignore */ }
     // Stop any ongoing TTS before sending a new message
     try { stopSpeaking() } catch { /* ignore */ }
-    setMessages((prev) => [...prev, { role: 'user', content: msg }])
+    setMessages((prev) => {
+      const next = [...prev, { role: 'user', content: msg }, { role: 'assistant', content: '', streaming: true, pending: true }]
+      // Cap history so long sessions don't freeze mobile browsers
+      return next.length > 80 ? next.slice(-80) : next
+    })
     setInput('')
     setBusy(true)
-    // Show thinking bubble immediately so mobile users don't only see a spinner
-    setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true, pending: true }])
     scrollBottom()
 
     // Prefer REST always in production; WS only if fully open (local)

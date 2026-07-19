@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { getToken, getUser } from './api'
 import { usePushRegistration } from './hooks/useNativeFeedback'
 import AppLayout from './components/AppLayout'
+import ErrorBoundary from './components/ErrorBoundary'
 import { LogoLoading } from './components/BrandLogo'
 
 // Eager: first paint auth shell (small)
@@ -42,7 +43,11 @@ function PageFallback() {
 }
 
 function Lazy({ children }) {
-  return <Suspense fallback={<PageFallback />}>{children}</Suspense>
+  return (
+    <ErrorBoundary compact title="This page crashed">
+      <Suspense fallback={<PageFallback />}>{children}</Suspense>
+    </ErrorBoundary>
+  )
 }
 
 function Protected({ children }) {

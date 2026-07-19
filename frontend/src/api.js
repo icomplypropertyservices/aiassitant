@@ -81,7 +81,11 @@ export const WS =
  * Stored under `api_key` (preferred) and `token` (legacy key for older tabs).
  */
 export function getApiKey() {
-  return localStorage.getItem('api_key') || localStorage.getItem('token') || ''
+  try {
+    return localStorage.getItem('api_key') || localStorage.getItem('token') || ''
+  } catch {
+    return ''
+  }
 }
 
 /** @deprecated use getApiKey — kept so existing imports keep working */
@@ -217,27 +221,48 @@ export function createRealtime(opts = {}) {
 }
 export function getUser() {
   try {
-    return JSON.parse(localStorage.getItem('user'))
+    const raw = localStorage.getItem('user')
+    if (!raw || raw === 'undefined' || raw === 'null') return null
+    const u = JSON.parse(raw)
+    return u && typeof u === 'object' ? u : null
   } catch {
     return null
   }
 }
+
+/** Safe JSON.parse for WebSocket / external payloads — never throws. */
+export function safeJsonParse(raw, fallback = null) {
+  try {
+    if (raw == null || raw === '') return fallback
+    if (typeof raw === 'object') return raw
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
+
 /** Persist session API key (+ optional user). Accepts login response field token or api_key. */
 export function setAuth(apiKeyOrToken, user) {
   if (!apiKeyOrToken) {
     clearAuth()
     return
   }
-  localStorage.setItem('api_key', apiKeyOrToken)
-  localStorage.setItem('token', apiKeyOrToken) // legacy alias
-  if (user) localStorage.setItem('user', JSON.stringify(user))
+  try {
+    localStorage.setItem('api_key', apiKeyOrToken)
+    localStorage.setItem('token', apiKeyOrToken) // legacy alias
+    if (user) localStorage.setItem('user', JSON.stringify(user))
+  } catch (e) {
+    console.warn('[auth] localStorage write failed', e)
+  }
 }
 export function clearAuth() {
-  localStorage.removeItem('api_key')
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  localStorage.removeItem('agentbay_token')
-  localStorage.removeItem('agentbay_user')
+  try {
+    localStorage.removeItem('api_key')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('agentbay_token')
+    localStorage.removeItem('agentbay_user')
+  } catch { /* private mode / quota */ }
 }
 
 function formatDetail(detail) {
@@ -300,6 +325,7 @@ export function invalidateApiCache(prefix = '') {
 /**
  * Unified API fetch. Paths start with / (e.g. /auth/login).
  * GETs for list-ish endpoints are cached ~8s for snappy UI.
+ * Default timeout 45s (chat/media can pass a longer timeoutMs or their own signal).
  */
 export async function api(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase()
@@ -314,9 +340,45 @@ export async function api(path, options = {}) {
 
   const url = `${API}${path.startsWith('/') ? path : `/${path}`}`
   let res
+  let ownedController = null
+  let timeoutId = null
   try {
     const apiKey = getApiKey()
-    const { body, headers: optHeaders, signal, cache: _c, noCache: _n, ...rest } = options
+    const {
+      body,
+      headers: optHeaders,
+      signal: outerSignal,
+      cache: _c,
+      noCache: _n,
+      timeoutMs,
+      ...rest
+    } = options
+
+    // Default timeouts keep UI from hanging forever on flaky mobile networks
+    let timeout = timeoutMs
+    if (timeout == null) {
+      if (/\/chat\b|\/messages\b|\/media\//i.test(path)) timeout = 120000
+      else if (method === 'GET') timeout = 30000
+      else timeout = 45000
+    }
+
+    let signal = outerSignal
+    if (timeout > 0 && typeof AbortController !== 'undefined') {
+      ownedController = new AbortController()
+      signal = ownedController.signal
+      if (outerSignal) {
+        if (outerSignal.aborted) ownedController.abort()
+        else {
+          outerSignal.addEventListener('abort', () => {
+            try { ownedController.abort() } catch { /* ignore */ }
+          }, { once: true })
+        }
+      }
+      timeoutId = setTimeout(() => {
+        try { ownedController.abort() } catch { /* ignore */ }
+      }, timeout)
+    }
+
     res = await fetch(url, {
       ...rest,
       method,
@@ -337,7 +399,15 @@ export async function api(path, options = {}) {
     })
   } catch (err) {
     if (err?.name === 'AbortError') {
-      throw err
+      // Outer caller abort (navigate away) vs our timeout — keep AbortError name
+      const timedOut = ownedController?.signal?.aborted && !options.signal?.aborted
+      const e = new Error(
+        timedOut
+          ? 'Request timed out — check your connection and try again'
+          : (err.message || 'Aborted'),
+      )
+      e.name = 'AbortError'
+      throw e
     }
     const msg = err?.message || 'Network error'
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
@@ -346,6 +416,8 @@ export async function api(path, options = {}) {
       )
     }
     throw new Error(msg)
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 
   // Auth expired / missing — force re-login (except on auth endpoints)

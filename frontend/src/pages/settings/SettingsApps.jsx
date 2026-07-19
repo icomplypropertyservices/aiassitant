@@ -81,16 +81,22 @@ export default function SettingsApps({ onConnectedCountChange }) {
 
   /** Live apps first, then coming soon. Connected apps float to top. */
   const appRows = useMemo(() => {
-    const rows = (catalog || []).map((app) => {
-      const conn = connectionByApp[app.id]
-      return { app, conn, connected: conn?.status === 'connected' }
-    })
-    rows.sort((a, b) => {
-      if (a.connected !== b.connected) return a.connected ? -1 : 1
-      if (!!a.app.coming_soon !== !!b.app.coming_soon) return a.app.coming_soon ? 1 : -1
-      return (a.app.name || '').localeCompare(b.app.name || '')
-    })
-    return rows
+    try {
+      const rows = (Array.isArray(catalog) ? catalog : [])
+        .filter((app) => app && app.id)
+        .map((app) => {
+          const conn = connectionByApp[app.id]
+          return { app, conn, connected: conn?.status === 'connected' }
+        })
+      rows.sort((a, b) => {
+        if (a.connected !== b.connected) return a.connected ? -1 : 1
+        if (!!a.app.coming_soon !== !!b.app.coming_soon) return a.app.coming_soon ? 1 : -1
+        return String(a.app.name || '').localeCompare(String(b.app.name || ''))
+      })
+      return rows
+    } catch {
+      return []
+    }
   }, [catalog, connectionByApp])
 
   const redirectUri = googleOauthOk?.redirect_uri

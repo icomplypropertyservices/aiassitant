@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import { SendOutlined, ThunderboltOutlined, PlusOutlined, MessageOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { api, createRealtime } from '../api'
+import { api, createRealtime, safeJsonParse } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
@@ -73,46 +73,58 @@ export default function Chat() {
     }
     const ws = createRealtime({ path: '/ws/chat' })
     ws.onmessage = (e) => {
-      const m = JSON.parse(e.data)
-      if (m.type === 'auth_ok') return
-      if (m.type === 'conversation') {
-        convRef.current = m.conversation_id
-        setActiveConv(m.conversation_id)
-        loadConversations()
-      }
-      if (m.type === 'error') {
+      try {
+        const m = safeJsonParse(e?.data)
+        if (!m || typeof m !== 'object') return
+        if (m.type === 'auth_ok') return
+        if (m.type === 'conversation') {
+          convRef.current = m.conversation_id
+          setActiveConv(m.conversation_id)
+          loadConversations()
+        }
+        if (m.type === 'error') {
+          setBusy(false)
+          antdMessage.error(m.content || 'Chat error')
+          setMessages((prev) => prev.filter((x) => !(x.role === 'assistant' && x.streaming && !x.content)))
+        }
+        if (m.type === 'chunk') {
+          setMessages((prev) => {
+            const next = [...prev]
+            const last = next[next.length - 1]
+            if (last?.role === 'assistant' && last.streaming) last.content += (m.content || '')
+            else next.push({ role: 'assistant', content: m.content || '', streaming: true })
+            return next.length > 80 ? next.slice(-80) : next
+          })
+        }
+        if (m.type === 'done') {
+          setBusy(false)
+          setSessionTokens((t) => t + (Number(m.tokens) || 0))
+          setMessages((prev) => {
+            const next = prev.map((x) => ({ ...x, streaming: false }))
+            if (speakRepliesRef.current) {
+              try {
+                const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
+                if (last?.content) speakText(last.content)
+              } catch { /* ignore TTS */ }
+            }
+            return next.length > 80 ? next.slice(-80) : next
+          })
+          loadConversations()
+        }
+      } catch (err) {
+        console.warn('[chat ws]', err)
         setBusy(false)
-        antdMessage.error(m.content || 'Chat error')
-        setMessages(prev => prev.filter(x => !(x.role === 'assistant' && x.streaming && !x.content)))
-      }
-      if (m.type === 'chunk') {
-        setMessages(prev => {
-          const next = [...prev]
-          const last = next[next.length - 1]
-          if (last?.role === 'assistant' && last.streaming) last.content += m.content
-          else next.push({ role: 'assistant', content: m.content, streaming: true })
-          return next
-        })
-      }
-      if (m.type === 'done') {
-        setBusy(false)
-        setSessionTokens(t => t + m.tokens)
-        setMessages(prev => {
-          const next = prev.map(x => ({ ...x, streaming: false }))
-          if (speakRepliesRef.current) {
-            const last = [...next].reverse().find(x => x.role === 'assistant' && x.content)
-            if (last?.content) speakText(last.content)
-          }
-          return next
-        })
-        loadConversations()
       }
     }
-    ws.onerror = () => antdMessage.warning('Live chat unavailable — will use REST fallback when you send.')
+    ws.onerror = () => {
+      try {
+        antdMessage.warning('Live chat unavailable — will use REST fallback when you send.')
+      } catch { /* ignore */ }
+    }
     wsRef.current = ws
     return () => {
-      ws.close()
-      stopSpeaking()
+      try { ws.close() } catch { /* ignore */ }
+      try { stopSpeaking() } catch { /* ignore */ }
     }
   }, [])
 
