@@ -27,7 +27,14 @@ _CHECK_SKILL_HINTS: list[tuple[re.Pattern[str], frozenset[str]]] = [
     (re.compile(r"task|complete", re.I), frozenset({"create_task", "complete_task", "update_task"})),
     (re.compile(r"memory|save_memory", re.I), frozenset({"save_memory"})),
     (re.compile(r"notify|status_update|human", re.I), frozenset({"status_update", "notify_human"})),
-    (re.compile(r"product", re.I), frozenset({"create_product", "update_product"})),
+    (
+        re.compile(r"product|catalogue|catalog|sku|offer", re.I),
+        frozenset({
+            "create_product", "update_product", "write_product", "read_product",
+            "list_products", "search_products", "set_product_offer", "get_product",
+            "archive_product", "duplicate_product",
+        }),
+    ),
 ]
 
 

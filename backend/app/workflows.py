@@ -101,6 +101,100 @@ WORKFLOW_PRESETS: list[dict[str, Any]] = [
             "Escalate VIP/blocked to human",
         ],
     },
+    {
+        "id": "product_catalog_build",
+        "name": "Build product catalogue",
+        "description": (
+            "Research / define N products or services, write them into the catalogue "
+            "(write_product / create_product), set prices and special offers, then report."
+        ),
+        "category": "product",
+        "default_count": 5,
+        "params": [
+            {
+                "key": "count",
+                "label": "How many products",
+                "type": "number",
+                "default": 5,
+                "min": 1,
+                "max": 30,
+            },
+            {
+                "key": "niche",
+                "label": "Category / niche (optional)",
+                "type": "string",
+                "default": "",
+                "placeholder": "e.g. property compliance services",
+            },
+        ],
+        "steps_preview": [
+            "Audit existing catalogue (list/search products)",
+            "Define product specs + pricing",
+            "Write products to catalogue",
+            "Set offers / benefits",
+            "Report catalogue to human",
+        ],
+    },
+    {
+        "id": "product_offer_campaign",
+        "name": "Product offers → promo copy",
+        "description": (
+            "Read catalogue products, set special offers, draft marketing emails/SMS "
+            "and content for the offer campaign, notify the owner."
+        ),
+        "category": "product",
+        "default_count": 10,
+        "params": [
+            {
+                "key": "batch",
+                "label": "Max products this run",
+                "type": "number",
+                "default": 10,
+                "min": 1,
+                "max": 40,
+            },
+            {
+                "key": "niche",
+                "label": "Offer theme (optional)",
+                "type": "string",
+                "default": "",
+                "placeholder": "e.g. spring 20% off multi-lets",
+            },
+        ],
+        "steps_preview": [
+            "List / read products",
+            "Set special offers",
+            "Draft promo email + content",
+            "Status update to human",
+        ],
+    },
+    {
+        "id": "product_catalog_audit",
+        "name": "Audit & fix product catalogue",
+        "description": (
+            "Search and read all products, fix missing prices/descriptions/status, "
+            "archive stale SKUs, summarize gaps for the lead."
+        ),
+        "category": "product",
+        "default_count": 50,
+        "params": [
+            {
+                "key": "batch",
+                "label": "Max products to audit",
+                "type": "number",
+                "default": 50,
+                "min": 5,
+                "max": 100,
+            },
+        ],
+        "steps_preview": [
+            "List & search products",
+            "Read incomplete records",
+            "Write/update fixes",
+            "Archive or flag stale items",
+            "Report to lead/human",
+        ],
+    },
 ]
 
 
@@ -206,6 +300,194 @@ def _steps_for_support() -> list[dict[str, Any]]:
     ]
 
 
+def _steps_for_product_catalog_build(count: int = 5, niche: str = "") -> list[dict[str, Any]]:
+    n = max(1, min(30, int(count or 5)))
+    niche_bit = f" Niche/category: {niche}." if niche else ""
+    return [
+        {
+            "title": "Audit existing product catalogue",
+            "description": (
+                f"list_products / search_products (limit 50). Note what already exists "
+                f"so we do not duplicate SKUs. Write a short inventory in the result.\n"
+                f"{niche_bit}\n\n"
+                f"Skills: list_products, search_products, read_product.\n\n"
+                f"DONE WHEN: Catalogue snapshot listed (names, prices, offers).\n"
+                f"TARGET: Clear picture of current products."
+            ),
+            "role_hint": "sales",
+            "done_when": "Existing products listed",
+            "checklist": ["list_products or search_products ran", "Inventory written in result"],
+        },
+        {
+            "title": f"Define {n} product specs",
+            "description": (
+                f"Define {n} products/services{niche_bit}: name, price, kind, benefits, audience, "
+                f"optional offer. Prefer services + products the business can sell.\n\n"
+                f"DONE WHEN: Spec sheet for {n} items ready to write.\n"
+                f"TARGET: Name, price, description, benefits per item."
+            ),
+            "role_hint": "sales",
+            "done_when": f"{n} product specs drafted",
+            "checklist": [f"{n} product names defined", "Price on each item"],
+        },
+        {
+            "title": f"Write {n} products to catalogue",
+            "description": (
+                f"For each of the {n} specs call write_product or create_product "
+                f"(use write_product to upsert by name). Include price, description, tags, benefits.\n\n"
+                f"Skills REQUIRED: write_product / create_product (prose alone is NOT enough).\n\n"
+                f"DONE WHEN: {n} products exist in catalogue with product_ids.\n"
+                f"TARGET: Product ids listed in result."
+            ),
+            "role_hint": "sales",
+            "done_when": f"{n} products written via skills",
+            "checklist": [
+                "write_product or create_product used for each item",
+                "Product ids returned",
+            ],
+        },
+        {
+            "title": "Set special offers + polish",
+            "description": (
+                "set_product_offer or update_product offer on key SKUs; "
+                "fill missing description/benefits with update_product / write_product.\n\n"
+                "DONE WHEN: Offers set where planned; gaps filled.\n"
+                "TARGET: Catalogue sell-ready."
+            ),
+            "role_hint": "sales",
+            "done_when": "Offers and polish applied",
+            "checklist": ["At least one offer set or explicitly none needed"],
+        },
+        {
+            "title": "Report catalogue to human",
+            "description": (
+                "list_products again; status_update or notify_human with names, prices, offers, "
+                "and product_ids. save_memory product_catalog_build.\n\n"
+                "DONE WHEN: Human has the catalogue brief.\n"
+                "TARGET: Owner notified."
+            ),
+            "role_hint": "orchestrator",
+            "done_when": "Human notified with product list",
+            "checklist": ["status_update or notify_human sent"],
+        },
+    ]
+
+
+def _steps_for_product_offer_campaign(batch: int = 10, theme: str = "") -> list[dict[str, Any]]:
+    b = max(1, min(40, int(batch or 10)))
+    theme_bit = f" Offer theme: {theme}." if theme else ""
+    return [
+        {
+            "title": f"Read up to {b} products",
+            "description": (
+                f"list_products / search_products limit {b}; read_product on each pick.\n"
+                f"{theme_bit}\n\n"
+                f"DONE WHEN: Shortlist of products with current prices/offers.\n"
+                f"TARGET: Product ids + names ready for promos."
+            ),
+            "role_hint": "sales",
+            "done_when": f"Up to {b} products read",
+            "checklist": ["list_products/search_products used", "read_product on key items"],
+        },
+        {
+            "title": "Set special offers",
+            "description": (
+                f"set_product_offer or write_product offer=… on each shortlisted product.\n"
+                f"{theme_bit}\n\n"
+                f"Skills REQUIRED: set_product_offer / update_product / write_product.\n\n"
+                f"DONE WHEN: Offers saved on products (not just drafted in prose).\n"
+                f"TARGET: offer field non-empty on campaign SKUs."
+            ),
+            "role_hint": "sales",
+            "done_when": "Special offers written to products",
+            "checklist": ["set_product_offer or update_product used"],
+        },
+        {
+            "title": "Draft promo email + content",
+            "description": (
+                "draft_email and generate_content for the offer campaign using real product names "
+                "and offer text from the catalogue. log_customer_activity if a list exists.\n\n"
+                "DONE WHEN: Promo copy ready (email + short social/web blurb).\n"
+                "TARGET: Copy references real product offers."
+            ),
+            "role_hint": "outreach",
+            "done_when": "Promo email and content drafted",
+            "checklist": ["draft_email or generate_content used"],
+        },
+        {
+            "title": "Notify human of campaign pack",
+            "description": (
+                "status_update / notify_human with product list, offers, and draft copy summary.\n\n"
+                "DONE WHEN: Owner has the campaign pack.\n"
+                "TARGET: Clear human brief."
+            ),
+            "role_hint": "orchestrator",
+            "done_when": "Human notified of offer campaign",
+        },
+    ]
+
+
+def _steps_for_product_catalog_audit(batch: int = 50) -> list[dict[str, Any]]:
+    b = max(5, min(100, int(batch or 50)))
+    return [
+        {
+            "title": f"List/search up to {b} products",
+            "description": (
+                f"list_products limit {b}; search_products for empty price/description/status issues.\n\n"
+                f"DONE WHEN: Full inventory with flags (missing price, draft, no offer, etc.).\n"
+                f"TARGET: Audit spreadsheet-style list in result."
+            ),
+            "role_hint": "ops",
+            "done_when": "Catalogue inventory with gap flags",
+            "checklist": ["list_products ran"],
+        },
+        {
+            "title": "Read incomplete products",
+            "description": (
+                "read_product / get_product on incomplete rows. Note exact fields to fix.\n\n"
+                "DONE WHEN: Fix list per product_id.\n"
+                "TARGET: Field-level gap list."
+            ),
+            "role_hint": "ops",
+            "done_when": "Incomplete products fully read",
+        },
+        {
+            "title": "Write fixes",
+            "description": (
+                "write_product / update_product for missing description, price, tags, benefits. "
+                "Do NOT invent illegal prices — flag unknowns.\n\n"
+                "Skills REQUIRED: write_product or update_product.\n\n"
+                "DONE WHEN: Fixable gaps written to DB.\n"
+                "TARGET: Improved catalogue completeness."
+            ),
+            "role_hint": "sales",
+            "done_when": "Product fields updated via skills",
+            "checklist": ["write_product or update_product used"],
+        },
+        {
+            "title": "Archive stale or flag",
+            "description": (
+                "archive_product for clearly obsolete SKUs; leave others active. "
+                "Never hard-delete without human ask.\n\n"
+                "DONE WHEN: Stale items archived or listed for human decision.\n"
+                "TARGET: Clean active catalogue."
+            ),
+            "role_hint": "ops",
+            "done_when": "Stale products archived or flagged",
+        },
+        {
+            "title": "Audit report to lead/human",
+            "description": (
+                "status_update / notify_human: counts fixed, archived, still open gaps.\n\n"
+                "DONE WHEN: Lead has the audit summary.\n"
+                "TARGET: Numbers + product_ids."
+            ),
+            "role_hint": "orchestrator",
+            "done_when": "Human notified of audit results",
+        },
+    ]
+
+
 def build_workflow_prompt(
     preset: dict[str, Any],
     *,
@@ -245,6 +527,42 @@ def build_workflow_prompt(
         if extra:
             prompt = f"{prompt}\n\nExtra instructions: {extra}"
         return prompt, _steps_for_support()
+
+    if wid == "product_catalog_build":
+        n = int(count if count is not None else params.get("count") or preset.get("default_count") or 5)
+        n = max(1, min(30, n))
+        niche_bit = f" Focus: {niche}." if niche else ""
+        prompt = (
+            f"Build {n} products/services in the catalogue using write_product/create_product, "
+            f"set prices and offers, then report to the human.{niche_bit}"
+        )
+        if extra:
+            prompt = f"{prompt}\n\nExtra instructions: {extra}"
+        return prompt, _steps_for_product_catalog_build(n, niche)
+
+    if wid == "product_offer_campaign":
+        b = int(count if count is not None else params.get("batch") or params.get("count") or 10)
+        b = max(1, min(40, b))
+        theme = niche or str(params.get("theme") or "")
+        theme_bit = f" Theme: {theme}." if theme else ""
+        prompt = (
+            f"Read up to {b} products, set special offers, draft promo email/content, "
+            f"notify human.{theme_bit}"
+        )
+        if extra:
+            prompt = f"{prompt}\n\nExtra instructions: {extra}"
+        return prompt, _steps_for_product_offer_campaign(b, theme)
+
+    if wid == "product_catalog_audit":
+        b = int(count if count is not None else params.get("batch") or params.get("count") or 50)
+        b = max(5, min(100, b))
+        prompt = (
+            f"Audit up to {b} catalogue products: list/read, fix via write_product, "
+            f"archive stale, report gaps."
+        )
+        if extra:
+            prompt = f"{prompt}\n\nExtra instructions: {extra}"
+        return prompt, _steps_for_product_catalog_audit(b)
 
     # Fallback: treat free text
     prompt = extra or preset.get("name") or wid

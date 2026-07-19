@@ -29,7 +29,9 @@ _CLOSE_SKILLS = frozenset({
 _PERSIST_SKILLS = frozenset({
     "save_memory", "save_training", "save_lesson", "save_pattern", "create_pattern",
     "create_customer", "update_customer", "create_deal", "update_deal", "move_deal",
-    "create_product", "update_product", "log_customer_activity", "log_communication",
+    "create_product", "update_product", "write_product", "read_product",
+    "list_products", "search_products", "set_product_offer", "archive_product",
+    "log_customer_activity", "log_communication",
     "set_agent_custom_field", "set_agent_custom_fields", "set_agent_field",
     "create_task", "update_task", "draft_email", "send_email", "draft_sms", "send_sms",
     "status_update", "notify_human", "message_agent",

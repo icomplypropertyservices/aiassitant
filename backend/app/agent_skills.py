@@ -359,6 +359,49 @@ SKILL_CATALOG: list[dict] = [
         "roles": ["orchestrator", "lead", "member"],
     },
     {
+        "id": "read_product",
+        "name": "Read product (full)",
+        "description": (
+            "Full product read by product_id or name — description, benefits, price, offer, tags."
+        ),
+        "args": ["product_id", "name"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "write_product",
+        "name": "Write product (upsert)",
+        "description": (
+            "Create or update a product. If product_id or exact name exists → update; else create. "
+            "Pass name, price, description, offer, tags, etc."
+        ),
+        "args": [
+            "product_id", "name", "description", "price", "currency", "sku", "kind", "status",
+            "tags", "benefits", "audience", "offer", "special_offer", "company_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "search_products",
+        "name": "Search products",
+        "description": "Search the product catalogue by query/name/tag/status/kind.",
+        "args": ["q", "query", "search", "name", "status", "kind", "tag", "has_offer", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "archive_product",
+        "name": "Archive product",
+        "description": "Soft-archive a product (status=archived) without deleting it.",
+        "args": ["product_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "duplicate_product",
+        "name": "Duplicate product",
+        "description": "Clone a product as a new draft (optional new name / offer / price).",
+        "args": ["product_id", "name", "new_name", "offer", "price", "status"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
         "id": "schedule_meeting",
         "name": "Schedule meeting / diary",
         "description": "Arrange a diary entry (call, meeting, visit) for a customer. Supports start time and owner.",
@@ -3004,8 +3047,9 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
     priority_ids = [
         "create_task", "claim_task", "delete_task", "message_agent", "spawn_agent", "list_team",
         "list_customers", "create_customer", "update_customer", "delete_customer",
-        "list_products", "get_product", "create_product", "update_product", "delete_product",
-        "set_product_offer",
+        "list_products", "get_product", "read_product", "search_products",
+        "create_product", "update_product", "write_product", "delete_product",
+        "set_product_offer", "archive_product", "duplicate_product",
         "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
         "complete_task", "set_task_status", "list_activity", "create_deal", "update_deal", "delete_deal",
         "list_meetings", "invite_to_meeting", "open_meeting", "list_humans", "list_deals",
@@ -3255,10 +3299,15 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'delete_deal': ('_skill_delete_deal', 'std', ()),
     'list_products': ('_skill_list_products', 'std', ()),
     'get_product': ('_skill_get_product', 'std', ()),
+    'read_product': ('_skill_read_product', 'std', ()),
+    'search_products': ('_skill_search_products', 'std', ()),
     'create_product': ('_skill_create_product', 'std', ()),
     'update_product': ('_skill_update_product', 'std', ()),
+    'write_product': ('_skill_write_product', 'std', ()),
     'delete_product': ('_skill_delete_product', 'std', ()),
     'set_product_offer': ('_skill_set_product_offer', 'std', ()),
+    'archive_product': ('_skill_archive_product', 'std', ()),
+    'duplicate_product': ('_skill_duplicate_product', 'std', ()),
     'schedule_meeting': ('_skill_schedule_meeting', 'std', ()),
     'list_diary': ('_skill_list_diary', 'std', ()),
     'list_pipelines': ('_skill_list_pipelines', 'std', ()),

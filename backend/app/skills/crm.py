@@ -662,8 +662,8 @@ async def _skill_list_deals(db: Session, agent: models.Agent, user: models.User,
 
 # ── Products catalogue (+ special offers) ──────────────────────────────────
 
-def _product_brief(p: models.Product) -> dict:
-    return {
+def _product_brief(p: models.Product, *, full: bool = False) -> dict:
+    out = {
         "id": p.id,
         "name": p.name,
         "sku": p.sku or "",
@@ -674,10 +674,17 @@ def _product_brief(p: models.Product) -> dict:
         "offer": p.offer or "",
         "tags": p.tags or "",
         "company_id": p.company_id,
-        "description": (p.description or "")[:240],
-        "benefits": (p.benefits or "")[:200],
-        "audience": (p.audience or "")[:120],
+        "description": (p.description or "") if full else (p.description or "")[:240],
+        "benefits": (p.benefits or "") if full else (p.benefits or "")[:200],
+        "audience": (p.audience or "") if full else (p.audience or "")[:120],
+        "image_url": p.image_url or "",
+        "external_source": p.external_source or "",
+        "external_id": p.external_id or "",
     }
+    if full:
+        out["created_at"] = p.created_at.isoformat() if p.created_at else None
+        out["updated_at"] = p.updated_at.isoformat() if p.updated_at else None
+    return out
 
 
 def _default_company_id(db: Session, user: models.User, company_id=None) -> int | None:
@@ -737,7 +744,19 @@ async def _skill_list_products(db: Session, agent: models.Agent, user: models.Us
     }
 
 
+def _product_full_flag(args: dict) -> bool:
+    """True when caller wants full product body (read_product / detail=true)."""
+    for key in ("full", "detail", "read_full"):
+        v = args.get(key)
+        if v is True:
+            return True
+        if isinstance(v, str) and v.strip().lower() in ("1", "true", "yes", "on", "full"):
+            return True
+    return False
+
+
 async def _skill_get_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    full = _product_full_flag(args)
     try:
         pid = int(args.get("product_id") or args.get("id"))
     except (TypeError, ValueError):
@@ -756,11 +775,30 @@ async def _skill_get_product(db: Session, agent: models.Agent, user: models.User
         )
         if not p:
             return {"ok": False, "error": f"product not found matching “{name}”"}
-        return {"ok": True, "product": _product_brief(p), "message": f"Product #{p.id}: {p.name}"}
+        return {
+            "ok": True,
+            "product": _product_brief(p, full=full),
+            "message": f"Product #{p.id}: {p.name}",
+        }
     p = db.get(models.Product, pid)
     if not p or p.owner_user_id != user.id:
         return {"ok": False, "error": "product not found"}
-    return {"ok": True, "product": _product_brief(p), "message": f"Product #{p.id}: {p.name}"}
+    return {
+        "ok": True,
+        "product": _product_brief(p, full=full),
+        "message": f"Product #{p.id}: {p.name}",
+    }
+
+
+async def _skill_read_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Full product read (alias of get_product with full body)."""
+    return await _skill_get_product(db, agent, user, {**args, "full": True})
+
+
+async def _skill_search_products(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Search catalogue — same as list_products with q from query/search."""
+    q = args.get("q") or args.get("query") or args.get("search") or args.get("name") or ""
+    return await _skill_list_products(db, agent, user, {**args, "q": q})
 
 
 async def _skill_create_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
@@ -926,6 +964,89 @@ async def _skill_set_product_offer(db: Session, agent: models.Agent, user: model
     return out
 
 
+async def _skill_write_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Upsert product: update if product_id or matching name exists, else create."""
+    pid = args.get("product_id") or args.get("id")
+    if pid not in (None, ""):
+        try:
+            int(pid)
+            out = await _skill_update_product(db, agent, user, args)
+            if out.get("ok"):
+                out["message"] = f"Wrote (updated) product — {out.get('message')}"
+                out["action"] = "update"
+            return out
+        except (TypeError, ValueError):
+            pass
+
+    name = (args.get("name") or args.get("title") or "").strip()
+    if name:
+        existing = (
+            db.query(models.Product)
+            .filter(
+                models.Product.owner_user_id == user.id,
+                models.Product.name.ilike(name),
+            )
+            .order_by(models.Product.id.desc())
+            .first()
+        )
+        if existing:
+            merged = {**args, "product_id": existing.id}
+            out = await _skill_update_product(db, agent, user, merged)
+            if out.get("ok"):
+                out["message"] = f"Wrote (updated existing) product — {out.get('message')}"
+                out["action"] = "update"
+            return out
+
+    out = await _skill_create_product(db, agent, user, args)
+    if out.get("ok"):
+        out["message"] = f"Wrote (created) product — {out.get('message')}"
+        out["action"] = "create"
+    return out
+
+
+async def _skill_archive_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Soft-archive a product (status=archived) instead of hard delete."""
+    try:
+        pid = int(args.get("product_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "product_id required"}
+    return await _skill_update_product(
+        db, agent, user, {"product_id": pid, "status": "archived"}
+    )
+
+
+async def _skill_duplicate_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Clone a product (optionally with a new name / offer)."""
+    try:
+        pid = int(args.get("product_id") or args.get("id") or args.get("source_id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "product_id required"}
+    src = db.get(models.Product, pid)
+    if not src or src.owner_user_id != user.id:
+        return {"ok": False, "error": "product not found"}
+    new_name = (args.get("name") or args.get("new_name") or f"{src.name} (copy)").strip()[:200]
+    create_args = {
+        "name": new_name,
+        "sku": str(args.get("sku") or "").strip() or "",
+        "description": src.description or "",
+        "kind": src.kind or "product",
+        "price": args.get("price") if args.get("price") is not None else src.price,
+        "currency": src.currency or "USD",
+        "status": str(args.get("status") or "draft").strip() or "draft",
+        "tags": src.tags or "",
+        "benefits": src.benefits or "",
+        "audience": src.audience or "",
+        "offer": args.get("offer") if args.get("offer") is not None else (src.offer or ""),
+        "image_url": src.image_url or "",
+        "company_id": src.company_id,
+    }
+    out = await _skill_create_product(db, agent, user, create_args)
+    if out.get("ok"):
+        out["source_product_id"] = pid
+        out["message"] = f"Duplicated product #{pid} → #{out.get('product_id')}: {new_name}"
+    return out
+
+
 __all__ = [
     '_skill_list_customers',
     '_skill_get_customer',
@@ -951,8 +1072,13 @@ __all__ = [
     '_skill_list_deals',
     '_skill_list_products',
     '_skill_get_product',
+    '_skill_read_product',
+    '_skill_search_products',
     '_skill_create_product',
     '_skill_update_product',
+    '_skill_write_product',
     '_skill_delete_product',
     '_skill_set_product_offer',
+    '_skill_archive_product',
+    '_skill_duplicate_product',
 ]

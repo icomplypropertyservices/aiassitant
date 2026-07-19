@@ -203,8 +203,9 @@ def build_agent_system_prompt(
         "create_project, create_company, execute_goal, create_task, create_workflow, create_pattern, "
         "run_pattern, review_task, claim_task, list_tasks, complete_task, "
         "list_activity, invite_to_meeting, open_meeting, message_agent, save_memory, "
-        "list_customers, create_customer, list_products, create_product, update_product, "
-        "set_product_offer, comment, draft_email, status_update, "
+        "list_customers, create_customer, list_products, search_products, read_product, "
+        "write_product, create_product, update_product, set_product_offer, archive_product, "
+        "comment, draft_email, status_update, "
         "list_agent_custom_fields, set_agent_custom_field, get_agent_custom_field. "
         "Use custom fields for free-form agent metadata (territory, quota, niche notes). "
         "After every skill, explain the result in plain language (names, ids, offers, prices). "
@@ -311,7 +312,10 @@ STEP 2 — EXECUTE (do real work now — stay busy until finished):
   - Drafts, CRM, research, generate_content, deals, emails (draft), meeting rounds, etc.
   - Sales/CRM steps: emit create_customer / create_deal skill blocks (not just a list in prose).
   - Persist data with skills: save_memory, create_customer, create_deal, set_agent_custom_field,
-    create_product, log_customer_activity, update_task — prose does NOT save to the database.
+    write_product / create_product / update_product / set_product_offer,
+    log_customer_activity, update_task — prose does NOT save to the database.
+  - Product catalogue: list_products / search_products / read_product first, then write_product
+    (upsert) or create_product; use set_product_offer for promos; archive_product not hard-delete.
   - Outreach steps: draft_email, send_email, log_customer_activity; then move_deal.
   - Use update_task to leave progress notes mid-flight (status stays in_progress).
   - If description contains WHAT'S WRONG / lead feedback: fix those issues first

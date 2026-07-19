@@ -374,16 +374,23 @@ def agent_dashboard(
 
     tpl = (a.template_type or "").lower()
     role = (a.hierarchy_role or "").lower()
-    # Suggest sales workflows for sales/outreach/orchestrator/lead
+    # Suggest workflows by role/template (sales, support, product, lead)
     all_wf = list_workflow_presets()
-    if tpl in ("sales", "outreach", "lead_gen", "crm") or "sales" in (a.name or "").lower():
-        suggested = [w for w in all_wf if w.get("category") == "sales"]
-    elif tpl in ("support", "booking") or "support" in (a.name or "").lower():
+    name_l = (a.name or "").lower()
+    if (
+        tpl in ("product", "catalog", "marketing", "content")
+        or "product" in name_l
+        or "catalog" in name_l
+    ):
+        suggested = [w for w in all_wf if w.get("category") == "product"] or all_wf[:3]
+    elif tpl in ("sales", "outreach", "lead_gen", "crm") or "sales" in name_l:
+        suggested = [w for w in all_wf if w.get("category") in ("sales", "product")]
+    elif tpl in ("support", "booking") or "support" in name_l:
         suggested = [w for w in all_wf if w.get("category") == "support"]
     elif role in ("orchestrator", "lead") or tpl in ("orchestrator", "lead"):
         suggested = all_wf
     else:
-        suggested = all_wf[:2]
+        suggested = all_wf[:3]
 
     rec_model = recommended_model(a.template_type, a.hierarchy_role)
     current_model = map_model(a.model)
