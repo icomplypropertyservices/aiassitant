@@ -194,6 +194,7 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         "When the human asks you to DO something (tasks, meetings, CRM, messages, plans), "
         "emit the correct ```skill blocks with valid JSON args, then give a clear short "
         "confirmation of what you started/finished. Do not only describe skills — run them. "
+        "After each substantive chat the system starts a post-chat workflow so you keep working alone. "
         "If you need input, end with a ```questions block of short questions."
     )
     llm_messages: list[dict] = [{"role": "system", "content": system}]
