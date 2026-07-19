@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 
 from . import models, config
 from .plans import plan_limits
-from .pricing import cost_for, estimate_tokens, event_usd, event_meter_tokens
+from .pricing import (
+    cost_for,
+    estimate_tokens,
+    estimate_messages_tokens,
+    event_usd,
+    event_meter_tokens,
+)
 
 # Always take wallet credits (still always advance token meter).
 # Voice counts as normal metered tokens (included pool first). Media stays premium.
@@ -319,6 +325,17 @@ def charge_usage(
         total = 1
         out = 1
         inp = 0
+    # Floor for real chat/agent turns so tiny under-estimates still meter meaningfully
+    # (skills/events pass their own weights; do not inflate fixed cost_override media)
+    if cost_override is None and bill_model in (
+        "fast", "quality", "reasoning", "large", "small", "medium",
+        "grok-4.3", "grok-max", "grok-4.5",
+    ):
+        floor = 48 if bill_model in ("small", "fast") else 80
+        if total < floor:
+            # Prefer padding output (what the model "produced")
+            out = out + (floor - total)
+            total = floor
 
     if cost_override is not None:
         cost = round(float(cost_override), 6)
@@ -389,11 +406,60 @@ def bill_llm_turn(
     *,
     company_id: int | None = None,
     project_id: int | None = None,
+    usage: dict | None = None,
 ) -> dict:
-    """Standard charge for any chat/agent LLM completion — always uses tokens."""
+    """Standard charge for any chat/agent LLM completion — always uses tokens.
+
+    Prefer provider ``usage`` (prompt/completion counts) when present; else estimate
+    full message list + reply with framing overhead.
+    """
     msgs = messages or []
-    inp = sum(estimate_tokens(str(m.get("content") or "")) for m in msgs) or 1
-    out = estimate_tokens(reply or "") or 1
+    api_inp = None
+    api_out = None
+    if isinstance(usage, dict):
+        for k in ("prompt_tokens", "input_tokens", "prompt_eval_count"):
+            if usage.get(k) is not None:
+                try:
+                    api_inp = int(usage[k])
+                    break
+                except (TypeError, ValueError):
+                    pass
+        for k in ("completion_tokens", "output_tokens", "eval_count"):
+            if usage.get(k) is not None:
+                try:
+                    api_out = int(usage[k])
+                    break
+                except (TypeError, ValueError):
+                    pass
+        # Some APIs only send total_tokens
+        if api_inp is None and api_out is None and usage.get("total_tokens") is not None:
+            try:
+                tot = max(1, int(usage["total_tokens"]))
+                api_inp = max(1, tot * 2 // 3)
+                api_out = max(1, tot - api_inp)
+            except (TypeError, ValueError):
+                pass
+
+    est_inp = estimate_messages_tokens(msgs) or 1
+    est_out = estimate_tokens(reply or "") or 1
+    # Take the larger of API vs estimate so we never under-charge when API is low/missing
+    if api_inp is not None and api_out is not None:
+        inp = max(api_inp, est_inp // 2)  # API trusted, but never less than half estimate
+        out = max(api_out, min(est_out, api_out * 2) if api_out > 0 else est_out)
+        # Prefer full estimate if API total is suspiciously small vs text size
+        if (api_inp + api_out) < max(32, (est_inp + est_out) // 3):
+            inp, out = est_inp, est_out
+        else:
+            inp = max(api_inp, 1)
+            out = max(api_out, 1)
+            # Still don't go below estimate when reply is long
+            if est_out > out * 1.5:
+                out = est_out
+            if est_inp > inp * 1.5:
+                inp = est_inp
+    else:
+        inp, out = est_inp, est_out
+
     return charge_usage(
         db, user, model, inp, out,
         company_id=company_id,
@@ -435,8 +501,11 @@ def charge_event(
 
     base = event_meter_tokens(model)
     tok = estimate_tokens(text) if text else 0
-    # Split meter weight; floor at published event weight — never zero
+    # Split meter weight; floor at published event weight — never zero.
+    # Scale skill text: args+results often under-count if only id is passed.
     weight = max(base, tok, 1)
+    if model in ("skill-read", "skill-write", "skill-action") and tok > 0:
+        weight = max(weight, base + tok)
     inp = max(1, weight // 2)
     out = max(1, weight - inp)
 
@@ -538,10 +607,14 @@ def bill_skill_execution(
         or ""
     )
     if kind == "llm" or (content and len(str(content)) > 80):
+        arg_blob = json_dumps_safe(args)[:2000] if args else ""
         usage = bill_llm_turn(
             db, user,
-            meta.get("model") or "fast",
-            [{"role": "user", "content": f"skill:{skill_id}"}],
+            meta.get("model") or "quality",
+            [
+                {"role": "system", "content": f"skill:{skill_id}"},
+                {"role": "user", "content": arg_blob or skill_id},
+            ],
             str(content)[:12_000] or skill_id,
             company_id=company_id,
             project_id=project_id,
@@ -558,14 +631,41 @@ def bill_skill_execution(
             weight = event_meter_tokens(meter_kind)
     else:
         weight = event_meter_tokens(meter_kind)
-    text = json_dumps_safe(args)[:400] if args else skill_id
+    # Include result summary so successful writes (CRM ids, etc.) meter fairly
+    result_blob = ""
+    try:
+        result_blob = json_dumps_safe({
+            k: result.get(k)
+            for k in ("message", "customer_id", "deal_id", "task_id", "memory_id", "ok", "error")
+            if result.get(k) is not None
+        })[:600]
+    except Exception:
+        result_blob = str(result.get("message") or "")[:400]
+    text = json_dumps_safe(args)[:800] if args else skill_id
     usage = charge_event(
         db, user, meter_kind,
-        text=f"{skill_id}:{text}",
+        text=f"{skill_id}:{text}:{result_blob}",
         cost_override=None,  # included pool first
         company_id=company_id,
         project_id=project_id,
     )
+    # Ensure floor weight was applied (charge_event uses EVENT base + text)
+    if int(usage.get("tokens") or 0) < weight:
+        extra = weight - int(usage.get("tokens") or 0)
+        try:
+            usage2 = charge_usage(
+                db, user, meter_kind, extra // 2 or 1, extra - (extra // 2 or 1),
+                company_id=company_id, project_id=project_id,
+            )
+            usage = {
+                **usage,
+                "tokens": int(usage.get("tokens") or 0) + int(usage2.get("tokens") or 0),
+                "cost": float(usage.get("cost") or 0) + float(usage2.get("cost") or 0),
+                "tokens_used_period": usage2.get("tokens_used_period"),
+                "credits": usage2.get("credits"),
+            }
+        except Exception:
+            pass
     # charge_event may not use our weight if EVENT has meter_tokens — re-charge if needed?
     # EVENT skill-read has 20 tokens; skill-write 50 — good enough
     usage["kind"] = kind

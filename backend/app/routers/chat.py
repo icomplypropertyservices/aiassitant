@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db, SessionLocal
 from .. import models
 from ..auth_utils import get_current_user, user_from_ws_token, ensure_credits, accept_and_authenticate_ws
-from ..llm import stream_completion, complete, provider_hint
+from ..llm import stream_completion, complete_with_usage, provider_hint, get_last_completion_usage
 from ..pricing import estimate_tokens
 from ..ws import manager
 from ..usage_billing import charge_usage, bill_llm_turn
@@ -76,11 +76,13 @@ async def post_message(data: MessageIn, db: Session = Depends(get_db), user=Depe
     )
     llm_messages = [{"role": m.role, "content": m.content} for m in history][-12:]
     creds = credentials_for_user(db, user.id)
-    reply = await complete(llm_messages, data.model, data.mode, credentials=creds)
+    reply, usage = await complete_with_usage(
+        llm_messages, data.model, data.mode, credentials=creds,
+    )
 
     db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
     db.commit()
-    charged = bill_llm_turn(db, user, data.model, llm_messages, reply)
+    charged = bill_llm_turn(db, user, data.model, llm_messages, reply, usage=usage)
     await manager.broadcast(
         f"tokens:{user.id}",
         {
@@ -167,7 +169,10 @@ async def ws_chat(ws: WebSocket, token: str = Query("")):
             db.commit()
 
             user = db.get(models.User, user_id)
-            charged = bill_llm_turn(db, user, model, llm_messages, reply)
+            charged = bill_llm_turn(
+                db, user, model, llm_messages, reply,
+                usage=get_last_completion_usage(),
+            )
 
             await ws.send_text(json.dumps({
                 "type": "done",

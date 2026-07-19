@@ -37,17 +37,18 @@ PRICING = {
 }
 
 # Flat USD + meter token weights per event (tokens always applied)
+# Skill floors raised so CRM/write work is not under-metered vs real LLM cost.
 EVENT_PRICING = {
-    "voice-stt": {"usd": 0.004, "meter_tokens": 120},   # speech → text
-    "voice-tts": {"usd": 0.003, "meter_tokens": 100},   # text → speech
-    "voice-call": {"usd": 0.08, "meter_tokens": 400},
-    "image": {"usd": 0.06, "meter_tokens": 1200},
-    "video": {"usd": 0.25, "meter_tokens": 4000},
-    "premium-comm": {"usd": 0.02, "meter_tokens": 100},
+    "voice-stt": {"usd": 0.004, "meter_tokens": 200},   # speech → text
+    "voice-tts": {"usd": 0.003, "meter_tokens": 160},   # text → speech
+    "voice-call": {"usd": 0.08, "meter_tokens": 600},
+    "image": {"usd": 0.06, "meter_tokens": 1500},
+    "video": {"usd": 0.25, "meter_tokens": 5000},
+    "premium-comm": {"usd": 0.02, "meter_tokens": 180},
     # Non-LLM skill actions — tokens meter, included pool first (no forced wallet flat)
-    "skill-read": {"usd": None, "meter_tokens": 20},
-    "skill-write": {"usd": None, "meter_tokens": 50},
-    "skill-action": {"usd": None, "meter_tokens": 35},
+    "skill-read": {"usd": None, "meter_tokens": 80},
+    "skill-write": {"usd": None, "meter_tokens": 200},
+    "skill-action": {"usd": None, "meter_tokens": 120},
 }
 
 
@@ -149,7 +150,44 @@ def cost_for(model: str, input_tokens: int, output_tokens: int) -> float:
 
 
 def estimate_tokens(text: str) -> int:
-    return max(1, len(text or "") // 4)
+    """Estimate tokens for billing (slightly aggressive so we do not under-charge).
+
+    Rules of thumb:
+      - English prose ≈ 4 chars/token; code/JSON/CJK denser ≈ 2.5–3.5
+      - We use ~3.0 chars/token + word heuristic + small padding
+    """
+    s = text or ""
+    if not s:
+        return 0
+    n = len(s)
+    # Char heuristic (ceil)
+    by_chars = max(1, (n + 2) // 3)
+    # Word heuristic — punctuation/symbols inflate real BPE counts
+    words = len(s.split())
+    by_words = max(1, int(words * 1.35) + 1)
+    # Dense JSON / skill blocks: few spaces → boost
+    if n > 40 and (s.count(" ") + s.count("\n")) < max(1, n // 20):
+        by_chars = max(by_chars, (n + 1) // 2)
+    return max(by_chars, by_words)
+
+
+def estimate_messages_tokens(messages: list[dict] | None) -> int:
+    """Count all chat roles + framing overhead (not just last user line)."""
+    total = 0
+    for m in messages or []:
+        # Per-message role / separator overhead (OpenAI-style chat markup)
+        total += 8
+        content = m.get("content") if isinstance(m, dict) else None
+        if isinstance(content, list):
+            # Multimodal content blocks
+            for part in content:
+                if isinstance(part, dict):
+                    total += estimate_tokens(str(part.get("text") or part.get("content") or ""))
+                else:
+                    total += estimate_tokens(str(part))
+        else:
+            total += estimate_tokens(str(content or ""))
+    return max(1, total) if messages else 0
 
 
 def format_token_count(n: int) -> str:

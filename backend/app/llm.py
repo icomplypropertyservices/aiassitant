@@ -101,6 +101,53 @@ def _resolve_tag(neutral: str) -> str:
         }.get(m, m)
 
 
+def _usage_from_ollama(data: dict | None) -> dict:
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    if data.get("prompt_eval_count") is not None:
+        out["prompt_eval_count"] = int(data["prompt_eval_count"] or 0)
+        out["prompt_tokens"] = out["prompt_eval_count"]
+    if data.get("eval_count") is not None:
+        out["eval_count"] = int(data["eval_count"] or 0)
+        out["completion_tokens"] = out["eval_count"]
+    if out.get("prompt_tokens") is not None or out.get("completion_tokens") is not None:
+        out["total_tokens"] = int(out.get("prompt_tokens") or 0) + int(out.get("completion_tokens") or 0)
+        out["source"] = "ollama"
+    return out
+
+
+def _usage_from_openai(data: dict | None) -> dict:
+    if not isinstance(data, dict):
+        return {}
+    u = data.get("usage") or {}
+    if not isinstance(u, dict) or not u:
+        return {}
+    out = {}
+    if u.get("prompt_tokens") is not None:
+        out["prompt_tokens"] = int(u["prompt_tokens"] or 0)
+    if u.get("completion_tokens") is not None:
+        out["completion_tokens"] = int(u["completion_tokens"] or 0)
+    if u.get("total_tokens") is not None:
+        out["total_tokens"] = int(u["total_tokens"] or 0)
+    if out:
+        out["source"] = "openai_compat"
+    return out
+
+
+# Last provider usage from non-stream complete path (thread-safe enough per asyncio task)
+_last_completion_usage: dict = {}
+
+
+def get_last_completion_usage() -> dict:
+    return dict(_last_completion_usage or {})
+
+
+def _set_last_usage(u: dict | None) -> None:
+    global _last_completion_usage
+    _last_completion_usage = dict(u or {})
+
+
 async def _ollama_stream(messages: list[dict], model: str):
     base = _ollama_base()
     if not base:
@@ -167,6 +214,7 @@ async def _ollama_stream(messages: list[dict], model: str):
                 data = r.json()
                 chunk = (data.get("message") or {}).get("content") or data.get("response") or ""
                 if chunk:
+                    _set_last_usage(_usage_from_ollama(data))
                     yield chunk
                     return
                 raise RuntimeError("Ollama returned empty message")
@@ -197,6 +245,9 @@ async def _ollama_stream(messages: list[dict], model: str):
                     if chunk:
                         yield chunk
                     if data.get("done"):
+                        u = _usage_from_ollama(data)
+                        if u:
+                            _set_last_usage(u)
                         return
 
 
@@ -336,6 +387,10 @@ async def _xai_stream(
                 or ""
             )
             if text:
+                u = _usage_from_openai(data)
+                if u:
+                    u["source"] = "xai"
+                    _set_last_usage(u)
                 yield text
                 return
             raise RuntimeError("xAI returned empty content")
@@ -345,6 +400,7 @@ async def _xai_stream(
         "messages": messages,
         "stream": True,
         "max_tokens": mt,
+        "stream_options": {"include_usage": True},
     }
     got_any = False
     async with httpx.AsyncClient(timeout=90.0) as client:
@@ -364,6 +420,10 @@ async def _xai_stream(
                     chunk = json.loads(data)
                 except json.JSONDecodeError:
                     continue
+                u = _usage_from_openai(chunk)
+                if u:
+                    u["source"] = "xai"
+                    _set_last_usage(u)
                 delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
                 text = delta.get("content") or ""
                 if text:
@@ -390,6 +450,10 @@ async def _xai_stream(
                 or ""
             )
             if text:
+                u = _usage_from_openai(data)
+                if u:
+                    u["source"] = "xai"
+                    _set_last_usage(u)
                 yield text
             else:
                 raise RuntimeError("xAI returned empty content")
@@ -490,10 +554,27 @@ async def complete(
     *,
     max_tokens: int = 2048,
 ) -> str:
+    text, _usage = await complete_with_usage(
+        messages, model, mode, credentials=credentials, max_tokens=max_tokens,
+    )
+    return text
+
+
+async def complete_with_usage(
+    messages: list[dict],
+    model: str,
+    mode: str = "general",
+    credentials: dict | None = None,
+    *,
+    max_tokens: int = 2048,
+) -> tuple[str, dict]:
+    """Like complete(), but also returns provider usage when available."""
+    _set_last_usage({})
     out = ""
     async for c in stream_completion(
         messages, model, mode, credentials=credentials,
         max_tokens=max_tokens, prefer_nonstream=True,
     ):
         out += c
-    return out.strip()
+    usage = get_last_completion_usage()
+    return out.strip(), usage

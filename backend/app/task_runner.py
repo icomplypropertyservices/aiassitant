@@ -14,9 +14,9 @@ from .database import SessionLocal
 from .agent_scaffold import map_model, resolve_runtime, repair_agent
 from .agent_skills import run_skills_from_text
 from .agent_prompts import build_task_prompt
-from .llm import complete
-from .pricing import estimate_tokens
-from .usage_billing import charge_usage
+from .llm import complete_with_usage
+from .pricing import estimate_tokens, estimate_messages_tokens
+from .usage_billing import charge_usage, bill_llm_turn
 from .user_keys import credentials_for_user
 from .ws import manager
 
@@ -295,7 +295,9 @@ async def run_agent_task(
                 agent_id, user_id, "thinking",
                 f"Task #{task_id} turn {turn_n}/{max_turns}",
             )
-            turn_out = await complete(messages, model, mode, credentials=creds)
+            turn_out, turn_usage = await complete_with_usage(
+                messages, model, mode, credentials=creds,
+            )
             turn_out = turn_out or ""
             output = turn_out
 
@@ -346,9 +348,6 @@ async def run_agent_task(
 
             all_skill_results.extend(turn_skills)
 
-            inp, out_tok = estimate_tokens(
-                messages[-1].get("content") if messages else prompt
-            ), estimate_tokens(output)
             more_turns = turn_n < max_turns
             closed = skill_closed_task(turn_skills) or skill_closed_task(all_skill_results)
 
@@ -356,9 +355,11 @@ async def run_agent_task(
             try:
                 user = db.get(models.User, user_id)
                 t = db.get(models.Task, task_id)
-                charged = charge_usage(
-                    db, user, model, inp, out_tok,
+                # Bill FULL conversation (all turns) + reply — not just last user line
+                charged = bill_llm_turn(
+                    db, user, model, messages, output,
                     company_id=company_id, project_id=project_id,
+                    usage=turn_usage,
                 )
                 cost += float(charged.get("cost") or 0)
                 tokens += int(charged.get("tokens") or 0)

@@ -9,7 +9,7 @@ from ..database import get_db, SessionLocal
 from .. import models
 from ..auth_utils import get_current_user, ensure_credits, accept_and_authenticate_ws
 from ..ws import manager
-from ..llm import stream_completion, complete, provider_hint
+from ..llm import stream_completion, complete, complete_with_usage, provider_hint, get_last_completion_usage
 from ..usage_billing import bill_llm_turn
 from ..user_keys import credentials_for_user
 from ..agent_prompts import chat_voice_extra, build_agent_system_prompt
@@ -122,7 +122,7 @@ def delete_memory(agent_id: int, memory_id: int, db: Session = Depends(get_db), 
 async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """Direct agent chat — optimised for mobile REST (fast non-stream Grok)."""
     from ..agent_scaffold import map_model, resolve_runtime
-    from ..llm import complete as llm_complete
+    from ..llm import complete_with_usage as llm_complete
     a = _get_owned(agent_id, user, db)
     ensure_credits(db, user.id)
     rt = resolve_runtime(a)
@@ -224,8 +224,9 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     # Short user messages → fewer tokens out (faster + cheaper)
     max_out = 384 if len(text) < 80 else 768 if len(text) < 400 else 1200
     reply = ""
+    llm_usage: dict = {}
     try:
-        reply = await llm_complete(
+        reply, llm_usage = await llm_complete(
             llm_messages, model, mode, credentials=creds, max_tokens=max_out,
         )
     except Exception as e:
@@ -339,7 +340,9 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     except Exception as wf_err:
         log.warning("post-conversation workflow skipped: %s", wf_err)
 
-    charged = bill_llm_turn(db, user, model, llm_messages, final_text)
+    charged = bill_llm_turn(
+        db, user, model, llm_messages, final_text, usage=llm_usage or None,
+    )
     try:
         await manager.broadcast(f"tokens:{user.id}", {
             "event": "usage",
@@ -594,7 +597,10 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
-            charged = bill_llm_turn(db, user_obj, use_model, llm_messages, reply)
+            charged = bill_llm_turn(
+                db, user_obj, use_model, llm_messages, reply,
+                usage=get_last_completion_usage(),
+            )
             done_payload = {
                 "type": "done",
                 "tokens": charged["tokens"],
