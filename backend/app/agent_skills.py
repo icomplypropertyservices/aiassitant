@@ -229,15 +229,66 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "list_tasks",
         "name": "List tasks",
-        "description": "List workspace tasks (board) by status, agent, or search text.",
-        "args": ["status", "agent_id", "q", "limit"],
+        "description": (
+            "List workspace tasks (board). Filter by status (todo/queued/in_progress/review/"
+            "completed/failed or open), agent_id, priority, mine=true (this agent), q search, limit."
+        ),
+        "args": ["status", "agent_id", "priority", "mine", "open_only", "q", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "search_tasks",
+        "name": "Search tasks",
+        "description": (
+            "Search tasks by text across title, description, labels, and results. "
+            "Use when the human asks to find a task or work item."
+        ),
+        "args": ["q", "status", "agent_id", "limit"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
         "id": "get_task",
         "name": "Get task",
-        "description": "Fetch one task with description, status, assignee, and result.",
+        "description": "Fetch one task with full description, status, assignee, result, and child steps.",
         "args": ["task_id"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "update_task",
+        "name": "Update task",
+        "description": (
+            "Update a task: status, result/note, priority, title, description, labels, "
+            "or reassign agent_id / human_id. Use for progress notes and board changes."
+        ),
+        "args": [
+            "task_id", "status", "result", "priority", "title", "description",
+            "labels", "agent_id", "human_id", "append_result",
+        ],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "respond_to_task",
+        "name": "Respond to task",
+        "description": (
+            "Write a response/result on a task. Completes the task by default "
+            "(complete=false keeps it in progress). Orchestrator should use this "
+            "when answering or finishing work on a board item."
+        ),
+        "args": ["task_id", "response", "complete", "status", "append_result"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "complete_task",
+        "name": "Complete task",
+        "description": "Mark a task completed with an optional result summary. Unlocks auto-chain siblings.",
+        "args": ["task_id", "result"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "set_task_status",
+        "name": "Set task status",
+        "description": "Change only the board status: todo | queued | in_progress | review | completed | failed.",
+        "args": ["task_id", "status"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
@@ -2530,7 +2581,9 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
     # High-value skills always listed first (orchestrator / daily ops)
     priority_ids = [
         "create_task", "message_agent", "spawn_agent", "list_team", "list_customers",
-        "list_tasks", "get_task", "list_meetings", "list_humans", "list_deals",
+        "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
+        "complete_task", "set_task_status",
+        "list_meetings", "list_humans", "list_deals",
         "list_pipelines", "get_pipeline", "move_deal", "win_deal", "pipeline_summary",
         "read_workspace", "comment", "search_knowledge", "search_memory",
         "save_memory", "save_training", "announce_plan", "execute_goal", "status_update",
@@ -2668,7 +2721,12 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'pipeline_summary': ('_skill_pipeline_summary', 'std', ()),
     'ensure_sales_pipeline': ('_skill_ensure_sales_pipeline', 'std', ()),
     'list_tasks': ('_skill_list_tasks', 'std', ()),
+    'search_tasks': ('_skill_search_tasks', 'std', ()),
     'get_task': ('_skill_get_task', 'std', ()),
+    'update_task': ('_skill_update_task', 'std', ()),
+    'respond_to_task': ('_skill_respond_to_task', 'std', ()),
+    'complete_task': ('_skill_complete_task', 'std', ()),
+    'set_task_status': ('_skill_set_task_status', 'std', ()),
     'list_meetings': ('_skill_list_meetings', 'std', ()),
     'list_humans': ('_skill_list_humans', 'std', ()),
     'list_deals': ('_skill_list_deals', 'std', ()),

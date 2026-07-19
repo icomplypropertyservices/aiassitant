@@ -95,67 +95,350 @@ async def _skill_search_knowledge(db: Session, agent: models.Agent, user: models
         "message": f"Found {len(hits)} training file(s)" + (f" matching “{q}”" if q else ""),
     }
 
-async def _skill_list_tasks(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+_OPEN_STATUSES = ("todo", "queued", "in_progress", "review")
+_TASK_STATUSES = frozenset({
+    "todo", "queued", "in_progress", "review", "completed", "failed",
+})
+
+
+def _task_row(t: models.Task, *, full: bool = False) -> dict:
+    out = {
+        "id": t.id,
+        "title": t.title or "",
+        "status": t.status or "",
+        "priority": t.priority or "medium",
+        "agent_id": t.agent_id,
+        "human_id": t.human_id,
+        "assignee_type": getattr(t, "assignee_type", None) or (
+            "human" if t.human_id else ("agent" if t.agent_id else "unassigned")
+        ),
+        "project_id": t.project_id,
+        "company_id": t.company_id,
+        "parent_task_id": getattr(t, "parent_task_id", None),
+        "meeting_id": getattr(t, "meeting_id", None),
+        "labels": t.labels or "",
+        "description": (t.description or "")[:800 if full else 300],
+    }
+    if full:
+        out["result"] = (t.result or "")[:6000]
+        out["tokens_used"] = int(t.tokens_used or 0)
+        out["created_at"] = t.created_at.isoformat() + "Z" if t.created_at else None
+        out["completed_at"] = t.completed_at.isoformat() + "Z" if t.completed_at else None
+        out["updated_at"] = t.updated_at.isoformat() + "Z" if t.updated_at else None
+    else:
+        out["result_preview"] = (t.result or "")[:200] if t.result else ""
+    return out
+
+
+def _query_tasks(
+    db: Session,
+    user: models.User,
+    args: dict,
+    *,
+    default_limit: int = 30,
+    max_limit: int = 80,
+) -> tuple[list[models.Task], dict]:
     try:
-        limit = min(80, int(args.get("limit") or 30))
+        limit = min(max_limit, int(args.get("limit") or default_limit))
     except Exception:
-        limit = 30
-    q = (args.get("q") or "").strip().lower()
+        limit = default_limit
+    q = (
+        args.get("q")
+        or args.get("query")
+        or args.get("search")
+        or args.get("text")
+        or ""
+    )
+    q = str(q).strip().lower()
     status = (args.get("status") or "").strip().lower() or None
+    priority = (args.get("priority") or "").strip().lower() or None
     agent_filter = args.get("agent_id")
+    mine = args.get("mine")
+    if isinstance(mine, str):
+        mine = mine.strip().lower() in ("1", "true", "yes", "on")
+    open_only = args.get("open_only") or args.get("open")
+    if isinstance(open_only, str):
+        open_only = open_only.strip().lower() in ("1", "true", "yes", "on")
+
     query = db.query(models.Task).filter_by(user_id=user.id)
     if status:
-        query = query.filter(models.Task.status == status)
-    if agent_filter is not None:
+        if status in ("open", "active"):
+            query = query.filter(models.Task.status.in_(_OPEN_STATUSES))
+        else:
+            query = query.filter(models.Task.status == status)
+    elif open_only:
+        query = query.filter(models.Task.status.in_(_OPEN_STATUSES))
+    if priority:
+        query = query.filter(models.Task.priority == priority)
+    if agent_filter is not None and str(agent_filter) not in ("", "null", "none"):
         try:
             query = query.filter(models.Task.agent_id == int(agent_filter))
         except Exception:
             pass
-    rows = query.order_by(models.Task.id.desc()).limit(120).all()
-    out = []
-    for t in rows:
-        blob = f"{t.title or ''} {t.description or ''} {t.labels or ''}".lower()
-        if q and q not in blob:
-            continue
-        out.append({
-            "id": t.id,
-            "title": t.title,
-            "status": t.status,
-            "priority": t.priority,
-            "agent_id": t.agent_id,
-            "human_id": t.human_id,
-            "project_id": t.project_id,
-            "description": (t.description or "")[:300],
-        })
-        if len(out) >= limit:
-            break
-    return {"ok": True, "count": len(out), "tasks": out}
+    if mine:
+        # caller passes agent via closure — handled by list/search with agent_id set by skill
+        pass
+
+    rows = query.order_by(models.Task.id.desc()).limit(200).all()
+    if q:
+        rows = [
+            t for t in rows
+            if q in f"{t.title or ''} {t.description or ''} {t.labels or ''} {t.result or ''}".lower()
+            or q == str(t.id)
+        ]
+    meta = {
+        "q": q or None,
+        "status": status,
+        "priority": priority,
+        "limit": limit,
+        "open_only": bool(open_only),
+    }
+    return rows[:limit], meta
+
+
+async def _skill_list_tasks(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    args = dict(args or {})
+    mine = args.get("mine")
+    if isinstance(mine, str):
+        mine = mine.strip().lower() in ("1", "true", "yes", "on")
+    if mine or (args.get("scope") or "").strip().lower() in ("self", "me", "my"):
+        args["agent_id"] = agent.id
+    rows, meta = _query_tasks(db, user, args)
+    out = [_task_row(t) for t in rows]
+    return {
+        "ok": True,
+        "count": len(out),
+        "tasks": out,
+        "filters": meta,
+        "message": f"Found {len(out)} task(s)",
+    }
+
+
+async def _skill_search_tasks(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Full-text-ish search across titles, descriptions, labels, results."""
+    args = dict(args or {})
+    q = (args.get("q") or args.get("query") or args.get("search") or "").strip()
+    if not q:
+        return {"ok": False, "error": "q / query is required for search_tasks"}
+    args.setdefault("limit", 40)
+    rows, meta = _query_tasks(db, user, args, default_limit=40, max_limit=80)
+    out = [_task_row(t) for t in rows]
+    return {
+        "ok": True,
+        "count": len(out),
+        "query": q,
+        "tasks": out,
+        "filters": meta,
+        "message": f"Search “{q}”: {len(out)} task(s)",
+    }
+
 
 async def _skill_get_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     try:
-        tid = int(args.get("task_id"))
+        tid = int(args.get("task_id") or args.get("id"))
     except (TypeError, ValueError):
         return {"ok": False, "error": "task_id required"}
     t = db.get(models.Task, tid)
     if not t or t.user_id != user.id:
         return {"ok": False, "error": "task not found"}
+    children = (
+        db.query(models.Task)
+        .filter_by(user_id=user.id, parent_task_id=t.id)
+        .order_by(models.Task.id.asc())
+        .limit(40)
+        .all()
+    )
     return {
         "ok": True,
-        "task": {
-            "id": t.id,
-            "title": t.title,
-            "description": t.description,
-            "status": t.status,
-            "priority": t.priority,
-            "result": (t.result or "")[:4000],
-            "agent_id": t.agent_id,
-            "human_id": t.human_id,
-            "project_id": t.project_id,
-            "company_id": t.company_id,
-            "meeting_id": t.meeting_id,
-            "labels": t.labels,
-        },
+        "task": _task_row(t, full=True),
+        "children": [_task_row(c) for c in children],
+        "message": f"Task #{t.id}: {t.title or '(untitled)'} [{t.status}]",
     }
+
+
+async def _skill_update_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Update task fields (status, result, priority, title, description, labels, assignee)."""
+    try:
+        tid = int(args.get("task_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "task_id required"}
+    t = db.get(models.Task, tid)
+    if not t or t.user_id != user.id:
+        return {"ok": False, "error": "task not found"}
+
+    changed: list[str] = []
+    if args.get("title") is not None:
+        t.title = str(args.get("title") or "").strip()[:200]
+        changed.append("title")
+    if args.get("description") is not None:
+        t.description = str(args.get("description") or "")
+        changed.append("description")
+    if args.get("priority") is not None:
+        pr = str(args.get("priority") or "medium").strip().lower()
+        if pr in ("low", "medium", "high", "urgent"):
+            t.priority = pr
+            changed.append("priority")
+    if args.get("labels") is not None:
+        t.labels = str(args.get("labels") or "")[:500]
+        changed.append("labels")
+    if args.get("agent_id") is not None:
+        try:
+            aid = int(args.get("agent_id")) if args.get("agent_id") not in ("", None) else None
+        except (TypeError, ValueError):
+            aid = None
+        if aid is not None:
+            a = db.get(models.Agent, aid)
+            if not a or a.user_id != user.id:
+                return {"ok": False, "error": "agent not found"}
+            t.agent_id = aid
+            t.assignee_type = "agent"
+            changed.append("agent_id")
+    if args.get("human_id") is not None:
+        try:
+            hid = int(args.get("human_id")) if args.get("human_id") not in ("", None) else None
+        except (TypeError, ValueError):
+            hid = None
+        if hid is not None:
+            h = db.get(models.Human, hid)
+            if not h or h.owner_user_id != user.id:
+                return {"ok": False, "error": "human not found"}
+            t.human_id = hid
+            t.assignee_type = "human"
+            changed.append("human_id")
+
+    status = (args.get("status") or "").strip().lower()
+    if status:
+        if status not in _TASK_STATUSES:
+            return {
+                "ok": False,
+                "error": f"status must be one of: {', '.join(sorted(_TASK_STATUSES))}",
+            }
+        t.status = status
+        changed.append("status")
+        if status == "completed":
+            t.completed_at = datetime.utcnow()
+        elif status in _OPEN_STATUSES:
+            t.completed_at = None
+
+    result = args.get("result") or args.get("response") or args.get("reply") or args.get("note")
+    if result is not None:
+        note = str(result).strip()
+        if note:
+            # Append progress notes rather than wipe previous result
+            append = args.get("append_result")
+            if isinstance(append, str):
+                append = append.strip().lower() not in ("0", "false", "no")
+            elif append is None:
+                append = True
+            stamp = datetime.utcnow().isoformat() + "Z"
+            line = f"[{stamp}] {agent.name}: {note}"
+            if append and (t.result or "").strip():
+                t.result = f"{(t.result or '').rstrip()}\n\n{line}"
+            else:
+                t.result = note
+            changed.append("result")
+
+    if not changed:
+        return {"ok": False, "error": "no fields to update (status, result, priority, title, …)"}
+
+    t.updated_at = datetime.utcnow()
+    # Activity log
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="task_update",
+            message=f"Updated task #{t.id} ({', '.join(changed)}): {t.title or ''}",
+        ))
+    except Exception:
+        pass
+    db.commit()
+    db.refresh(t)
+
+    # Chain unlock when a step completes/fails
+    if status in ("completed", "failed"):
+        try:
+            from ..task_chain import on_task_finished
+            import asyncio
+            if asyncio.iscoroutinefunction(on_task_finished):
+                await on_task_finished(db, t, final_status=status, commit=True)
+            else:
+                on_task_finished(db, t, final_status=status, commit=True)
+        except Exception:
+            pass
+
+    # Live UI
+    try:
+        from ..ws import manager
+        from ..agent_serialize import task_dict
+        await manager.broadcast(
+            f"agents:{user.id}",
+            {"event": "task_updated", "task": task_dict(t, db)},
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "message": f"Updated task #{t.id}: {', '.join(changed)}",
+        "changed": changed,
+        "task": _task_row(t, full=True),
+    }
+
+
+async def _skill_respond_to_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Write a response/result on a task and optionally complete or re-queue it."""
+    args = dict(args or {})
+    response = (
+        args.get("response")
+        or args.get("result")
+        or args.get("reply")
+        or args.get("note")
+        or args.get("body")
+        or ""
+    )
+    if not str(response).strip():
+        return {"ok": False, "error": "response / result text is required"}
+    complete = args.get("complete")
+    if complete is None:
+        complete = args.get("done")
+    if isinstance(complete, str):
+        complete = complete.strip().lower() in ("1", "true", "yes", "on")
+    # Default: complete unless they set status explicitly or complete=false
+    if args.get("status"):
+        pass
+    elif complete is False:
+        args["status"] = "in_progress"
+    else:
+        args["status"] = "completed"
+    args["result"] = response
+    args["append_result"] = args.get("append_result", True)
+    out = await _skill_update_task(db, agent, user, args)
+    if out.get("ok"):
+        out["message"] = (
+            f"Responded to task #{args.get('task_id') or args.get('id')} "
+            f"→ {args.get('status')}"
+        )
+    return out
+
+
+async def _skill_complete_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Mark a task completed with an optional result summary."""
+    args = dict(args or {})
+    args["status"] = "completed"
+    if args.get("result") is None and args.get("response"):
+        args["result"] = args.get("response")
+    out = await _skill_update_task(db, agent, user, args)
+    if out.get("ok"):
+        out["message"] = f"Completed task #{args.get('task_id') or args.get('id')}"
+    return out
+
+
+async def _skill_set_task_status(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Set task status only (todo | queued | in_progress | review | completed | failed)."""
+    args = dict(args or {})
+    if not args.get("status"):
+        return {"ok": False, "error": "status is required"}
+    return await _skill_update_task(db, agent, user, args)
 
 async def _skill_list_humans(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     try:
@@ -357,7 +640,12 @@ __all__ = [
     '_skill_search_memory',
     '_skill_search_knowledge',
     '_skill_list_tasks',
+    '_skill_search_tasks',
     '_skill_get_task',
+    '_skill_update_task',
+    '_skill_respond_to_task',
+    '_skill_complete_task',
+    '_skill_set_task_status',
     '_skill_list_humans',
     '_skill_read_workspace',
     '_skill_comment',
