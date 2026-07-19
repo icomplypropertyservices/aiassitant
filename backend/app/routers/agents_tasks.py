@@ -157,9 +157,11 @@ async def run_workflow(
     """
     Launch a multi-agent chain, e.g. get 50 sales targets → CRM → emails/calls → pipeline.
     Steps are assigned to sales / outreach / orchestrator via hierarchy routing.
+    Owner may be a LEAD agent (not only the main orchestrator).
     """
-    from ..agent_roles import find_orchestrator
+    from ..agent_roles import find_orchestrator, is_lead_agent, is_orchestrator
     from ..workflows import start_workflow, get_preset
+    from ..agent_scaffold import ensure_agent_skills, repair_agent
 
     if not get_preset(data.workflow_id):
         raise HTTPException(404, f"Unknown workflow: {data.workflow_id}")
@@ -171,7 +173,14 @@ async def run_workflow(
     if not owner:
         owner = find_orchestrator(db, user.id)
     if not owner:
-        # Fallback: any active agent
+        # Prefer any lead before a leaf agent
+        owner = (
+            db.query(models.Agent)
+            .filter_by(user_id=user.id, status="active", hierarchy_role="lead")
+            .order_by(models.Agent.id)
+            .first()
+        )
+    if not owner:
         owner = (
             db.query(models.Agent)
             .filter_by(user_id=user.id, status="active")
@@ -180,6 +189,17 @@ async def run_workflow(
         )
     if not owner:
         raise HTTPException(400, "No active agent to own the workflow — create a team first")
+
+    # Ensure lead skill pack (create_workflow / execute_goal) is on
+    try:
+        repair_agent(db, owner, force_never_idle=False, expand_skills=True)
+        ensure_agent_skills(db, owner)
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
     result = await start_workflow(
         db,
@@ -196,6 +216,107 @@ async def run_workflow(
     )
     if not result.get("ok", True) and result.get("error"):
         raise HTTPException(400, result.get("error"))
+    result["owner_agent_id"] = owner.id
+    result["owner_is_lead"] = bool(is_lead_agent(owner) or is_orchestrator(owner))
+    return result
+
+
+class CustomWorkflowIn(BaseModel):
+    """Lead builds a multi-step flow for subagents."""
+    title: str
+    description: str = ""
+    steps: list[Any] = []
+    checklist: list[Any] | str | None = None
+    agent_id: int | None = None
+    priority: str = "high"
+    company_id: int | None = None
+    project_id: int | None = None
+    save_as_pattern: bool = False
+    pattern_name: str = ""
+    require_review: bool = True
+
+
+@router.post("/workflows/custom")
+async def run_custom_workflow(
+    data: CustomWorkflowIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    LEAD / orchestrator: create a custom multi-agent flow (same as create_workflow skill).
+    Each step: {title, description, agent_id?, role?, done_when?, checklist?}.
+    """
+    from ..agent_roles import find_orchestrator, is_lead_agent, is_orchestrator
+    from ..orchestration.workflow_run import start_workflow as start_custom
+    from ..agent_scaffold import ensure_agent_skills, repair_agent
+    from ..patterns import normalize_checklist
+
+    ensure_credits(db, user.id)
+    owner = None
+    if data.agent_id:
+        owner = _get_owned(data.agent_id, user, db)
+    if not owner:
+        owner = find_orchestrator(db, user.id)
+    if not owner:
+        owner = (
+            db.query(models.Agent)
+            .filter_by(user_id=user.id, status="active", hierarchy_role="lead")
+            .order_by(models.Agent.id)
+            .first()
+        )
+    if not owner:
+        raise HTTPException(400, "No lead/orchestrator agent to own the flow")
+
+    # Promote sales/manager templates to lead role if needed so skills unlock
+    role = (owner.hierarchy_role or "").lower()
+    if role not in ("lead", "orchestrator") and not is_lead_agent(owner):
+        if (owner.template_type or "").lower() in ("sales", "lead", "manager", "ops") or getattr(owner, "is_lead", False):
+            owner.hierarchy_role = "lead"
+            owner.is_lead = True
+            db.commit()
+
+    if not (is_lead_agent(owner) or is_orchestrator(owner) or (owner.permission_level or "") in ("lead", "admin")):
+        raise HTTPException(
+            403,
+            "Only lead or orchestrator agents can create multi-agent flows. "
+            "Set hierarchy_role=lead on the agent first.",
+        )
+
+    try:
+        repair_agent(db, owner, force_never_idle=False, expand_skills=True)
+        ensure_agent_skills(db, owner)
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+    steps = data.steps or []
+    if isinstance(steps, str):
+        steps = [s.strip() for s in steps.split("\n") if s.strip()]
+    if not steps:
+        raise HTTPException(400, "steps required — list of step titles or {title, description, role/agent_id}")
+
+    result = await start_custom(
+        db,
+        user,
+        owner,
+        title=(data.title or "Lead workflow")[:160],
+        description=str(data.description or data.title or ""),
+        steps=steps,
+        checklist=normalize_checklist(data.checklist),
+        priority=data.priority or "high",
+        company_id=data.company_id or owner.company_id,
+        project_id=data.project_id or owner.project_id,
+        require_review=bool(data.require_review),
+        save_as_pattern=bool(data.save_as_pattern) or bool(data.pattern_name),
+        pattern_name=str(data.pattern_name or data.title or ""),
+        category="lead-custom",
+    )
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error") or "Could not start flow")
+    result["owner_agent_id"] = owner.id
     return result
 
 
@@ -212,8 +333,20 @@ def agent_dashboard(
     from ..workflows import list_workflow_presets
     from ..patterns import list_patterns
     from ..agent_scaffold import recommended_model, map_model
+    from ..agent_roles import is_lead_agent, is_orchestrator
 
     a = _get_owned(agent_id, user, db)
+    reports_n = (
+        db.query(models.Agent)
+        .filter_by(user_id=user.id, parent_id=a.id)
+        .count()
+    )
+    can_create_flows = bool(
+        is_orchestrator(a)
+        or is_lead_agent(a, reports_count=reports_n)
+        or (a.hierarchy_role or "").lower() in ("lead", "orchestrator")
+        or (a.permission_level or "").lower() in ("lead", "admin")
+    )
     tasks = (
         db.query(models.Task)
         .filter_by(agent_id=a.id)
@@ -290,6 +423,11 @@ def agent_dashboard(
         "workflows": suggested,
         "all_workflows": all_wf,
         "patterns": (list_patterns(db, user, limit=20).get("patterns") or []),
+        "can_create_flows": can_create_flows,
+        "lead_flow_skills": [
+            "create_workflow", "execute_goal", "create_pattern", "run_pattern",
+            "review_task", "announce_plan", "create_task", "message_agent",
+        ] if can_create_flows else [],
     }
 
 

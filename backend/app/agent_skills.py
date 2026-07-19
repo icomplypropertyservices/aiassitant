@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
-from .agent_roles import is_orchestrator, normalize_role
+from .agent_roles import is_orchestrator, is_lead_agent, normalize_role
 from .integrations_service import secrets_from_row, meta_from_row, integrations_context_for_agent
 from .live_ops import emit_ops
 from . import channels
@@ -2848,6 +2848,25 @@ def list_skills_grouped() -> list[dict]:
     return group_skills_by_category(SKILL_CATALOG)
 
 
+# Lead multi-agent flow toolkit — always on for leads (cannot be stripped by plan UI saves)
+LEAD_FLOW_SKILLS = frozenset({
+    "create_workflow",
+    "execute_goal",
+    "announce_plan",
+    "create_pattern",
+    "list_patterns",
+    "get_pattern",
+    "run_pattern",
+    "review_task",
+    "create_task",
+    "message_agent",
+    "status_update",
+    "notify_human",
+    "spawn_agent",
+    "list_team",
+})
+
+
 def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
     """Enabled skill set — always includes CORE free pack so agents never lose work tools."""
     from .skills_policy import _CORE_ALWAYS
@@ -2863,12 +2882,16 @@ def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
                 stored = {str(x) for x in data}
         except Exception:
             stored = set()
+    base = set(_CORE_ALWAYS) & {s["id"] for s in SKILL_CATALOG}
     if not stored:
-        return defaults | set(_CORE_ALWAYS)
-    # Merge core always — saved state must not strip task/meeting/log skills
-    return stored | (set(_CORE_ALWAYS) & {s["id"] for s in SKILL_CATALOG}) | (
-        defaults & set(_CORE_ALWAYS)
-    )
+        out = defaults | base
+    else:
+        # Merge core always — saved state must not strip task/meeting/log skills
+        out = stored | base | (defaults & base)
+    # Leads always keep flow skills even if plan UI capped the pack
+    if is_lead_agent(agent) or role in ("lead", "orchestrator"):
+        out |= LEAD_FLOW_SKILLS & {s["id"] for s in SKILL_CATALOG}
+    return out
 
 
 def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -> list[str]:
@@ -2897,6 +2920,18 @@ def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -
             clean.insert(0, c)
             seen.add(c)
 
+    # Leads always keep multi-agent flow toolkit on save
+    lead_pack: set[str] = set()
+    try:
+        if is_lead_agent(agent) or normalize_role(agent) in ("lead", "orchestrator"):
+            lead_pack = LEAD_FLOW_SKILLS & valid
+            for c in sorted(lead_pack):
+                if c not in seen:
+                    clean.append(c)
+                    seen.add(c)
+    except Exception:
+        lead_pack = set()
+
     # Plan caps (admin accounts skip)
     plan_id = "none"
     is_admin = False
@@ -2915,9 +2950,10 @@ def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -
             clean = [sid for sid in clean if not by_id.get(sid, {}).get("premium")]
         cap = int(caps.get("skills_per_agent") or 0)
         if cap > 0 and len(clean) > cap:
-            # Prefer core skills first so plan caps never strip work tools
-            core_on = [s for s in clean if s in _CORE_ALWAYS]
-            rest = [s for s in clean if s not in _CORE_ALWAYS]
+            # Prefer core + lead flow skills so plan caps never strip work tools
+            protected = _CORE_ALWAYS | lead_pack
+            core_on = [s for s in clean if s in protected]
+            rest = [s for s in clean if s not in protected]
             clean = (core_on + rest)[: max(cap, len(core_on))]
 
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
@@ -3622,19 +3658,22 @@ async def execute_skill(
         can_execute(perm) or can_delegate(perm) or is_orchestrator(agent)
     ):
         return {"ok": False, "error": f"Permission '{perm}' cannot spawn — need operator or above"}
-    # Core ops (in _CORE_ALWAYS): any operator+ may run; do not require lead
+    # Core ops + lead flows (in _CORE_ALWAYS): any operator+ may run
+    # Leads must be able to create_workflow / execute_goal / review without admin perm
     if skill_id in (
         "create_task", "message_agent", "execute_goal",
+        "create_workflow", "run_pattern", "create_pattern", "list_patterns",
+        "get_pattern", "review_task", "announce_plan",
         "open_meeting", "run_meeting_round", "extract_meeting_tasks",
-        "status_update", "action_items",
+        "status_update", "action_items", "notify_human",
     ) and not (
-        can_execute(perm) or is_orchestrator(agent)
+        can_execute(perm) or can_delegate(perm) or is_orchestrator(agent) or is_lead_agent(agent)
     ):
         return {"ok": False, "error": f"Permission '{perm}' cannot execute skills — need operator or above"}
     if skill_id in (
-        "use_app", "save_memory", "save_training", "announce_plan",
+        "use_app", "save_memory", "save_training",
         "post_to_meeting", "close_meeting",
-    ) and not can_execute(perm):
+    ) and not (can_execute(perm) or is_lead_agent(agent) or is_orchestrator(agent)):
         return {"ok": False, "error": f"Permission '{perm}' cannot execute skills"}
 
     # Gate integration skills (coming_soon apps / not connected)

@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import {
   Card, Row, Col, Statistic, List, Tag, Space, Typography, Button, Spin, Empty,
-  Alert, InputNumber, Input, message, Progress,
+  Alert, InputNumber, Input, message, Progress, Modal, Form, Switch, Select,
 } from 'antd'
 import {
   RobotOutlined, ThunderboltOutlined, CheckSquareOutlined, ReloadOutlined,
   MessageOutlined, SettingOutlined, PlayCircleOutlined, ApartmentOutlined,
-  RocketOutlined, WarningOutlined, DashboardOutlined,
+  RocketOutlined, WarningOutlined, DashboardOutlined, PlusOutlined,
+  NodeIndexOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import PageShell from '../components/PageShell'
 import ModelSelect from '../components/ModelSelect'
 import { modelLabel } from '../models'
+import { isLead, isOrchestrator } from '../agents/roles'
 
 const { Text, Paragraph } = Typography
 
@@ -41,6 +43,10 @@ export default function AgentHome() {
   const [niches, setNiches] = useState({})
   const [modelSaving, setModelSaving] = useState(false)
   const [modelPick, setModelPick] = useState(null)
+  const [flowOpen, setFlowOpen] = useState(false)
+  const [flowBusy, setFlowBusy] = useState(false)
+  const [teamAgents, setTeamAgents] = useState([])
+  const [flowForm] = Form.useForm()
 
   const load = useCallback(() => {
     setLoading(true)
@@ -137,6 +143,88 @@ export default function AgentHome() {
     }
   }
 
+  const openCreateFlow = async () => {
+    setFlowOpen(true)
+    flowForm.setFieldsValue({
+      title: '',
+      description: '',
+      steps_text: '1. Research targets\n2. Save to CRM\n3. Outreach emails + calls\n4. Update pipeline',
+      checklist: 'Targets saved in CRM\nEmails sent with evidence\nPipeline updated',
+      priority: 'high',
+      require_review: true,
+      save_as_pattern: false,
+      pattern_name: '',
+      role_hint: undefined,
+    })
+    try {
+      const r = await api('/agents/')
+      const list = Array.isArray(r) ? r : (r?.agents || r?.items || [])
+      setTeamAgents(list.filter((a) => a && a.id))
+    } catch {
+      setTeamAgents([])
+    }
+  }
+
+  const submitCustomFlow = async () => {
+    let values
+    try {
+      values = await flowForm.validateFields()
+    } catch {
+      return
+    }
+    const lines = String(values.steps_text || '')
+      .split('\n')
+      .map((s) => s.replace(/^\d+[\).\s]+/, '').trim())
+      .filter(Boolean)
+    if (!lines.length) {
+      message.error('Add at least one step (one per line)')
+      return
+    }
+    const roleHint = values.role_hint || undefined
+    const steps = lines.map((title) => {
+      const step = { title: title.slice(0, 120), description: title }
+      if (roleHint) step.role = roleHint
+      return step
+    })
+    const checklist = String(values.checklist || '')
+      .split('\n')
+      .map((s) => s.replace(/^[-*•]\s*/, '').trim())
+      .filter(Boolean)
+
+    setFlowBusy(true)
+    try {
+      const r = await api('/agents/workflows/custom', {
+        method: 'POST',
+        body: {
+          title: values.title,
+          description: values.description || values.title,
+          steps,
+          checklist,
+          agent_id: Number(id),
+          priority: values.priority || 'high',
+          require_review: !!values.require_review,
+          save_as_pattern: !!values.save_as_pattern,
+          pattern_name: values.pattern_name || values.title || '',
+        },
+      })
+      const parentId = r?.parent_task_id || r?.task_id || r?.parent?.id
+      const n = (r?.children || r?.steps || []).length
+      message.success(
+        parentId
+          ? `Custom flow started — goal #${parentId}${n ? ` · ${n} steps` : ''}`
+          : (r?.message || 'Custom flow started'),
+      )
+      setFlowOpen(false)
+      flowForm.resetFields()
+      load()
+      nav('/tasks')
+    } catch (e) {
+      message.error(e.message || 'Could not create flow')
+    } finally {
+      setFlowBusy(false)
+    }
+  }
+
   if (loading && !data) {
     return (
       <PageShell title="Agent dashboard" showBack backTo="/agent-dash">
@@ -154,6 +242,11 @@ export default function AgentHome() {
   const patterns = data?.patterns || []
   const tasks = data?.tasks || []
   const activity = data?.activity || []
+  const canCreateFlows = !!(
+    data?.can_create_flows
+    || isLead(agent)
+    || isOrchestrator(agent)
+  )
   const openPct = stats.total
     ? Math.round(((stats.completed || 0) / Math.max(stats.total, 1)) * 100)
     : 0
@@ -343,9 +436,21 @@ export default function AgentHome() {
                 </Space>
               )}
               extra={(
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Hand off between agents automatically
-                </Text>
+                <Space size="small" wrap>
+                  {canCreateFlows && (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={openCreateFlow}
+                    >
+                      Create flow
+                    </Button>
+                  )}
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Hand off between agents automatically
+                  </Text>
+                </Space>
               )}
             >
               <Paragraph type="secondary" style={{ marginTop: 0 }}>
@@ -353,7 +458,29 @@ export default function AgentHome() {
                 {' → '}
                 <Text strong>second agent emails, calls, updates pipeline</Text>.
                 Autonomy runs each step in order.
+                {canCreateFlows && (
+                  <>
+                    {' '}
+                    As a <Text strong>lead</Text>, use <Text code>Create flow</Text>
+                    {' '}or chat skills <Text code>create_workflow</Text> / <Text code>execute_goal</Text>.
+                  </>
+                )}
               </Paragraph>
+              {canCreateFlows && (
+                <Alert
+                  type="info"
+                  showIcon
+                  icon={<NodeIndexOutlined />}
+                  style={{ marginBottom: 12 }}
+                  message="Lead multi-agent flows"
+                  description="Build sequential steps for subagents, optional checklist for review, and save as a reusable pattern."
+                  action={(
+                    <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openCreateFlow}>
+                      New flow
+                    </Button>
+                  )}
+                />
+              )}
               {workflows.length === 0 ? (
                 <Empty description="No workflows for this role" />
               ) : (
@@ -584,10 +711,121 @@ export default function AgentHome() {
               Tip: Chat the orchestrator with “Get 50 sales targets and save in CRM, then email and call them”
               — auto-chain uses the same multi-agent sales workflow. Prefer model{' '}
               <Text code>Quality</Text> or higher on sales and outreach agents.
+              {canCreateFlows && (
+                <>
+                  {' '}Leads can also use <Text code>create_workflow</Text> in chat or the
+                  {' '}<Text strong>Create flow</Text> button above.
+                </>
+              )}
             </Text>
           </Space>
         </Card>
       </Space>
+
+      <Modal
+        title={(
+          <Space>
+            <NodeIndexOutlined />
+            <span>Create multi-agent flow</span>
+          </Space>
+        )}
+        open={flowOpen}
+        onCancel={() => !flowBusy && setFlowOpen(false)}
+        onOk={submitCustomFlow}
+        okText="Start flow"
+        confirmLoading={flowBusy}
+        destroyOnClose
+        width={640}
+      >
+        <Paragraph type="secondary" style={{ marginTop: 0 }}>
+          Lead-owned sequential steps for subagents. Autonomy runs step 1, then unlocks the next.
+          After work, use <Text code>review_task</Text> to approve or reject with what&apos;s wrong.
+        </Paragraph>
+        <Form form={flowForm} layout="vertical" requiredMark="optional">
+          <Form.Item
+            name="title"
+            label="Flow title"
+            rules={[{ required: true, message: 'Title required' }]}
+          >
+            <Input placeholder="e.g. Q3 lead batch → CRM → outreach" maxLength={160} />
+          </Form.Item>
+          <Form.Item name="description" label="Goal / description">
+            <Input.TextArea rows={2} placeholder="What the lead wants the team to achieve" />
+          </Form.Item>
+          <Form.Item
+            name="steps_text"
+            label="Steps (one per line)"
+            rules={[{ required: true, message: 'At least one step' }]}
+            extra="Order matters — step 1 runs first. Optional numbering is stripped."
+          >
+            <Input.TextArea
+              rows={5}
+              placeholder={'1. Research targets\n2. Save to CRM\n3. Email + call\n4. Update pipeline'}
+            />
+          </Form.Item>
+          <Form.Item
+            name="checklist"
+            label="Lead checklist (what you will verify)"
+            extra="One check per line — used when reviewing completed work"
+          >
+            <Input.TextArea rows={3} placeholder={'Targets in CRM\nOutreach evidence\nPipeline stage updated'} />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="priority" label="Priority" initialValue="high">
+                <Select
+                  options={[
+                    { value: 'high', label: 'High' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'low', label: 'Low' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="role_hint"
+                label="Prefer assignee role (optional)"
+                extra="Routes each step via hierarchy when no agent_id"
+              >
+                <Select
+                  allowClear
+                  placeholder="Auto-pick from team"
+                  options={[
+                    { value: 'sales', label: 'Sales' },
+                    { value: 'outreach', label: 'Outreach' },
+                    { value: 'support', label: 'Support' },
+                    { value: 'ops', label: 'Ops' },
+                    { value: 'research', label: 'Research' },
+                    { value: 'member', label: 'Any member' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          {teamAgents.length > 0 && (
+            <Paragraph type="secondary" style={{ fontSize: 12, marginTop: -8 }}>
+              Team available for routing: {teamAgents.slice(0, 8).map((a) => a.name).join(', ')}
+              {teamAgents.length > 8 ? ` +${teamAgents.length - 8}` : ''}
+            </Paragraph>
+          )}
+          <Form.Item name="require_review" label="Require lead review" valuePropName="checked" initialValue={true}>
+            <Switch />
+          </Form.Item>
+          <Form.Item name="save_as_pattern" label="Save as reusable pattern" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.save_as_pattern !== cur.save_as_pattern}>
+            {({ getFieldValue }) =>
+              getFieldValue('save_as_pattern') ? (
+                <Form.Item name="pattern_name" label="Pattern name">
+                  <Input placeholder="Defaults to flow title" />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+        </Form>
+      </Modal>
     </PageShell>
   )
 }
