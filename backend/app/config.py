@@ -111,13 +111,22 @@ if not _jwt or _jwt in _WEAK_JWT or len(_jwt) < 32:
 else:
     JWT_SECRET = _jwt
 
+def _env_str(name: str, default: str = "") -> str:
+    """Read env; treat blank / whitespace-only as unset (Vercel empty secrets break OAuth)."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    val = str(raw).strip()
+    return val if val else default
+
+
 # Product UI path on aibusinessagent.xyz is /agents (not a subdomain).
 # Stripe success/cancel URLs are built from FRONTEND_URL.
-FRONTEND_URL = os.getenv(
+FRONTEND_URL = _env_str(
     "FRONTEND_URL",
     "http://localhost:5173" if not IS_PRODUCTION else "https://www.aibusinessagent.xyz/agents",
 ).rstrip("/")
-# Prefer www on production so email/SMS notification links don't bounce apex redirects
+# Prefer www on production so email/SMS/OAuth links don't bounce apex redirects
 if IS_PRODUCTION and "aibusinessagent.xyz" in FRONTEND_URL and "www." not in FRONTEND_URL:
     FRONTEND_URL = FRONTEND_URL.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
 _default_cors = (
@@ -125,16 +134,21 @@ _default_cors = (
     if IS_PRODUCTION
     else "*"
 )
-CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_cors).split(",") if o.strip()]
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+CORS_ORIGINS = [o.strip() for o in _env_str("CORS_ORIGINS", _default_cors).split(",") if o.strip()]
+DATABASE_URL = _env_str("DATABASE_URL", "sqlite:///./app.db")
 # AgentBay marketplace (same domain path /bay)
-AGENTBAY_PUBLIC_URL = (os.getenv("AGENTBAY_PUBLIC_URL") or "https://aibusinessagent.xyz/bay").rstrip("/")
+AGENTBAY_PUBLIC_URL = _env_str("AGENTBAY_PUBLIC_URL", "https://www.aibusinessagent.xyz/bay").rstrip("/")
+
+# Canonical production OAuth callback (Google redirect_uri_mismatch if wrong host/path).
+# Must match Google Cloud Console → Credentials → Web client → Authorized redirect URIs
+# EXACTLY (https, no trailing slash). Prefer www to match FRONTEND_URL.
+PROD_OAUTH_REDIRECT_URI = "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
+PROD_OAUTH_REDIRECT_URI_APEX = "https://aibusinessagent.xyz/api/integrations/oauth/callback"
 
 # Public API origin (no trailing slash). Used for OAuth redirect_uri.
-# Production path deploy: https://aibusinessagent.xyz/api
-# Must match Google Cloud Console → OAuth client → Authorized redirect URIs.
-_api_public_env = (os.getenv("API_PUBLIC_URL") or "").strip().rstrip("/")
-_oauth_redirect_env = (os.getenv("OAUTH_REDIRECT_URI") or "").strip()
+# Production path deploy: https://www.aibusinessagent.xyz/api
+_api_public_env = _env_str("API_PUBLIC_URL").rstrip("/")
+_oauth_redirect_env = _env_str("OAUTH_REDIRECT_URI")
 if _api_public_env:
     API_PUBLIC_URL = _api_public_env
 else:
@@ -150,13 +164,21 @@ else:
         else:
             API_PUBLIC_URL = ""
     else:
-        API_PUBLIC_URL = "http://localhost:8000" if not IS_PRODUCTION else "https://aibusinessagent.xyz/api"
+        API_PUBLIC_URL = (
+            "http://localhost:8000" if not IS_PRODUCTION else "https://www.aibusinessagent.xyz/api"
+        )
 
-# Exact callback Google/Slack/etc. must redirect to (prefer explicit env)
-OAUTH_REDIRECT_URI = (
-    _oauth_redirect_env
-    or (f"{API_PUBLIC_URL}/integrations/oauth/callback" if API_PUBLIC_URL else "")
-)
+# Exact callback Google/Slack/etc. must redirect to.
+# Production always pins to canonical www URI unless OAUTH_REDIRECT_URI is set non-empty.
+if IS_PRODUCTION and "aibusinessagent.xyz" in (API_PUBLIC_URL + FRONTEND_URL + _oauth_redirect_env):
+    OAUTH_REDIRECT_URI = _oauth_redirect_env or PROD_OAUTH_REDIRECT_URI
+else:
+    OAUTH_REDIRECT_URI = (
+        _oauth_redirect_env
+        or (f"{API_PUBLIC_URL}/integrations/oauth/callback" if API_PUBLIC_URL else "")
+    )
+# Normalize accidental trailing slash (Google treats as different URI)
+OAUTH_REDIRECT_URI = (OAUTH_REDIRECT_URI or "").rstrip("/")
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 

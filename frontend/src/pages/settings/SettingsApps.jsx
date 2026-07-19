@@ -134,15 +134,21 @@ export default function SettingsApps({ onConnectedCountChange }) {
         }
         const url = r.authorize_url
 
-        const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+        const isNative = !!(window.Capacitor?.isNativePlatform?.())
 
         if (isNative) {
+          // Capacitor Browser (SFSafariViewController / Chrome Custom Tabs) — window.open is unreliable
           try {
-            window.open(url, '_system')
-          } catch {
-            window.open(url, '_blank')
+            const { Browser } = await import('@capacitor/browser')
+            await Browser.open({ url, presentationStyle: 'popover' })
+            message.info('Complete Google sign-in, then return to this app. Pull to refresh Connected apps.')
+          } catch (browserErr) {
+            try {
+              window.open(url, '_blank')
+            } catch {
+              message.error(`Could not open Google login: ${browserErr?.message || browserErr}`)
+            }
           }
-          message.info('Finish Google login in the browser, then return here.')
         } else {
           window.location.href = url
         }
@@ -150,14 +156,22 @@ export default function SettingsApps({ onConnectedCountChange }) {
       }
       if (r.redirect_uri) {
         message.warning(
-          `${r.message || 'OAuth not ready'}. Redirect URI to whitelist: ${r.redirect_uri}`,
-          10,
+          `${r.message || 'OAuth not ready'}. Add this exact Redirect URI in Google Cloud Console → Credentials → Authorized redirect URIs: ${r.redirect_uri}`,
+          12,
         )
       } else {
         message.info(r.message || 'OAuth not configured on server — use API credentials below')
       }
     } catch (e) {
-      message.error(e.message)
+      const msg = e?.message || String(e)
+      if (/redirect_uri|invalid_request|mismatch/i.test(msg)) {
+        message.error(
+          `${msg} — Fix: Google Cloud Console → your Web OAuth client → Authorized redirect URIs must include https://www.aibusinessagent.xyz/api/integrations/oauth/callback`,
+          12,
+        )
+      } else {
+        message.error(msg)
+      }
     } finally {
       setOauthStarting(false)
     }
@@ -225,47 +239,36 @@ export default function SettingsApps({ onConnectedCountChange }) {
             type={googleOauthOk?.ok ? 'success' : 'warning'}
             showIcon
             style={{ marginBottom: 16 }}
-            message={googleOauthOk?.ok ? 'Google 1-click OAuth is configured' : 'Google OAuth client not fully configured'}
+            message={
+              googleOauthOk?.ok
+                ? 'Google 1-click OAuth is configured on the server'
+                : 'Google OAuth needs Google Cloud redirect URI whitelist'
+            }
             description={
-              googleOauthOk?.ok ? (
-                <div>
-                  <p style={{ marginBottom: 8 }}>
-                    Connect Google Workspace, Gmail, Sheets, Business Profile, and YouTube with one click.
+              <div>
+                <p style={{ marginBottom: 8 }}>
+                  <strong>Error 400: redirect_uri_mismatch</strong> means Google Console is missing this exact URI.
+                  Copy it into <em>APIs &amp; Services → Credentials → OAuth 2.0 Client ID (Web application) → Authorized redirect URIs</em>:
+                </p>
+                <Text code copyable style={{ display: 'block', marginBottom: 6, wordBreak: 'break-all' }}>
+                  {googleOauthOk?.redirect_uri
+                    || 'https://www.aibusinessagent.xyz/api/integrations/oauth/callback'}
+                </Text>
+                <Text code copyable style={{ display: 'block', marginBottom: 8, wordBreak: 'break-all' }}>
+                  https://aibusinessagent.xyz/api/integrations/oauth/callback
+                </Text>
+                <p style={{ marginBottom: 4, fontSize: 12 }}>
+                  Also add <Text code>https://www.aibusinessagent.xyz</Text> and{' '}
+                  <Text code>https://aibusinessagent.xyz</Text> under <em>Authorized JavaScript origins</em>.
+                  No trailing slash. Use a <strong>Web</strong> client (not Android/iOS).
+                </p>
+                {!googleOauthOk?.ok && (
+                  <p style={{ marginBottom: 0, fontSize: 12 }}>
+                    Server also needs non-empty <Text code>GOOGLE_OAUTH_CLIENT_ID</Text> +{' '}
+                    <Text code>GOOGLE_OAUTH_CLIENT_SECRET</Text> in Vercel Production env.
                   </p>
-                  <p style={{ marginBottom: 4 }}>
-                    <strong>Authorized redirect URI</strong> (must match Google Cloud Console <em>exactly</em>):
-                  </p>
-                  <Text code copyable style={{ display: 'block', marginBottom: 8, wordBreak: 'break-all' }}>
-                    {googleOauthOk.redirect_uri}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    If Google shows “request is invalid”, the redirect URI above is missing or mistyped in
-                    Console → Credentials → OAuth 2.0 Client (Web) → Authorized redirect URIs.
-                  </Text>
-                </div>
-              ) : (
-                <div>
-                  <p>
-                    Set <Text code>GOOGLE_OAUTH_CLIENT_ID</Text>, <Text code>GOOGLE_OAUTH_CLIENT_SECRET</Text>,
-                    and <Text code>API_PUBLIC_URL</Text> (or <Text code>OAUTH_REDIRECT_URI</Text>) in production env.
-                  </p>
-                  {googleOauthOk?.redirect_uri && (
-                    <>
-                      <p style={{ marginBottom: 4 }}><strong>Redirect URI to add:</strong></p>
-                      <Text code copyable style={{ display: 'block', wordBreak: 'break-all' }}>
-                        {googleOauthOk.redirect_uri}
-                      </Text>
-                    </>
-                  )}
-                  {Array.isArray(googleOauthOk?.console_steps) && googleOauthOk.console_steps.length > 0 && (
-                    <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12 }}>
-                      {googleOauthOk.console_steps.map((s) => (
-                        <li key={s}>{s}</li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              )
+                )}
+              </div>
             }
           />
           <Alert

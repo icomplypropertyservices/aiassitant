@@ -101,25 +101,61 @@ def _decode_oauth_state(state: str) -> dict:
         raise HTTPException(400, f"Invalid or expired OAuth state: {e}") from e
 
 
+def _canonicalize_oauth_redirect(uri: str) -> str:
+    """Stable production redirect_uri for aibusinessagent.xyz (www).
+
+    Google Error 400 redirect_uri_mismatch is almost always www vs apex,
+    trailing slash, or /agents/api/... wrong path.
+    """
+    u = (uri or "").strip().rstrip("/")
+    if not u:
+        return u
+    # Never allow SPA-prefixed API paths
+    u = u.replace("/agents/api/", "/api/")
+    # Pin our product domain to one canonical host (www)
+    if "aibusinessagent.xyz" in u:
+        u = u.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
+        # Prefer configured canonical when env/request drifts
+        if u.endswith("/api/integrations/oauth/callback"):
+            return getattr(config, "PROD_OAUTH_REDIRECT_URI", None) or (
+                "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"
+            )
+    return u
+
+
 def _oauth_redirect_uri(request: Request | None = None) -> str:
     """Exact redirect_uri for authorize + token exchange.
 
-    Google returns "invalid_request" / redirect_uri_mismatch when this does not
-    match the Authorized redirect URI in Cloud Console **exactly**.
+    Google returns Error 400 redirect_uri_mismatch when this does not match
+    Authorized redirect URIs in Cloud Console **exactly**.
 
-    Correct production value:
+    Canonical production value (add this in Google Console):
+      https://www.aibusinessagent.xyz/api/integrations/oauth/callback
+
+    Also whitelist apex if users hit non-www (optional, we send www):
       https://aibusinessagent.xyz/api/integrations/oauth/callback
 
-    Never use FRONTEND_URL + /api/... when FRONTEND is .../agents (that produces
-    the broken .../agents/api/integrations/oauth/callback path).
+    Never use FRONTEND_URL + /api/... when FRONTEND is .../agents.
     """
-    # 1) Explicit env (highest priority)
+    # 1) Explicit config / env (highest priority)
     explicit = (
         (getattr(config, "OAUTH_REDIRECT_URI", None) or "").strip()
         or os.getenv("OAUTH_REDIRECT_URI", "").strip()
     )
     if explicit:
-        return explicit.rstrip("/")
+        return _canonicalize_oauth_redirect(explicit)
+
+    # Production product domain: always pin (do not use ephemeral Vercel host)
+    if getattr(config, "IS_PRODUCTION", False):
+        fu = (getattr(config, "FRONTEND_URL", None) or "") + (
+            getattr(config, "API_PUBLIC_URL", None) or ""
+        )
+        if "aibusinessagent.xyz" in fu or not fu:
+            return getattr(
+                config,
+                "PROD_OAUTH_REDIRECT_URI",
+                "https://www.aibusinessagent.xyz/api/integrations/oauth/callback",
+            )
 
     # 2) API_PUBLIC_URL from config / env
     api_public = (
@@ -127,15 +163,13 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
         or os.getenv("API_PUBLIC_URL", "").strip().rstrip("/")
     )
     if api_public:
-        # Accept either .../api or bare origin
         if api_public.endswith("/api"):
-            return f"{api_public}/integrations/oauth/callback"
-        return f"{api_public}/api/integrations/oauth/callback"
+            return _canonicalize_oauth_redirect(f"{api_public}/integrations/oauth/callback")
+        return _canonicalize_oauth_redirect(f"{api_public}/api/integrations/oauth/callback")
 
-    # 3) Derive from request host (Vercel / reverse proxy)
+    # 3) Derive from request host (local / custom domains)
     if request is not None:
         try:
-            # Prefer public host headers
             proto = (
                 request.headers.get("x-forwarded-proto")
                 or request.url.scheme
@@ -148,10 +182,18 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
             )
             host = (host or "").split(",")[0].strip()
             if host and "localhost" not in host and "127.0.0.1" not in host:
-                return f"{proto}://{host}/api/integrations/oauth/callback"
+                # Never use *.vercel.app for Google — Console won't match unless
+                # every preview is added. Fall back to product canonical in prod.
+                if host.endswith(".vercel.app") and getattr(config, "IS_PRODUCTION", False):
+                    return getattr(
+                        config,
+                        "PROD_OAUTH_REDIRECT_URI",
+                        "https://www.aibusinessagent.xyz/api/integrations/oauth/callback",
+                    )
+                return _canonicalize_oauth_redirect(
+                    f"{proto}://{host}/api/integrations/oauth/callback"
+                )
             if host:
-                # Local dev: callback hits API directly (no /api strip needed if
-                # uvicorn serves backend at :8000 without /api prefix)
                 return f"{proto}://{host}/integrations/oauth/callback"
         except Exception:
             pass
@@ -161,18 +203,15 @@ def _oauth_redirect_uri(request: Request | None = None) -> str:
     if base:
         if base.endswith("/agents"):
             origin = base[: -len("/agents")]
-            return f"{origin}/api/integrations/oauth/callback"
-        # Subdomain app (e.g. https://app.example.com) → same host /api
+            return _canonicalize_oauth_redirect(f"{origin}/api/integrations/oauth/callback")
         from urllib.parse import urlparse
         p = urlparse(base)
         if p.scheme and p.netloc:
-            return f"{p.scheme}://{p.netloc}/api/integrations/oauth/callback"
+            return _canonicalize_oauth_redirect(
+                f"{p.scheme}://{p.netloc}/api/integrations/oauth/callback"
+            )
 
-    # 5) Vercel URL fallback
-    vercel = (os.getenv("VERCEL_URL") or "").strip().lstrip("https://").lstrip("http://")
-    if vercel:
-        return f"https://{vercel}/api/integrations/oauth/callback"
-
+    # 5) Local default
     return "http://localhost:8000/integrations/oauth/callback"
 
 
@@ -234,26 +273,39 @@ def google_oauth_status(request: Request, user=Depends(get_current_user)):
             "oauth_ready": bool(cid and csec),
             "coming_soon": bool(app.get("coming_soon")),
         })
+    apex = getattr(config, "PROD_OAUTH_REDIRECT_URI_APEX", None) or (
+        "https://aibusinessagent.xyz/api/integrations/oauth/callback"
+    )
     return {
         "ok": bool(cid and csec and redirect),
         "client_id_set": bool(cid),
         "client_secret_set": bool(csec),
         "client_id_preview": (cid[:12] + "…") if len(cid) > 12 else (cid or None),
         "redirect_uri": redirect,
+        "redirect_uri_alternates": [apex] if redirect != apex else [],
         "api_public_url": getattr(config, "API_PUBLIC_URL", None) or os.getenv("API_PUBLIC_URL") or None,
+        "frontend_url": getattr(config, "FRONTEND_URL", None),
         "apps": apps,
         "console_steps": [
             "Open Google Cloud Console → APIs & Services → Credentials",
-            "OAuth 2.0 Client IDs → your Web application client",
-            f"Authorized redirect URIs → add exactly: {redirect}",
-            "Authorized JavaScript origins → add your site origin (e.g. https://aibusinessagent.xyz)",
-            "Enable APIs: Google+ / People, Gmail, Sheets, Calendar, Drive, YouTube Data, Business Profile",
-            "OAuth consent screen → add test users if app is in Testing mode",
+            "OAuth 2.0 Client IDs → Web application client (not iOS/Android)",
+            f"Authorized redirect URIs → ADD EXACTLY (copy-paste): {redirect}",
+            f"Also add (optional apex): {apex}",
+            "Authorized JavaScript origins → https://www.aibusinessagent.xyz and https://aibusinessagent.xyz",
+            "OAuth consent screen → if Testing, add your Google account as a test user",
+            "Enable APIs: Gmail, Sheets, Calendar, Drive, YouTube Data (as needed)",
+            "Save credentials, wait ~1 minute, then try Connect again",
         ],
         "note": (
-            "Google shows 'request is invalid' when redirect_uri does not match Console exactly "
-            "(including https, path, no trailing slash). Copy redirect_uri below into Console."
+            "Google Error 400 redirect_uri_mismatch means the URI this API sends "
+            "is not listed under Authorized redirect URIs. Copy redirect_uri below "
+            "into Console with https, full path, and NO trailing slash."
         ),
+        "error_help": {
+            "redirect_uri_mismatch": (
+                f"Add this exact URI in Google Cloud Console: {redirect}"
+            ),
+        },
     }
 
 
