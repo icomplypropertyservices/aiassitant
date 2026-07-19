@@ -341,8 +341,8 @@ export default function AgentChat() {
     try { abortRef.current?.abort() } catch { /* ignore */ }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
     abortRef.current = controller
-    // Chat should return in ~10–40s; 90s hard cap so UI never feels stuck forever
-    const timeoutMs = 90000
+    // Chat should return in ~10–40s; 120s hard cap (cold start + skills)
+    const timeoutMs = 120000
     const timer = controller
       ? setTimeout(() => controller.abort(), timeoutMs)
       : null

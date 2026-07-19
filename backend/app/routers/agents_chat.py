@@ -246,9 +246,10 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         try:
             import asyncio as _asyncio
             # Allow real work (create_task / execute_goal / meetings) — 8s was killing runs
+            # Keep skill budget tight so the HTTP reply stays under client timeout
             clean_reply, skill_results = await _asyncio.wait_for(
                 run_skills_from_text(db, a, user, reply),
-                timeout=45.0,
+                timeout=25.0,
             )
         except Exception as e:
             log.warning("skill post-process skipped/failed: %s", e)
@@ -303,17 +304,21 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     db.add(models.Message(conversation_id=conv.id, role="assistant", content=final_text))
     db.commit()
 
-    # After every actionable chat: workflow so the agent continues alone
+    # After chat: queue follow-up work — never block the reply on multi-turn LLM
     workflow_info = None
     try:
+        import asyncio as _asyncio
         from ..post_conversation import schedule_post_conversation_workflow
-        workflow_info = await schedule_post_conversation_workflow(
-            db, user, a,
-            user_text=text,
-            assistant_text=final_text,
-            skill_results=skill_results,
-            conversation_id=conv.id,
-            force=False,
+        workflow_info = await _asyncio.wait_for(
+            schedule_post_conversation_workflow(
+                db, user, a,
+                user_text=text,
+                assistant_text=final_text,
+                skill_results=skill_results,
+                conversation_id=conv.id,
+                force=False,
+            ),
+            timeout=8.0,
         )
         if workflow_info and workflow_info.get("ok") and not workflow_info.get("skipped"):
             tid = workflow_info.get("task_id")
@@ -324,7 +329,6 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
                     + (" (running now)" if workflow_info.get("run_started") else " (queued)")
                     + ". I'll complete the follow-through without waiting for you."
                 ).strip()
-                # Persist the updated reply with workflow footer
                 try:
                     last = (
                         db.query(models.Message)
@@ -340,14 +344,30 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     except Exception as wf_err:
         log.warning("post-conversation workflow skipped: %s", wf_err)
 
-    charged = bill_llm_turn(
-        db, user, model, llm_messages, final_text, usage=llm_usage or None,
-    )
+    # Billing must never swallow a successful reply
+    charged = {
+        "tokens": 0,
+        "cost": 0.0,
+        "tokens_used_period": None,
+        "credits": None,
+        "bill_source": None,
+        "model": model,
+    }
+    try:
+        charged = bill_llm_turn(
+            db, user, model, llm_messages, final_text, usage=llm_usage or None,
+        )
+    except Exception as bill_err:
+        log.warning("bill_llm_turn failed after chat: %s", bill_err)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     try:
         await manager.broadcast(f"tokens:{user.id}", {
             "event": "usage",
-            "tokens": charged["tokens"],
-            "cost": charged["cost"],
+            "tokens": charged.get("tokens"),
+            "cost": charged.get("cost"),
             "model": charged.get("model") or model,
             "tokens_used_period": charged.get("tokens_used_period"),
             "credits": charged.get("credits"),
@@ -366,8 +386,8 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         pass
     out = {
         "reply": final_text,
-        "tokens": charged["tokens"],
-        "cost": charged["cost"],
+        "tokens": charged.get("tokens") or 0,
+        "cost": charged.get("cost") or 0.0,
         "tokens_used_period": charged.get("tokens_used_period"),
         "credits": charged.get("credits"),
         "bill_source": charged.get("bill_source"),
@@ -597,14 +617,21 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
-            charged = bill_llm_turn(
-                db, user_obj, use_model, llm_messages, reply,
-                usage=get_last_completion_usage(),
-            )
+            try:
+                charged = bill_llm_turn(
+                    db, user_obj, use_model, llm_messages, reply,
+                    usage=get_last_completion_usage(),
+                )
+            except Exception as bill_err:
+                log.warning("ws bill_llm_turn failed: %s", bill_err)
+                charged = {
+                    "tokens": 0, "cost": 0.0,
+                    "tokens_used_period": None, "credits": None,
+                }
             done_payload = {
                 "type": "done",
-                "tokens": charged["tokens"],
-                "cost": charged["cost"],
+                "tokens": charged.get("tokens") or 0,
+                "cost": charged.get("cost") or 0.0,
                 "conversation_id": conv.id,
                 "tokens_used_period": charged.get("tokens_used_period"),
                 "credits": charged.get("credits"),

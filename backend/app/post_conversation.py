@@ -233,12 +233,17 @@ async def schedule_post_conversation_workflow(
     if (t.status or "") == "queued":
         try:
             from .task_runner import kick_queued_task
+            from .async_jobs import is_serverless
+            # On Vercel, do not await multi-turn task LLM inside the chat request —
+            # leave queued for autonomy tick / next kick. Locally, run short inline.
             kicked = await kick_queued_task(
                 t.id,
                 user_id=user.id,
                 agent_id=agent.id,
                 description=t.description,
                 agent_name=agent.name,
+                run_inline=False if is_serverless() else True,
+                timeout_sec=15.0,
             )
         except Exception as e:
             log.warning("post-chat kick failed task=%s: %s", t.id, e)

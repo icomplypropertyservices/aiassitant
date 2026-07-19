@@ -400,7 +400,6 @@ async def _xai_stream(
         "messages": messages,
         "stream": True,
         "max_tokens": mt,
-        "stream_options": {"include_usage": True},
     }
     got_any = False
     async with httpx.AsyncClient(timeout=90.0) as client:

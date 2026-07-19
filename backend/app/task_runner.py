@@ -30,13 +30,21 @@ async def kick_queued_task(
     agent_id: int | None = None,
     description: str | None = None,
     agent_name: str | None = None,
+    run_inline: bool | None = None,
+    timeout_sec: float | None = None,
 ) -> bool:
     """Schedule immediate execution for a queued task (do not wait for daily cron).
 
-    Returns True if a run was scheduled. Safe to call after create_task / claim /
-    goal-chain step unlock. No-ops if task missing, not queued, or agent paused.
+    Returns True if a run was scheduled (or left queued safely). Safe after
+    create_task / claim / goal-chain unlock. No-ops if missing/paused.
+
+    run_inline:
+      None  → auto (serverless: short budget; local: background)
+      True  → claim + run via schedule() with timeout
+      False → leave status=queued only (cron/tick will pick it up) — use from chat
+              so the HTTP reply is never blocked by multi-turn task LLM work
     """
-    from .async_jobs import schedule
+    from .async_jobs import schedule, is_serverless
 
     db = SessionLocal()
     try:
@@ -54,6 +62,21 @@ async def kick_queued_task(
         uid = user_id or t.user_id
         desc = description if description is not None else (t.description or t.title or "")
         name = agent_name or a.name or "Agent"
+        labels = (getattr(t, "labels", None) or "")
+
+        # From chat / post-chat on serverless: do NOT start multi-turn runner in-request
+        # (was freezing agent replies past the browser timeout).
+        defer = run_inline is False or (
+            run_inline is None
+            and is_serverless()
+            and any(tag in labels for tag in ("post-chat", "auto-workflow", "self-run", "autonomy"))
+        )
+        if defer:
+            t.updated_at = datetime.utcnow()
+            db.commit()
+            log.info("kick deferred (queued) task_id=%s labels=%s", task_id, labels[:80])
+            return True
+
         # Claim the row immediately so a second kick cannot double-run
         t.status = "in_progress"
         t.updated_at = datetime.utcnow()
@@ -72,7 +95,11 @@ async def kick_queued_task(
         db.close()
 
     try:
-        await schedule(run_agent_task(a_id, u_id, tid, tdesc, aname))
+        # Short budget on serverless so API handlers still return
+        budget = timeout_sec
+        if budget is None and is_serverless():
+            budget = 25.0
+        await schedule(run_agent_task(a_id, u_id, tid, tdesc, aname), timeout_sec=budget)
         log.info("kicked task_id=%s agent_id=%s", tid, a_id)
         return True
     except Exception as e:
@@ -241,11 +268,19 @@ async def run_agent_task(
         )
 
         is_autonomy = "autonomy" in (labels or "") or "self-run" in (labels or "")
+        is_post_chat = "post-chat" in (labels or "") or "auto-workflow" in (labels or "")
         max_turns = int(
             getattr(app_config, "TASK_RUNNER_AUTONOMY_MAX_TURNS", 3)
-            if is_autonomy
+            if is_autonomy or is_post_chat
             else getattr(app_config, "TASK_RUNNER_MAX_TURNS", 5)
         )
+        # Serverless: keep turns low so a kicked job cannot outlive the HTTP budget
+        try:
+            from .async_jobs import is_serverless
+            if is_serverless():
+                max_turns = min(max_turns, 2 if not is_post_chat else 1)
+        except Exception:
+            pass
         max_turns = max(1, min(8, max_turns))
 
         db = SessionLocal()
@@ -501,9 +536,10 @@ async def run_agent_task(
                         task_id, prior_requeues + 1,
                     )
                     try:
-                        # One immediate continue for board work (not self-run fluff)
-                        if not is_autonomy and prior_requeues == 0:
-                            from .async_jobs import schedule
+                        # One immediate continue for board work (not self-run fluff).
+                        # Never chain-await multi-turn on serverless (blocks chat/API).
+                        from .async_jobs import schedule, is_serverless
+                        if not is_autonomy and prior_requeues == 0 and not is_serverless():
                             await schedule(
                                 run_agent_task(
                                     agent_id, user_id, task_id,
