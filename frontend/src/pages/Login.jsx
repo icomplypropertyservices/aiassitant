@@ -124,7 +124,8 @@ export default function Login() {
       .catch(() => setGoogleEnabled(true))
   }, [nav, searchParams])
 
-  const preorderOn = Boolean(preorder?.active)
+  // Live monthly subscriptions (pre-order only if API actively forces it)
+  const preorderOn = Boolean(preorder?.active) && preorder?.live === false
 
   const finishAuth = (data, isRegister) => {
     const sessionKey = data?.api_key || data?.token

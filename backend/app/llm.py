@@ -263,13 +263,14 @@ def _xai_model_id(model: str) -> str:
     grok4 = getattr(config, "XAI_MODEL_GROK4", None) or "grok-4.5"
     grok3 = getattr(config, "XAI_MODEL_GROK3", None) or "grok-4.3"
 
-    # Explicit Grok family
-    if m in ("grok-max", "grok", "premium", "xai", "grok-4.5") or m.startswith("grok-4.5"):
-        return grok4
-    if "4.3" in m or m in ("grok-3", "grok-4.3"):
+    # Explicit Grok family — Main Orchestrator uses 4.3; staff max uses top Grok
+    if "4.3" in m or m in ("grok-3", "grok-4.3", "orchestrator"):
         return grok3
-    if m.startswith("grok"):
+    if m in ("grok-max", "premium", "xai", "grok-4.5") or m.startswith("grok-4.5"):
         return grok4
+    if m in ("grok", "grok-4") or m.startswith("grok"):
+        # Default bare "grok" → 4.3 (orchestrator class); staff use grok-max explicitly
+        return grok3
 
     # Neutral tiers (client-facing) → Grok
     if m in ("small", "fast", "medium", "vps-fast") or "fast" in m or "mini" in m or "non-reason" in m:

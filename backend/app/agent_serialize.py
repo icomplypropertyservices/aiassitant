@@ -28,6 +28,17 @@ def _custom_fields_for_agent(a: models.Agent) -> dict:
             return {}
 
 
+def _task_acceptance(t: models.Task) -> dict | None:
+    raw = getattr(t, "acceptance_json", None)
+    if not raw or str(raw).strip() in ("", "{}"):
+        return None
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
 def task_dict(
     t: models.Task,
     db: Session | None = None,
@@ -78,6 +89,7 @@ def task_dict(
         "parent_task_id": getattr(t, "parent_task_id", None),
         "meeting_id": getattr(t, "meeting_id", None),
         "tokens_used": t.tokens_used or 0,
+        "acceptance": _task_acceptance(t) if not lean else None,
         "cost": t.cost or 0.0,
         "created_at": t.created_at,
         "completed_at": t.completed_at,

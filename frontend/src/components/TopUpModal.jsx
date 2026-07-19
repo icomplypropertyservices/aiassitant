@@ -53,7 +53,7 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
   const topup = async (amt) => {
     const a = Number(amt || amount)
     if (IS_NATIVE) {
-      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      window.open(`${typeof window !== 'undefined' ? window.location.origin : 'https://aibusinessagent.xyz'}/agents/billing`, '_blank')
       return
     }
     setBusy(true)

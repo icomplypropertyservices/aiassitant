@@ -20,6 +20,7 @@ const Agents = lazy(() => import('./pages/Agents'))
 const AgentDetail = lazy(() => import('./pages/AgentDetail'))
 const AgentChat = lazy(() => import('./pages/AgentChat'))
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'))
+const AgentHome = lazy(() => import('./pages/AgentHome'))
 const TasksBoard = lazy(() => import('./pages/TasksBoard'))
 const Meetings = lazy(() => import('./pages/Meetings'))
 const MeetingRoom = lazy(() => import('./pages/MeetingRoom'))
@@ -88,16 +89,19 @@ export default function App() {
         {/* Agent Console — /agents/console (legacy /agents/agents and /agents/army still work) */}
         <Route path="console" element={<Lazy><Agents /></Lazy>} />
         <Route path="console/dash" element={<Lazy><AgentDashboard /></Lazy>} />
+        <Route path="console/:id/dash" element={<Lazy><AgentHome /></Lazy>} />
         <Route path="console/:id" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="console/:id/chat" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="console/:id/manage" element={<Lazy><AgentDetail /></Lazy>} />
         <Route path="army" element={<Lazy><Agents /></Lazy>} />
         <Route path="army/dash" element={<Lazy><AgentDashboard /></Lazy>} />
+        <Route path="army/:id/dash" element={<Lazy><AgentHome /></Lazy>} />
         <Route path="army/:id" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="army/:id/chat" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="army/:id/manage" element={<Lazy><AgentDetail /></Lazy>} />
         <Route path="agents" element={<Lazy><Agents /></Lazy>} />
         <Route path="agents/dash" element={<Lazy><AgentDashboard /></Lazy>} />
+        <Route path="agents/:id/dash" element={<Lazy><AgentHome /></Lazy>} />
         <Route path="agents/:id" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="agents/:id/chat" element={<Lazy><AgentChat /></Lazy>} />
         <Route path="agents/:id/manage" element={<Lazy><AgentDetail /></Lazy>} />

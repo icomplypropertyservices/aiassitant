@@ -412,11 +412,16 @@ def _compose_task_brief(
     done_when: str = "",
     target: str = "",
     owner_name: str = "",
+    checklist: list[str] | None = None,
+    lead_name: str = "",
 ) -> str:
-    """Attach measurable DONE WHEN / TARGET lines so agents finish for real."""
+    """Attach measurable DONE WHEN / TARGET / CHECKLIST so agents finish for real."""
+    from ..patterns import format_checklist_block, normalize_checklist
+
     body = (description or title or "Task").strip()
     sc = (success_criteria or done_when or "").strip()
     tgt = (target or "").strip()
+    checks = normalize_checklist(checklist)
     if not sc and not tgt:
         # Auto target from title when agent forgot criteria
         sc = f"Deliver a concrete output for: {(title or body)[:160]}"
@@ -425,13 +430,26 @@ def _compose_task_brief(
         lines.append(f"DONE WHEN: {sc}")
     if tgt:
         lines.append(f"TARGET: {tgt}")
+    if checks:
+        lines.append(format_checklist_block(checks))
+        lines.append(
+            "Lead will verify every checklist item. Incomplete checks = work rejected with feedback."
+        )
     if owner_name:
-        lines.append(f"Owner agent: {owner_name}")
-    lines.append("When finished, call complete_task with task_id and a result that proves the target.")
+        lines.append(f"Assigned by: {owner_name}")
+    if lead_name and lead_name != owner_name:
+        lines.append(f"Reviewing lead: {lead_name}")
+    lines.append(
+        "When finished, call complete_task with task_id and a result that proves the target "
+        "AND addresses each checklist item. If a lead rejects with WHAT'S WRONG, fix and re-complete."
+    )
     return "\n".join(lines)[:8000]
 
 
 async def _skill_create_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..patterns import normalize_checklist
+    from ..orchestration.acceptance import pack_acceptance, embed_acceptance, merge_labels
+
     title = (args.get("title") or args.get("description") or "Task")[:120]
     raw_desc = (args.get("description") or title).strip()
     success_criteria = (
@@ -441,6 +459,13 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         or ""
     )
     target_metric = args.get("target") or args.get("goal_target") or ""
+    checklist = normalize_checklist(
+        args.get("checklist")
+        or args.get("checks")
+        or args.get("must_check")
+        or args.get("verify")
+        or args.get("acceptance_checks")
+    )
     description = _compose_task_brief(
         raw_desc,
         title=title,
@@ -448,7 +473,16 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         done_when=str(args.get("done_when") or ""),
         target=str(target_metric),
         owner_name=agent.name or "",
+        checklist=checklist,
+        lead_name=agent.name or "",
     )
+    require_review = bool(checklist) or bool(args.get("require_review"))
+    acc_blob = pack_acceptance(
+        done_when=str(success_criteria or target_metric or ""),
+        checklist=checklist,
+        require_review=require_review,
+    )
+    description = embed_acceptance(description, acc_blob)
     # Default: assign to self (agents can give themselves work)
     agent_id = args.get("agent_id")
     if agent_id in (None, "", "self", "me"):
@@ -490,9 +524,19 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         run_now=run_now,
     )
 
+    from ..orchestration.acceptance import merge_labels as _merge_labels
     labels = "skill-created"
     if agent_id == agent.id:
-        labels = f"{labels},self-assigned"
+        labels = _merge_labels(labels, "self-assigned")
+    if checklist:
+        labels = _merge_labels(labels, "has-checklist", "requires-review")
+    # Lead assigning to a report → mark for lead review after complete
+    if agent_id != agent.id and (
+        is_orchestrator(agent)
+        or (agent.hierarchy_role or "") in ("lead", "orchestrator")
+        or getattr(agent, "is_lead", False)
+    ):
+        labels = _merge_labels(labels, "lead-assigned", "needs-review", "requires-review")
     task_kwargs: dict[str, Any] = {
         "user_id": user.id,
         "agent_id": target.id,
@@ -506,6 +550,8 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         "priority": args.get("priority") or "medium",
         "labels": labels,
     }
+    if hasattr(models.Task, "acceptance_json"):
+        task_kwargs["acceptance_json"] = acc_blob
 
     # Optional DAG / meeting origin (only if model columns exist)
     if hasattr(models.Task, "meeting_id"):
@@ -602,7 +648,151 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         "agent_name": target.name,
         "run_started": kicked,
         "success_criteria": str(success_criteria or target_metric or "")[:300] or None,
+        "checklist": checklist or None,
     }
+
+
+async def _skill_create_pattern(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Save a reusable multi-step work pattern (leads/agents teach the team)."""
+    from ..patterns import save_pattern
+
+    name = (args.get("name") or args.get("title") or args.get("pattern") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    steps = args.get("steps") or args.get("workflow") or []
+    return save_pattern(
+        db,
+        user,
+        agent,
+        name=name,
+        description=str(args.get("description") or args.get("summary") or ""),
+        steps=steps if isinstance(steps, list) else [],
+        checklist=args.get("checklist") or args.get("checks") or args.get("must_check"),
+        category=str(args.get("category") or "general"),
+        tags=str(args.get("tags") or ""),
+        pattern_id=args.get("pattern_id") or args.get("id"),
+    )
+
+
+async def _skill_list_patterns(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..patterns import list_patterns
+
+    return list_patterns(
+        db,
+        user,
+        q=str(args.get("q") or args.get("query") or ""),
+        category=str(args.get("category") or ""),
+        limit=min(60, int(args.get("limit") or 40)),
+    )
+
+
+async def _skill_get_pattern(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..patterns import get_pattern
+
+    pid = args.get("pattern_id") or args.get("id") or args.get("name") or args.get("slug")
+    if pid in (None, ""):
+        return {"ok": False, "error": "pattern_id or name required"}
+    return get_pattern(db, user, pid)
+
+
+async def _skill_delete_pattern(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..patterns import delete_pattern
+
+    try:
+        pid = int(args.get("pattern_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "pattern_id required"}
+    return delete_pattern(db, user, pid)
+
+
+async def _skill_create_workflow(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Lead/orchestrator multi-step workflow — canonical path in orchestration.workflow_run."""
+    from ..orchestration.workflow_run import start_workflow
+    from ..patterns import normalize_checklist
+
+    title = (args.get("title") or args.get("name") or args.get("goal") or "Workflow")[:160]
+    steps_in = args.get("steps") or args.get("tasks") or []
+    if isinstance(steps_in, str):
+        steps_in = [s.strip() for s in steps_in.split("\n") if s.strip()]
+    if not isinstance(steps_in, list) or not steps_in:
+        return {
+            "ok": False,
+            "error": "steps required — list of {title, description, agent_id|role, checklist, done_when}",
+        }
+    save_pat = args.get("save_as_pattern") or args.get("save_pattern")
+    if isinstance(save_pat, str):
+        save_pat = save_pat.strip().lower() in ("1", "true", "yes", "on")
+    return await start_workflow(
+        db,
+        user,
+        agent,
+        title=title,
+        description=str(args.get("description") or args.get("goal") or title),
+        steps=steps_in,
+        checklist=normalize_checklist(
+            args.get("checklist") or args.get("checks") or args.get("must_check")
+        ),
+        priority=str(args.get("priority") or "high"),
+        company_id=args.get("company_id") or agent.company_id,
+        project_id=args.get("project_id") or agent.project_id,
+        require_review=True,
+        save_as_pattern=bool(save_pat) or bool(args.get("pattern_name")),
+        pattern_name=str(args.get("pattern_name") or ""),
+        category=str(args.get("category") or "custom"),
+    )
+
+
+async def _skill_run_pattern(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Instantiate a saved pattern as a live multi-agent workflow."""
+    from ..orchestration.workflow_run import run_pattern
+
+    pid = args.get("pattern_id") or args.get("id") or args.get("name") or args.get("slug")
+    if pid in (None, ""):
+        return {"ok": False, "error": "pattern_id or name required"}
+    return await run_pattern(
+        db,
+        user,
+        agent,
+        pid,
+        title=str(args.get("title") or ""),
+        priority=str(args.get("priority") or "high"),
+        company_id=args.get("company_id"),
+        project_id=args.get("project_id"),
+    )
+
+
+async def _skill_review_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Lead review / reject — canonical path in orchestration.review."""
+    from ..orchestration.review import review_task as do_review
+
+    try:
+        tid = int(args.get("task_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "task_id required"}
+    feedback = str(
+        args.get("feedback")
+        or args.get("whats_wrong")
+        or args.get("reason")
+        or args.get("message")
+        or args.get("details")
+        or ""
+    ).strip()
+    return await do_review(
+        db,
+        agent,
+        user,
+        task_id=tid,
+        action=args.get("action") or args.get("verdict") or args.get("decision"),
+        feedback=feedback,
+        checks_failed=(
+            args.get("checks_failed")
+            or args.get("failed_checks")
+            or args.get("checklist_failed")
+            or args.get("missing")
+        ),
+        message_fn=_skill_message,
+    )
+
 
 async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     """Publish plan to live ops and create parent + child Task rows.
@@ -620,15 +810,18 @@ async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.Us
     plan_id = f"plan-{uuid.uuid4().hex[:10]}"
 
     from ..task_chain import pick_assignee
-    from ..task_status import initial_task_status
+    from ..patterns import normalize_checklist
 
-    # Normalize steps: strings stay simple (backward compat); dicts may carry agent_id / role
+    # Normalize steps: strings stay simple (backward compat); dicts may carry agent_id / role / checklist
     normalized: list[dict[str, Any]] = []
     for s in steps[:20]:
         if isinstance(s, str):
             text = s.strip()
             if text:
-                normalized.append({"_raw": text, "title": text, "description": text, "_string": True})
+                normalized.append({
+                    "_raw": text, "title": text, "description": text,
+                    "_string": True, "checklist": [], "done_when": f"Complete: {text[:160]}",
+                })
         elif isinstance(s, dict):
             stitle = (
                 s.get("title") or s.get("description") or s.get("text") or s.get("step") or ""
@@ -641,12 +834,22 @@ async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.Us
             entry = dict(s)
             entry["title"] = stitle or sdesc or "Step"
             entry["description"] = sdesc or stitle
+            entry["checklist"] = normalize_checklist(
+                s.get("checklist") or s.get("checks") or s.get("must_check")
+            )
+            entry["done_when"] = str(
+                s.get("done_when") or s.get("success_criteria") or s.get("target")
+                or f"Complete: {entry['title']}"
+            )
             entry["_string"] = False
             entry["_raw"] = entry["description"]
             normalized.append(entry)
         else:
             text = str(s)
-            normalized.append({"_raw": text, "title": text, "description": text, "_string": True})
+            normalized.append({
+                "_raw": text, "title": text, "description": text,
+                "_string": True, "checklist": [], "done_when": f"Complete: {text[:160]}",
+            })
 
     # Resolve assignees, then persist Task DAG, then emit ops (with task_ids).
     resolved: list[dict[str, Any]] = []
@@ -684,33 +887,50 @@ async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.Us
         else:
             assignee = agent
 
-        status = initial_task_status(agent=assignee, assignee_type="agent", run_now=True)
+        # Sequential plan: only first step queued immediately
+        if i == 0 and getattr(assignee, "status", None) == "active":
+            status = "queued"
+        else:
+            status = "todo"
+        desc_raw = (step.get("description") or step.get("_raw") or "")[:2000]
+        brief = _compose_task_brief(
+            desc_raw,
+            title=(step.get("title") or f"Step {i + 1}")[:120],
+            success_criteria=str(step.get("done_when") or ""),
+            done_when=str(step.get("done_when") or ""),
+            checklist=step.get("checklist") or [],
+            owner_name=agent.name or "",
+            lead_name=agent.name or "",
+        )
         resolved.append(
             {
                 "index": i + 1,
                 "title": (step.get("title") or f"Step {i + 1}")[:120],
-                "description": (step.get("description") or step.get("_raw") or "")[:2000],
+                "description": brief,
                 "assignee": assignee,
                 "status": status,
+                "checklist": step.get("checklist") or [],
             }
         )
 
-    # Parent plan (todo / monitor) + plan-step children (queued when assignee active)
+    # Parent plan (monitor) + plan-step children (sequential unlock via auto-chain labels)
     parent = models.Task(
         user_id=user.id,
         agent_id=agent.id,
         company_id=agent.company_id,
         project_id=agent.project_id,
         title=f"Plan: {title}"[:200],
-        description=f"{len(resolved)} steps · plan_id={plan_id}",
-        status="todo",
-        labels="plan",
+        description=f"{len(resolved)} steps · plan_id={plan_id}\nLead verifies checklists on each step.",
+        status="in_progress",
+        labels="plan,auto-chain,monitor,lead-workflow",
         assignee_type="agent",
+        priority=str(args.get("priority") or "high"),
     )
     db.add(parent)
     db.flush()
     child_ids: list[int] = []
     assignments: list[dict[str, Any]] = []
+    first_queued_id: int | None = None
     for item in resolved:
         a = item["assignee"]
         child = models.Task(
@@ -720,13 +940,16 @@ async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.Us
             project_id=a.project_id or agent.project_id,
             parent_task_id=parent.id,
             title=f"Step {item['index']}: {item['title'][:100]}"[:200],
-            description=item["description"][:2000],
+            description=item["description"][:8000],
             status=item["status"],
-            labels="plan-step",
+            labels=f"plan-step,auto-chain,step,{item['index']},needs-review",
             assignee_type="agent",
+            priority=str(args.get("priority") or "high"),
         )
         db.add(child)
         db.flush()
+        if item["status"] == "queued" and first_queued_id is None:
+            first_queued_id = child.id
         child_ids.append(child.id)
         assignments.append(
             {
@@ -735,10 +958,18 @@ async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.Us
                 "agent_id": a.id,
                 "agent_name": a.name,
                 "status": child.status,
+                "checklist": item.get("checklist") or [],
             }
         )
     db.commit()
     db.refresh(parent)
+
+    if first_queued_id:
+        try:
+            from ..task_runner import kick_queued_task
+            await kick_queued_task(first_queued_id, user_id=user.id)
+        except Exception:
+            pass
 
     await emit_ops(
         user.id,
@@ -1202,6 +1433,13 @@ __all__ = [
     '_skill_save_training',
     '_skill_execute_goal',
     '_skill_create_task',
+    '_skill_create_pattern',
+    '_skill_list_patterns',
+    '_skill_get_pattern',
+    '_skill_delete_pattern',
+    '_skill_create_workflow',
+    '_skill_run_pattern',
+    '_skill_review_task',
     '_skill_announce_plan',
     '_skill_notify_human',
     '_skill_status_update',

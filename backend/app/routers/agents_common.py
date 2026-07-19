@@ -71,7 +71,7 @@ class AgentIn(BaseModel):
     name: str
     template_type: str = "custom"
     personality: str = "Professional, friendly and concise."
-    model: str = "vps-fast"
+    model: str = "quality"
     idle_mode: str = "never_idle"
     config: dict = {}
     is_lead: bool = False

@@ -34,18 +34,20 @@ function isTrialKey(key) {
  * props:
  *  plans: [ [key, planObj], ... ] or { key: plan }
  *  preorderOn?: boolean
+ *  billingInterval?: 'month' | 'year'  — annual = 10× monthly (2 months free)
  *  currentPlan?: string
  *  busy?: string | boolean  (plan key when loading, or true for any)
  *  stripeSandbox?: boolean
  *  showCrypto?: boolean
  *  compact?: boolean  (login sidebar list style)
- *  onChoose: (planKey) => void
- *  onCrypto?: (planKey) => void
- *  ctaFor?: (key, plan) => { label, disabled?, type? }
+ *  onChoose: (planKey, interval?) => void
+ *  onCrypto?: (planKey, interval?) => void
+ *  ctaFor?: (key, plan, interval) => { label, disabled?, type? }
  */
 export default function PlanCards({
   plans,
   preorderOn = false,
+  billingInterval = 'month',
   currentPlan,
   busy,
   stripeSandbox = false,
@@ -55,6 +57,7 @@ export default function PlanCards({
   onCrypto,
   ctaFor,
 }) {
+  const isAnnual = billingInterval === 'year' || billingInterval === 'annual'
   const entries = normalizeEntries(plans)
 
   if (!entries.length) {
@@ -75,8 +78,14 @@ export default function PlanCards({
       <div className="aba-plans-wrap aba-plans-wrap--compact">
         <div className="aba-plans-compact">
           {entries.map(([key, p]) => {
-            const checkout = preorderOn && p.price_checkout != null ? p.price_checkout : p.price
-            const discounted = preorderOn && p.price > 0 && p.price_checkout != null && p.price_checkout < p.price
+            const monthly = Number(p.price) || 0
+            const annual = Number(p.price_annual != null ? p.price_annual : (monthly > 0 ? monthly * 10 : 0))
+            const checkout = isAnnual && annual > 0
+              ? Number(p.price_annual_checkout != null ? p.price_annual_checkout : annual)
+              : (preorderOn && p.price_checkout != null ? p.price_checkout : monthly)
+            const discounted = isAnnual
+              ? monthly > 0 && annual < monthly * 12
+              : (preorderOn && monthly > 0 && p.price_checkout != null && p.price_checkout < monthly)
             const isTrial = isTrialKey(key)
             const isFree = !(p.price > 0)
             const isHighlight = Boolean(p.highlight) || isTrial
@@ -98,6 +107,7 @@ export default function PlanCards({
                     <Typography.Text strong>{p.name}</Typography.Text>
                     {isTrial && <Tag color="cyan">Free trial</Tag>}
                     {!isTrial && p.highlight && <Tag color="blue">Popular</Tag>}
+                    {isAnnual && !isFree && <Tag color="gold">Annual</Tag>}
                     {preorderOn && p.price > 0 && (
                       <Tag color="gold">{p.preorder_discount_percent || 10}% off</Tag>
                     )}
@@ -105,9 +115,9 @@ export default function PlanCards({
                   <div className="aba-plan-compact-price">
                     {p.price > 0 ? (
                       <>
-                        {discounted && <span className="aba-price-was">${formatPrice(p.price)}</span>}
+                        {discounted && !isAnnual && <span className="aba-price-was">${formatPrice(p.price)}</span>}
                         <span className="aba-price-now">${formatPrice(checkout)}</span>
-                        <span className="aba-price-unit">/mo</span>
+                        <span className="aba-price-unit">{isAnnual ? '/yr' : '/mo'}</span>
                       </>
                     ) : (
                       <span className="aba-price-now free">Free</span>
@@ -150,8 +160,16 @@ export default function PlanCards({
           const isFree = !(p.price > 0)
           const isTrial = isTrialKey(key)
           const isHighlight = Boolean(p.highlight) || isTrial
-          const checkout = preorderOn && p.price_checkout != null ? p.price_checkout : p.price
-          const discounted = preorderOn && p.price > 0 && p.price_checkout != null && p.price_checkout < p.price
+          const monthly = Number(p.price) || 0
+          const annual = Number(p.price_annual != null ? p.price_annual : (monthly > 0 ? monthly * 10 : 0))
+          const checkout = isAnnual && annual > 0
+            ? Number(p.price_annual_checkout != null ? p.price_annual_checkout : annual)
+            : (preorderOn && p.price_checkout != null ? p.price_checkout : monthly)
+          const discounted = isAnnual
+            ? monthly > 0 && annual < monthly * 12
+            : (preorderOn && monthly > 0 && p.price_checkout != null && p.price_checkout < monthly)
+          const interval = isAnnual ? 'year' : 'month'
+          const unit = isAnnual ? '/yr' : '/mo'
           const freeCtaLabel =
             isTrial
               ? (p.cta && String(p.cta).toLowerCase().includes('trial')
@@ -159,11 +177,11 @@ export default function PlanCards({
                 : 'Start free trial — no card')
               : (p.cta || 'Start free')
           const cta = ctaFor
-            ? ctaFor(key, p)
+            ? ctaFor(key, p, interval)
             : {
                 label: isFree
                   ? freeCtaLabel
-                  : `${p.cta || (preorderOn ? `Pre-order ${p.name}` : `Subscribe to ${p.name}`)} · $${formatPrice(checkout)}/mo${stripeSandbox ? ' (test)' : ''}`,
+                  : `${isAnnual ? 'Pay annually' : 'Subscribe'} · $${formatPrice(checkout)}${unit}${stripeSandbox ? ' (test card)' : ''}`,
                 disabled: isCurrent,
                 // Free trial is the one-click path for new users — keep CTA primary
                 type: isFree || isHighlight || isCurrent ? 'primary' : 'default',
@@ -206,16 +224,27 @@ export default function PlanCards({
                   <div className="aba-plan-price-block">
                     {p.price > 0 ? (
                       <>
-                        {discounted && (
+                        {discounted && !isAnnual && (
                           <span className="aba-price-was">${formatPrice(p.price)}</span>
                         )}
+                        {isAnnual && monthly > 0 && (
+                          <span className="aba-price-was">${formatPrice(monthly * 12)}/yr</span>
+                        )}
                         <span className="aba-price-now">${formatPrice(checkout)}</span>
-                        <span className="aba-price-unit">/mo</span>
+                        <span className="aba-price-unit">{unit}</span>
                       </>
                     ) : (
                       <span className="aba-price-now free">$0</span>
                     )}
                   </div>
+                  {isAnnual && p.price > 0 && (
+                    <Tag color="gold" className="aba-plan-you">
+                      {p.annual_label || '2 months free'}
+                      {p.price_annual_per_month
+                        ? ` · ~$${formatPrice(p.price_annual_per_month)}/mo`
+                        : ''}
+                    </Tag>
+                  )}
                   {isCurrent && <Tag color="success" className="aba-plan-you">Current plan</Tag>}
                   {isTrial && !isCurrent && (
                     <Tag color="cyan" className="aba-plan-you">Recommended to start</Tag>
@@ -227,6 +256,9 @@ export default function PlanCards({
                 <div className="aba-plan-chips">
                   {preorderOn && p.price > 0 && (
                     <Tag color="gold">Early access</Tag>
+                  )}
+                  {isAnnual && p.price > 0 && (
+                    <Tag color="gold">Billed yearly</Tag>
                   )}
                   <Tag color="processing">
                     {(p.tokens_included || 0).toLocaleString()} tokens/mo
@@ -258,7 +290,7 @@ export default function PlanCards({
                     disabled={cta.disabled}
                     loading={isBusy}
                     icon={p.price > 0 && !isCurrent ? <ArrowUpOutlined /> : null}
-                    onClick={() => onChoose?.(key)}
+                    onClick={() => onChoose?.(key, interval)}
                     className="aba-plan-cta"
                   >
                     {cta.label}
@@ -268,7 +300,7 @@ export default function PlanCards({
                       block
                       size="large"
                       icon={<WalletOutlined />}
-                      onClick={() => onCrypto(key)}
+                      onClick={() => onCrypto(key, interval)}
                       className="aba-plan-crypto"
                     >
                       Pay with crypto

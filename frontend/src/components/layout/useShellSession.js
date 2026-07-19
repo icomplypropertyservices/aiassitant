@@ -81,17 +81,33 @@ export function useShellSession() {
 
     const applyUsage = (m) => {
       if (!m) return
+      // Prefer authoritative meter snapshot from server (task_runner / chat)
+      if (m.meter && typeof m.meter === 'object' && m.meter.tokens_used_period != null) {
+        setMeter((prev) => {
+          const next = { ...(prev || {}), ...m.meter }
+          setTimeout(() => maybeOpenTopup(next), 0)
+          return next
+        })
+        return
+      }
       setMeter((prev) => {
         if (!prev && m.meter) {
           setTimeout(() => maybeOpenTopup(m.meter), 0)
           return m.meter
         }
-        if (!prev) return prev
+        if (!prev) {
+          // No prior meter — force a full fetch
+          api('/billing/meter').then((full) => {
+            setMeter(full)
+            maybeOpenTopup(full)
+          }).catch(() => {})
+          return prev
+        }
         const used =
           m.tokens_used_period != null
-            ? m.tokens_used_period
-            : (prev.tokens_used_period || 0) + (m.tokens || 0)
-        const included = prev.tokens_included || 0
+            ? Number(m.tokens_used_period)
+            : (prev.tokens_used_period || 0) + (Number(m.tokens) || 0)
+        const included = Number(prev.tokens_included || 0)
         const usage_percent = included ? Math.min(100, (used / included) * 100) : 0
         const next = {
           ...prev,
@@ -114,7 +130,8 @@ export function useShellSession() {
         setTimeout(() => maybeOpenTopup(next), 0)
         return next
       })
-      if (m.tokens || m.meter) {
+      // Always reconcile with server so header never drifts after background runs
+      if (m.tokens || m.meter || m.tokens_used_period != null) {
         api('/billing/meter')
           .then((full) => {
             setMeter(full)
@@ -127,21 +144,52 @@ export function useShellSession() {
     const onAbaUsage = (ev) => applyUsage(ev.detail || {})
     window.addEventListener('aba-usage', onAbaUsage)
 
+    // Live token meter in all environments (chat + background autonomy when connected)
     let ws
-    if (!import.meta.env.PROD) {
-      try {
-        ws = connectAuthedWs('/billing/ws/tokens')
-        ws.onmessage = (e) => {
-          try {
-            const m = JSON.parse(e.data)
-            if (m.type === 'auth_ok') return
-            if (m.event === 'usage') applyUsage(m)
-          } catch { /* ignore */ }
-        }
-      } catch { /* ignore */ }
+    try {
+      ws = connectAuthedWs('/billing/ws/tokens')
+      ws.onmessage = (e) => {
+        try {
+          const m = JSON.parse(e.data)
+          if (m.type === 'auth_ok') return
+          if (m.event === 'usage' || m.tokens != null || m.meter || m.tokens_used_period != null) {
+            applyUsage(m)
+          }
+        } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+
+    // Poll meter so background agent runs (cron / offline autonomy) update the header
+    // even if the WebSocket drops (common on Vercel).
+    const poll = setInterval(() => {
+      if (!getToken()) return
+      api('/billing/meter')
+        .then((full) => {
+          setMeter(full)
+          maybeOpenTopup(full)
+        })
+        .catch(() => {})
+    }, 25000)
+
+    // Also refresh after tab focus (user returns after agents ran offline)
+    const onFocus = () => {
+      if (!getToken()) return
+      api('/billing/meter')
+        .then((full) => {
+          setMeter(full)
+          maybeOpenTopup(full)
+        })
+        .catch(() => {})
     }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onFocus()
+    })
+
     return () => {
       window.removeEventListener('aba-usage', onAbaUsage)
+      window.removeEventListener('focus', onFocus)
+      clearInterval(poll)
       try {
         ws?.close()
       } catch { /* ignore */ }

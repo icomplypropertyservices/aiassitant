@@ -5,10 +5,20 @@ import {
 } from 'antd'
 import {
   DeleteOutlined, RobotOutlined, LinkOutlined, ReloadOutlined,
-  GoogleOutlined, CheckCircleOutlined,
+  GoogleOutlined, CheckCircleOutlined, PhoneOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import { api } from '../../api'
 import { connStatusColor } from './helpers'
+
+/** Priority order for connected apps — Twilio first */
+const APP_PRIORITY = {
+  twilio: 0,
+  resend: 1,
+  gmail: 2,
+  google: 3,
+  shopify: 4,
+  slack: 5,
+}
 
 const { Text, Paragraph } = Typography
 
@@ -43,6 +53,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
   const [connectForm] = Form.useForm()
   const [allocateForm] = Form.useForm()
   const [shopDomain, setShopDomain] = useState('')
+  const [channelStatus, setChannelStatus] = useState(null)
 
   const loadApps = () => {
     setAppsLoading(true)
@@ -51,8 +62,9 @@ export default function SettingsApps({ onConnectedCountChange }) {
       api('/integrations/connections').catch(() => ({ connections: [] })),
       api('/agents/').catch(() => []),
       api('/integrations/oauth/google-status').catch(() => null),
+      api('/comms/status').catch(() => null),
     ])
-      .then(([cat, con, ag, gstat]) => {
+      .then(([cat, con, ag, gstat, ch]) => {
         const apps = Array.isArray(cat?.apps) ? cat.apps : (Array.isArray(cat) ? cat : [])
         const conns = Array.isArray(con?.connections)
           ? con.connections
@@ -65,6 +77,9 @@ export default function SettingsApps({ onConnectedCountChange }) {
         setConnections(conns.filter((c) => c && c.id != null))
         setAgents(agentList.filter((a) => a && a.id != null))
         setGoogleOauthOk(gstat && typeof gstat === 'object' ? gstat : null)
+        // /comms/status → { channels: { twilio, email } }
+        const channels = ch?.channels || ch
+        setChannelStatus(channels && typeof channels === 'object' ? channels : null)
       })
       .catch(() => {
         setCatalog([])
@@ -102,6 +117,10 @@ export default function SettingsApps({ onConnectedCountChange }) {
           return { app, conn, connected: conn?.status === 'connected' }
         })
       rows.sort((a, b) => {
+        // Twilio always first
+        const pa = APP_PRIORITY[a.app.id] ?? 50
+        const pb = APP_PRIORITY[b.app.id] ?? 50
+        if (pa !== pb) return pa - pb
         if (a.connected !== b.connected) return a.connected ? -1 : 1
         if (!!a.app.coming_soon !== !!b.app.coming_soon) return a.app.coming_soon ? 1 : -1
         return String(a.app.name || '').localeCompare(String(b.app.name || ''))
@@ -342,22 +361,55 @@ export default function SettingsApps({ onConnectedCountChange }) {
         }
       >
         <Alert
+          type={channelStatus?.twilio?.ready ? 'success' : 'warning'}
+          showIcon
+          icon={channelStatus?.twilio?.ready ? <CheckCircleOutlined /> : <PhoneOutlined />}
+          style={{ marginBottom: 12 }}
+          message={
+            channelStatus?.twilio?.ready
+              ? 'Twilio ready — SMS, WhatsApp, and voice live'
+              : 'Twilio (most important) — connect SID, Auth Token, From number'
+          }
+          description={
+            <div>
+              <Paragraph style={{ marginBottom: 8, fontSize: 13 }}>
+                {channelStatus?.twilio?.ready
+                  ? `From number ends with ${channelStatus?.twilio?.from_number || '****'}. Agents can send SMS/calls when skills are enabled.`
+                  : (
+                    <>
+                      Open <strong>Twilio</strong> below → Connect → paste Account SID, Auth Token, and E.164 From number.
+                      Keys also sync to Settings → API keys so channels work. Platform env <Text code>TWILIO_*</Text> is optional fallback.
+                    </>
+                  )}
+              </Paragraph>
+              {!channelStatus?.twilio?.ready && (
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PhoneOutlined />}
+                  onClick={() => {
+                    const tw = catalog.find((a) => a.id === 'twilio')
+                    if (tw) openConnect(tw)
+                    else message.info('Twilio app not in catalog — use Settings → API keys for twilio_sid / token / from')
+                  }}
+                >
+                  Connect Twilio now
+                </Button>
+              )}
+              {channelStatus?.twilio?.hint && !channelStatus?.twilio?.ready && (
+                <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
+                  {channelStatus.twilio.hint}
+                </Paragraph>
+              )}
+            </div>
+          }
+        />
+        <Alert
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Connect Twilio, Google, Slack, Shopify, X, and more"
-          description={
-            <div>
-              <Paragraph style={{ marginBottom: 6, fontSize: 13 }}>
-                <strong>Twilio:</strong> Connect with Account SID, Auth Token, and From number
-                (or set platform <Text code>TWILIO_*</Text> env). Powers SMS, WhatsApp, and voice.
-              </Paragraph>
-              <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
-                Apps with OAuth show <strong>Connect (OAuth)</strong> when server client IDs are set;
-                otherwise use <strong>Connect</strong> with API keys / tokens.
-              </Paragraph>
-            </div>
-          }
+          message="Other apps: Google, Slack, Shopify, email"
+          description="OAuth apps show Connect when server credentials are set; otherwise use API keys. Assign apps to agents after connecting."
         />
         {googleOauthOk && !googleOauthOk.ok && (
           <Alert

@@ -422,38 +422,114 @@ async def _skill_respond_to_task(db: Session, agent: models.Agent, user: models.
 
 
 async def _skill_complete_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    """Mark a task completed with an optional result summary."""
+    """Mark a task completed (or submit for lead review) with a result summary."""
+    from ..agent_roles import is_lead_agent, is_orchestrator
+    from ..orchestration.acceptance import task_requires_review
+
     args = dict(args or {})
-    args["status"] = "completed"
     if args.get("result") is None and args.get("response"):
         args["result"] = args.get("response")
+
+    # Lead-assigned / checklist work → "review" until lead approves (canonical flags)
+    skip_review = args.get("skip_review") or args.get("force_complete")
+    if isinstance(skip_review, str):
+        skip_review = skip_review.strip().lower() in ("1", "true", "yes", "on")
+    try:
+        tid = int(args.get("task_id") or args.get("id"))
+    except (TypeError, ValueError):
+        tid = None
+    t_pre = db.get(models.Task, tid) if tid else None
+    is_lead = (
+        is_orchestrator(agent)
+        or is_lead_agent(agent)
+        or (agent.hierarchy_role or "") in ("lead", "orchestrator")
+        or (agent.permission_level or "") in ("lead", "admin")
+    )
+    needs_lead = bool(
+        t_pre
+        and not skip_review
+        and task_requires_review(t_pre)
+        and not is_lead
+    )
+    if needs_lead:
+        args["status"] = "review"
+        result_note = str(args.get("result") or "").strip()
+        if result_note and "submitted for lead review" not in result_note.lower():
+            args["result"] = (
+                f"{result_note}\n\n[Submitted for lead review — waiting for review_task approve/reject]"
+            )
+        else:
+            args["result"] = args.get("result") or "Submitted for lead review"
+    else:
+        args["status"] = "completed"
+
     out = await _skill_update_task(db, agent, user, args)
     if out.get("ok"):
-        out["message"] = f"Completed task #{args.get('task_id') or args.get('id')}"
-        # Advance auto-chain: next sibling was queued — start it now (not daily cron)
-        try:
-            from ..task_runner import kick_queued_task
-            next_id = None
-            # on_task_finished inside update_task may have set next sibling queued
-            tid = int(args.get("task_id") or args.get("id"))
-            parent_id = (out.get("task") or {}).get("parent_task_id")
-            if parent_id:
-                nxt = (
-                    db.query(models.Task)
-                    .filter(
-                        models.Task.parent_task_id == parent_id,
-                        models.Task.status == "queued",
-                        models.Task.id != tid,
+        if needs_lead:
+            out["message"] = (
+                f"Task #{args.get('task_id') or args.get('id')} submitted for lead review. "
+                f"Lead must review_task (approve or reject with what's wrong)."
+            )
+            out["awaiting_review"] = True
+            # Notify parent lead via activity + agent message (no circular skill import)
+            try:
+                if t_pre and t_pre.agent_id:
+                    assignee = db.get(models.Agent, t_pre.agent_id) or agent
+                    lead = (
+                        db.get(models.Agent, assignee.parent_id)
+                        if assignee and assignee.parent_id
+                        else None
                     )
-                    .order_by(models.Task.id.asc())
-                    .first()
-                )
-                if nxt:
-                    next_id = nxt.id
-                    await kick_queued_task(next_id, user_id=user.id)
-                    out["next_task_started"] = next_id
-        except Exception:
-            pass
+                    if lead:
+                        body = (
+                            f"Task #{t_pre.id} “{t_pre.title or ''}” is ready for your review. "
+                            f"Use review_task: approve, or reject with feedback + checks_failed."
+                        )[:2000]
+                        db.add(models.ActivityLog(
+                            agent_id=lead.id,
+                            type="review_needed",
+                            message=body[:500],
+                        ))
+                        lo, hi = sorted([agent.id, lead.id])
+                        db.add(models.AgentMessage(
+                            user_id=user.id,
+                            from_agent_id=agent.id,
+                            to_agent_id=lead.id,
+                            thread_key=f"{lo}-{hi}",
+                            content=body,
+                            status="sent",
+                        ))
+                        db.commit()
+            except Exception:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+        else:
+            out["message"] = f"Completed task #{args.get('task_id') or args.get('id')}"
+            # Advance auto-chain: next sibling was queued — start it now (not daily cron)
+            try:
+                from ..task_runner import kick_queued_task
+                next_id = None
+                tid = int(args.get("task_id") or args.get("id"))
+                parent_id = (out.get("task") or {}).get("parent_task_id")
+                if parent_id:
+                    nxt = (
+                        db.query(models.Task)
+                        .filter(
+                            models.Task.parent_task_id == parent_id,
+                            models.Task.status == "queued",
+                            models.Task.id != tid,
+                        )
+                        .order_by(models.Task.id.asc())
+                        .first()
+                    )
+                    if nxt:
+                        next_id = nxt.id
+                        await kick_queued_task(next_id, user_id=user.id)
+                        out["next_task_started"] = next_id
+            except Exception:
+                pass
     return out
 
 
@@ -769,6 +845,423 @@ async def _skill_read_workspace(db: Session, agent: models.Agent, user: models.U
         "message": "Workspace snapshot ready — use list_activity for full logs; list_* / get_* for detail.",
     }
 
+
+async def _skill_create_company(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Create a company in the workspace."""
+    name = (args.get("name") or args.get("company") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    c = models.Company(
+        owner_user_id=user.id,
+        name=name[:200],
+        industry=(args.get("industry") or "")[:120],
+        notes=(args.get("notes") or args.get("description") or "")[:4000],
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="ops",
+            message=f"Created company “{c.name}” (#{c.id})",
+        ))
+        db.commit()
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "message": f"Company “{c.name}” created (#{c.id})",
+        "company_id": c.id,
+        "name": c.name,
+    }
+
+
+async def _skill_create_project(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Create a project (optionally under a company) so work can be sorted and staffed."""
+    name = (args.get("name") or args.get("project") or args.get("title") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    company_id = args.get("company_id")
+    try:
+        company_id = int(company_id) if company_id not in (None, "") else None
+    except (TypeError, ValueError):
+        company_id = None
+    if company_id is None:
+        co = (
+            db.query(models.Company)
+            .filter_by(owner_user_id=user.id)
+            .order_by(models.Company.id)
+            .first()
+        )
+        if co:
+            company_id = co.id
+        else:
+            # Auto-create a home company so orchestrator can make projects immediately
+            co = models.Company(
+                owner_user_id=user.id,
+                name=f"{user.email or 'Workspace'} company"[:120],
+                industry="",
+                notes="Auto-created when orchestrator made a project",
+            )
+            db.add(co)
+            db.flush()
+            company_id = co.id
+    else:
+        co = db.get(models.Company, company_id)
+        if not co or co.owner_user_id != user.id:
+            return {"ok": False, "error": "company not found"}
+
+    status = (args.get("status") or "active").strip().lower()
+    if status not in ("active", "paused", "done"):
+        status = "active"
+    p = models.Project(
+        company_id=company_id,
+        owner_user_id=user.id,
+        name=name[:200],
+        description=(args.get("description") or args.get("notes") or "")[:8000],
+        status=status,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="ops",
+            message=f"Created project “{p.name}” (#{p.id}) under company #{company_id}",
+        ))
+        db.commit()
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "message": f"Project “{p.name}” created (#{p.id})",
+        "project_id": p.id,
+        "company_id": company_id,
+        "name": p.name,
+        "status": p.status,
+    }
+
+
+async def _skill_list_projects(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """List workspace projects with open-task pressure."""
+    try:
+        limit = min(80, int(args.get("limit") or 40))
+    except Exception:
+        limit = 40
+    q = db.query(models.Project).filter_by(owner_user_id=user.id)
+    company_id = args.get("company_id")
+    if company_id not in (None, ""):
+        try:
+            q = q.filter_by(company_id=int(company_id))
+        except (TypeError, ValueError):
+            pass
+    status = (args.get("status") or "").strip().lower()
+    if status:
+        q = q.filter_by(status=status)
+    rows = q.order_by(models.Project.id.desc()).limit(120).all()
+    search = (args.get("q") or args.get("query") or "").strip().lower()
+    out = []
+    for p in rows:
+        if search and search not in (p.name or "").lower() and search not in (p.description or "").lower():
+            continue
+        open_n = (
+            db.query(models.Task)
+            .filter(
+                models.Task.user_id == user.id,
+                models.Task.project_id == p.id,
+                models.Task.status.in_(list(_OPEN_STATUSES)),
+            )
+            .count()
+        )
+        stuck_n = (
+            db.query(models.Task)
+            .filter(
+                models.Task.user_id == user.id,
+                models.Task.project_id == p.id,
+                models.Task.status.in_(["todo", "queued", "in_progress", "review", "failed"]),
+            )
+            .count()
+        )
+        out.append({
+            "id": p.id,
+            "name": p.name,
+            "status": p.status,
+            "company_id": p.company_id,
+            "description": (p.description or "")[:200],
+            "open_tasks": open_n,
+            "pressure": stuck_n,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+        if len(out) >= limit:
+            break
+    out.sort(key=lambda x: (-int(x.get("open_tasks") or 0), x.get("id") or 0))
+    return {
+        "ok": True,
+        "count": len(out),
+        "projects": out,
+        "message": f"{len(out)} project(s) — use sort_late_projects to unstick overdue work",
+    }
+
+
+async def _skill_sort_late_projects(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """
+    Find late/stuck projects & tasks, re-queue, create recovery work, notify human.
+    Orchestrator primary tool for "sort out late projects".
+    """
+    from datetime import timedelta
+
+    try:
+        days_late = max(1, min(90, int(args.get("days_late") or args.get("days") or 3)))
+    except Exception:
+        days_late = 3
+    try:
+        limit = min(50, int(args.get("limit") or 20))
+    except Exception:
+        limit = 20
+
+    def _flag(raw, default=True):
+        if raw is None:
+            return default
+        if isinstance(raw, str):
+            return raw.strip().lower() not in ("0", "false", "no", "off")
+        return bool(raw)
+
+    requeue = _flag(args.get("requeue"), True)
+    create_recovery = _flag(args.get("create_recovery_tasks") or args.get("create_tasks"), True)
+    notify = _flag(args.get("notify_human") or args.get("notify"), True)
+
+    cutoff = datetime.utcnow() - timedelta(days=days_late)
+    open_statuses = list(_OPEN_STATUSES)
+
+    tq = db.query(models.Task).filter(
+        models.Task.user_id == user.id,
+        models.Task.status.in_(open_statuses + ["failed"]),
+    )
+    company_id = args.get("company_id")
+    project_id = args.get("project_id")
+    if company_id not in (None, ""):
+        try:
+            tq = tq.filter(models.Task.company_id == int(company_id))
+        except (TypeError, ValueError):
+            pass
+    if project_id not in (None, ""):
+        try:
+            tq = tq.filter(models.Task.project_id == int(project_id))
+        except (TypeError, ValueError):
+            pass
+
+    candidates = tq.order_by(models.Task.id.asc()).limit(200).all()
+    late_tasks = []
+    for t in candidates:
+        updated = t.updated_at or t.created_at
+        age_old = bool(updated and updated < cutoff)
+        high_stuck = (t.priority or "") in ("high", "urgent") and (t.status or "") in open_statuses
+        failed = (t.status or "") == "failed"
+        if age_old or high_stuck or failed:
+            late_tasks.append(t)
+        if len(late_tasks) >= limit:
+            break
+
+    # Projects with late tasks or paused/old active with open work
+    project_pressure: dict[int, dict] = {}
+    for t in late_tasks:
+        if not t.project_id:
+            continue
+        bucket = project_pressure.setdefault(t.project_id, {"late_task_ids": [], "count": 0})
+        bucket["late_task_ids"].append(t.id)
+        bucket["count"] += 1
+
+    projects = (
+        db.query(models.Project)
+        .filter_by(owner_user_id=user.id)
+        .order_by(models.Project.id.desc())
+        .limit(80)
+        .all()
+    )
+    late_projects = []
+    for p in projects:
+        open_n = (
+            db.query(models.Task)
+            .filter(
+                models.Task.user_id == user.id,
+                models.Task.project_id == p.id,
+                models.Task.status.in_(open_statuses),
+            )
+            .count()
+        )
+        pressure = project_pressure.get(p.id, {}).get("count", 0)
+        old_active = (
+            (p.status or "") == "active"
+            and p.created_at
+            and p.created_at < cutoff
+            and open_n > 0
+        )
+        if pressure or old_active or (p.status or "") == "paused" and open_n:
+            late_projects.append({
+                "id": p.id,
+                "name": p.name,
+                "status": p.status,
+                "open_tasks": open_n,
+                "late_tasks": pressure,
+                "reason": (
+                    "paused_with_open_work" if (p.status or "") == "paused" and open_n
+                    else "late_tasks" if pressure
+                    else "aging_with_open_work"
+                ),
+            })
+
+    late_projects.sort(key=lambda x: (-x["late_tasks"], -x["open_tasks"]))
+    late_projects = late_projects[:limit]
+
+    requeued: list[int] = []
+    recovery_ids: list[int] = []
+    actions: list[str] = []
+
+    if requeue:
+        for t in late_tasks:
+            if (t.status or "") in ("todo", "failed", "review"):
+                # Only requeue if assignee active (or unassigned → orchestrator)
+                aid = t.agent_id or agent.id
+                arow = db.get(models.Agent, aid) if aid else agent
+                if arow and (arow.status or "") == "active":
+                    t.agent_id = arow.id
+                    t.status = "queued"
+                    t.updated_at = datetime.utcnow()
+                    labs = t.labels or ""
+                    if "late-sorted" not in labs:
+                        labs = f"{labs},late-sorted".strip(",") if labs else "late-sorted"
+                    t.labels = labs
+                    requeued.append(t.id)
+        if requeued:
+            db.commit()
+            try:
+                from ..task_runner import kick_queued_task
+                for tid in requeued[:12]:
+                    await kick_queued_task(tid, user_id=user.id)
+            except Exception:
+                pass
+            actions.append(f"Re-queued {len(requeued)} late task(s)")
+
+    if create_recovery and late_projects:
+        for pinfo in late_projects[:5]:
+            p = db.get(models.Project, pinfo["id"])
+            if not p:
+                continue
+            title = f"Recovery: sort late work on {p.name}"[:200]
+            # Avoid duplicate open recovery tasks
+            exists = (
+                db.query(models.Task)
+                .filter(
+                    models.Task.user_id == user.id,
+                    models.Task.project_id == p.id,
+                    models.Task.title == title,
+                    models.Task.status.in_(open_statuses),
+                )
+                .first()
+            )
+            if exists:
+                continue
+            desc = (
+                f"Project #{p.id} “{p.name}” is late/stuck "
+                f"({pinfo['late_tasks']} late tasks, {pinfo['open_tasks']} open).\n"
+                f"DONE WHEN: All high-priority open tasks reassigned or completed; "
+                f"status_update to human with remaining blockers.\n"
+                f"CHECKLIST:\n  [ ] list_tasks for this project\n"
+                f"  [ ] requeue or reassign stuck work\n"
+                f"  [ ] notify human of status\n"
+                f"Assigned by orchestrator late-sort."
+            )
+            rt = models.Task(
+                user_id=user.id,
+                agent_id=agent.id,
+                company_id=p.company_id,
+                project_id=p.id,
+                title=title,
+                description=desc,
+                status="queued" if (agent.status or "") == "active" else "todo",
+                priority="high",
+                labels="late-recovery,orchestrator,has-checklist,needs-review",
+                assignee_type="agent",
+            )
+            db.add(rt)
+            db.flush()
+            recovery_ids.append(rt.id)
+        if recovery_ids:
+            db.commit()
+            try:
+                from ..task_runner import kick_queued_task
+                for tid in recovery_ids[:5]:
+                    await kick_queued_task(tid, user_id=user.id)
+            except Exception:
+                pass
+            actions.append(f"Created {len(recovery_ids)} recovery task(s)")
+
+    notify_result = None
+    if notify and (late_projects or late_tasks):
+        try:
+            from .meta_agents import _skill_status_update
+            highlights = (
+                f"Late sort: {len(late_projects)} project(s), {len(late_tasks)} task(s) "
+                f"(>{days_late}d or stuck). "
+                + ("; ".join(actions) if actions else "Reviewed only.")
+            )
+            notify_result = await _skill_status_update(db, agent, user, {
+                "project": "Late project sort",
+                "period": f"last {days_late}d+",
+                "status": "amber" if late_tasks else "green",
+                "highlights": highlights,
+                "notify": True,
+            })
+            actions.append("Notified human")
+        except Exception as e:
+            notify_result = {"ok": False, "error": str(e)[:200]}
+
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="ops",
+            message=(
+                f"Sorted late work: {len(late_projects)} projects, "
+                f"{len(late_tasks)} tasks · {', '.join(actions) or 'scan only'}"
+            )[:500],
+        ))
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "message": (
+            f"Late work sorted: {len(late_projects)} project(s), {len(late_tasks)} task(s). "
+            + (" · ".join(actions) if actions else "No automatic actions — review list.")
+        ),
+        "days_late": days_late,
+        "late_projects": late_projects,
+        "late_tasks": [
+            {
+                "id": t.id,
+                "title": t.title,
+                "status": t.status,
+                "priority": t.priority,
+                "project_id": t.project_id,
+                "agent_id": t.agent_id,
+                "updated_at": (t.updated_at or t.created_at).isoformat()
+                if (t.updated_at or t.created_at) else None,
+            }
+            for t in late_tasks
+        ],
+        "requeued_task_ids": requeued,
+        "recovery_task_ids": recovery_ids,
+        "actions": actions,
+        "notify": notify_result,
+    }
+
+
 async def _skill_comment(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     """
     Universal comment / note on workspace records.
@@ -900,5 +1393,9 @@ __all__ = [
     '_skill_list_humans',
     '_skill_list_activity',
     '_skill_read_workspace',
+    '_skill_create_company',
+    '_skill_create_project',
+    '_skill_list_projects',
+    '_skill_sort_late_projects',
     '_skill_comment',
 ]

@@ -1,25 +1,33 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Typography, Alert, Tag, Space, message, Spin, Select, Empty,
+  Card, Typography, Alert, Tag, Space, message, Spin, Select, Empty, Button, List,
 } from 'antd'
-import { RobotOutlined } from '@ant-design/icons'
+import {
+  RobotOutlined, SafetyCertificateOutlined, ThunderboltOutlined, PhoneOutlined, ReloadOutlined,
+} from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../../api'
 import { connStatusColor } from './helpers'
 
-const { Text } = Typography
+const { Text, Paragraph } = Typography
 
 export default function SettingsAgents() {
+  const nav = useNavigate()
   const [connections, setConnections] = useState([])
   const [agents, setAgents] = useState([])
   const [appsLoading, setAppsLoading] = useState(true)
+  const [debugTeam, setDebugTeam] = useState(null)
+  const [debugBusy, setDebugBusy] = useState(false)
+  const [checkBusy, setCheckBusy] = useState(null)
 
   const loadApps = () => {
     setAppsLoading(true)
     Promise.all([
       api('/integrations/connections').catch(() => ({ connections: [] })),
       api('/agents/').catch(() => []),
+      api('/ops/debug-team').catch(() => null),
     ])
-      .then(([con, ag]) => {
+      .then(([con, ag, dt]) => {
         const conns = Array.isArray(con?.connections)
           ? con.connections
           : (Array.isArray(con) ? con : [])
@@ -29,6 +37,7 @@ export default function SettingsAgents() {
         else if (Array.isArray(ag?.items)) agentList = ag.items
         setConnections(conns.filter((c) => c && c.id != null))
         setAgents(agentList.filter((a) => a && a.id != null))
+        setDebugTeam(dt && dt.ok ? dt : null)
       })
       .catch(() => {
         setConnections([])
@@ -41,8 +50,129 @@ export default function SettingsAgents() {
     loadApps()
   }, [])
 
+  const ensureDebugTeam = async () => {
+    setDebugBusy(true)
+    try {
+      const r = await api('/ops/debug-team/ensure', { method: 'POST' })
+      message.success(
+        r.gatekeeper_name
+          ? `${r.count} debug agents ready · Gatekeeper: ${r.gatekeeper_name}`
+          : `${r.count || 10} debug agents ready`,
+      )
+      loadApps()
+    } catch (e) {
+      message.error(e.message || 'Could not create debug team')
+    } finally {
+      setDebugBusy(false)
+    }
+  }
+
+  const runCheck = async (focus = 'full') => {
+    setCheckBusy(focus)
+    try {
+      const r = await api(`/ops/debug-team/run-check?focus=${encodeURIComponent(focus)}`, {
+        method: 'POST',
+      })
+      const parent = r.parent_task_id || r.workflow?.parent_task_id
+      message.success(
+        parent
+          ? `Gatekeeper check started — goal #${parent}. Specialists work; Gatekeeper reviews.`
+          : (r.message || 'Debug check started'),
+      )
+      nav('/tasks')
+    } catch (e) {
+      message.error(e.message || 'Could not start check')
+    } finally {
+      setCheckBusy(null)
+    }
+  }
+
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card
+        title={(
+          <Space>
+            <SafetyCertificateOutlined />
+            <span>Debug team + Gatekeeper</span>
+          </Space>
+        )}
+        className="aba-soft-card"
+        type="inner"
+        extra={(
+          <Button icon={<ReloadOutlined />} size="small" onClick={loadApps} loading={appsLoading}>
+            Refresh
+          </Button>
+        )}
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="10 debug agents — everything must be Gatekeeper-checked"
+          description={(
+            <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
+              <strong>Debug Gatekeeper</strong> is the lead. Specialists (Twilio, frontend, billing, autonomy, CRM, …)
+              produce work with checklists. Nothing is complete until the Gatekeeper uses{' '}
+              <Text code>review_task</Text> to approve or reject with what&apos;s wrong.
+            </Paragraph>
+          )}
+        />
+        <Space wrap style={{ marginBottom: 12 }}>
+          <Button
+            type="primary"
+            icon={<RobotOutlined />}
+            loading={debugBusy}
+            onClick={ensureDebugTeam}
+          >
+            Create / repair 10 debug agents
+          </Button>
+          <Button
+            icon={<ThunderboltOutlined />}
+            loading={checkBusy === 'full'}
+            onClick={() => runCheck('full')}
+          >
+            Run full gatekeeper check
+          </Button>
+          <Button
+            icon={<PhoneOutlined />}
+            loading={checkBusy === 'twilio'}
+            onClick={() => runCheck('twilio')}
+          >
+            Run Twilio check only
+          </Button>
+          <Button onClick={() => nav('/settings?tab=apps')}>
+            Connect apps (Twilio first)
+          </Button>
+        </Space>
+        {debugTeam?.agents?.length > 0 ? (
+          <List
+            size="small"
+            dataSource={debugTeam.agents}
+            renderItem={(a) => (
+              <List.Item
+                actions={[
+                  <Button key="open" type="link" size="small" onClick={() => nav(`/agents/${a.id}/dash`)}>
+                    Dashboard
+                  </Button>,
+                ]}
+              >
+                <Space wrap>
+                  <Text strong>{a.name}</Text>
+                  <Tag>{a.hierarchy_role}</Tag>
+                  <Tag color="blue">{a.template_type}</Tag>
+                  {(a.template_type === 'debug_gatekeeper' || a.hierarchy_role === 'lead') && (
+                    <Tag color="gold" icon={<SafetyCertificateOutlined />}>Gatekeeper</Tag>
+                  )}
+                  <Tag color={a.status === 'active' ? 'success' : 'default'}>{a.status}</Tag>
+                </Space>
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Empty description="No debug team yet — click Create / repair" />
+        )}
+      </Card>
+
       <Card
         title={<Space><RobotOutlined /> Allocate apps to agents</Space>}
         className="aba-soft-card"
@@ -52,7 +182,7 @@ export default function SettingsAgents() {
           type="info"
           showIcon
           message="Agents only see apps you assign"
-          description="Open a connection to change the agent list, or manage per agent below."
+          description="Connect Twilio under Apps first, then allocate it to the Twilio Comms Debugger and sales agents."
         />
       </Card>
       {appsLoading ? (
@@ -79,14 +209,14 @@ export default function SettingsAgents() {
               size="small"
               className="aba-soft-card"
               type="inner"
-              title={
+              title={(
                 <Space>
                   <RobotOutlined />
                   {agent.name}
                   <Tag>{agent.template_type}</Tag>
                   <Tag color={agent.status === 'active' ? 'success' : 'default'}>{agent.status}</Tag>
                 </Space>
-              }
+              )}
             >
               <Space wrap style={{ marginBottom: 8 }}>
                 {apps.length === 0 ? (

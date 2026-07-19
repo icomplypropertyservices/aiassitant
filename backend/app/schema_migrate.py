@@ -92,6 +92,7 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("result", "TEXT DEFAULT ''"),
         ("priority", "TEXT DEFAULT 'medium'"),
         ("labels", "TEXT DEFAULT ''"),
+        ("acceptance_json", "TEXT DEFAULT '{}'"),
         ("tokens_used", "INTEGER DEFAULT 0"),
         ("cost", "DOUBLE PRECISION DEFAULT 0"),
         ("completed_at", "TIMESTAMP"),

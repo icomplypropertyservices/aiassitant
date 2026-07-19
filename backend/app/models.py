@@ -209,6 +209,8 @@ class Task(Base):
     status = Column(String, default="queued")  # todo | queued | in_progress | review | completed | failed
     priority = Column(String, default="medium")  # low | medium | high | urgent
     labels = Column(String, default="")  # comma-separated
+    # Structured acceptance: done_when, checklist, check statuses (JSON)
+    acceptance_json = Column(Text, default="{}")
     tokens_used = Column(Integer, default=0)
     cost = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)

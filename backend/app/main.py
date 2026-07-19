@@ -263,6 +263,8 @@ def health():
         "billing_free_grants": False if config.IS_PRODUCTION else True,
         "docs_enabled": not config.IS_PRODUCTION,
         "cron_secret_configured": bool(config.CRON_SECRET),
+        "autonomy_offline": True,
+        "autonomy_cron": "/api/ops/autonomy/tick-all",
         "path_frontend_hint": config.FRONTEND_URL,
         "cli_api": True,
         "meetings": meetings is not None,

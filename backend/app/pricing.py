@@ -30,8 +30,10 @@ PRICING = {
     "skill-read": 0.80,      # list/get/search
     "skill-write": 1.20,     # create/update/move/spawn
     "skill-action": 1.00,    # generic skill meter
-    # Internal staff ids map to quality rates if they leak into billing rows
+    # Internal staff / orchestrator Grok ids
     "grok-max": 12.00,
+    "grok-4.3": 5.50,   # Main AI Orchestrator
+    "grok-4.5": 12.00,
 }
 
 # Flat USD + meter token weights per event (tokens always applied)
@@ -77,6 +79,8 @@ MODEL_LABELS = {
     "medium": "Medium",
     "image": "Image",
     "video": "Video",
+    "grok-4.3": "Grok 4.3",
+    "grok-max": "Grok Max",
 }
 
 MODEL_BLURBS = {
@@ -88,23 +92,34 @@ MODEL_BLURBS = {
     "large": "Long documents & big context",
     "image": "Image generation (per event)",
     "video": "Video generation (per event)",
+    "grok-4.3": "Main orchestrator — hire, projects, late work",
+    "grok-max": "Highest capacity (staff / special agents)",
 }
 
 MODEL_GROUPS = [
     ("managed", "Managed chat"),
+    ("flagship", "Flagship"),
     ("media", "Media"),
 ]
 
 # Client-visible order
-_ORDER = ["fast", "quality", "reasoning", "large", "small", "medium", "image", "video"]
+_ORDER = ["fast", "quality", "reasoning", "large", "small", "medium", "grok-4.3", "image", "video"]
+
+def _catalog_group(mid: str) -> tuple[str, str]:
+    if mid in ("image", "video"):
+        return "media", "Media"
+    if mid in ("grok-4.3", "grok-max", "grok-4.5"):
+        return "flagship", "Flagship"
+    return "managed", "Managed chat"
+
 
 MODEL_CATALOG = [
     {
         "id": mid,
         "label": MODEL_LABELS[mid],
         "provider": "managed",
-        "group": "media" if mid in ("image", "video") else "managed",
-        "group_label": "Media" if mid in ("image", "video") else "Managed chat",
+        "group": _catalog_group(mid)[0],
+        "group_label": _catalog_group(mid)[1],
         "blurb": MODEL_BLURBS.get(mid, ""),
         "usd_per_1m": PRICING[mid],
     }
@@ -114,10 +129,16 @@ MODEL_CATALOG = [
 
 def cost_for(model: str, input_tokens: int, output_tokens: int) -> float:
     m = (model or "fast").lower().strip().replace("_", "-")
-    # Map staff / legacy ids to billed tiers
-    if m in ("grok-max", "grok") or m.startswith("grok"):
-        m = "quality"
-    if m.startswith("vps-") or m.startswith("qwen") or m.startswith("ollama"):
+    # Map staff / legacy ids to billed tiers (keep grok-4.3 / grok-max rates)
+    if m in PRICING:
+        pass
+    elif m in ("grok-max",) or m.startswith("grok-4.5"):
+        m = "grok-max"
+    elif "4.3" in m or m in ("grok-3", "grok"):
+        m = "grok-4.3"
+    elif m.startswith("grok"):
+        m = "grok-4.3"
+    elif m.startswith("vps-") or m.startswith("qwen") or m.startswith("ollama"):
         try:
             from .agent_scaffold import map_model
             m = map_model(m)

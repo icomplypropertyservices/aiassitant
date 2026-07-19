@@ -18,6 +18,8 @@ from ..plans import (
     preorder_active,
     preorder_meta,
     plan_checkout_price,
+    plan_annual_list_price,
+    normalize_billing_interval,
     enrich_plan_for_public,
 )
 from ..usage_billing import meter_snapshot, ensure_period
@@ -34,6 +36,11 @@ PLAN_PRICE_IDS = {
     "starter": config.STRIPE_PRICE_STARTER,
     "pro": config.STRIPE_PRICE_PRO,
     "business": config.STRIPE_PRICE_BUSINESS,
+}
+PLAN_PRICE_IDS_ANNUAL = {
+    "starter": getattr(config, "STRIPE_PRICE_STARTER_ANNUAL", "") or "",
+    "pro": getattr(config, "STRIPE_PRICE_PRO_ANNUAL", "") or "",
+    "business": getattr(config, "STRIPE_PRICE_BUSINESS_ANNUAL", "") or "",
 }
 
 
@@ -61,40 +68,51 @@ def _stripe_ready() -> bool:
     return bool(config.STRIPE_SECRET_KEY)
 
 
-def _plan_line_item(plan: str, limits: dict) -> dict:
-    """Prefer configured Stripe Price ID; else inline monthly recurring price_data.
+def _plan_line_item(plan: str, limits: dict, interval: str = "month") -> dict:
+    """Prefer configured Stripe Price ID; else inline recurring price_data.
 
-    Live mode (default): full list price, mode=subscription at Checkout.
-    Pre-order (PREORDER_FORCE only): inline discounted price_data.
+    interval: month | year (annual = 10× monthly ≈ 2 months free).
+    Live mode: full list price, mode=subscription at Checkout.
     """
-    amount = plan_checkout_price(plan)
+    iv = normalize_billing_interval(interval)
+    amount = plan_checkout_price(plan, iv)
     if amount <= 0:
-        amount = float(limits.get("price") or 0)
+        amount = float(limits.get("price") or 0) if iv == "month" else plan_annual_list_price(plan)
     if amount <= 0:
         raise HTTPException(400, "Plan has no price for Stripe checkout")
 
-    # Fixed recurring Price IDs when live (real subscription products in Stripe).
-    # Price objects must be monthly recurring at list amounts: starter $39, pro $99,
-    # business $249 — mismatch vs plans.py will charge Stripe's amount, not list price.
-    price_id = (PLAN_PRICE_IDS.get(plan) or "").strip()
-    if price_id and not preorder_active():
-        return {"price": price_id, "quantity": 1}
+    # Fixed Price IDs when configured (must match interval in Stripe Dashboard)
+    if not preorder_active():
+        if iv == "year":
+            price_id = (PLAN_PRICE_IDS_ANNUAL.get(plan) or "").strip()
+        else:
+            price_id = (PLAN_PRICE_IDS.get(plan) or "").strip()
+        if price_id:
+            return {"price": price_id, "quantity": 1}
 
     name = limits.get("name") or plan.title()
-    list_price = float(limits.get("price") or 0)
-    desc = limits.get("blurb") or f"{name} monthly subscription"
-    if preorder_active() and list_price > amount:
+    list_m = float(limits.get("price") or 0)
+    if iv == "year":
+        annual_full = round(list_m * 12, 2) if list_m else 0
+        save = round(annual_full - amount, 2) if annual_full > amount else 0
         desc = (
-            f"Pre-order · 10% off (list ${list_price:.0f}/mo) · early access · "
-            f"launch 27 July 2026. {desc}"
+            f"Annual subscription · billed once per year · "
+            f"save ${save:.0f} vs monthly ({list_m:.0f}×12). Access starts on payment. "
+            f"{limits.get('blurb') or ''}"
         )
+        product_name = f"AI Business Assistant — {name} (Annual)"
+        stripe_interval = "year"
     else:
-        desc = f"Monthly subscription · access starts on payment. {desc}"
-    product_name = f"AI Business Assistant — {name}"
-    if preorder_active():
-        product_name = f"AI Business Assistant — {name} (Pre-order 10% off)"
-    else:
+        desc = f"Monthly subscription · access starts on payment. {limits.get('blurb') or ''}"
         product_name = f"AI Business Assistant — {name} (Monthly)"
+        stripe_interval = "month"
+        if preorder_active() and list_m > amount:
+            desc = (
+                f"Pre-order · 10% off (list ${list_m:.0f}/mo) · early access · "
+                f"launch 27 July 2026. {desc}"
+            )
+            product_name = f"AI Business Assistant — {name} (Pre-order 10% off)"
+
     return {
         "price_data": {
             "currency": "usd",
@@ -103,17 +121,27 @@ def _plan_line_item(plan: str, limits: dict) -> dict:
                 "description": desc[:500],
             },
             "unit_amount": int(round(amount * 100)),
-            "recurring": {"interval": "month"},
+            "recurring": {"interval": stripe_interval},
         },
         "quantity": 1,
     }
 
 
 def _checkout_urls(path_success: str = "/billing", path_cancel: str = "/billing"):
+    """Build Stripe return URLs under the product SPA (/agents/… in production)."""
     base = (config.FRONTEND_URL or "").rstrip("/") or "http://localhost:5173"
+    # Avoid double /agents when callers pass /agents/billing
+    def _join(path: str) -> str:
+        p = (path or "/billing").strip() or "/billing"
+        if not p.startswith("/"):
+            p = f"/{p}"
+        if base.endswith("/agents") and p.startswith("/agents/"):
+            p = p[len("/agents"):]
+        return f"{base}{p}"
+
     # {CHECKOUT_SESSION_ID} is expanded by Stripe — enables confirm without webhook
-    success = f"{base}{path_success}?checkout=success&session_id={{CHECKOUT_SESSION_ID}}"
-    cancel = f"{base}{path_cancel}?checkout=cancelled"
+    success = f"{_join(path_success)}?checkout=success&session_id={{CHECKOUT_SESSION_ID}}"
+    cancel = f"{_join(path_cancel)}?checkout=cancelled"
     return success, cancel
 
 
@@ -239,6 +267,9 @@ class AutoTopupIn(BaseModel):
 class PlanIn(BaseModel):
     plan: str
     company_name: str | None = None  # optional: create first company on subscribe
+    # month (default) | year — annual Stripe subscription (10× monthly)
+    interval: str = "month"
+    billing_interval: str | None = None  # alias
 
 
 class CryptoInvoiceIn(BaseModel):
@@ -368,9 +399,13 @@ def payment_options():
                 "starter": bool(config.STRIPE_PRICE_STARTER),
                 "pro": bool(config.STRIPE_PRICE_PRO),
                 "business": bool(config.STRIPE_PRICE_BUSINESS),
+                "starter_annual": bool(getattr(config, "STRIPE_PRICE_STARTER_ANNUAL", "")),
+                "pro_annual": bool(getattr(config, "STRIPE_PRICE_PRO_ANNUAL", "")),
+                "business_annual": bool(getattr(config, "STRIPE_PRICE_BUSINESS_ANNUAL", "")),
             },
             # Works with secret key alone via price_data when price IDs missing
             "ready": _stripe_ready(),
+            "intervals": ["month", "year"],
             "label": (
                 "Card (Stripe test / sandbox)"
                 if mode == "test"
@@ -388,7 +423,14 @@ def payment_options():
             "label": "Crypto (ETH / SOL / BTC / XRP)",
             "ready": crypto_pay.crypto_enabled(),
         },
+        "email": {
+            "resend_platform": bool(getattr(config, "RESEND_API_KEY", "")),
+            "resend_from": (getattr(config, "RESEND_FROM", "") or "")[:80] or None,
+            "label": "Email (Resend API / SMTP)",
+        },
         "preorder": po,
+        "billing_intervals": ["month", "year"],
+        "annual_label": "Pay annually — 2 months free",
         "ready_for_payments": _stripe_ready() or crypto_pay.crypto_enabled(),
     }
 
@@ -815,41 +857,63 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
             "Free activation and free wallet credits are not available in production.",
         )
 
-    # Paid plans: Stripe Checkout when key present (sandbox or live).
-    # pay_as_you_go has no subscription price — fund via top-up only; free-activate in non-prod.
+    # Paid plans: live Stripe Checkout (mode=subscription). Monthly or annual.
+    # Annual = 10× monthly (~2 months free). pay_as_you_go is wallet top-up only.
     if needs_payment and stripe and data.plan != "pay_as_you_go":
+        interval = normalize_billing_interval(data.interval or data.billing_interval or "month")
         success, cancel = _checkout_urls("/billing", "/subscribe")
         try:
-            line_item = _plan_line_item(data.plan, limits)
+            line_item = _plan_line_item(data.plan, limits, interval=interval)
+            amount = plan_checkout_price(data.plan, interval)
             meta = {
                 "kind": "plan",
                 "user_id": str(user.id),
                 "plan": data.plan,
                 "company_name": data.company_name or "",
-                "preorder": "1" if preorder_active() else "0",
+                "preorder": "0",
                 "list_price": str(limits.get("price") or ""),
-                "checkout_price": str(plan_checkout_price(data.plan)),
+                "checkout_price": str(amount),
+                "billing_mode": "subscription",
+                "interval": interval,
             }
-            session = stripe.checkout.Session.create(
-                mode="subscription",
-                line_items=[line_item],
-                success_url=success,
-                cancel_url=cancel,
-                customer_email=user.email,
-                metadata=meta,
-                allow_promotion_codes=True,
-            )
+            session_kwargs = {
+                "mode": "subscription",
+                "line_items": [line_item],
+                "success_url": success,
+                "cancel_url": cancel,
+                "customer_email": user.email,
+                "metadata": meta,
+                "allow_promotion_codes": True,
+                "subscription_data": {
+                    "metadata": {
+                        "user_id": str(user.id),
+                        "plan": data.plan,
+                        "kind": "plan",
+                        "interval": interval,
+                    },
+                },
+            }
+            session = stripe.checkout.Session.create(**session_kwargs)
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
+        unit = "/yr" if interval == "year" else "/mo"
         return {
             "checkout_url": session.url,
             "session_id": session.id,
             "provider": "stripe",
             "stripe_mode": _stripe_mode(),
             "crypto_available": crypto_pay.crypto_enabled(),
-            "preorder": preorder_active(),
-            "amount_usd": plan_checkout_price(data.plan),
+            "preorder": False,
+            "live_subscription": True,
+            "interval": interval,
+            "amount_usd": amount,
             "list_price_usd": float(limits.get("price") or 0),
+            "list_price_annual_usd": plan_annual_list_price(data.plan),
+            "message": (
+                f"Redirecting to Stripe for {limits.get('name') or data.plan} "
+                f"{'annual' if interval == 'year' else 'monthly'} subscription "
+                f"(${amount:.0f}{unit})."
+            ),
         }
 
     # Production: no free activate for paid plans without Stripe
@@ -904,13 +968,32 @@ def confirm_checkout(
         raise HTTPException(403, "This checkout session belongs to another account")
     result = _fulfill_stripe_session(db, sess)
     u = db.get(models.User, user.id)
+    # Paid plan activation clears trial expiry; force open-ended subscription access
+    if u and result.get("kind") == "plan" and (u.plan or "") not in ("trial", "none", ""):
+        u.subscription_active = True
+        u.subscription_expires_at = None
+        db.commit()
+        db.refresh(u)
     return {
         "ok": True,
         "result": result,
         "stripe_mode": _stripe_mode(),
         "plan": u.plan if u else None,
-        "subscription_active": bool(u.subscription_active) if u else False,
+        "plan_name": (plan_limits(u.plan).get("name") if u else None),
+        "subscription_active": bool(u and u.subscription_active),
+        "needs_subscription": bool(
+            u and (
+                not u.subscription_active
+                or (u.plan or "") in (None, "", "none")
+            )
+            and getattr(u, "role", "") != "admin"
+        ),
         "meter": meter_snapshot(db, u) if u else None,
+        "message": (
+            f"Subscription active: {plan_limits(u.plan).get('name') or u.plan}"
+            if u and u.subscription_active
+            else "Payment recorded"
+        ),
     }
 
 

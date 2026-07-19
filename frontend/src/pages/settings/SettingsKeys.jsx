@@ -187,6 +187,30 @@ export default function SettingsKeys() {
 
   const { llm: llmKeys, channels: channelKeys, other: otherKeys } = partitionKeys(keys, providers)
 
+  const twilioReady = (() => {
+    const has = (p) => channelKeys.some((k) => k.provider === p && (k.configured || k.has_value || k.masked))
+    // providers list rows may use different shape
+    const fromProviders = (providers || []).filter((p) => String(p.id || p.provider || '').startsWith('twilio'))
+    const sid = channelKeys.find((k) => k.provider === 'twilio_sid')
+      || fromProviders.find((p) => (p.id || p.provider) === 'twilio_sid')
+    const tok = channelKeys.find((k) => k.provider === 'twilio_token')
+      || fromProviders.find((p) => (p.id || p.provider) === 'twilio_token')
+    const fr = channelKeys.find((k) => k.provider === 'twilio_from')
+      || fromProviders.find((p) => (p.id || p.provider) === 'twilio_from')
+    const ok = (row) => row && (row.configured || row.has_value || row.masked || row.hint)
+    return !!(ok(sid) && ok(tok) && ok(fr))
+  })()
+
+  const openTwilioKeys = () => {
+    const sid = providers.find((p) => p.id === 'twilio_sid') || {
+      id: 'twilio_sid',
+      label: 'Twilio Account SID',
+      placeholder: 'AC…',
+      help: 'From Twilio Console',
+    }
+    openKeyModal({ provider: 'twilio_sid', ...sid, configured: false })
+  }
+
   const renderKeyList = (rows) => (
     keysLoading ? <Spin /> : (
       <List
@@ -236,6 +260,60 @@ export default function SettingsKeys() {
   return (
     <>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Card
+          title={<Space><MailOutlined /> Email (Resend) — platform ready</Space>}
+          className="aba-soft-card"
+          type="inner"
+        >
+          <Alert
+            type={emailStatus?.ok || emailStatus?.user_resend || emailStatus?.platform_resend ? 'success' : 'info'}
+            showIcon
+            message={
+              emailStatus?.ok || emailStatus?.platform_resend || emailStatus?.user_resend
+                ? 'Email channel available (Resend and/or SMTP)'
+                : 'Add Resend API key for reliable agent email (recommended on Vercel)'
+            }
+            description={
+              <>
+                Platform can use <Text code>RESEND_API_KEY</Text> + <Text code>RESEND_FROM</Text>.
+                You can also save your own Resend key below under channel keys, or configure SMTP.
+                On Vercel, Resend is preferred over raw SMTP (ports often blocked).
+              </>
+            }
+            style={{ marginBottom: 0 }}
+          />
+        </Card>
+
+        <Card
+          title={<Space><ApiOutlined /> Twilio (SMS / calls) — priority</Space>}
+          className="aba-soft-card"
+          type="inner"
+        >
+          <Alert
+            type={twilioReady ? 'success' : 'warning'}
+            showIcon
+            icon={twilioReady ? <CheckCircleOutlined /> : <SafetyCertificateOutlined />}
+            message={twilioReady ? 'Twilio keys on file' : 'Connect Twilio for live SMS and voice'}
+            description={
+              twilioReady
+                ? 'Channel keys are encrypted. Prefer Settings → Connected apps → Twilio for a guided connect (syncs here automatically).'
+                : (
+                  <>
+                    Required: <Text code>twilio_sid</Text>, <Text code>twilio_token</Text>,{' '}
+                    <Text code>twilio_from</Text> (E.164). Or use{' '}
+                    <strong>Connected apps → Twilio</strong> (recommended).
+                  </>
+                )
+            }
+            action={(
+              <Button type="primary" size="small" onClick={openTwilioKeys}>
+                {twilioReady ? 'Update SID' : 'Add Twilio SID'}
+              </Button>
+            )}
+            style={{ marginBottom: 0 }}
+          />
+        </Card>
+
         <Card title={<Space><KeyOutlined /> About your keys</Space>} className="aba-soft-card" type="inner">
           <Alert
             type="info"
@@ -248,6 +326,7 @@ export default function SettingsKeys() {
                 <strong> Grok works via API only</strong> (your xAI key or the platform key).{' '}
                 <strong>Claude</strong> and <strong>VPS small models</strong> are <strong>Coming soon</strong>.
                 For Shopify, Google Workspace, Slack, etc. use the <strong>Connected apps</strong> tab.
+                <strong> Twilio is highest priority</strong> for SMS/calls.
               </>
             }
           />

@@ -726,13 +726,22 @@ export default function Agents() {
                       </Button>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' }}>
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/manage`) }}
-                        >
-                          Workspace
-                        </Button>
+                        <Space size={0}>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/dash`) }}
+                          >
+                            Dashboard
+                          </Button>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/manage`) }}
+                          >
+                            Settings
+                          </Button>
+                        </Space>
                         <Space size={2}>
                           {a.status === 'active'
                             ? (

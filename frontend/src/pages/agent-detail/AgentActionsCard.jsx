@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, Button, Space, Popconfirm, message } from 'antd'
 import {
   ThunderboltOutlined, TeamOutlined, PauseCircleOutlined, PlayCircleOutlined,
-  CopyOutlined, DeleteOutlined,
+  CopyOutlined, DeleteOutlined, DashboardOutlined,
 } from '@ant-design/icons'
 import { api } from '../../api'
 
@@ -20,7 +20,14 @@ export default function AgentActionsCard({
       title={<Space><ThunderboltOutlined /> Actions</Space>}
     >
       <Space wrap>
-        <Button onClick={() => setTaskOpen(true)} type="primary">Assign task</Button>
+        <Button
+          type="primary"
+          icon={<DashboardOutlined />}
+          onClick={() => nav(`/agents/${id}/dash`)}
+        >
+          Dashboard
+        </Button>
+        <Button onClick={() => setTaskOpen(true)}>Assign task</Button>
         {(agent.is_lead || agent.reports?.length > 0) && (
           <Button icon={<TeamOutlined />} onClick={() => setDelegateOpen(true)}>Delegate</Button>
         )}

@@ -250,6 +250,64 @@ async def _promote_assigned_todos(db: Session, user: models.User, summary: dict)
         summary["todos_promoted"] = summary.get("todos_promoted", 0) + promoted
 
 
+async def _requeue_stalled_in_progress(db: Session, user: models.User, summary: dict) -> None:
+    """
+    Keep agents busy: if a run left a task in_progress without complete_task and
+    it has been idle long enough, re-queue so the runner continues until done.
+    """
+    from .agent_scaffold import resolve_runtime
+
+    # Longer than a full multi-turn run so we do not interrupt live workers
+    idle_mins = 6
+    cutoff = datetime.utcnow() - timedelta(minutes=idle_mins)
+    rows = (
+        db.query(models.Task)
+        .filter(
+            models.Task.user_id == user.id,
+            models.Task.status == "in_progress",
+            models.Task.agent_id.isnot(None),
+        )
+        .order_by(models.Task.id)
+        .limit(15)
+        .all()
+    )
+    n = 0
+    for t in rows:
+        updated = getattr(t, "updated_at", None) or t.created_at
+        if updated and updated > cutoff:
+            continue
+        result = (t.result or "")
+        # Prefer tasks the runner itself left unfinished
+        markers = (
+            "STILL IN PROGRESS",
+            "AUTO-REQUEUE",
+            "NEEDS ATTENTION",
+            "awaiting_complete",
+        )
+        if not any(m in result for m in markers) and (t.tokens_used or 0) == 0:
+            # Fresh/unknown — still re-queue if truly stale
+            if not updated or updated > cutoff:
+                continue
+        if result.count("[AUTO-REQUEUE]") >= 3:
+            continue
+        agent = db.get(models.Agent, t.agent_id)
+        if not agent or (agent.status or "") != "active":
+            continue
+        rt = resolve_runtime(agent)
+        if not rt.can_execute:
+            continue
+        t.status = "queued"
+        t.updated_at = datetime.utcnow()
+        t.result = (
+            (result or "").rstrip()
+            + f"\n\n[AUTO-REQUEUE] Stalled in_progress >{idle_mins}m — continuing until complete_task."
+        )[:12000]
+        n += 1
+    if n:
+        db.commit()
+        summary["stalled_requeued"] = summary.get("stalled_requeued", 0) + n
+
+
 async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> None:
     from .task_runner import run_agent_task, kick_queued_task
     from .async_jobs import schedule
@@ -260,6 +318,11 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
     # First: promote stagnant agent todos into the queue
     try:
         await _promote_assigned_todos(db, user, summary)
+    except Exception:
+        pass
+    # Keep unfinished work moving (busy until complete_task)
+    try:
+        await _requeue_stalled_in_progress(db, user, summary)
     except Exception:
         pass
 
@@ -539,24 +602,36 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
         "skipped": False,
         "reason": "",
     }
-    if not settings.autonomy_enabled:
-        summary["skipped"] = True
-        summary["reason"] = "autonomy_disabled"
-        return summary
-
-    # Respect min interval so rapid UI ticks / cron overlaps do not flood the GPU
-    # with proactive idle feeds. Queued work is still drained (production cron
-    # must process backlog even if a recent manual tick advanced last_run).
-    min_iv = int(getattr(app_config, "AUTONOMY_MIN_INTERVAL_SEC", 300) or 300)
-    user_iv = max(min_iv, int(settings.autonomy_interval_sec or min_iv))
-    last = settings.last_autonomy_run
-    on_cooldown = bool(last and (datetime.utcnow() - last) < timedelta(seconds=user_iv))
-
     # Ensure orchestrator exists only — do NOT rewrite every agent each tick
     try:
         ensure_main_orchestrator(db, user)
     except Exception as e:
         summary["reason"] = f"orchestrator_error:{e}"
+
+    # Always drain queued work offline (even if autonomy_enabled is false).
+    # Proactive idle feeds / stuck scans only when autonomy is on.
+    autonomy_on = bool(settings.autonomy_enabled)
+
+    # Respect min interval so rapid UI ticks / cron overlaps do not flood the GPU
+    # with proactive idle feeds. Queued work is still drained (production cron
+    # must process backlog even if a recent manual tick advanced last_run).
+    min_iv = int(getattr(app_config, "AUTONOMY_MIN_INTERVAL_SEC", 120) or 120)
+    user_iv = max(min_iv, int(settings.autonomy_interval_sec or min_iv))
+    last = settings.last_autonomy_run
+    on_cooldown = bool(last and (datetime.utcnow() - last) < timedelta(seconds=user_iv))
+
+    if not autonomy_on:
+        await _run_queued_tasks(db, user, summary)
+        summary["reason"] = "queue_drain_only_autonomy_off"
+        if summary["tasks_started"] == 0:
+            summary["skipped"] = True
+        else:
+            settings.last_autonomy_summary = (
+                f"offline drain started={summary['tasks_started']} (autonomy off)"
+            )
+            settings.updated_at = datetime.utcnow()
+            db.commit()
+        return summary
 
     if on_cooldown:
         await _run_queued_tasks(db, user, summary)
@@ -603,53 +678,149 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
     return summary
 
 
+def _users_needing_autonomy(db: Session, *, limit: int = 80) -> list[models.User]:
+    """
+    Workspaces that must keep running even when the owner is offline / not logged in:
+      - active trial/paid/admin
+      - autonomy_enabled (default True)
+      - OR open queued/in_progress tasks
+      - OR never_idle agents
+    """
+    from sqlalchemy import or_, and_
+
+    # 1) Users with open agent work (highest priority — finish chains offline)
+    busy_uids = {
+        r[0]
+        for r in (
+            db.query(models.Task.user_id)
+            .filter(
+                models.Task.status.in_(["queued", "in_progress", "todo"]),
+                models.Task.agent_id.isnot(None),
+            )
+            .distinct()
+            .limit(limit * 2)
+            .all()
+        )
+        if r[0]
+    }
+
+    # 2) Users with never_idle / active agents
+    agent_uids = {
+        r[0]
+        for r in (
+            db.query(models.Agent.user_id)
+            .filter(
+                models.Agent.status == "active",
+            )
+            .distinct()
+            .limit(limit * 2)
+            .all()
+        )
+        if r[0]
+    }
+
+    # 3) Explicit autonomy settings (include disabled so we skip cleanly)
+    settings_on = {
+        r.user_id
+        for r in db.query(models.WorkspaceSettings)
+        .filter(models.WorkspaceSettings.autonomy_enabled == True)  # noqa: E712
+        .limit(limit * 2)
+        .all()
+        if r.user_id
+    }
+
+    candidate_ids = list(busy_uids | (agent_uids & settings_on) | settings_on)
+    if not candidate_ids:
+        # Fall back: anyone with a real plan / admin
+        return (
+            db.query(models.User)
+            .filter(
+                or_(
+                    models.User.subscription_active == True,  # noqa: E712
+                    models.User.role == "admin",
+                    and_(
+                        models.User.plan.isnot(None),
+                        models.User.plan.notin_(["none", ""]),
+                    ),
+                )
+            )
+            .order_by(models.User.id)
+            .limit(limit)
+            .all()
+        )
+
+    # Prefer users with busy queues first
+    ordered = sorted(
+        set(candidate_ids),
+        key=lambda uid: (0 if uid in busy_uids else 1, uid),
+    )[:limit]
+
+    users = (
+        db.query(models.User)
+        .filter(models.User.id.in_(ordered))
+        .all()
+    )
+    # re-order
+    by_id = {u.id: u for u in users}
+    return [by_id[i] for i in ordered if i in by_id]
+
+
 async def run_global_tick() -> dict[str, Any]:
-    """One tick across all eligible users (local loop or cron)."""
+    """One tick across all eligible users (local loop or cron) — no login required."""
+    from . import config as app_config
+
     db = SessionLocal()
     results = []
     try:
-        users = (
-            db.query(models.User)
-            .filter(
-                (models.User.subscription_active == True)  # noqa: E712
-                | (models.User.role == "admin")
-                | (models.User.plan.notin_(["none", ""]))
-            )
-            .all()
-        )
-        # Also include users with agents even if plan oddities
-        if not users:
-            users = db.query(models.User).limit(50).all()
+        max_users = int(getattr(app_config, "AUTONOMY_MAX_USERS_PER_TICK", 25) or 25)
+        try:
+            from .async_jobs import is_serverless
+            if is_serverless():
+                # Stay under Vercel maxDuration while still draining offline queues
+                max_users = min(max_users, 12)
+        except Exception:
+            pass
+        users = _users_needing_autonomy(db, limit=max(5, max_users))
         for u in users:
             try:
-                # refresh settings attachment
                 u = db.get(models.User, u.id)
+                if not u:
+                    continue
+                # Ensure autonomy defaults on so offline work is not stuck disabled forever
+                settings = get_or_create_settings(db, u.id)
+                if settings.autonomy_enabled is None:
+                    settings.autonomy_enabled = True
+                    db.commit()
                 r = await run_user_cycle(db, u)
                 results.append(r)
             except Exception as e:
-                results.append({"user_id": u.id, "error": str(e)})
+                results.append({"user_id": getattr(u, "id", None), "error": str(e)[:300]})
         return {
             "ok": True,
             "users": len(results),
             "results": results,
             "at": datetime.utcnow().isoformat() + "Z",
+            "offline": True,
         }
     finally:
         db.close()
 
 
 async def autonomy_background_loop():
-    """Local long-running loop (disabled on Vercel)."""
+    """Local long-running loop (disabled on Vercel — use cron /ops/autonomy/tick-all)."""
     import asyncio
+    from . import config as app_config
+
     while True:
         try:
             db = SessionLocal()
             try:
-                # Use min interval among enabled workspaces, default 45s
                 rows = db.query(models.WorkspaceSettings).filter_by(autonomy_enabled=True).all()
-                interval = 45
+                # Default 60s local; floor 30s so GPU is not thrashed
+                interval = int(getattr(app_config, "AUTONOMY_LOOP_SEC", 60) or 60)
                 if rows:
-                    interval = min(max(15, r.autonomy_interval_sec or 45) for r in rows)
+                    interval = min(max(30, r.autonomy_interval_sec or interval) for r in rows)
+                    interval = max(30, min(interval, 300))
             finally:
                 db.close()
             await run_global_tick()

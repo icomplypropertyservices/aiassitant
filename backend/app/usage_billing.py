@@ -260,7 +260,7 @@ def _always_bill_credits(model: str) -> bool:
 
 
 def _normalize_bill_model(model: str | None) -> str:
-    """Map any agent/chat model id → billable neutral tier (always meters tokens)."""
+    """Map any agent/chat model id → billable catalog id (always meters tokens)."""
     try:
         from .agent_scaffold import map_model
         m = map_model(model)
@@ -271,19 +271,20 @@ def _normalize_bill_model(model: str | None) -> str:
     if m in (
         "voice-stt", "voice-tts", "voice-call", "image", "video", "premium-comm",
         "skill-read", "skill-write", "skill-action",
+        "fast", "quality", "reasoning", "large", "small", "medium",
+        "grok-4.3", "grok-max", "grok-4.5",
     ):
         return m
     if m.startswith("voice"):
         return m
-    if m in ("grok-max",) or m.startswith("grok"):
-        return "quality"
-    if m not in (
-        "fast", "quality", "reasoning", "large", "small", "medium",
-        "image", "video", "voice-stt", "voice-tts", "voice-call", "premium-comm",
-        "skill-read", "skill-write", "skill-action",
-    ):
-        return "fast"
-    return m
+    # Grok family → explicit billable ids (do not collapse all to quality)
+    if "4.3" in m or m in ("grok-3", "grok"):
+        return "grok-4.3"
+    if m in ("grok-max",) or "4.5" in m or m.startswith("grok-4.5"):
+        return "grok-max"
+    if m.startswith("grok"):
+        return "grok-4.3"
+    return "quality"
 
 
 def charge_usage(

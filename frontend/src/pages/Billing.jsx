@@ -1,14 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Card, Row, Col, Statistic, Button, InputNumber, Space, message, Tag, Alert, Table, Typography, Progress, Switch, Divider,
+  Card, Row, Col, Statistic, Button, InputNumber, Space, message, Tag, Alert, Table, Typography, Progress, Switch, Divider, Segmented,
 } from 'antd'
 import { ArrowUpOutlined, CrownOutlined, ThunderboltOutlined, CloudServerOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { api, IS_NATIVE, getUser } from '../api'
+import { api, IS_NATIVE, getUser, getToken, setAuth } from '../api'
+import { absoluteAppUrl } from '../publicPaths'
 import TokenMeter from '../components/TokenMeter'
 import CryptoPay from '../components/CryptoPay'
 import PageShell from '../components/PageShell'
 import PlanCards, { PlansSectionHeader } from '../components/PlanCards'
+
+const WEB_BILLING = () => absoluteAppUrl('/billing')
 
 const PLAN_ORDER = ['trial', 'starter', 'pro', 'business']
 
@@ -36,7 +39,9 @@ export default function Billing() {
   const [autoBusy, setAutoBusy] = useState(false)
   const [storage, setStorage] = useState(null)
   const [storageBusy, setStorageBusy] = useState(null)
-  const preorderOn = Boolean(preorder?.active)
+  // Live monthly plans only (pre-order UI off unless API forces active + not live)
+  const preorderOn = Boolean(preorder?.active) && preorder?.live === false
+  const [billingInterval, setBillingInterval] = useState('month')
 
   const load = () => {
     api('/billing/balance').then((b) => {
@@ -86,14 +91,25 @@ export default function Billing() {
       const finish = async () => {
         try {
           if (sessionId) {
-            await api(`/billing/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
+            const r = await api(`/billing/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
               method: 'POST',
             })
+            message.success(r?.message || 'Payment received — subscription active')
+          } else {
+            message.success('Payment received — refreshing your account…')
           }
-          message.success('Payment received — your account has been updated')
+          // Refresh auth so needs_subscription clears for this user (and after multi-user checkout)
+          try {
+            const me = await api('/auth/me')
+            setAuth(getToken(), me)
+          } catch { /* ignore */ }
           load()
         } catch (e) {
           message.warning(e.message || 'Checkout returned but fulfillment needs a moment — refresh Billing')
+          try {
+            const me = await api('/auth/me')
+            setAuth(getToken(), me)
+          } catch { /* ignore */ }
           load()
         } finally {
           setParams({})
@@ -102,7 +118,7 @@ export default function Billing() {
       finish()
     }
     if (checkout === 'cancelled') {
-      message.info('Checkout cancelled')
+      message.info('Checkout cancelled — you can subscribe anytime below')
       setParams({})
     }
   }, [])
@@ -131,7 +147,7 @@ export default function Billing() {
   const topup = async () => {
     if (IS_NATIVE) {
       message.info('On iOS, open Billing on the website to top up (App Store rules).')
-      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      window.open(WEB_BILLING(), '_blank')
       return
     }
     setBusy(true)
@@ -150,23 +166,44 @@ export default function Billing() {
     }
   }
 
-  const choose = async (plan) => {
+  const choose = async (plan, intervalArg) => {
     if (IS_NATIVE) {
       message.info('Change plans on the website to comply with App Store rules.')
-      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      window.open(WEB_BILLING(), '_blank')
       return
     }
+    const interval = (intervalArg === 'year' || billingInterval === 'year') && plans[plan]?.price > 0
+      ? 'year'
+      : 'month'
     setBusy(true)
     try {
-      const r = await api('/billing/plan', { method: 'POST', body: { plan } })
+      const r = await api('/billing/plan', {
+        method: 'POST',
+        body: { plan, interval },
+      })
       if (r.checkout_url) {
+        message.loading({
+          content: interval === 'year' ? 'Opening annual Stripe checkout…' : 'Opening monthly Stripe checkout…',
+          key: 'stripe',
+          duration: 2,
+        })
         window.location.href = r.checkout_url
         return
       }
       message.success(`Plan set to ${plan}${r.dev_mode ? ' (dev mode)' : ''}`)
+      try {
+        const me = await api('/auth/me')
+        setAuth(getToken(), me)
+      } catch { /* ignore */ }
       load()
     } catch (e) {
-      message.error(e.message)
+      const msg = String(e.message || '')
+      if (msg.toLowerCase().includes('crypto') || e.status === 402) {
+        setCryptoCtx({ kind: 'plan', plan })
+        setCryptoOpen(true)
+      } else {
+        message.error(msg || 'Could not start subscription')
+      }
     } finally {
       setBusy(false)
     }
@@ -175,7 +212,7 @@ export default function Billing() {
   const openPortal = async () => {
     if (IS_NATIVE) {
       message.info('Manage subscription on the website.')
-      window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+      window.open(WEB_BILLING(), '_blank')
       return
     }
     setBusy(true)
@@ -206,16 +243,24 @@ export default function Billing() {
         type: eligible ? 'primary' : 'default',
       }
     }
+    const iv = billingInterval === 'year' && p.price > 0 ? 'year' : 'month'
+    const annual = p.price_annual != null ? p.price_annual : (p.price > 0 ? p.price * 10 : 0)
+    const amount = iv === 'year' ? annual : p.price
+    const unit = iv === 'year' ? '/yr' : '/mo'
+    const price = p.price > 0
+      ? ` · $${Number(amount) % 1 ? Number(amount).toFixed(2) : amount}${unit}`
+      : ''
+    const sandbox = payOpts?.stripe?.sandbox ? ' (test)' : ''
     const upgrading = planRank(key) > planRank(currentPlan)
     if (upgrading) {
       return {
-        label: p.cta_upgrade || p.cta || `Upgrade to ${p.name}`,
+        label: `${iv === 'year' ? 'Upgrade annually' : (p.cta_upgrade || p.cta || `Upgrade to ${p.name}`)}${price}${sandbox}`,
         disabled: false,
         type: 'primary',
       }
     }
     return {
-      label: `Switch to ${p.name}`,
+      label: `${iv === 'year' ? 'Pay annually' : `Subscribe to ${p.name}`}${price}${sandbox}`,
       disabled: false,
       type: 'default',
     }
@@ -241,7 +286,7 @@ export default function Billing() {
           message="Subscriptions & top-ups"
           description="On the iOS app, manage payments on the website. Token meters still work here."
           action={
-            <Button size="small" type="primary" onClick={() => window.open('https://aiassitant-nu.vercel.app/billing', '_blank')}>
+            <Button size="small" type="primary" onClick={() => window.open(WEB_BILLING(), '_blank')}>
               Open web billing
             </Button>
           }
@@ -571,7 +616,7 @@ export default function Billing() {
               <Button
                 onClick={() => {
                   if (IS_NATIVE) {
-                    window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+                    window.open(WEB_BILLING(), '_blank')
                     return
                   }
                   setCryptoCtx({ kind: 'topup', amount })
@@ -634,18 +679,43 @@ export default function Billing() {
           styles={{ body: { padding: '8px 4px 12px' } }}
         >
           <PlansSectionHeader
-            title="Subscription tiers"
-            subtitle={
-              preorderOn
-                ? 'Pre-order 10% off · upgrade anytime. Higher tiers unlock more agents, companies, and tokens.'
-                : 'Live monthly subscriptions. Upgrade anytime. Higher tiers unlock more agents, companies, and included tokens.'
-            }
+            title="Live subscriptions — monthly or annual"
+            subtitle="Annual = 10× monthly (2 months free). Same features. Card via Stripe or crypto."
             centered
           />
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <Segmented
+              size="large"
+              value={billingInterval}
+              onChange={setBillingInterval}
+              options={[
+                { label: 'Pay monthly', value: 'month' },
+                { label: 'Pay annually · 2 mo free', value: 'year' },
+              ]}
+            />
+          </div>
+          {payOpts && !payOpts.ready_for_payments && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16, maxWidth: 640, marginInline: 'auto' }}
+              message="Payments not configured"
+              description="Set STRIPE_SECRET_KEY on the server (sk_test_… for sandbox or sk_live_… for real charges) so you and other customers can subscribe."
+            />
+          )}
+          {payOpts?.stripe?.sandbox && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16, maxWidth: 640, marginInline: 'auto' }}
+              message="Stripe test mode — use card 4242 4242 4242 4242"
+            />
+          )}
           <div className="aba-billing-plans-inner">
             <PlanCards
               plans={orderedPlans}
-              preorderOn={preorderOn}
+              preorderOn={false}
+              billingInterval={billingInterval}
               currentPlan={currentPlan}
               busy={busy}
               stripeSandbox={!!payOpts?.stripe?.sandbox}
@@ -654,7 +724,7 @@ export default function Billing() {
               onChoose={choose}
               onCrypto={(key) => {
                 if (IS_NATIVE) {
-                  window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+                  window.open(WEB_BILLING(), '_blank')
                   return
                 }
                 setCryptoCtx({ kind: 'plan', plan: key })

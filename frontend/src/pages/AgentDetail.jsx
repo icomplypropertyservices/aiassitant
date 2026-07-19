@@ -548,6 +548,7 @@ export default function AgentDetail() {
             extra={(
               <Space wrap>
                 <Button icon={<ArrowLeftOutlined />} onClick={() => nav(`/agents/${id}`)}>Back to chat</Button>
+                <Button icon={<ThunderboltOutlined />} onClick={() => nav(`/agents/${id}/dash`)}>Dashboard</Button>
                 <Button type="primary" icon={<MessageOutlined />} onClick={() => nav(`/agents/${id}`)}>Talk</Button>
               </Space>
             )}

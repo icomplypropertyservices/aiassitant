@@ -333,6 +333,15 @@ section.alt { background: #fff; border-block: 1px solid var(--line); }
   width: 100%;
 }
 .price-card .price span { font-size: 0.95rem; color: var(--muted); font-weight: 500; }
+.price-card .price-annual {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  color: var(--success);
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+}
+.price-card .price-annual strong { color: var(--ink); font-weight: 700; }
 .price-card .blurb {
   color: var(--muted);
   font-size: 0.92rem;

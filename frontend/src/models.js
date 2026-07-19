@@ -10,6 +10,8 @@ export const FALLBACK_MODELS = [
   { value: 'large', label: 'Large Context', group: 'managed', group_label: 'Managed', provider: 'managed' },
   { value: 'small', label: 'Small', group: 'managed', group_label: 'Managed', provider: 'managed' },
   { value: 'medium', label: 'Medium', group: 'managed', group_label: 'Managed', provider: 'managed' },
+  // Flagship — Main AI Orchestrator
+  { value: 'grok-4.3', label: 'Grok 4.3', group: 'flagship', group_label: 'Flagship', provider: 'managed' },
   // Media (also billed every use)
   { value: 'image', label: 'Image', group: 'media', group_label: 'Media', provider: 'managed' },
   { value: 'video', label: 'Video', group: 'media', group_label: 'Media', provider: 'managed' },

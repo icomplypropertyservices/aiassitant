@@ -223,6 +223,15 @@ export default function AgentDashboard() {
                       <List.Item
                         actions={[
                           <Button
+                            key="dash"
+                            type="link"
+                            size="small"
+                            icon={<FireOutlined />}
+                            onClick={() => nav(`/agents/${a.id}/dash`)}
+                          >
+                            Dashboard
+                          </Button>,
+                          <Button
                             key="chat"
                             type="link"
                             size="small"
@@ -238,7 +247,7 @@ export default function AgentDashboard() {
                             icon={<ApartmentOutlined />}
                             onClick={() => nav(`/agents/${a.id}/manage`)}
                           >
-                            Manage
+                            Settings
                           </Button>,
                         ]}
                       >
@@ -246,6 +255,10 @@ export default function AgentDashboard() {
                           avatar={(
                             <Badge count={openN} size="small" offset={[-2, 4]} color="#1668dc">
                               <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => nav(`/agents/${a.id}/dash`)}
+                                onKeyDown={(e) => e.key === 'Enter' && nav(`/agents/${a.id}/dash`)}
                                 style={{
                                   width: 40,
                                   height: 40,
@@ -256,6 +269,7 @@ export default function AgentDashboard() {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontWeight: 700,
+                                  cursor: 'pointer',
                                 }}
                               >
                                 {(a.name || '?').slice(0, 1).toUpperCase()}
@@ -264,7 +278,13 @@ export default function AgentDashboard() {
                           )}
                           title={(
                             <Space wrap size={[6, 4]}>
-                              <Text strong>{a.name}</Text>
+                              <Text
+                                strong
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => nav(`/agents/${a.id}/dash`)}
+                              >
+                                {a.name}
+                              </Text>
                               <Tag color={statusColor(a.status)}>{a.status || 'unknown'}</Tag>
                               {a.hierarchy_role && <Tag>{a.hierarchy_role}</Tag>}
                               {a.template_type && <Tag color="blue">{a.template_type}</Tag>}

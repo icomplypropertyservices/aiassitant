@@ -131,6 +131,15 @@ FRONTEND_URL = _env_str(
 # Prefer apex on production so links/OAuth match path layout docs
 if IS_PRODUCTION and "://www.aibusinessagent.xyz" in FRONTEND_URL:
     FRONTEND_URL = FRONTEND_URL.replace("://www.aibusinessagent.xyz", "://aibusinessagent.xyz")
+# Stripe success/cancel must land on the SPA under /agents (not marketing root)
+if IS_PRODUCTION:
+    _fu = FRONTEND_URL.rstrip("/")
+    if _fu in (_PROD_APEX, f"{_PROD_APEX}/") or (
+        "aibusinessagent.xyz" in _fu and not _fu.endswith("/agents")
+    ):
+        # e.g. https://aibusinessagent.xyz → https://aibusinessagent.xyz/agents
+        if _fu.rstrip("/").endswith("aibusinessagent.xyz"):
+            FRONTEND_URL = f"{_PROD_APEX}/agents"
 _default_cors = (
     "https://aibusinessagent.xyz,https://www.aibusinessagent.xyz"
     if IS_PRODUCTION
@@ -258,11 +267,29 @@ try:
 except ValueError:
     AUTONOMY_MAX_IDLE_FEEDS = 1
 try:
-    AUTONOMY_MIN_INTERVAL_SEC = max(30, int(os.getenv("AUTONOMY_MIN_INTERVAL_SEC", "300") or "300"))
+    # Cron is every 5m — keep min interval ≤ 300 so each cron can do a full cycle
+    AUTONOMY_MIN_INTERVAL_SEC = max(30, int(os.getenv("AUTONOMY_MIN_INTERVAL_SEC", "120") or "120"))
 except ValueError:
-    AUTONOMY_MIN_INTERVAL_SEC = 300
+    AUTONOMY_MIN_INTERVAL_SEC = 120
+try:
+    AUTONOMY_MAX_USERS_PER_TICK = max(5, int(os.getenv("AUTONOMY_MAX_USERS_PER_TICK", "25") or "25"))
+except ValueError:
+    AUTONOMY_MAX_USERS_PER_TICK = 25
+try:
+    AUTONOMY_LOOP_SEC = max(30, int(os.getenv("AUTONOMY_LOOP_SEC", "60") or "60"))
+except ValueError:
+    AUTONOMY_LOOP_SEC = 60
 # Force background autonomy tasks onto a small/fast tier (saves VRAM)
 AUTONOMY_MODEL = (os.getenv("AUTONOMY_MODEL") or "small").strip().lower() or "small"
+# How many LLM→skill loops before leaving task in_progress (agent stays busy)
+try:
+    TASK_RUNNER_MAX_TURNS = max(1, min(8, int(os.getenv("TASK_RUNNER_MAX_TURNS", "5") or "5")))
+except ValueError:
+    TASK_RUNNER_MAX_TURNS = 5
+try:
+    TASK_RUNNER_AUTONOMY_MAX_TURNS = max(1, min(4, int(os.getenv("TASK_RUNNER_AUTONOMY_MAX_TURNS", "3") or "3")))
+except ValueError:
+    TASK_RUNNER_AUTONOMY_MAX_TURNS = 3
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 
@@ -389,6 +416,10 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_STARTER = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_PRO = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_BUSINESS = os.getenv("STRIPE_PRICE_BUSINESS", "")
+# Optional annual recurring Price IDs (else inline price_data year interval)
+STRIPE_PRICE_STARTER_ANNUAL = os.getenv("STRIPE_PRICE_STARTER_ANNUAL", "")
+STRIPE_PRICE_PRO_ANNUAL = os.getenv("STRIPE_PRICE_PRO_ANNUAL", "")
+STRIPE_PRICE_BUSINESS_ANNUAL = os.getenv("STRIPE_PRICE_BUSINESS_ANNUAL", "")
 
 # AgentBay host (bridge posts to {AGENTBAY_URL}/api/bridge/...).
 # Production path deploy: https://aibusinessagent.xyz/bay  → API at /bay/api/...

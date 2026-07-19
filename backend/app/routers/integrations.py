@@ -414,6 +414,24 @@ async def connect_with_credentials(
     if data.agent_ids is not None:
         set_agent_links(db, row, data.agent_ids, user)
 
+    # Twilio: also mirror into Settings → API keys so SMS/voice channels work
+    if app["id"] == "twilio" and row.status == "connected":
+        try:
+            from ..routers.keys import _upsert_plain
+            merged = secrets_from_row(row)
+            meta = meta_from_row(row)
+            sid = (merged.get("twilio_sid") or meta.get("twilio_sid") or "").strip()
+            tok = (merged.get("twilio_token") or meta.get("twilio_token") or "").strip()
+            fr = (merged.get("twilio_from") or meta.get("twilio_from") or "").strip()
+            if sid:
+                _upsert_plain(db, user.id, "twilio_sid", sid, label="Twilio SID (from Apps)")
+            if tok:
+                _upsert_plain(db, user.id, "twilio_token", tok, label="Twilio token (from Apps)")
+            if fr:
+                _upsert_plain(db, user.id, "twilio_from", fr, label="Twilio From (from Apps)")
+        except Exception:
+            pass
+
     db.commit()
     db.refresh(row)
     out = connection_out(row, db)

@@ -90,6 +90,10 @@ PREORDER_DISCOUNT_PERCENT = 10
 # Set PREORDER_FORCE=1 only to temporarily re-open the pre-order discount window.
 PREORDER_FORCE = (os.getenv("PREORDER_FORCE") or "").strip().lower() in ("1", "true", "yes")
 
+# Annual = 10× monthly (≈2 months free / ~17% off vs paying monthly all year)
+ANNUAL_MONTHS_BILLED = 10
+ANNUAL_LABEL = "2 months free"
+
 MODEL_AVAILABILITY = {
     "grok": {
         "status": "api_only",
@@ -110,7 +114,11 @@ MODEL_AVAILABILITY = {
 
 
 def preorder_active(today: date | None = None) -> bool:
-    """Live mode: pre-order is off unless PREORDER_FORCE=1 and before LAUNCH_DATE."""
+    """Live mode: pre-order is off unless PREORDER_FORCE=1 and before LAUNCH_DATE.
+
+    Production default: always False so customers buy real monthly subscriptions
+    (full list price), not prepay/pre-order.
+    """
     if not PREORDER_FORCE:
         return False
     d = today or datetime.now(timezone.utc).date()
@@ -159,9 +167,29 @@ def apply_preorder_discount(list_price: float) -> float:
     return round(price * (1 - PREORDER_DISCOUNT_PERCENT / 100.0), 2)
 
 
-def plan_checkout_price(plan_id: str) -> float:
-    """USD amount charged for a plan (pre-order discount applied when active)."""
-    return apply_preorder_discount(float(plan_limits(plan_id).get("price") or 0))
+def plan_annual_list_price(plan_id: str) -> float:
+    """List annual price (10× monthly = 2 months free vs 12× monthly)."""
+    monthly = float(plan_limits(plan_id).get("price") or 0)
+    if monthly <= 0:
+        return 0.0
+    return round(monthly * ANNUAL_MONTHS_BILLED, 2)
+
+
+def plan_checkout_price(plan_id: str, interval: str = "month") -> float:
+    """USD charged for a plan at checkout (month | year). Pre-order discount if forced on."""
+    iv = (interval or "month").strip().lower()
+    if iv in ("year", "annual", "yearly"):
+        base = plan_annual_list_price(plan_id)
+    else:
+        base = float(plan_limits(plan_id).get("price") or 0)
+    return apply_preorder_discount(base)
+
+
+def normalize_billing_interval(interval: str | None) -> str:
+    iv = (interval or "month").strip().lower()
+    if iv in ("year", "annual", "yearly", "y", "yr"):
+        return "year"
+    return "month"
 
 
 PLANS = {
@@ -416,23 +444,37 @@ def max_enabled_skills(plan_id: str | None) -> int:
 
 
 def enrich_plan_for_public(plan_id: str, p: dict | None = None) -> dict:
-    """Attach checkout pricing fields for UI (list price; discount only if pre-order forced)."""
+    """Attach checkout pricing fields for UI (monthly + annual)."""
     base = dict(p or plan_limits(plan_id))
     list_price = float(base.get("price") or 0)
-    checkout = apply_preorder_discount(list_price)
+    annual_list = plan_annual_list_price(plan_id)
+    checkout_m = apply_preorder_discount(list_price)
+    checkout_y = apply_preorder_discount(annual_list)
     active = preorder_active()
     base["price_list"] = list_price
-    base["price"] = list_price  # list price stays for comparison
-    base["price_checkout"] = checkout
+    base["price"] = list_price  # monthly list for comparison
+    base["price_checkout"] = checkout_m
+    base["price_monthly"] = list_price
+    base["price_annual"] = annual_list
+    base["price_annual_checkout"] = checkout_y
+    # Equivalent monthly if paid yearly (for UI comparison)
+    base["price_annual_per_month"] = (
+        round(annual_list / 12.0, 2) if annual_list > 0 else 0.0
+    )
+    base["annual_months_billed"] = ANNUAL_MONTHS_BILLED
+    base["annual_savings_vs_monthly"] = (
+        round(list_price * 12 - annual_list, 2) if list_price > 0 else 0.0
+    )
+    base["annual_label"] = ANNUAL_LABEL
+    base["billing_intervals"] = ["month", "year"] if list_price > 0 else ["month"]
     base["preorder_active"] = active
     base["live_subscription"] = not active
     base["preorder_discount_percent"] = PREORDER_DISCOUNT_PERCENT if active and list_price > 0 else 0
     if active and list_price > 0:
-        base["price_display"] = checkout
-        base["preorder_savings"] = round(list_price - checkout, 2)
+        base["price_display"] = checkout_m
+        base["preorder_savings"] = round(list_price - checkout_m, 2)
         if not (base.get("badge") and base.get("highlight")):
             base["badge"] = f"{PREORDER_DISCOUNT_PERCENT}% off pre-order"
-        # Force pre-order CTAs when discount window is active (overwrite live CTAs)
         name = base.get("name") or plan_id.title()
         if base.get("requires_payment"):
             base["cta"] = f"Pre-order {name}"
@@ -440,7 +482,6 @@ def enrich_plan_for_public(plan_id: str, p: dict | None = None) -> dict:
     else:
         base["price_display"] = list_price
         base["preorder_savings"] = 0
-        # Live monthly subscription CTAs
         if base.get("requires_payment"):
             name = base.get("name") or plan_id.title()
             cta = str(base.get("cta") or "")

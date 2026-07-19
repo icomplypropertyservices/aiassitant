@@ -26,7 +26,7 @@ from .skills_policy import (
 from .permissions import can_execute, normalize_permission
 
 # One map: legacy / provider ids → neutral managed chat ids
-# Staff Server Monitor uses grok-max (highest Grok via xAI). Everyone else → RunPod Qwen/DeepSeek tiers.
+# Main orchestrator uses grok-4.3; staff Server Monitor uses grok-max (top Grok).
 _MODEL_MAP = {
     "vps-fast": "fast",
     "vps-quality": "quality",
@@ -43,14 +43,14 @@ _MODEL_MAP = {
     "deepseek": "reasoning",
     "deepseek-r1": "reasoning",
     "qwen": "quality",
-    # Highest Grok for staff server monitor only
-    "grok": "grok-max",
+    # Grok family — keep 4.3 distinct for Main Orchestrator (do not collapse to max/4.5)
+    "grok": "grok-4.3",
     "grok-max": "grok-max",
-    "grok-fast": "grok-max",
-    "grok-mini": "grok-max",
-    "grok-3": "grok-max",
-    "grok-4": "grok-max",
-    "grok-4.3": "grok-max",
+    "grok-fast": "fast",
+    "grok-mini": "fast",
+    "grok-3": "grok-4.3",
+    "grok-4": "grok-4.3",
+    "grok-4.3": "grok-4.3",
     "grok-4.5": "grok-max",
     "claude-haiku": "fast",
     "claude-sonnet": "quality",
@@ -59,8 +59,11 @@ _MODEL_MAP = {
 
 _NEUTRAL = frozenset({
     "fast", "quality", "reasoning", "large", "small", "medium",
-    "image", "video", "grok-max",
+    "image", "video", "grok-max", "grok-4.3", "grok-4.5",
 })
+
+# Main AI Orchestrator always runs on Grok 4.3
+ORCHESTRATOR_MODEL = "grok-4.3"
 
 
 def map_model(model: str | None) -> str:
@@ -69,6 +72,8 @@ def map_model(model: str | None) -> str:
         return _MODEL_MAP[m]
     if m in _NEUTRAL:
         return m
+    if "4.3" in m:
+        return "grok-4.3"
     if m.startswith("grok"):
         return "grok-max"
     if m.startswith(("vps", "qwen", "ollama", "deepseek")):
@@ -76,9 +81,61 @@ def map_model(model: str | None) -> str:
     return m or "quality"
 
 
+# Models too weak for multi-skill business work (CRM, outreach, goal chains)
+_WEAK_MODELS = frozenset({"fast", "small", "medium"})
+
+# Template → recommended neutral model (agents that complete real work need quality+)
+_TEMPLATE_MODEL = {
+    "orchestrator": ORCHESTRATOR_MODEL,
+    "staff_orchestrator": "quality",
+    "lead": "quality",
+    "sales": "quality",
+    "outreach": "quality",
+    "lead_gen": "quality",
+    "crm": "quality",
+    "booking": "quality",
+    "support": "quality",
+    "ops": "quality",
+    "content": "quality",
+    "marketing": "quality",
+    "seo": "quality",
+    "social": "quality",
+    "coding": "quality",
+    "developer": "quality",
+    "engineer": "quality",
+    "qa": "quality",
+    "designer": "quality",
+    "finance": "quality",
+    "bookkeep": "quality",
+    "research": "reasoning",
+    "analyst": "reasoning",
+    "data": "reasoning",
+    "server_monitor": "grok-max",
+    "fleet_ops": "quality",
+    "billing_ops": "quality",
+    "security_ops": "reasoning",
+}
+
+
+def recommended_model(
+    template_type: str | None = None,
+    hierarchy_role: str | None = None,
+) -> str:
+    """Best default model so agents can finish multi-step CRM / outreach / coding work."""
+    role = (hierarchy_role or "").lower()
+    tpl = (template_type or "").lower()
+    if tpl == "orchestrator" or role == "orchestrator":
+        return ORCHESTRATOR_MODEL
+    if role == "lead" or tpl == "lead":
+        return "quality"
+    if tpl in _TEMPLATE_MODEL:
+        return _TEMPLATE_MODEL[tpl]
+    return "quality"
+
+
 def is_grok_model(model: str | None) -> bool:
     m = map_model(model)
-    return m == "grok-max" or (m or "").startswith("grok")
+    return m in ("grok-max", "grok-4.3", "grok-4.5") or (m or "").startswith("grok")
 
 
 def role_default_permission(role: str) -> str:
@@ -206,6 +263,8 @@ def repair_agent(
         agent.parent_id = None
         if not (agent.template_type or "").strip():
             agent.template_type = "orchestrator"
+        # Main orchestrator always on Grok 4.3 (hire, projects, late-work sorting)
+        agent.model = ORCHESTRATOR_MODEL
     elif role == "lead":
         agent.is_lead = True
 
@@ -226,7 +285,13 @@ def repair_agent(
         agent.status = "active"
     # respect_pause: never flip paused → active here
 
-    agent.model = map_model(agent.model)
+    if role != "orchestrator":
+        agent.model = map_model(agent.model)
+        # Bump weak defaults so specialists can actually complete multi-skill tasks
+        if agent.model in _WEAK_MODELS:
+            agent.model = recommended_model(agent.template_type, role)
+    else:
+        agent.model = ORCHESTRATOR_MODEL
 
     if not (getattr(agent, "escalate_when", None) or "").strip():
         agent.escalate_when = "on_failure"
@@ -372,22 +437,25 @@ def apply_create_defaults(
 ) -> dict:
     role = (hierarchy_role or "").lower()
     tpl = (template_type or "").lower()
+    rec = recommended_model(tpl, role)
     if tpl == "orchestrator" or role == "orchestrator":
         return {
-            "model": map_model(data_model or "quality"),
+            "model": map_model(data_model or rec),
             "idle_mode": "never_idle",
             "permission_level": "admin",
             "status": "active",
         }
     if tpl == "lead" or role == "lead":
         return {
-            "model": map_model(data_model or "quality"),
+            "model": map_model(data_model or rec),
             "idle_mode": "never_idle",
             "permission_level": "lead",
             "status": "active",
         }
+    # Specialists (sales, support, coding, …) default to quality — not fast —
+    # so they reliably emit skill blocks and finish CRM / outreach work.
     return {
-        "model": map_model(data_model or "fast"),
+        "model": map_model(data_model or rec),
         "idle_mode": "never_idle",
         "permission_level": "operator",
         "status": "active",

@@ -251,6 +251,62 @@ async def autonomy_tick_all(
     }
 
 
+@router.post("/debug-team/ensure")
+def ensure_debug_team_endpoint(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Create/update 10 debug agents + Gatekeeper (all work must be reviewed)."""
+    from ..debug_team import ensure_debug_team
+    return ensure_debug_team(db, user)
+
+
+@router.get("/debug-team")
+def get_debug_team(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    from ..debug_team import list_debug_team, DEBUG_TEAM_SPEC
+
+    agents = list_debug_team(db, user.id)
+    return {
+        "ok": True,
+        "count": len(agents),
+        "expected": len(DEBUG_TEAM_SPEC),
+        "agents": [
+            {
+                "id": a.id,
+                "name": a.name,
+                "template_type": a.template_type,
+                "model": a.model,
+                "hierarchy_role": a.hierarchy_role,
+                "parent_id": a.parent_id,
+                "status": a.status,
+            }
+            for a in agents
+        ],
+        "policy": {
+            "gatekeeper": "Debug Gatekeeper",
+            "rule": "Nothing is done until Gatekeeper review_task approves",
+        },
+    }
+
+
+@router.post("/debug-team/run-check")
+async def run_debug_team_check(
+    focus: str = Query("full", description="full | twilio"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Start a gatekeeper-led debug workflow (Twilio-first option)."""
+    from ..debug_team import run_debug_gate_check
+    result = await run_debug_gate_check(db, user, focus=(focus or "full").strip().lower())
+    if not result.get("ok") and result.get("error"):
+        from fastapi import HTTPException
+        raise HTTPException(400, result.get("error"))
+    return result
+
+
 @router.get("/escalations")
 def list_escalations(
     limit: int = Query(40, ge=1, le=200),

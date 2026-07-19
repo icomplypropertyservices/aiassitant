@@ -91,6 +91,27 @@ def pick_assignee(
                 return a
 
     text = (step_text or "").lower()
+    # Prefer outreach member for email/call steps; sales lead for CRM / targets
+    if any(k in text for k in ("email", "call", "sms", "outreach", "dial", "follow-up", "follow up")):
+        for a in team:
+            name_l = (a.name or "").lower()
+            tpl = (a.template_type or "").lower()
+            if "outreach" in name_l or tpl == "outreach" or (
+                tpl == "sales" and (a.hierarchy_role or "") == "member"
+            ):
+                return a
+    if any(k in text for k in ("crm", "customer", "target", "prospect", "pipeline", "deal", "lead gen")):
+        for a in team:
+            tpl = (a.template_type or "").lower()
+            name_l = (a.name or "").lower()
+            if tpl in ("sales", "crm", "lead_gen") and (
+                (a.hierarchy_role or "") == "lead" or "lead" in name_l
+            ):
+                return a
+        for a in team:
+            if (a.template_type or "").lower() in ("sales", "crm", "lead_gen"):
+                return a
+
     keyword_map = (
         ("sales", ("sales", "outreach", "lead_gen", "crm")),
         ("marketing", ("marketing", "content", "seo", "social")),
@@ -124,10 +145,151 @@ def pick_assignee(
     return owner
 
 
+def _extract_count(text: str, default: int = 50, lo: int = 5, hi: int = 100) -> int:
+    """Pull a target count like '50 sales targets' from free text."""
+    m = re.search(
+        r"\b(\d{1,3})\s*(?:sales?\s*)?(?:targets?|leads?|prospects?|contacts?|customers?)\b",
+        text or "",
+        re.I,
+    )
+    if not m:
+        m = re.search(r"\b(\d{1,3})\b", text or "")
+    if not m:
+        return default
+    try:
+        n = int(m.group(1))
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, n))
+
+
+def looks_like_sales_pipeline(prompt: str) -> bool:
+    """True when the goal is generate leads/targets → CRM → outreach/pipeline."""
+    t = (prompt or "").lower()
+    salesish = any(
+        k in t
+        for k in (
+            "sales target", "sales targets", "lead", "leads", "prospect",
+            "crm", "pipeline", "outreach", "cold email", "cold call",
+            "book demo", "qualify", "sales board",
+        )
+    )
+    action = any(
+        k in t
+        for k in (
+            "get", "find", "generate", "build", "create", "save", "add",
+            "email", "call", "send", "update", "run", "fill", "source",
+            "prospect", "outreach",
+        )
+    )
+    return salesish and (action or _extract_count(t, default=0, lo=0, hi=999) > 0)
+
+
+def decompose_sales_pipeline(prompt: str, *, max_steps: int = 6) -> list[dict[str, Any]]:
+    """
+    Multi-agent sales handoff:
+      1) Sales lead — generate N targets
+      2) Sales lead — save customers + deals in CRM
+      3) Outreach — emails / calls / log activity
+      4) Outreach — move pipeline stages
+      5) Lead/orchestrator — rollup + notify human
+    """
+    n = _extract_count(prompt, default=50)
+    short = (prompt or "").strip()[:220]
+    steps: list[dict[str, Any]] = [
+        {
+            "title": f"Generate {n} sales targets",
+            "description": (
+                f"GOAL CONTEXT: {short}\n\n"
+                f"You are the sales research / lead gen agent.\n"
+                f"Produce a list of exactly {n} sales targets (ICP-fit companies or contacts).\n"
+                f"For EACH target include: full name, company, role/title, email (realistic placeholder "
+                f"if unknown), phone if known, niche/notes, priority (high/med/low).\n"
+                f"Write the full list in your reply (table or numbered).\n"
+                f"Save a compact summary with save_memory key=sales_targets_batch.\n"
+                f"Do NOT email yet — next agent will outreach.\n\n"
+                f"DONE WHEN: {n} named targets with company + contact details in the task result.\n"
+                f"TARGET: {n} sales targets ready for CRM import."
+            ),
+            "role_hint": "sales",
+            "done_when": f"{n} sales targets listed with company and contact details",
+        },
+        {
+            "title": f"Save {n} targets into CRM",
+            "description": (
+                f"GOAL CONTEXT: {short}\n\n"
+                f"You own the CRM step. Read parent goal / prior step results (list_tasks, get_task, "
+                f"list_activity, list_customers).\n"
+                f"For each sales target from step 1, call create_customer "
+                f'(name, email, phone, tags=["sales-target","auto-chain"], notes).\n'
+                f"Then create_deal for each new customer (title like '{{Company}} — outreach', "
+                f"priority from target, value if known).\n"
+                f"Batch: aim for all {n} (or as many as listed). Use list_pipelines / get_pipeline "
+                f"if you need stage ids.\n"
+                f"Emit one ```skill block per create_customer and create_deal.\n\n"
+                f"DONE WHEN: ≥{max(1, n // 2)} customers created in CRM with open deals "
+                f"(ideally all {n}).\n"
+                f"TARGET: CRM populated; deals on sales pipeline."
+            ),
+            "role_hint": "sales",
+            "done_when": f"At least half of {n} targets saved as CRM customers with deals",
+        },
+        {
+            "title": "Outreach: emails and calls",
+            "description": (
+                f"GOAL CONTEXT: {short}\n\n"
+                f"You are the outreach specialist. Pull fresh CRM rows: list_customers, list_deals, "
+                f"get_pipeline.\n"
+                f"For each new sales-target customer (tag sales-target or recent):\n"
+                f"  1) draft_email personalized pitch\n"
+                f"  2) send_email when credentials allow (else leave draft + log)\n"
+                f"  3) log_customer_activity (email/call note)\n"
+                f"  4) If phone present, prepare call script; use call skill if available\n"
+                f"Do real skill calls — do not only describe outreach.\n"
+                f"Cover as many CRM targets as practical this run (batch ≥10 or all open).\n\n"
+                f"DONE WHEN: Outreach attempted for a clear batch of CRM targets with activity logs.\n"
+                f"TARGET: Emails/calls logged on customers; human can see activity in Business CRM."
+            ),
+            "role_hint": "outreach",
+            "done_when": "Outreach emails/calls logged on CRM customers",
+        },
+        {
+            "title": "Update sales pipeline stages",
+            "description": (
+                f"GOAL CONTEXT: {short}\n\n"
+                f"Update the board after outreach: list_pipelines, get_pipeline, list_deals.\n"
+                f"move_deal / update_deal for contacts contacted → next stage "
+                f"(e.g. Contacted / Qualified).\n"
+                f"win_deal / lose_deal only with evidence.\n"
+                f"pipeline_summary at the end.\n\n"
+                f"DONE WHEN: Pipeline reflects outreach progress; summary in task result.\n"
+                f"TARGET: Deals moved; pipeline_summary numbers match reality."
+            ),
+            "role_hint": "sales",
+            "done_when": "Pipeline stages updated after outreach",
+        },
+        {
+            "title": "Report results to human",
+            "description": (
+                f"GOAL CONTEXT: {short}\n\n"
+                f"Roll up: how many targets generated, CRM customers/deals created, emails/calls, "
+                f"pipeline value. Use list_customers, pipeline_summary, list_activity.\n"
+                f"status_update or notify_human with a short owner brief.\n"
+                f"save_memory key=sales_pipeline_run_summary.\n\n"
+                f"DONE WHEN: Human notified with counts and next recommended actions.\n"
+                f"TARGET: Clear status_update delivered."
+            ),
+            "role_hint": "orchestrator",
+            "done_when": "Human has status update with CRM and outreach counts",
+        },
+    ]
+    return steps[:max_steps]
+
+
 def decompose_goal(prompt: str, *, max_steps: int = 6) -> list[dict[str, Any]]:
     """
     Deterministic step breakdown without an extra LLM call.
-    Prefer numbered lines from the human; else synthesize role-oriented steps.
+    Prefer numbered lines from the human; else sales playbook; else synthesize.
     """
     text = (prompt or "").strip()
     steps: list[dict[str, Any]] = []
@@ -142,6 +304,10 @@ def decompose_goal(prompt: str, *, max_steps: int = 6) -> list[dict[str, Any]]:
 
     if steps:
         return steps[:max_steps]
+
+    # Multi-agent sales: targets → CRM → emails/calls → pipeline
+    if looks_like_sales_pipeline(text):
+        return decompose_sales_pipeline(text, max_steps=max_steps)
 
     # Sentence split for long prose
     chunks = re.split(r"(?<=[.!?])\s+|\n+", text)
@@ -231,10 +397,15 @@ async def start_goal_chain(
     steps: list[dict[str, Any]] | list[str] | None = None,
     max_steps: int = 6,
     auto_queue: bool = True,
+    child_label_prefix: str = "",
+    require_review_default: bool = False,
 ) -> dict[str, Any]:
     """
     Full automatic chain from one prompt.
     Returns parent task id, child ids, assignments.
+
+    Steps may include: labels, acceptance_json, require_review, checklist, done_when.
+    Labels/acceptance are applied atomically at create (no post-hoc patch).
     """
     prompt = (prompt or "").strip()
     if not prompt:
@@ -319,25 +490,57 @@ async def start_goal_chain(
         else:
             status = "todo"
 
-        child = models.Task(
-            user_id=user.id,
-            agent_id=assignee.id,
-            company_id=company_id or assignee.company_id,
-            project_id=project_id or assignee.project_id,
-            parent_task_id=parent.id,
-            title=f"[{i + 1}/{len(normalized)}] {stitle}"[:200],
-            description=(
-                f"{sdesc}\n\n---\nParent goal #{parent.id}: {goal_title}\n"
-                f"DONE WHEN: {done_when}\n"
-                f"TARGET: {done_when}\n"
-                f"Assigned to {assignee.name} via auto-chain. "
-                f"Call complete_task with evidence when the target is met."
-            )[:8000],
-            status=status,
-            priority=priority or "high",
-            labels=f"auto-chain,step,{i + 1}",
-            assignee_type="agent",
+        # Atomic labels: step defaults + optional step.labels / require_review
+        from .orchestration.acceptance import merge_labels
+        step_labels = step.get("labels") or ""
+        extra = [f"step", str(i + 1)]
+        if child_label_prefix:
+            extra.append(child_label_prefix)
+        require_rev = bool(
+            step.get("require_review")
+            if step.get("require_review") is not None
+            else require_review_default
         )
+        if require_rev or step.get("checklist"):
+            extra.extend(["needs-review", "requires-review", "has-checklist"])
+        labels = merge_labels("auto-chain", step_labels, extra=extra)
+
+        desc = (
+            f"{sdesc}\n\n---\nParent goal #{parent.id}: {goal_title}\n"
+            f"DONE WHEN: {done_when}\n"
+            f"TARGET: {done_when}\n"
+            f"Assigned to {assignee.name} via auto-chain. "
+            f"Call complete_task with evidence when the target is met."
+        )
+        # Prefer description already composed by workflow_run (has embed)
+        if "DONE WHEN:" in (sdesc or "").upper() and len(sdesc) > 80:
+            desc = sdesc
+        acc_json = step.get("acceptance_json") or ""
+        if not acc_json and (step.get("checklist") or require_rev):
+            from .orchestration.acceptance import pack_acceptance
+            acc_json = pack_acceptance(
+                done_when=str(done_when),
+                checklist=step.get("checklist") or [],
+                require_review=require_rev or bool(step.get("checklist")),
+            )
+
+        child_kwargs: dict[str, Any] = {
+            "user_id": user.id,
+            "agent_id": assignee.id,
+            "company_id": company_id or assignee.company_id,
+            "project_id": project_id or assignee.project_id,
+            "parent_task_id": parent.id,
+            "title": f"[{i + 1}/{len(normalized)}] {stitle}"[:200],
+            "description": desc[:8000],
+            "status": status,
+            "priority": priority or "high",
+            "labels": labels,
+            "assignee_type": "agent",
+        }
+        if hasattr(models.Task, "acceptance_json") and acc_json:
+            child_kwargs["acceptance_json"] = acc_json[:8000]
+
+        child = models.Task(**child_kwargs)
         db.add(child)
         db.flush()
         if status == "queued" and first_queued_id is None:
@@ -350,6 +553,7 @@ async def start_goal_chain(
                 "agent_name": assignee.name,
                 "status": child.status,
                 "done_when": str(done_when)[:200],
+                "labels": labels,
             }
         )
 

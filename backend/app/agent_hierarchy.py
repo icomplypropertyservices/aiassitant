@@ -68,9 +68,10 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
     Always applies the full orchestrator skill pack (create_task, execute_goal,
     message_agent, open_meeting, spawn_*, …) via ensure_agent_skills.
     """
-    from .agent_scaffold import ensure_agent_skills, repair_agent
+    from .agent_scaffold import ORCHESTRATOR_MODEL, ensure_agent_skills, repair_agent
 
     existing = find_orchestrator(db, user.id)
+
     if existing:
         promote_orchestrator(db, existing)
         existing.hierarchy_role = "orchestrator"
@@ -80,9 +81,15 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
             existing.permission_level = "admin"
         if not existing.idle_mode:
             existing.idle_mode = "never_idle"
+        # Grok 4.3 — hire agents, create work, sort late projects
+        existing.model = ORCHESTRATOR_MODEL
         # Role pack ON even when orchestrator already existed (empty AgentSkillState
         # previously relied on runtime defaults only — persist full pack now).
         ensure_agent_skills(db, existing)
+        try:
+            repair_agent(db, existing, force_never_idle=True, expand_skills=True)
+        except Exception:
+            pass
         db.commit()
         db.refresh(existing)
         return existing
@@ -94,11 +101,18 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
         personality=(
             "Strategic, clear, and decisive. You sit above all other agents, "
             "route work to the right lead or project team, and keep the human owner informed. "
-            "You operate 100% autonomously: spawn, delegate, run skills, and recover from failures."
+            "You operate 100% autonomously: hire/spawn agents, create companies and projects, "
+            "delegate work, sort late/overdue projects, run skills, and recover from failures."
         ),
-        model="quality",
+        model=ORCHESTRATOR_MODEL,
         idle_mode="never_idle",
-        config=json.dumps({"mission": "Coordinate all companies, projects, and agents", "autonomy": "full"}),
+        config=json.dumps({
+            "mission": "Coordinate all companies, projects, and agents",
+            "autonomy": "full",
+            "can_hire": True,
+            "sort_late_projects": True,
+            "model_note": "grok-4.3",
+        }),
         is_lead=True,
         hierarchy_role="orchestrator",
         parent_id=None,

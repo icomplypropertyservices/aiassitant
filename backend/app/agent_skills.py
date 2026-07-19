@@ -46,10 +46,23 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "spawn_agent",
         "name": "Spawn agent",
-        "description": "Create a new team agent under you (or as orchestrator under any lead).",
+        "description": (
+            "Hire / create a new team agent under you (or as orchestrator under any lead). "
+            "Use when expanding the workforce for a project."
+        ),
         "args": ["name", "template_type", "personality", "hierarchy_role", "parent_id"],
         # Members may spawn via UI/API; chat skill still prefers leads but is allowed for all operators
         "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "hire_agent",
+        "name": "Hire agent",
+        "description": (
+            "Hire a new specialist or lead (same as spawn_agent). "
+            "Prefer this when the human says hire / recruit / expand the team."
+        ),
+        "args": ["name", "template_type", "personality", "hierarchy_role", "parent_id"],
+        "roles": ["orchestrator", "lead", "member"],
     },
     {
         "id": "message_agent",
@@ -94,12 +107,14 @@ SKILL_CATALOG: list[dict] = [
         "name": "Create task",
         "description": (
             "Create a task for yourself (default) or another agent/human. "
-            "Always include success_criteria or done_when (measurable target). "
+            "Always include success_criteria or done_when (measurable target) AND "
+            "checklist (list of items the lead will verify). "
             "Active agents are queued and run immediately unless run_now=false."
         ),
         "args": [
             "title", "description", "agent_id", "human_id", "priority", "run_now",
             "meeting_id", "parent_task_id", "success_criteria", "done_when", "target",
+            "checklist", "checks", "must_check",
         ],
         "roles": ["orchestrator", "lead", "member"],
     },
@@ -114,15 +129,86 @@ SKILL_CATALOG: list[dict] = [
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
+        "id": "create_pattern",
+        "name": "Create work pattern",
+        "description": (
+            "Save a reusable multi-step pattern (who does what + checklists). "
+            "Leads use patterns so subagents get consistent work. "
+            "steps: [{title, description, role|agent_id, checklist, done_when}]."
+        ),
+        "args": [
+            "name", "description", "steps", "checklist", "category", "tags", "pattern_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "list_patterns",
+        "name": "List work patterns",
+        "description": "List reusable workflow patterns saved in this workspace.",
+        "args": ["q", "category", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "get_pattern",
+        "name": "Get work pattern",
+        "description": "Load one pattern by id, name, or slug (full steps + checklists).",
+        "args": ["pattern_id", "name", "slug"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "delete_pattern",
+        "name": "Delete work pattern",
+        "description": "Remove a saved pattern from the workspace.",
+        "args": ["pattern_id"],
+        "roles": ["orchestrator", "lead"],
+    },
+    {
+        "id": "run_pattern",
+        "name": "Run work pattern",
+        "description": (
+            "Start a saved pattern as a live multi-agent workflow "
+            "(parent goal + sequential steps for subagents)."
+        ),
+        "args": ["pattern_id", "name", "title", "priority"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "create_workflow",
+        "name": "Create subagent workflow",
+        "description": (
+            "LEAD: Create a multi-step workflow for subagents. Each step needs "
+            "title/description, agent_id or role, done_when, and checklist "
+            "(what you will check). Optional save_as_pattern=true to reuse later. "
+            "After steps finish, use review_task to approve or tell the agent what's wrong."
+        ),
+        "args": [
+            "title", "description", "steps", "checklist", "priority",
+            "save_as_pattern", "pattern_name", "category",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "review_task",
+        "name": "Review / reject task",
+        "description": (
+            "LEAD: Review subagent work. action=approve or reject. "
+            "On reject: set feedback (what's wrong), checks_failed (failed checklist items); "
+            "the assignee is messaged, task re-queued with WHAT'S WRONG, and re-run."
+        ),
+        "args": [
+            "task_id", "action", "feedback", "whats_wrong", "checks_failed", "failed_checks",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
         "id": "announce_plan",
         "name": "Announce plan",
         "description": (
             "Publish a multi-step plan to live ops and create a parent task + child steps. "
-            "String steps stay on the announcer (backward compatible). "
-            "Dict steps may set agent_id / role (or role_hint / template_type) to assign via "
-            "task_chain.pick_assignee; active agents are queued for autonomy."
+            "Dict steps may set agent_id / role, done_when, checklist (what lead verifies). "
+            "Sequential: step 1 runs first; later steps unlock after complete."
         ),
-        "args": ["title", "steps"],
+        "args": ["title", "steps", "priority"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
@@ -466,6 +552,45 @@ SKILL_CATALOG: list[dict] = [
         ),
         "args": [],
         "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "create_company",
+        "name": "Create company",
+        "description": "Create a company under this workspace (name required).",
+        "args": ["name", "industry", "notes", "description"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "create_project",
+        "name": "Create project",
+        "description": (
+            "Create a project to organise work. Optional company_id; if omitted uses "
+            "first company or auto-creates one. Then hire agents and assign tasks."
+        ),
+        "args": ["name", "description", "company_id", "status"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "list_projects",
+        "name": "List projects",
+        "description": "List companies' projects with status and open-task counts.",
+        "args": ["company_id", "status", "q", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "sort_late_projects",
+        "name": "Sort late projects",
+        "description": (
+            "Find late / stuck / overdue work: projects and tasks open too long, "
+            "high priority unfinished, chain steps blocked. Optionally re-queue, "
+            "reassign to active agents, create recovery tasks, and notify the human. "
+            "Orchestrator uses this to sort out late projects and get work moving."
+        ),
+        "args": [
+            "days_late", "limit", "requeue", "create_recovery_tasks",
+            "notify_human", "company_id", "project_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
     },
     {
         "id": "comment",
@@ -3055,7 +3180,16 @@ def strip_skill_blocks(text: str) -> str:
 # mode: std | extra | meta | created | default
 HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'spawn_agent': ('_skill_spawn', 'std', ()),
+    'hire_agent': ('_skill_spawn', 'std', ()),
+    'hire': ('_skill_spawn', 'std', ()),
     'message_agent': ('_skill_message', 'std', ()),
+    'create_company': ('_skill_create_company', 'std', ()),
+    'create_project': ('_skill_create_project', 'std', ()),
+    'add_project': ('_skill_create_project', 'std', ()),
+    'list_projects': ('_skill_list_projects', 'std', ()),
+    'sort_late_projects': ('_skill_sort_late_projects', 'std', ()),
+    'sort_late_work': ('_skill_sort_late_projects', 'std', ()),
+    'unstick_projects': ('_skill_sort_late_projects', 'std', ()),
     'use_app': ('_skill_use_app', 'std', ()),
     'assign_human': ('_skill_assign_human', 'std', ()),
     'save_memory': ('_skill_save_memory', 'std', ()),
@@ -3063,6 +3197,17 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'create_task': ('_skill_create_task', 'std', ()),
     'execute_goal': ('_skill_execute_goal', 'std', ()),
     'announce_plan': ('_skill_announce_plan', 'std', ()),
+    'create_pattern': ('_skill_create_pattern', 'std', ()),
+    'save_pattern': ('_skill_create_pattern', 'std', ()),
+    'list_patterns': ('_skill_list_patterns', 'std', ()),
+    'get_pattern': ('_skill_get_pattern', 'std', ()),
+    'delete_pattern': ('_skill_delete_pattern', 'std', ()),
+    'run_pattern': ('_skill_run_pattern', 'std', ()),
+    'apply_pattern': ('_skill_run_pattern', 'std', ()),
+    'create_workflow': ('_skill_create_workflow', 'std', ()),
+    'review_task': ('_skill_review_task', 'std', ()),
+    'reject_task': ('_skill_review_task', 'std', ()),
+    'request_changes': ('_skill_review_task', 'std', ()),
     'list_customers': ('_skill_list_customers', 'std', ()),
     'get_customer': ('_skill_get_customer', 'std', ()),
     'create_customer': ('_skill_create_customer', 'std', ()),
