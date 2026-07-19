@@ -597,6 +597,72 @@ async def _skill_list_humans(db: Session, agent: models.Agent, user: models.User
             break
     return {"ok": True, "count": len(out), "humans": out}
 
+async def _skill_list_activity(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Read activity logs for this agent, another agent, or the whole workspace."""
+    args = dict(args or {})
+    try:
+        limit = min(80, max(1, int(args.get("limit") or 30)))
+    except (TypeError, ValueError):
+        limit = 30
+    q = (args.get("q") or args.get("query") or args.get("search") or "").strip().lower()
+    type_filter = (args.get("type") or args.get("kind") or "").strip().lower() or None
+
+    mine = args.get("mine")
+    if isinstance(mine, str):
+        mine = mine.strip().lower() in ("1", "true", "yes", "on")
+    agent_id = args.get("agent_id")
+    try:
+        agent_id = int(agent_id) if agent_id not in (None, "") else None
+    except (TypeError, ValueError):
+        agent_id = None
+    if mine and agent_id is None:
+        agent_id = agent.id
+
+    # Scope: all agents owned by this user (workspace-wide read)
+    team_ids = [a.id for a in db.query(models.Agent).filter_by(user_id=user.id).all()]
+    if not team_ids:
+        return {"ok": True, "count": 0, "logs": [], "message": "No agents in workspace"}
+
+    query = db.query(models.ActivityLog).filter(models.ActivityLog.agent_id.in_(team_ids))
+    if agent_id is not None:
+        if agent_id not in team_ids:
+            return {"ok": False, "error": "agent not found in workspace"}
+        query = query.filter(models.ActivityLog.agent_id == agent_id)
+    if type_filter:
+        query = query.filter(models.ActivityLog.type == type_filter)
+
+    rows = query.order_by(models.ActivityLog.id.desc()).limit(min(200, limit * 3)).all()
+    # Name map
+    names = {
+        a.id: a.name
+        for a in db.query(models.Agent).filter(models.Agent.id.in_(team_ids)).all()
+    }
+    out = []
+    for r in rows:
+        msg = r.message or ""
+        if q and q not in msg.lower() and q not in (r.type or "").lower() and q not in (names.get(r.agent_id) or "").lower():
+            continue
+        out.append({
+            "id": r.id,
+            "agent_id": r.agent_id,
+            "agent_name": names.get(r.agent_id) or f"agent:{r.agent_id}",
+            "type": r.type,
+            "message": msg[:500],
+            "created_at": r.created_at.isoformat() + "Z" if getattr(r, "created_at", None) and hasattr(r.created_at, "isoformat") else None,
+        })
+        if len(out) >= limit:
+            break
+
+    scope = f"agent #{agent_id}" if agent_id else "workspace"
+    return {
+        "ok": True,
+        "count": len(out),
+        "scope": scope,
+        "logs": out,
+        "message": f"{len(out)} activity log(s) ({scope})",
+    }
+
+
 async def _skill_read_workspace(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     """Compact snapshot so agents can orient without asking the human."""
     agents_n = db.query(models.Agent).filter_by(user_id=user.id).count()
@@ -627,6 +693,27 @@ async def _skill_read_workspace(db: Session, agent: models.Agent, user: models.U
         .limit(8)
         .all()
     )
+    # Recent activity across the team (agents can read all logs)
+    team_ids = [a.id for a in db.query(models.Agent).filter_by(user_id=user.id).limit(80).all()]
+    recent_logs = []
+    if team_ids:
+        name_map = {
+            a.id: a.name
+            for a in db.query(models.Agent).filter(models.Agent.id.in_(team_ids)).all()
+        }
+        for r in (
+            db.query(models.ActivityLog)
+            .filter(models.ActivityLog.agent_id.in_(team_ids))
+            .order_by(models.ActivityLog.id.desc())
+            .limit(12)
+            .all()
+        ):
+            recent_logs.append({
+                "agent_id": r.agent_id,
+                "agent_name": name_map.get(r.agent_id),
+                "type": r.type,
+                "message": (r.message or "")[:180],
+            })
     return {
         "ok": True,
         "snapshot": {
@@ -641,9 +728,10 @@ async def _skill_read_workspace(db: Session, agent: models.Agent, user: models.U
                 {"id": t.id, "title": t.title, "status": t.status, "agent_id": t.agent_id}
                 for t in recent_tasks
             ],
+            "recent_activity": recent_logs,
             "you": {"agent_id": agent.id, "name": agent.name, "role": agent.hierarchy_role},
         },
-        "message": "Workspace snapshot ready — use list_* / get_* / comment for detail.",
+        "message": "Workspace snapshot ready — use list_activity for full logs; list_* / get_* for detail.",
     }
 
 async def _skill_comment(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
@@ -774,6 +862,7 @@ __all__ = [
     '_skill_claim_task',
     '_skill_set_task_status',
     '_skill_list_humans',
+    '_skill_list_activity',
     '_skill_read_workspace',
     '_skill_comment',
 ]

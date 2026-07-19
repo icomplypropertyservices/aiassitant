@@ -140,14 +140,16 @@ def build_agent_system_prompt(
         "search_knowledge, get_customer). "
         "TASK BOARD — you DO the work (not just advise). Use skills without asking permission: "
         "list_tasks / search_tasks (mine=true for your queue); get_task for detail; "
-        "claim_task to assign yourself open work and queue it with exact done-when targets; "
-        "create_task to add work for yourself or teammates (include success_criteria / done_when / target); "
+        "list_activity (workspace logs — you may read ALL team activity logs) before duplicating work; "
+        "claim_task to assign yourself open work with done-when targets; "
+        "create_task for yourself or teammates (always success_criteria / done_when / target); "
         "set_task_status in_progress when you start; respond_to_task or complete_task when finished "
-        "with a concrete result that matches the target; update_task for progress notes. "
-        "When you create a task for yourself, set agent_id to your id and run_now true so it executes. "
-        "Orchestrators: open work / task id / 'board' → list_tasks or search_tasks first, then "
-        "claim_task / create_task / complete_task. Never leave work as vague advice — always a board row "
-        "with a measurable done-when, then complete it. "
+        "with evidence matching the target. "
+        "MEETINGS: open_meeting, invite_to_meeting (agent_ids), post_to_meeting, run_meeting_round, "
+        "list_meetings, extract_meeting_tasks. Always invite the agents who need to speak. "
+        "When you create a task for yourself, agent_id=self and run_now true. "
+        "Orchestrators: board questions → list_tasks/search_tasks → claim/create/complete. "
+        "Never leave work as vague advice — always a board row with measurable done-when, then complete it. "
         "Run the sales board with create_deal, move_deal, win_deal, lose_deal, update_pipeline. "
         "You may COMMENT / note on records with the comment skill (target_type + target_id + body) "
         "or post_to_meeting / log_customer_activity / message_agent / Human messages. "
@@ -201,6 +203,33 @@ def build_task_prompt(
         if marker in body.upper():
             success_hint = " (match the DONE WHEN / TARGET lines in the brief exactly)"
             break
+    # Inject recent team activity so the agent starts oriented (read-all-logs)
+    recent_logs_txt = ""
+    try:
+        team_ids = [
+            a.id for a in db.query(models.Agent).filter_by(user_id=agent.user_id).limit(60).all()
+        ]
+        if team_ids:
+            names = {
+                a.id: a.name
+                for a in db.query(models.Agent).filter(models.Agent.id.in_(team_ids)).all()
+            }
+            rows = (
+                db.query(models.ActivityLog)
+                .filter(models.ActivityLog.agent_id.in_(team_ids))
+                .order_by(models.ActivityLog.id.desc())
+                .limit(10)
+                .all()
+            )
+            if rows:
+                lines = []
+                for r in rows:
+                    who = names.get(r.agent_id) or f"agent:{r.agent_id}"
+                    lines.append(f"- [{r.type}] {who}: {(r.message or '')[:140]}")
+                recent_logs_txt = "RECENT TEAM ACTIVITY (you can read all logs via list_activity):\n" + "\n".join(lines)
+    except Exception:
+        recent_logs_txt = ""
+
     work_block = f"""
 === ACTIVE TASK (you must finish this) ===
 task_id: {tid}
@@ -211,24 +240,41 @@ labels: {labs or "—"}
 BRIEF:
 {body}
 
-MANDATORY WORK ORDER:
-1) Do the real work now (draft, research, CRM, create child tasks, message agents, etc.).
-2) Hit the success criteria / DONE WHEN / TARGET in the brief{success_hint}.
-3) When finished, emit this skill (required — board stays open without it):
+{recent_logs_txt}
+
+=== STANDARD WORKFLOW (follow in order — this is how you work) ===
+STEP 0 — ORIENT (skills):
+  - list_activity (optional mine=true or workspace) — see what already happened
+  - list_tasks mine=true / get_task if needed
+  - read_workspace if scope is unclear
+
+STEP 1 — PLAN:
+  - Restate DONE WHEN / TARGET in one line
+  - If multi-part: create_task child steps with success_criteria, or message_agent teammates
+  - If discussion needed: open_meeting + invite_to_meeting, or post_to_meeting
+
+STEP 2 — EXECUTE (do real work now):
+  - Drafts, CRM, research, generate_content, deals, emails (draft), meeting rounds, etc.
+  - Use update_task to leave progress notes mid-flight
+
+STEP 3 — PROVE & CLOSE{success_hint}:
+  - Deliverable must satisfy DONE WHEN / TARGET
+  - REQUIRED finish skill:
 
 ```skill
 complete_task
 {{"task_id": {tid}, "result": "<1-5 sentences: what you delivered and how it meets the target>"}}
 ```
 
-If blocked, use:
+If blocked after a real attempt:
+
 ```skill
 set_task_status
 {{"task_id": {tid}, "status": "failed"}}
 ```
-and put the blocker in a result note via update_task.
+plus update_task with the blocker note.
 
-Produce the deliverable in your reply (email body, plan, analysis, etc.) — no empty "I'll do it later".
-If mid-work is material, status_update / notify_human so the owner stays informed.
+No empty "I'll do it later". Produce the deliverable in your reply.
+Material mid-work → status_update / notify_human.
 """
     return f"{system}\nBusiness context: {ctx}\n{work_block}"

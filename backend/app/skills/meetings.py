@@ -570,6 +570,82 @@ async def _skill_list_meetings(db: Session, agent: models.Agent, user: models.Us
     }
 
 
+async def _skill_invite_to_meeting(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Add agent(s) as participants in a meeting room."""
+    meeting_id = _parse_meeting_id(args)
+    room = _meeting_room(db, user, meeting_id)
+    if not room:
+        return {"ok": False, "error": "meeting_id required or meeting not found"}
+    if (room.status or "").lower() == "closed":
+        return {"ok": False, "error": "meeting is closed"}
+
+    ids = _parse_id_list(args.get("agent_ids") or args.get("agents") or [])
+    single = args.get("agent_id")
+    if single is not None and str(single).strip() != "":
+        try:
+            ids.append(int(single))
+        except (TypeError, ValueError):
+            pass
+    # de-dupe
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for aid in ids:
+        if aid in seen:
+            continue
+        seen.add(aid)
+        ordered.append(aid)
+    if not ordered:
+        return {"ok": False, "error": "agent_ids or agent_id required"}
+
+    role = (args.get("role") or "member").strip().lower()
+    if role not in ("chair", "member", "observer"):
+        role = "member"
+
+    added = []
+    already = []
+    for aid in ordered:
+        a = db.get(models.Agent, aid)
+        if not a or a.user_id != user.id:
+            continue
+        existing = (
+            db.query(models.MeetingParticipant)
+            .filter_by(room_id=room.id, kind="agent", agent_id=aid)
+            .first()
+        )
+        if existing:
+            already.append({"agent_id": aid, "name": a.name})
+            continue
+        db.add(models.MeetingParticipant(
+            room_id=room.id,
+            kind="agent",
+            agent_id=aid,
+            role=role if aid != room.chair_agent_id else "chair",
+            joined_at=datetime.utcnow(),
+        ))
+        db.add(models.MeetingMessage(
+            room_id=room.id,
+            sender_kind="system",
+            content=f"{a.name} joined the meeting as {role}.",
+            msg_type="system",
+            meta_json=json.dumps({"skill": "invite_to_meeting", "agent_id": aid}),
+            created_at=datetime.utcnow(),
+        ))
+        added.append({"agent_id": aid, "name": a.name, "role": role})
+
+    if (room.status or "").lower() == "open" and added:
+        room.status = "active"
+    db.commit()
+
+    return {
+        "ok": True,
+        "message": f"Invited {len(added)} agent(s) to meeting #{room.id}"
+                   + (f" ({len(already)} already in room)" if already else ""),
+        "meeting_id": room.id,
+        "added": added,
+        "already": already,
+    }
+
+
 __all__ = [
     '_parse_meeting_id',
     '_parse_id_list',
@@ -580,4 +656,5 @@ __all__ = [
     '_skill_close_meeting',
     '_skill_extract_meeting_tasks',
     '_skill_list_meetings',
+    '_skill_invite_to_meeting',
 ]

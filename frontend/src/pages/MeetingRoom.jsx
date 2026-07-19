@@ -127,6 +127,9 @@ export default function MeetingRoom() {
   const [taskOpen, setTaskOpen] = useState(false)
   const [taskSaving, setTaskSaving] = useState(false)
   const [agents, setAgents] = useState([])
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteIds, setInviteIds] = useState([])
+  const [inviteBusy, setInviteBusy] = useState(false)
   const [taskForm] = Form.useForm()
   const bottomRef = useRef(null)
   const skipScrollRef = useRef(false)
@@ -229,6 +232,84 @@ export default function MeetingRoom() {
     [participants],
   )
   const hasAgents = agentParticipants.length > 0 || Boolean(room?.chair_agent_id)
+  const agentIdsInRoom = useMemo(
+    () => new Set(agentParticipants.map((p) => p.agent_id).filter((x) => x != null)),
+    [agentParticipants],
+  )
+  const agentsAvailable = useMemo(
+    () => agents.filter((a) => a && a.id != null && !agentIdsInRoom.has(a.id)),
+    [agents, agentIdsInRoom],
+  )
+
+  const inviteAgents = async () => {
+    if (id == null || !inviteIds.length || inviteBusy) return
+    if (room?.status === 'closed') {
+      message.warning('Meeting is closed')
+      return
+    }
+    setInviteBusy(true)
+    try {
+      const res = await api(`/meetings/${id}/participants/invite`, {
+        method: 'POST',
+        body: { agent_ids: inviteIds, role: 'member' },
+      })
+      const parts = res?.participants
+      if (Array.isArray(parts)) {
+        setParticipants(parts.filter((p) => p && typeof p === 'object'))
+      } else {
+        await load({ quiet: true })
+      }
+      const n = res?.added_count ?? (res?.added?.length || 0)
+      const already = res?.already?.length || 0
+      if (n > 0) message.success(`Added ${n} agent${n === 1 ? '' : 's'}`)
+      else if (already > 0) message.info('Agent(s) already in the room')
+      else if (Array.isArray(res?.failed) && res.failed.length) {
+        message.error(res.failed[0]?.error || 'Could not add agents')
+      } else {
+        message.warning('No agents added')
+      }
+      setInviteOpen(false)
+      setInviteIds([])
+      if (room?.status === 'open' && n > 0) {
+        setRoom((r) => (r ? { ...r, status: 'active' } : r))
+      }
+    } catch (e) {
+      // Fallback: add one-by-one if bulk endpoint missing on older deploy
+      try {
+        let ok = 0
+        for (const agentId of inviteIds) {
+          await api(`/meetings/${id}/participants`, {
+            method: 'POST',
+            body: { kind: 'agent', agent_id: agentId, role: 'member' },
+          })
+          ok += 1
+        }
+        if (ok) {
+          message.success(`Added ${ok} agent${ok === 1 ? '' : 's'}`)
+          await load({ quiet: true })
+          setInviteOpen(false)
+          setInviteIds([])
+        } else {
+          message.error(e?.message || 'Failed to add agents')
+        }
+      } catch (e2) {
+        message.error(e2?.message || e?.message || 'Failed to add agents')
+      }
+    } finally {
+      setInviteBusy(false)
+    }
+  }
+
+  const removeParticipant = async (p) => {
+    if (!p?.id || id == null) return
+    try {
+      await api(`/meetings/${id}/participants/${p.id}`, { method: 'DELETE' })
+      setParticipants((prev) => prev.filter((x) => x?.id !== p.id))
+      message.success('Removed from room')
+    } catch (e) {
+      message.error(e?.message || 'Could not remove')
+    }
+  }
   const chatMessages = useMemo(
     () => messages.filter((m) => m && typeof m === 'object'),
     [messages],
@@ -664,6 +745,20 @@ export default function MeetingRoom() {
               )}
             </Space>
           )}
+          extra={(
+            <Button
+              type="primary"
+              size="small"
+              icon={<PlusOutlined />}
+              disabled={room?.status === 'closed' || agents.length === 0}
+              onClick={() => {
+                setInviteIds([])
+                setInviteOpen(true)
+              }}
+            >
+              Add agents
+            </Button>
+          )}
           styles={participants.length === 0
             ? { body: { ...emptyCardBody, minHeight: 160 } }
             : undefined}
@@ -675,6 +770,11 @@ export default function MeetingRoom() {
                   key={p.id ?? `${p.kind}-${p.agent_id || p.human_id || p.user_id || i}`}
                   icon={senderIcon(p.kind)}
                   color={p.role === 'chair' ? 'gold' : undefined}
+                  closable={Boolean(p.id) && p.kind === 'agent' && room?.status !== 'closed'}
+                  onClose={(e) => {
+                    e?.preventDefault?.()
+                    removeParticipant(p)
+                  }}
                 >
                   {p.name || p.display_name || p.kind || 'Participant'}
                   {p.role === 'chair' ? ' · chair' : ''}
@@ -687,15 +787,23 @@ export default function MeetingRoom() {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={(
                 <span>
-                  No participants listed for this room
+                  No agents in this room yet
                   <br />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Open Agents and start a meeting with agents, or create a new room with participants.
+                    Tap <strong>Add agents</strong> to invite your team into the meeting.
                   </Text>
                 </span>
               )}
             >
-              <Button size="small" onClick={() => nav('/console')}>Open Agents</Button>
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusOutlined />}
+                disabled={agents.length === 0}
+                onClick={() => setInviteOpen(true)}
+              >
+                Add agents
+              </Button>
             </Empty>
           )}
         </Card>
@@ -921,6 +1029,45 @@ export default function MeetingRoom() {
           )}
         </Card>
       </Space>
+
+      <Modal
+        title="Add agents to meeting"
+        open={inviteOpen}
+        onCancel={() => { setInviteOpen(false); setInviteIds([]) }}
+        onOk={inviteAgents}
+        confirmLoading={inviteBusy}
+        destroyOnClose
+        okText={inviteIds.length ? `Add ${inviteIds.length}` : 'Add agents'}
+        okButtonProps={{ disabled: inviteIds.length === 0 || agentsAvailable.length === 0 }}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          Select agents to join this room. They can then speak in rounds and take actions.
+        </Text>
+        {agentsAvailable.length === 0 ? (
+          <Alert
+            type="info"
+            showIcon
+            message={
+              agents.length === 0
+                ? 'No agents in your workspace — create some under Agents first.'
+                : 'All of your agents are already in this room.'
+            }
+          />
+        ) : (
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="Choose agents"
+            value={inviteIds}
+            onChange={setInviteIds}
+            optionFilterProp="label"
+            options={agentsAvailable.map((a) => ({
+              value: a.id,
+              label: `${a.name || `Agent #${a.id}`}${a.hierarchy_role || a.template_type ? ` · ${a.hierarchy_role || a.template_type}` : ''}`,
+            }))}
+          />
+        )}
+      </Modal>
 
       <Modal
         title="Create task from meeting"

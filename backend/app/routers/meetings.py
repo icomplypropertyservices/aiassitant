@@ -828,6 +828,12 @@ def update_meeting(
     return _room_out(room, db, with_participants=True, with_messages=False)
 
 
+class InviteAgentsIn(BaseModel):
+    """Bulk invite agents into a room (UI + skills)."""
+    agent_ids: list[int] = Field(default_factory=list)
+    role: str = "member"
+
+
 @router.post("/{room_id}/participants")
 def add_participant(
     room_id: int,
@@ -836,19 +842,40 @@ def add_participant(
     user=Depends(get_current_user),
 ):
     room = _get_room(db, room_id, user)
-    if room.status == "closed":
+    if (room.status or "").lower() == "closed":
         raise HTTPException(400, "Meeting is closed")
     fields = _validate_participant(db, user, data)
-    existing = _participant_exists(db, room.id, fields)
+    try:
+        existing = _participant_exists(db, room.id, fields)
+    except Exception:
+        existing = None
     if existing:
         return _participant_out(existing, db)
 
-    p = models.MeetingParticipant(room_id=room.id, **fields)
-    db.add(p)
+    # Prefer resilient insert (skips missing columns / lagging Neon schema)
+    p = _add_participant_row(db, room_id=room.id, **fields)
+    if p is None:
+        try:
+            p = models.MeetingParticipant(room_id=room.id, **fields)
+            db.add(p)
+            db.flush()
+        except Exception as e:
+            _safe_rollback(db)
+            raise HTTPException(
+                503,
+                f"Could not add participant (DB schema): {e}",
+            ) from e
+
     name_hint = ""
     if fields["kind"] == "agent":
         a = db.get(models.Agent, fields["agent_id"])
         name_hint = a.name if a else f"agent:{fields['agent_id']}"
+        # Keep chair_agent_id in sync when inviting as chair
+        if fields.get("role") == "chair" and hasattr(room, "chair_agent_id"):
+            try:
+                room.chair_agent_id = fields["agent_id"]
+            except Exception:
+                pass
     elif fields["kind"] == "human":
         h = db.get(models.Human, fields["human_id"])
         name_hint = h.name if h else f"human:{fields['human_id']}"
@@ -860,9 +887,105 @@ def add_participant(
         f"{name_hint} joined the meeting as {fields['role']}.",
         meta={"event": "participant_joined", **{k: v for k, v in fields.items() if v is not None}},
     )
-    db.commit()
-    db.refresh(p)
+    if (room.status or "").lower() == "open":
+        room.status = "active"
+    try:
+        db.commit()
+        if p is not None:
+            db.refresh(p)
+    except Exception as e:
+        _safe_rollback(db)
+        raise HTTPException(500, f"Failed to save participant: {e}") from e
+    if p is None:
+        # Last resort: re-query after commit
+        p = _participant_exists(db, room.id, fields)
+    if p is None:
+        raise HTTPException(500, "Participant saved but could not be reloaded")
     return _participant_out(p, db)
+
+
+@router.post("/{room_id}/participants/invite")
+def invite_agents(
+    room_id: int,
+    data: InviteAgentsIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Invite one or many agents in a single call (primary UI path)."""
+    room = _get_room(db, room_id, user)
+    if (room.status or "").lower() == "closed":
+        raise HTTPException(400, "Meeting is closed")
+    role = (data.role or "member").strip().lower()
+    if role not in PARTICIPANT_ROLES:
+        role = "member"
+    ids: list[int] = []
+    for raw in data.agent_ids or []:
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    # de-dupe preserve order
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for aid in ids:
+        if aid in seen:
+            continue
+        seen.add(aid)
+        ordered.append(aid)
+    if not ordered:
+        raise HTTPException(400, "agent_ids required")
+
+    added = []
+    already = []
+    failed = []
+    for aid in ordered:
+        try:
+            fields = _validate_participant(
+                db, user, {"kind": "agent", "agent_id": aid, "role": role},
+            )
+            existing = _participant_exists(db, room.id, fields)
+            if existing:
+                already.append(_participant_out(existing, db))
+                continue
+            p = _add_participant_row(db, room_id=room.id, **fields)
+            if p is None:
+                p = models.MeetingParticipant(room_id=room.id, **fields)
+                db.add(p)
+                db.flush()
+            a = db.get(models.Agent, aid)
+            name = a.name if a else f"agent:{aid}"
+            _add_system_message(
+                db,
+                room.id,
+                f"{name} joined the meeting as {role}.",
+                meta={"event": "participant_joined", "kind": "agent", "agent_id": aid, "role": role},
+            )
+            added.append({"agent_id": aid, "name": name, "role": role, "id": getattr(p, "id", None)})
+        except HTTPException as he:
+            failed.append({"agent_id": aid, "error": he.detail})
+        except Exception as e:
+            failed.append({"agent_id": aid, "error": str(e)[:200]})
+
+    if (room.status or "").lower() == "open" and added:
+        room.status = "active"
+    try:
+        db.commit()
+    except Exception as e:
+        _safe_rollback(db)
+        raise HTTPException(500, f"Failed to invite agents: {e}") from e
+
+    # Return full participant list so UI can refresh in one shot
+    room = _get_room(db, room_id, user)
+    out = _room_out(room, db, with_participants=True, with_messages=False)
+    return {
+        "ok": True,
+        "added": added,
+        "already": already,
+        "failed": failed,
+        "added_count": len(added),
+        "participants": out.get("participants") or [],
+        "meeting": out,
+    }
 
 
 @router.delete("/{room_id}/participants/{participant_id}")

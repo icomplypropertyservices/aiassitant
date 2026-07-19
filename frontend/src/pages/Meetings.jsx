@@ -150,15 +150,17 @@ export default function Meetings() {
         message.error('Title required')
         return
       }
-      const chairId = values.chair_agent_id || null
-      const agentIds = Array.isArray(values.agent_ids) ? values.agent_ids : []
+      const agentIds = (Array.isArray(values.agent_ids) ? values.agent_ids : [])
+        .filter((aid) => aid != null)
+      // If user only picks participants, first agent chairs so room is not agent-empty
+      const chairId = values.chair_agent_id || agentIds[0] || null
       const body = {
         title,
         purpose: (values.purpose || '').trim(),
         room_type: values.room_type || 'brainstorm',
         chair_agent_id: chairId,
         participants: agentIds
-          .filter((aid) => aid != null && aid !== chairId)
+          .filter((aid) => aid !== chairId)
           .map((agent_id) => ({ kind: 'agent', agent_id, role: 'member' })),
       }
       const room = await api('/meetings', { method: 'POST', body })
@@ -514,7 +516,7 @@ export default function Meetings() {
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-              message="No agents yet — you can still open a room and invite agents later from Agents."
+              message="No agents yet — open a room anyway, then use Add agents inside the meeting."
             />
           )}
           <Form.Item name="chair_agent_id" label="Chair agent">

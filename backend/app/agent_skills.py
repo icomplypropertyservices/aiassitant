@@ -316,6 +316,26 @@ SKILL_CATALOG: list[dict] = [
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
+        "id": "invite_to_meeting",
+        "name": "Invite agents to meeting",
+        "description": (
+            "Add one or more agents as participants in a meeting room. "
+            "Use meeting_id + agent_ids (or agent_id)."
+        ),
+        "args": ["meeting_id", "agent_ids", "agent_id", "role"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "list_activity",
+        "name": "List activity logs",
+        "description": (
+            "Read agent activity logs across the workspace (or mine=true / agent_id). "
+            "Use when starting work to see what teammates already did."
+        ),
+        "args": ["mine", "agent_id", "q", "type", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
         "id": "list_humans",
         "name": "List human teammates",
         "description": "List human team members (My Human and others) with status and capacity.",
@@ -2760,6 +2780,8 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'run_meeting_round': ('_skill_run_meeting_round', 'std', ()),
     'close_meeting': ('_skill_close_meeting', 'std', ()),
     'extract_meeting_tasks': ('_skill_extract_meeting_tasks', 'std', ()),
+    'invite_to_meeting': ('_skill_invite_to_meeting', 'std', ()),
+    'list_activity': ('_skill_list_activity', 'std', ()),
     'draft_email': ('_skill_draft_email', 'std', ()),
     'send_email': ('_skill_send_email', 'std', ()),
     'draft_sms': ('_skill_draft_sms', 'std', ()),

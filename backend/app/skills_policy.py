@@ -158,6 +158,8 @@ _ID_CATEGORY: dict[str, str] = {
     "update_pipeline": "crm",
     # meeting rooms (multi-agent brainstorm / war-room)
     "open_meeting": "ops",
+    "invite_to_meeting": "ops",
+    "list_activity": "ops",
     "post_to_meeting": "ops",
     "run_meeting_round": "ops",
     "close_meeting": "ops",
@@ -393,6 +395,8 @@ _CORE_ALWAYS = frozenset({
     "claim_task",
     "set_task_status",
     "list_meetings",
+    "invite_to_meeting",
+    "list_activity",
     "list_humans",
     "read_workspace",
     "comment",
