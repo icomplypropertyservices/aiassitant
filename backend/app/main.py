@@ -263,8 +263,14 @@ def health():
         "billing_free_grants": False if config.IS_PRODUCTION else True,
         "docs_enabled": not config.IS_PRODUCTION,
         "cron_secret_configured": bool(config.CRON_SECRET),
-        "autonomy_offline": True,
+        # On Vercel there is no long-lived process — autonomy runs via cron/ticks only.
+        "autonomy_offline": bool(__import__("os").getenv("VERCEL")),
         "autonomy_cron": "/api/ops/autonomy/tick-all",
+        "autonomy_cron_schedule": "*/5 * * * *",
+        "autonomy_note": (
+            "Serverless: agents keep working when cron hits /api/ops/autonomy/tick-all "
+            "every 5 minutes (vercel.json). Local non-Vercel runs autonomy_background_loop."
+        ),
         "path_frontend_hint": config.FRONTEND_URL,
         "cli_api": True,
         "meetings": meetings is not None,

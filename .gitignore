@@ -81,3 +81,8 @@ backend/uploads/
 *.keystore
 frontend/android/key.properties
 frontend/android/app/release/
+
+# local autonomy secrets/logs
+.env.cron.pull
+scripts/autonomy_keepalive.log
+
