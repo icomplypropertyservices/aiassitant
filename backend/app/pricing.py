@@ -215,12 +215,22 @@ def public_rates() -> list[dict]:
     for kind, row in EVENT_PRICING.items():
         if kind.startswith("voice") or kind == "premium-comm":
             continue
+        usd = row.get("usd") if isinstance(row, dict) else None
+        meter_tok = int(row.get("meter_tokens") or 0) if isinstance(row, dict) else 0
+        if usd is None:
+            blurb = (
+                f"Token-metered skill action (~{meter_tok} tokens from included pool)"
+                if meter_tok
+                else "Token-metered action (included pool first)"
+            )
+        else:
+            blurb = f"Flat ${float(usd):.2f} per generation"
         out.append({
             "id": kind,
-            "label": MODEL_LABELS.get(kind, kind.title()),
-            "blurb": f"Flat ${row['usd']:.2f} per generation",
+            "label": MODEL_LABELS.get(kind, kind.replace("-", " ").title()),
+            "blurb": blurb,
             "usd_per_1m": PRICING.get(kind, 0),
-            "flat_usd": row["usd"],
-            "group": "media",
+            "flat_usd": usd,
+            "group": "media" if usd is not None else "skills",
         })
     return out

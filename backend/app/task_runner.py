@@ -64,17 +64,33 @@ async def kick_queued_task(
         name = agent_name or a.name or "Agent"
         labels = (getattr(t, "labels", None) or "")
 
-        # From chat / post-chat on serverless: do NOT start multi-turn runner in-request
-        # (was freezing agent replies past the browser timeout).
-        defer = run_inline is False or (
-            run_inline is None
-            and is_serverless()
-            and any(tag in labels for tag in ("post-chat", "auto-workflow", "self-run", "autonomy"))
+        # Never start multi-turn runner inside interactive chat (504 / browser timeouts).
+        # Logs showed POST /agents/*/chat running 5× quality LLM turns + re-queue in one request.
+        from .request_context import defer_task_runs
+        defer = (
+            run_inline is False
+            or defer_task_runs()
+            or (
+                run_inline is None
+                and is_serverless()
+                and any(
+                    tag in labels
+                    for tag in (
+                        "post-chat", "auto-workflow", "self-run", "autonomy",
+                        "auto-chain", "goal", "self-assigned",
+                    )
+                )
+            )
+            # Serverless default: queue only unless caller forces run_inline=True
+            or (run_inline is None and is_serverless())
         )
         if defer:
             t.updated_at = datetime.utcnow()
             db.commit()
-            log.info("kick deferred (queued) task_id=%s labels=%s", task_id, labels[:80])
+            log.info(
+                "kick deferred (queued) task_id=%s labels=%s chat_scope=%s",
+                task_id, labels[:80], defer_task_runs(),
+            )
             return True
 
         # Claim the row immediately so a second kick cannot double-run

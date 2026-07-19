@@ -43,10 +43,16 @@ async def schedule(coro, *, timeout_sec: float | None = None) -> None:
             pass
         return
 
-    budget = 20.0 if timeout_sec is None else max(1.0, float(timeout_sec))
+    budget = 15.0 if timeout_sec is None else max(1.0, float(timeout_sec))
     try:
         await asyncio.wait_for(coro, timeout=budget)
     except asyncio.TimeoutError:
         log.warning("schedule: serverless job hit %.0fs budget — continuing without await", budget)
+        # Best-effort cancel the task so it does not keep burning the same request
+        try:
+            if asyncio.iscoroutine(coro):
+                coro.close()
+        except Exception:
+            pass
     except Exception as e:
         log.warning("schedule: job failed: %s", e)

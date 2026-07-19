@@ -121,6 +121,14 @@ def delete_memory(agent_id: int, memory_id: int, db: Session = Depends(get_db), 
 @router.post("/{agent_id}/chat")
 async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """Direct agent chat — optimised for mobile REST (fast non-stream Grok)."""
+    from ..request_context import chat_request_scope
+
+    # All kicks/chains from this request leave work queued — never multi-turn await
+    with chat_request_scope():
+        return await _chat_with_agent_impl(agent_id, data, db, user)
+
+
+async def _chat_with_agent_impl(agent_id: int, data: AgentChatIn, db: Session, user):
     from ..agent_scaffold import map_model, resolve_runtime
     from ..llm import complete_with_usage as llm_complete
     a = _get_owned(agent_id, user, db)
@@ -128,12 +136,18 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     rt = resolve_runtime(a)
     mode = mode_for_template(a.template_type)
     model = rt.model or "fast"
-    # Prefer snappy Fast tier for chat unless user explicitly picked quality/reasoning
+    # Interactive chat must stay snappy — force a mid tier (not multi-turn grok-4.5/4.3)
     mlow = str(model).lower()
-    if mode == "coding" and mlow in ("fast", "small", "medium", "vps-fast"):
+    if mode == "coding":
         model = "quality"
-    elif mlow in ("", "default", "auto"):
-        model = "fast"
+    elif (a.hierarchy_role or "") == "orchestrator" or mlow in (
+        "grok-4.3", "grok-4.5", "grok-max", "large", "reasoning", "orchestrator",
+    ):
+        model = "quality"
+    elif mlow in ("", "default", "auto", "fast", "small", "medium", "vps-fast"):
+        model = "fast" if mlow in ("fast", "small", "medium", "vps-fast", "", "default", "auto") else model
+    else:
+        model = "quality"
 
     text = (data.message or "").strip()
     if not text:

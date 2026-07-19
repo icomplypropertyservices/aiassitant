@@ -372,6 +372,8 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
                 agent_id=agent.id,
                 description=t.description,
                 agent_name=agent.name,
+                run_inline=True,  # autonomy tick is allowed to run work
+                timeout_sec=45.0,
             )
             if not ok:
                 await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
