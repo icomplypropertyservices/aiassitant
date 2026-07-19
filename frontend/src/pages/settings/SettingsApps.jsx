@@ -53,10 +53,23 @@ export default function SettingsApps({ onConnectedCountChange }) {
       api('/integrations/oauth/google-status').catch(() => null),
     ])
       .then(([cat, con, ag, gstat]) => {
-        setCatalog(cat.apps || [])
-        setConnections(con.connections || [])
-        setAgents(Array.isArray(ag) ? ag : [])
-        setGoogleOauthOk(gstat)
+        const apps = Array.isArray(cat?.apps) ? cat.apps : (Array.isArray(cat) ? cat : [])
+        const conns = Array.isArray(con?.connections)
+          ? con.connections
+          : (Array.isArray(con) ? con : [])
+        let agentList = []
+        if (Array.isArray(ag)) agentList = ag
+        else if (Array.isArray(ag?.agents)) agentList = ag.agents
+        else if (Array.isArray(ag?.items)) agentList = ag.items
+        setCatalog(apps.filter((a) => a && a.id))
+        setConnections(conns.filter((c) => c && c.id != null))
+        setAgents(agentList.filter((a) => a && a.id != null))
+        setGoogleOauthOk(gstat && typeof gstat === 'object' ? gstat : null)
+      })
+      .catch(() => {
+        setCatalog([])
+        setConnections([])
+        setAgents([])
       })
       .finally(() => setAppsLoading(false))
   }

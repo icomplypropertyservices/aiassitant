@@ -566,6 +566,41 @@ async def _skill_set_task_status(db: Session, agent: models.Agent, user: models.
             pass
     return out
 
+
+async def _skill_delete_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Delete a task the workspace owns (agents can clean up board items)."""
+    try:
+        tid = int(args.get("task_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "task_id required"}
+    t = db.get(models.Task, tid)
+    if not t or t.user_id != user.id:
+        return {"ok": False, "error": "task not found"}
+    title = t.title or f"#{t.id}"
+    # Soft-delete children first if any (avoid orphan open chain)
+    children = db.query(models.Task).filter_by(parent_task_id=t.id).all()
+    for ch in children:
+        db.delete(ch)
+    db.delete(t)
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="task_delete",
+            message=f"Deleted task #{tid}: {title}",
+        ))
+    except Exception:
+        pass
+    db.commit()
+    try:
+        from ..ws import manager
+        await manager.broadcast(
+            f"agents:{user.id}",
+            {"event": "task_deleted", "task_id": tid},
+        )
+    except Exception:
+        pass
+    return {"ok": True, "message": f"Deleted task #{tid} ({title})", "task_id": tid}
+
 async def _skill_list_humans(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     try:
         limit = min(50, int(args.get("limit") or 30))
@@ -861,6 +896,7 @@ __all__ = [
     '_skill_complete_task',
     '_skill_claim_task',
     '_skill_set_task_status',
+    '_skill_delete_task',
     '_skill_list_humans',
     '_skill_list_activity',
     '_skill_read_workspace',

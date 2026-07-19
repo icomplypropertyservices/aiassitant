@@ -151,10 +151,30 @@ SKILL_CATALOG: list[dict] = [
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
+        "id": "create_customer",
+        "name": "Create customer",
+        "description": "Add a new customer/contact to CRM (name required; email, phone, tags, notes optional).",
+        "args": [
+            "name", "email", "phone", "account_name", "status", "tags", "notes",
+            "source", "job_title", "website", "industry", "city", "country", "company_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
         "id": "update_customer",
         "name": "Update customer",
         "description": "Edit contact details, owner, tags, notes, status on an existing customer.",
-        "args": ["customer_id", "email", "name", "phone", "status", "tags", "notes", "owner_human_id", "owner_agent_id"],
+        "args": [
+            "customer_id", "email", "name", "phone", "status", "tags", "notes",
+            "owner_human_id", "owner_agent_id", "account_name", "job_title", "source",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "delete_customer",
+        "name": "Delete customer",
+        "description": "Permanently remove a customer and their deals/activities from CRM.",
+        "args": ["customer_id", "email"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -169,6 +189,20 @@ SKILL_CATALOG: list[dict] = [
         "name": "Create deal",
         "description": "Create a new opportunity/deal for an existing customer in a pipeline.",
         "args": ["customer_id", "email", "title", "value", "priority", "expected_close", "pipeline_id", "stage_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "update_deal",
+        "name": "Update deal",
+        "description": "Change deal title, value, priority, status, description, or expected close.",
+        "args": ["deal_id", "title", "value", "priority", "status", "description", "expected_close", "currency"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "delete_deal",
+        "name": "Delete deal",
+        "description": "Permanently remove a deal/opportunity from the pipeline board.",
+        "args": ["deal_id"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -300,6 +334,13 @@ SKILL_CATALOG: list[dict] = [
         "description": "Mark a task completed with an optional result summary. Unlocks auto-chain siblings.",
         "args": ["task_id", "result"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "delete_task",
+        "name": "Delete task",
+        "description": "Permanently remove a task (and its child steps) from the board.",
+        "args": ["task_id"],
+        "roles": ["orchestrator", "lead", "member"],
     },
     {
         "id": "set_task_status",
@@ -2695,9 +2736,10 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
 
     # High-value skills always listed first (orchestrator / daily ops)
     priority_ids = [
-        "create_task", "claim_task", "message_agent", "spawn_agent", "list_team", "list_customers",
+        "create_task", "claim_task", "delete_task", "message_agent", "spawn_agent", "list_team",
+        "list_customers", "create_customer", "update_customer", "delete_customer",
         "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
-        "complete_task", "set_task_status", "list_activity",
+        "complete_task", "set_task_status", "list_activity", "create_deal", "update_deal", "delete_deal",
         "list_meetings", "invite_to_meeting", "open_meeting", "list_humans", "list_deals",
         "list_pipelines", "get_pipeline", "move_deal", "win_deal", "pipeline_summary",
         "read_workspace", "comment", "search_knowledge", "search_memory",
@@ -2912,9 +2954,13 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'announce_plan': ('_skill_announce_plan', 'std', ()),
     'list_customers': ('_skill_list_customers', 'std', ()),
     'get_customer': ('_skill_get_customer', 'std', ()),
+    'create_customer': ('_skill_create_customer', 'std', ()),
     'update_customer': ('_skill_update_customer', 'std', ()),
+    'delete_customer': ('_skill_delete_customer', 'std', ()),
     'log_customer_activity': ('_skill_log_customer_activity', 'std', ()),
     'create_deal': ('_skill_create_deal', 'std', ()),
+    'update_deal': ('_skill_update_deal', 'std', ()),
+    'delete_deal': ('_skill_delete_deal', 'std', ()),
     'schedule_meeting': ('_skill_schedule_meeting', 'std', ()),
     'list_diary': ('_skill_list_diary', 'std', ()),
     'list_pipelines': ('_skill_list_pipelines', 'std', ()),
@@ -2932,6 +2978,7 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'respond_to_task': ('_skill_respond_to_task', 'std', ()),
     'complete_task': ('_skill_complete_task', 'std', ()),
     'claim_task': ('_skill_claim_task', 'std', ()),
+    'delete_task': ('_skill_delete_task', 'std', ()),
     'set_task_status': ('_skill_set_task_status', 'std', ()),
     'list_meetings': ('_skill_list_meetings', 'std', ()),
     'list_humans': ('_skill_list_humans', 'std', ()),

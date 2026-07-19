@@ -46,6 +46,54 @@ async def _skill_get_customer(db: Session, agent: models.Agent, user: models.Use
         "diary": [{"id": d.id, "title": d.title, "start_at": d.start_at, "status": d.status} for d in diary],
     }
 
+async def _skill_create_customer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from .. import crm_service
+    name = (args.get("name") or args.get("customer_name") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    company_id = args.get("company_id")
+    try:
+        company_id = int(company_id) if company_id not in (None, "") else None
+    except (TypeError, ValueError):
+        company_id = None
+    try:
+        c = crm_service.create_customer(
+            db, user,
+            name=name,
+            email=args.get("email") or "",
+            phone=args.get("phone") or "",
+            job_title=args.get("job_title") or "",
+            account_name=args.get("account_name") or args.get("company") or "",
+            website=args.get("website") or "",
+            industry=args.get("industry") or "",
+            address=args.get("address") or "",
+            city=args.get("city") or "",
+            country=args.get("country") or "",
+            status=args.get("status") or "active",
+            source=args.get("source") or "agent",
+            tags=args.get("tags") or "",
+            notes=args.get("notes") or "",
+            annual_value=float(args.get("annual_value") or 0),
+            company_id=company_id,
+            owner_agent_id=agent.id,
+            agent_id=agent.id,
+        )
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+    await emit_ops(
+        user.id, kind="system", status="info",
+        title=f"Customer added: {c.name}",
+        detail=c.account_name or c.email or "",
+        agent_id=agent.id, db=db,
+    )
+    return {
+        "ok": True,
+        "message": f"Created customer {c.name} (#{c.id})",
+        "customer_id": c.id,
+        "customer": crm_service.customer_out(c, db, light=True),
+    }
+
+
 async def _skill_update_customer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     from .. import crm_service
     cust = crm_service.resolve_customer(
@@ -54,15 +102,90 @@ async def _skill_update_customer(db: Session, agent: models.Agent, user: models.
     if not cust:
         return {"ok": False, "error": "customer not found or not owned"}
     fields = {}
-    for f in ("name", "phone", "status", "tags", "notes", "owner_human_id", "owner_agent_id"):
+    for f in (
+        "name", "email", "phone", "status", "tags", "notes", "owner_human_id", "owner_agent_id",
+        "job_title", "account_name", "website", "industry", "city", "country", "source",
+        "annual_value",
+    ):
         if args.get(f) is not None:
             fields[f] = args[f]
-    cust = crm_service.update_customer_fields(db, user, cust, fields)
+    if not fields:
+        return {"ok": False, "error": "no fields to update"}
+    try:
+        cust = crm_service.update_customer_fields(db, user, cust, fields)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
     return {
         "ok": True,
         "message": f"Updated {cust.name}",
         "customer": crm_service.customer_out(cust, db, light=True),
     }
+
+
+async def _skill_delete_customer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from .. import crm_service
+    cust = crm_service.resolve_customer(
+        db, user, args.get("customer_id"), (args.get("email") or "").strip() or None,
+    )
+    if not cust:
+        return {"ok": False, "error": "customer not found or not owned"}
+    name = cust.name
+    try:
+        out = crm_service.delete_customer(db, user, cust)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+    await emit_ops(
+        user.id, kind="system", status="info",
+        title=f"Customer deleted: {name}",
+        detail=f"by {agent.name}",
+        agent_id=agent.id, db=db,
+    )
+    return {"ok": True, "message": f"Deleted customer {name}", **out}
+
+
+async def _skill_update_deal(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from .. import crm_service
+    try:
+        did = int(args.get("deal_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "deal_id required"}
+    deal = db.get(models.Deal, did)
+    if not deal or deal.owner_user_id != user.id:
+        return {"ok": False, "error": "deal not found"}
+    fields = {}
+    for f in ("title", "description", "priority", "currency", "status", "value", "expected_close"):
+        if args.get(f) is not None:
+            fields[f] = args[f]
+    if not fields:
+        return {"ok": False, "error": "no fields to update"}
+    try:
+        deal = crm_service.update_deal_fields(db, user, deal, fields)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+    return {
+        "ok": True,
+        "message": f"Updated deal {deal.title}",
+        "deal_id": deal.id,
+        "title": deal.title,
+        "value": deal.value,
+        "status": deal.status,
+    }
+
+
+async def _skill_delete_deal(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from .. import crm_service
+    try:
+        did = int(args.get("deal_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "deal_id required"}
+    deal = db.get(models.Deal, did)
+    if not deal or deal.owner_user_id != user.id:
+        return {"ok": False, "error": "deal not found"}
+    try:
+        out = crm_service.delete_deal(db, user, deal)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+    return {"ok": True, "message": f"Deleted deal {out.get('title')}", **out}
 
 async def _skill_log_customer_activity(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     from .. import crm_service
@@ -540,9 +663,13 @@ async def _skill_list_deals(db: Session, agent: models.Agent, user: models.User,
 __all__ = [
     '_skill_list_customers',
     '_skill_get_customer',
+    '_skill_create_customer',
     '_skill_update_customer',
+    '_skill_delete_customer',
     '_skill_log_customer_activity',
     '_skill_create_deal',
+    '_skill_update_deal',
+    '_skill_delete_deal',
     '_parse_dt_safe',
     '_skill_schedule_meeting',
     '_skill_list_diary',

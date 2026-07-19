@@ -282,6 +282,141 @@ _CUSTOMER_STR_FIELDS = (
 )
 
 
+def create_customer(
+    db: Session,
+    user: models.User,
+    *,
+    name: str,
+    email: str = "",
+    phone: str = "",
+    job_title: str = "",
+    account_name: str = "",
+    website: str = "",
+    industry: str = "",
+    address: str = "",
+    city: str = "",
+    country: str = "",
+    status: str = "active",
+    source: str = "",
+    tags: str = "",
+    notes: str = "",
+    annual_value: float = 0.0,
+    company_id: int | None = None,
+    owner_human_id: int | None = None,
+    owner_agent_id: int | None = None,
+    agent_id: int | None = None,
+    commit: bool = True,
+) -> models.Customer:
+    """Create a CRM customer for the workspace owner."""
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    c = models.Customer(
+        owner_user_id=user.id,
+        company_id=company_id,
+        name=name,
+        email=(email or "").strip(),
+        phone=(phone or "").strip(),
+        job_title=(job_title or "").strip(),
+        account_name=(account_name or "").strip(),
+        website=(website or "").strip(),
+        industry=(industry or "").strip(),
+        address=(address or "").strip(),
+        city=(city or "").strip(),
+        country=(country or "").strip(),
+        status=(status or "active").strip() or "active",
+        source=(source or "").strip() or ("agent" if agent_id else ""),
+        tags=normalize_tags(tags) if tags else "",
+        owner_human_id=owner_human_id,
+        owner_agent_id=owner_agent_id or agent_id,
+        annual_value=float(annual_value or 0),
+        notes=(notes or "").strip(),
+    )
+    db.add(c)
+    db.flush()
+    db.add(models.CustomerActivity(
+        customer_id=c.id,
+        owner_user_id=user.id,
+        kind="system",
+        title="Customer created",
+        body=f"{c.name} added to CRM",
+        agent_id=agent_id,
+    ))
+    if commit:
+        db.commit()
+        db.refresh(c)
+    return c
+
+
+def delete_customer(
+    db: Session,
+    user: models.User,
+    customer: models.Customer,
+    *,
+    commit: bool = True,
+) -> dict[str, Any]:
+    """Delete customer and related deals/activities (owner-scoped)."""
+    if customer.owner_user_id != user.id and getattr(user, "role", None) != "admin":
+        raise HTTPException(404, "Customer not found")
+    deal_ids = [d.id for d in db.query(models.Deal).filter_by(customer_id=customer.id).all()]
+    db.query(models.CustomerActivity).filter_by(customer_id=customer.id).delete()
+    # Null diary links if table exists
+    try:
+        if hasattr(models, "DiaryEntry"):
+            for d in db.query(models.DiaryEntry).filter_by(customer_id=customer.id).all():
+                d.customer_id = None
+    except Exception:
+        pass
+    db.query(models.Deal).filter_by(customer_id=customer.id).delete()
+    cid, cname = customer.id, customer.name
+    db.delete(customer)
+    if commit:
+        db.commit()
+    return {"ok": True, "deleted_customer_id": cid, "name": cname, "deleted_deals": len(deal_ids)}
+
+
+def delete_deal(
+    db: Session,
+    user: models.User,
+    deal: models.Deal,
+    *,
+    commit: bool = True,
+) -> dict[str, Any]:
+    if deal.owner_user_id != user.id and getattr(user, "role", None) != "admin":
+        raise HTTPException(404, "Deal not found")
+    did, title = deal.id, deal.title
+    db.delete(deal)
+    if commit:
+        db.commit()
+    return {"ok": True, "deleted_deal_id": did, "title": title}
+
+
+def update_deal_fields(
+    db: Session,
+    user: models.User,
+    deal: models.Deal,
+    fields: dict[str, Any] | None = None,
+    *,
+    commit: bool = True,
+) -> models.Deal:
+    if deal.owner_user_id != user.id and getattr(user, "role", None) != "admin":
+        raise HTTPException(404, "Deal not found")
+    fields = dict(fields or {})
+    for f in ("title", "description", "priority", "currency", "status"):
+        if f in fields and fields[f] is not None:
+            val = fields[f]
+            setattr(deal, f, val.strip() if isinstance(val, str) else val)
+    if "value" in fields and fields["value"] is not None:
+        deal.value = float(fields["value"])
+    if "expected_close" in fields:
+        deal.expected_close = parse_dt(fields.get("expected_close"))
+    deal.updated_at = datetime.utcnow()
+    if commit:
+        db.commit()
+        db.refresh(deal)
+    return deal
+
+
 def update_customer_fields(
     db: Session,
     user: models.User,

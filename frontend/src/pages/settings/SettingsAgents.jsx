@@ -20,8 +20,19 @@ export default function SettingsAgents() {
       api('/agents/').catch(() => []),
     ])
       .then(([con, ag]) => {
-        setConnections(con.connections || [])
-        setAgents(Array.isArray(ag) ? ag : [])
+        const conns = Array.isArray(con?.connections)
+          ? con.connections
+          : (Array.isArray(con) ? con : [])
+        let agentList = []
+        if (Array.isArray(ag)) agentList = ag
+        else if (Array.isArray(ag?.agents)) agentList = ag.agents
+        else if (Array.isArray(ag?.items)) agentList = ag.items
+        setConnections(conns.filter((c) => c && c.id != null))
+        setAgents(agentList.filter((a) => a && a.id != null))
+      })
+      .catch(() => {
+        setConnections([])
+        setAgents([])
       })
       .finally(() => setAppsLoading(false))
   }
