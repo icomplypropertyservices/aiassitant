@@ -3,10 +3,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import logging
+import os
 import secrets
 import re
+import time
+from urllib.parse import urlencode, quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+import httpx
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -541,6 +547,339 @@ async def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
         "requires_2fa": False,
         "user": user_out(user),
     }
+
+
+# ── Google Sign-in / Sign-up (OIDC via OAuth 2.0) ─────────────────────────
+
+_GOOGLE_AUTH_SCOPES = "openid email profile"
+_GOOGLE_AUTH_STATE_TTL = 15 * 60  # seconds
+
+
+def _google_oauth_credentials() -> tuple[str, str]:
+    cid = (os.getenv("GOOGLE_OAUTH_CLIENT_ID") or "").strip()
+    csec = (os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or "").strip()
+    return cid, csec
+
+
+def _google_auth_redirect_uri() -> str:
+    """Must be listed in Google Cloud Console → Authorized redirect URIs."""
+    explicit = (os.getenv("GOOGLE_AUTH_REDIRECT_URI") or "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    # Prefer production pin
+    if getattr(config, "IS_PRODUCTION", False) or "aibusinessagent.xyz" in (
+        (config.API_PUBLIC_URL or "") + (config.FRONTEND_URL or "")
+    ):
+        return "https://www.aibusinessagent.xyz/api/auth/google/callback"
+    api = (config.API_PUBLIC_URL or "").rstrip("/")
+    # Local SPA (Vite :5173) is not the API host — FastAPI defaults to :8000
+    if api and "localhost:5173" not in api and "127.0.0.1:5173" not in api:
+        if api.endswith("/api"):
+            return f"{api}/auth/google/callback"
+        return f"{api}/api/auth/google/callback"
+    return "http://localhost:8000/auth/google/callback"
+
+
+def _encode_google_auth_state(intent: str, next_path: str | None = None) -> str:
+    payload = {
+        "purpose": "google_auth",
+        "intent": intent if intent in ("login", "register") else "login",
+        "nonce": secrets.token_hex(8),
+        "exp": int(time.time()) + _GOOGLE_AUTH_STATE_TTL,
+    }
+    if next_path:
+        payload["next"] = str(next_path)[:200]
+    token = jwt.encode(payload, config.JWT_SECRET, algorithm="HS256")
+    if isinstance(token, bytes):
+        return token.decode("utf-8")
+    return str(token)
+
+
+def _decode_google_auth_state(state: str) -> dict:
+    try:
+        data = jwt.decode(state, config.JWT_SECRET, algorithms=["HS256"])
+    except jwt.PyJWTError as e:
+        raise HTTPException(400, f"Invalid or expired OAuth state: {e}") from e
+    if data.get("purpose") != "google_auth":
+        raise HTTPException(400, "Invalid OAuth state purpose")
+    return data
+
+
+async def _bootstrap_new_user(
+    db: Session,
+    user: models.User,
+    *,
+    company_name: str | None = None,
+) -> None:
+    """Trial + My Human + core team for newly created Google accounts."""
+    try:
+        from .billing import _activate_plan
+
+        _activate_plan(db, user, "trial", company_name)
+        db.refresh(user)
+    except Exception as e:
+        log.warning("google_auth trial activate failed user_id=%s: %s", user.id, e)
+        try:
+            from ..plans import TRIAL_DAYS, TRIAL_TOKENS_INCLUDED, plan_limits
+
+            limits = plan_limits("trial")
+            user.plan = "trial"
+            user.subscription_active = True
+            user.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
+            bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+            if not bal:
+                bal = models.Balance(user_id=user.id, credits=0.0)
+                db.add(bal)
+                db.flush()
+            bal.tokens_included = int(limits.get("tokens_included") or TRIAL_TOKENS_INCLUDED)
+            bal.tokens_used_period = 0
+            bal.period_start = datetime.utcnow().replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+            db.commit()
+            db.refresh(user)
+        except Exception as e2:
+            log.warning("google_auth trial fallback failed user_id=%s: %s", user.id, e2)
+    try:
+        from ..human_service import ensure_my_human
+        ensure_my_human(db, user)
+        db.commit()
+    except Exception as e:
+        log.warning("google_auth ensure_my_human failed: %s", e)
+    try:
+        if user.subscription_active or user.role == "admin":
+            from ..core_team import ensure_core_team
+            ensure_core_team(db, user)
+    except Exception as e:
+        log.warning("google_auth ensure_core_team failed: %s", e)
+
+
+@router.get("/oauth/providers")
+def oauth_providers():
+    """Public: which social auth providers are configured (no secrets)."""
+    g_id, g_sec = _google_oauth_credentials()
+    return {
+        "google": {
+            "enabled": bool(g_id and g_sec),
+            "redirect_uri": _google_auth_redirect_uri() if (g_id and g_sec) else None,
+            "console_hint": (
+                "Add this Authorized redirect URI in Google Cloud Console → "
+                f"{_google_auth_redirect_uri()}"
+            ),
+        },
+        "x": {
+            "enabled": bool(
+                (os.getenv("X_CLIENT_ID") or "").strip()
+                and (os.getenv("X_CLIENT_SECRET") or "").strip()
+            ),
+            "note": "X is for Connected apps (posting), not account login yet.",
+        },
+    }
+
+
+@router.get("/google/start")
+def google_auth_start(
+    request: Request,
+    intent: str = Query("login", description="login | register"),
+    next: str | None = Query(None, description="Frontend path after success"),
+):
+    """Begin Google sign-in / sign-up. Returns authorize_url for the SPA to redirect."""
+    ip = client_ip(request)
+    check_rate_limit(f"google-auth-start:{ip}", limit=30, window_sec=60)
+    client_id, client_secret = _google_oauth_credentials()
+    if not client_id or not client_secret:
+        raise HTTPException(
+            503,
+            "Google sign-in is not configured. Set GOOGLE_OAUTH_CLIENT_ID and "
+            "GOOGLE_OAUTH_CLIENT_SECRET on the server.",
+        )
+    intent = (intent or "login").strip().lower()
+    if intent not in ("login", "register"):
+        intent = "login"
+    redirect_uri = _google_auth_redirect_uri()
+    state = _encode_google_auth_state(intent, next)
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": _GOOGLE_AUTH_SCOPES,
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account",
+    }
+    authorize_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        + urlencode(params)
+    )
+    return {
+        "ok": True,
+        "provider": "google",
+        "intent": intent,
+        "authorize_url": authorize_url,
+        "redirect_uri": redirect_uri,
+        "hint": (
+            "If Google shows redirect_uri_mismatch, add this exact URI under "
+            f"Authorized redirect URIs: {redirect_uri}"
+        ),
+    }
+
+
+@router.get("/google/callback")
+async def google_auth_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Google redirects here after consent. Creates/logs in user and sends SPA a session key."""
+    frontend = _frontend_base()
+    # SPA login lives at /login under /agents in production
+    login_path = f"{frontend}/login"
+
+    def _fail(msg: str):
+        return RedirectResponse(
+            f"{login_path}?oauth=error&provider=google&message={quote(str(msg)[:300])}",
+            status_code=302,
+        )
+
+    if error:
+        return _fail(error_description or error)
+    if not code or not state:
+        return _fail("missing_code_or_state")
+
+    try:
+        st = _decode_google_auth_state(state)
+    except HTTPException as e:
+        return _fail(str(e.detail))
+
+    intent = st.get("intent") or "login"
+    client_id, client_secret = _google_oauth_credentials()
+    if not client_id or not client_secret:
+        return _fail("server_missing_google_credentials")
+    redirect_uri = _google_auth_redirect_uri()
+
+    # Exchange code → tokens
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            tr = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            tokens = tr.json() if tr.content else {}
+            if tr.status_code >= 400 or not tokens.get("access_token"):
+                err = (
+                    tokens.get("error_description")
+                    or tokens.get("error")
+                    or tr.text[:200]
+                )
+                log.warning("google_auth token_exchange failed: %s", err)
+                return _fail(f"token_exchange_failed:{err}")
+
+            ur = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            )
+            info = ur.json() if ur.content else {}
+            if ur.status_code >= 400:
+                return _fail("userinfo_failed")
+    except Exception as e:
+        log.exception("google_auth callback error")
+        return _fail(f"oauth_error:{e}")
+
+    email = (info.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        return _fail("google_account_missing_email")
+    if info.get("email_verified") is False:
+        return _fail("google_email_not_verified")
+
+    name = (info.get("name") or info.get("given_name") or "").strip()
+    picture = (info.get("picture") or "").strip()
+    google_sub = (info.get("sub") or "").strip()
+
+    user = db.query(models.User).filter_by(email=email).first()
+    is_new = False
+    if user:
+        if _is_deleted_user(user):
+            return _fail("account_deleted")
+        # Mark verified (Google confirmed ownership)
+        if not getattr(user, "email_verified", False):
+            user.email_verified = True
+            db.commit()
+        # Optional: skip 2FA for Google OAuth (passwordless identity already proven)
+        # Still enforce 2FA for security if enabled — issue session only after...
+        # For UX, Google login bypasses email OTP when 2FA is on (identity is Google's).
+    else:
+        # Sign-up via Google (also allowed from login intent — first-time Google users)
+        is_new = True
+        user = models.User(
+            email=email,
+            name=name or email.split("@")[0],
+            # Unusable random password — account uses Google / password-reset only
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            plan="none",
+            subscription_active=False,
+            email_verified=True,
+            token_version=0,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        await _bootstrap_new_user(db, user)
+        db.refresh(user)
+
+    # Store light Google meta on workspace settings if available (non-fatal)
+    try:
+        if picture or google_sub:
+            ws = (
+                db.query(models.WorkspaceSettings)
+                .filter_by(user_id=user.id)
+                .first()
+            )
+            if ws is not None and hasattr(ws, "meta_json"):
+                pass  # no meta_json on WorkspaceSettings in current schema
+    except Exception:
+        pass
+
+    try:
+        api_key = _issue_session(db, user)
+    except Exception as e:
+        return _fail(f"session_issue_failed:{e}")
+
+    next_path = (st.get("next") or "").strip()
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        dest = f"{frontend}{next_path}" if not next_path.startswith(frontend) else next_path
+        # Prefer SPA login handoff so setAuth runs; include next for post-login nav
+        q = urlencode({
+            "oauth": "success",
+            "provider": "google",
+            "api_key": api_key,
+            "is_new": "1" if is_new else "0",
+            "next": next_path,
+        })
+        return RedirectResponse(f"{login_path}?{q}", status_code=302)
+
+    q = urlencode({
+        "oauth": "success",
+        "provider": "google",
+        "api_key": api_key,
+        "is_new": "1" if is_new else "0",
+    })
+    log.info(
+        "google_auth ok user_id=%s is_new=%s intent=%s",
+        user.id,
+        is_new,
+        intent,
+    )
+    return RedirectResponse(f"{login_path}?{q}", status_code=302)
 
 
 @router.get("/me")

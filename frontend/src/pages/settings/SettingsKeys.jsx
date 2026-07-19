@@ -102,9 +102,21 @@ export default function SettingsKeys() {
       const to = smtpForm.getFieldValue('test_to') || user?.email
       const r = await api('/keys/email/smtp/test', { method: 'POST', body: { to } })
       if (r.ok) message.success(`Test sent to ${r.to}`)
-      else message.error(r.detail || 'Test failed')
+      else {
+        const hint = r.hint || (r.detail && /Vercel|blocked|timed out|timeout/i.test(r.detail)
+          ? ' Vercel often blocks SMTP — add Resend or Gmail OAuth.'
+          : '')
+        message.error((r.detail || 'Test failed') + hint, 12)
+      }
+      if (r.status) setEmailStatus((prev) => ({ ...(prev || {}), ...r.status }))
     } catch (e) {
-      message.error(e.message)
+      const msg = e?.message || String(e)
+      message.error(
+        /timed out|timeout|blocked|Vercel/i.test(msg)
+          ? `${msg} — On Vercel use Resend API or Gmail Connected app instead of raw SMTP.`
+          : msg,
+        12,
+      )
     } finally {
       setSmtpSaving(false)
     }
@@ -293,6 +305,27 @@ export default function SettingsKeys() {
               </>
             )}
           />
+          {(emailStatus?.smtp_blocked_risk || emailStatus?.serverless_host) && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Production host may block raw SMTP"
+              description={(
+                <>
+                  This app runs on <strong>Vercel serverless</strong>, which often blocks outbound
+                  ports 587/465. Saving Namecheap SMTP is fine for settings, but <strong>Send test</strong>
+                  {' '}may time out. For reliable production mail, add a{' '}
+                  <strong>Resend API key</strong> below or connect <strong>Gmail</strong> under Connected apps.
+                  {(emailStatus?.warnings || []).length > 0 && (
+                    <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                      {emailStatus.warnings.map((w) => <li key={w}>{w}</li>)}
+                    </ul>
+                  )}
+                </>
+              )}
+            />
+          )}
           <Space wrap style={{ marginBottom: 12 }}>
             {(emailStatus?.presets || [
               { id: 'namecheap', label: 'Namecheap' },

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Card, Form, Input, Button, Tabs, message, Typography, Tag, Space, Alert,
+  Card, Form, Input, Button, Tabs, message, Typography, Tag, Space, Alert, Divider,
 } from 'antd'
 import {
   ThunderboltOutlined,
-  TeamOutlined, SafetyCertificateOutlined, ArrowLeftOutlined,
+  TeamOutlined, SafetyCertificateOutlined, ArrowLeftOutlined, GoogleOutlined,
 } from '@ant-design/icons'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { api, setAuth, getToken, getUser } from '../api'
 import PlanCards from '../components/PlanCards'
 import BrandLogo from '../components/BrandLogo'
@@ -30,7 +30,9 @@ function passwordRules(required = true) {
 
 export default function Login() {
   const nav = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [tab, setTab] = useState('login')
   const [plans, setPlans] = useState({})
   const [preorder, setPreorder] = useState(null)
@@ -40,10 +42,67 @@ export default function Login() {
   const [twofaEmail, setTwofaEmail] = useState('')
   const [twofaHint, setTwofaHint] = useState('')
   const [twofaForm] = Form.useForm()
+  const [googleEnabled, setGoogleEnabled] = useState(true)
+
+  // Handle Google OAuth return: ?oauth=success&api_key=aba_… or error
+  useEffect(() => {
+    const oauth = searchParams.get('oauth')
+    if (!oauth) return
+    if (oauth === 'success') {
+      const apiKey = searchParams.get('api_key') || searchParams.get('token')
+      const isNew = searchParams.get('is_new') === '1'
+      const nextPath = searchParams.get('next')
+      if (!apiKey) {
+        message.error('Google sign-in returned no session key')
+        setSearchParams({}, { replace: true })
+        return
+      }
+      setLoading(true)
+      // Clear sensitive params from URL before storing session
+      setSearchParams({}, { replace: true })
+      ;(async () => {
+        try {
+          setAuth(apiKey, { id: 0, email: '' })
+          const me = await api('/auth/me')
+          const user = me?.user || me
+          if (!user?.id && !user?.email) {
+            throw new Error('Could not load profile after Google sign-in')
+          }
+          setAuth(apiKey, user)
+          message.success(isNew ? 'Account created with Google' : 'Signed in with Google')
+          if (user.needs_subscription) {
+            nav('/subscribe', { replace: true })
+          } else if (nextPath && nextPath.startsWith('/')) {
+            nav(nextPath, { replace: true })
+          } else {
+            nav('/', { replace: true })
+          }
+        } catch (e) {
+          message.error(e?.message || 'Google sign-in failed')
+        } finally {
+          setLoading(false)
+        }
+      })()
+      return
+    }
+    if (oauth === 'error') {
+      const raw = searchParams.get('message') || 'Google sign-in failed'
+      let friendly = raw
+      try { friendly = decodeURIComponent(raw) } catch { /* keep */ }
+      if (/redirect_uri/i.test(friendly)) {
+        friendly = (
+          'Google redirect URI mismatch — in Google Cloud Console add: '
+          + 'https://www.aibusinessagent.xyz/api/auth/google/callback'
+        )
+      }
+      message.error(friendly, 12)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams, nav])
 
   useEffect(() => {
     const u = getUser()
-    if (getToken() && u) {
+    if (getToken() && u && u.id && !searchParams.get('oauth')) {
       nav(u.needs_subscription ? '/subscribe' : '/', { replace: true })
     }
     api('/billing/plans').then(setPlans).catch(() => {})
@@ -58,7 +117,10 @@ export default function Login() {
         blurb: 'Launch 27 July 2026. Pre-orders get 10% off and early access.',
       })
     })
-  }, [nav])
+    api('/auth/oauth/providers')
+      .then((r) => setGoogleEnabled(r?.google?.enabled !== false))
+      .catch(() => setGoogleEnabled(true))
+  }, [nav, searchParams])
 
   const preorderOn = preorder?.active !== false
 
@@ -168,6 +230,33 @@ export default function Login() {
       setForgotSent(true)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const startGoogle = async () => {
+    setGoogleLoading(true)
+    try {
+      const intent = tab === 'register' ? 'register' : 'login'
+      const r = await api(`/auth/google/start?intent=${encodeURIComponent(intent)}`)
+      if (r?.authorize_url) {
+        window.location.href = r.authorize_url
+        return
+      }
+      message.error(r?.message || 'Google sign-in is not available')
+    } catch (e) {
+      const msg = e?.message || String(e)
+      if (/redirect_uri|not configured|503/i.test(msg)) {
+        message.error(
+          msg.includes('redirect')
+            ? msg
+            : 'Google sign-in is not configured on the server yet.',
+          10,
+        )
+      } else {
+        message.error(msg)
+      }
+    } finally {
+      setGoogleLoading(false)
     }
   }
 
@@ -321,6 +410,28 @@ export default function Login() {
                       message={`${preorder?.discount_percent || 10}% off · early access`}
                       description={`Reserve your plan before launch (${preorder?.launch_label || '27 July 2026'}). Pay by Stripe card or crypto.`}
                     />
+                  )}
+                  {googleEnabled && (
+                    <>
+                      <Button
+                        block
+                        size="large"
+                        icon={<GoogleOutlined />}
+                        loading={googleLoading}
+                        onClick={startGoogle}
+                        style={{
+                          marginBottom: 4,
+                          height: 44,
+                          fontWeight: 600,
+                          borderColor: 'rgba(0,0,0,0.15)',
+                        }}
+                      >
+                        {tab === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
+                      </Button>
+                      <Divider plain style={{ margin: '14px 0 12px', fontSize: 12 }}>
+                        or continue with email
+                      </Divider>
+                    </>
                   )}
                   <Form layout="vertical" onFinish={submit} requiredMark={false} size="large">
                     {tab === 'register' && (

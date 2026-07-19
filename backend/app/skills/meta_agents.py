@@ -1104,18 +1104,15 @@ async def _skill_bulk_enable_skills(db: Session, agent: models.Agent, user: mode
     return {"ok": True, "updated": len([r for r in results if r.get("ok")]), "results": results}
 
 async def _skill_configure_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("target_agent_id")))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "Target not found"}
-
-    for field in ("model", "personality", "idle_mode", "permission_level", "escalate_when"):
-        if args.get(field) is not None:
-            setattr(tgt, field, args[field])
-    db.commit()
-    return {"ok": True, "configured": tgt.id, "name": tgt.name}
+    """Update any writable Agent column (full field surface)."""
+    from .agent_actions import _skill_change_agent, AGENT_WRITABLE_FIELDS
+    # Accept legacy target_agent_id-only partial updates
+    out = await _skill_change_agent(db, agent, user, args)
+    if out.get("ok"):
+        out["configured"] = out.get("agent", {}).get("id") or args.get("target_agent_id")
+        out["name"] = (out.get("agent") or {}).get("name")
+        out["writable_fields"] = list(AGENT_WRITABLE_FIELDS)
+    return out
 
 async def _skill_promote_to_lead(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     try:

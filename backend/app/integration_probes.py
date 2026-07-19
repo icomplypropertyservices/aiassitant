@@ -178,6 +178,127 @@ async def _probe_generic(secrets: dict, meta: dict) -> dict[str, Any]:
     return {"ok": False, "message": "No credentials provided"}
 
 
+async def _probe_twilio(secrets: dict, meta: dict) -> dict[str, Any]:
+    """Validate Twilio Account SID + Auth Token (live ping)."""
+    import os
+    from . import config as app_config
+
+    sid = (
+        secrets.get("twilio_sid")
+        or secrets.get("account_sid")
+        or getattr(app_config, "TWILIO_ACCOUNT_SID", "")
+        or os.getenv("TWILIO_ACCOUNT_SID", "")
+    ).strip()
+    token = (
+        secrets.get("twilio_token")
+        or secrets.get("auth_token")
+        or getattr(app_config, "TWILIO_AUTH_TOKEN", "")
+        or os.getenv("TWILIO_AUTH_TOKEN", "")
+    ).strip()
+    from_num = (
+        secrets.get("twilio_from")
+        or secrets.get("from_number")
+        or getattr(app_config, "TWILIO_FROM_NUMBER", "")
+        or os.getenv("TWILIO_FROM_NUMBER", "")
+    ).strip()
+    if not sid or not token:
+        return {
+            "ok": False,
+            "message": "Account SID and Auth Token required (or set platform TWILIO_* env)",
+        }
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            f"https://api.twilio.com/2010-04-01/Accounts/{sid}.json",
+            auth=(sid, token),
+        )
+    if r.status_code == 200:
+        data = r.json() if r.content else {}
+        friendly = data.get("friendly_name") or sid[:10]
+        status = data.get("status") or "active"
+        msg = f"Twilio account OK ({friendly}, {status})"
+        if from_num:
+            msg += f" · from {from_num}"
+        return {"ok": True, "message": msg, "friendly_name": friendly}
+    if r.status_code in (401, 403):
+        return {"ok": False, "message": "Twilio auth failed — check Account SID and Auth Token"}
+    return {"ok": False, "message": f"Twilio HTTP {r.status_code}"}
+
+
+async def _probe_x(secrets: dict, meta: dict) -> dict[str, Any]:
+    token = (
+        secrets.get("access_token")
+        or secrets.get("bearer_token")
+        or ""
+    ).strip()
+    if not token:
+        return {"ok": False, "message": "access_token or bearer_token required"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            "https://api.twitter.com/2/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if r.status_code == 200:
+        data = r.json() if r.content else {}
+        uname = ((data.get("data") or {}).get("username")) or "ok"
+        return {"ok": True, "message": f"X account @{uname}"}
+    return {"ok": False, "message": f"X API HTTP {r.status_code}"}
+
+
+async def _probe_linkedin(secrets: dict, meta: dict) -> dict[str, Any]:
+    token = (secrets.get("access_token") or "").strip()
+    if not token:
+        return {"ok": False, "message": "Access token required"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            "https://api.linkedin.com/v2/userinfo",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if r.status_code == 200:
+        data = r.json() if r.content else {}
+        name = data.get("name") or data.get("email") or "ok"
+        return {"ok": True, "message": f"LinkedIn: {name}"}
+    # Fallback older endpoint
+    if r.status_code in (401, 403, 404):
+        async with httpx.AsyncClient(timeout=15) as client:
+            r2 = await client.get(
+                "https://api.linkedin.com/v2/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if r2.status_code == 200:
+            return {"ok": True, "message": "LinkedIn token valid"}
+    return {"ok": False, "message": f"LinkedIn HTTP {r.status_code}"}
+
+
+async def _probe_meta(secrets: dict, meta: dict) -> dict[str, Any]:
+    token = (secrets.get("access_token") or secrets.get("page_access_token") or "").strip()
+    if not token:
+        return {"ok": False, "message": "Page or user access token required"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            "https://graph.facebook.com/v19.0/me",
+            params={"access_token": token, "fields": "id,name"},
+        )
+    if r.status_code == 200:
+        data = r.json() if r.content else {}
+        return {"ok": True, "message": f"Meta: {data.get('name') or data.get('id') or 'ok'}"}
+    return {"ok": False, "message": f"Meta Graph HTTP {r.status_code}"}
+
+
+async def _probe_microsoft(secrets: dict, meta: dict) -> dict[str, Any]:
+    token = (secrets.get("access_token") or "").strip()
+    if not token:
+        return {"ok": False, "message": "Access token required"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(
+            "https://graph.microsoft.com/v1.0/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if r.status_code == 200:
+        data = r.json() if r.content else {}
+        return {"ok": True, "message": f"Microsoft: {data.get('displayName') or data.get('mail') or 'ok'}"}
+    return {"ok": False, "message": f"Microsoft Graph HTTP {r.status_code}"}
+
+
 PROBES: dict[str, ProbeFn] = {
     "shopify": _probe_shopify,
     "slack": _probe_slack,
@@ -195,6 +316,14 @@ PROBES: dict[str, ProbeFn] = {
     "dropbox": _probe_dropbox,
     "google_cloud_storage": _probe_gcs,
     "gcs": _probe_gcs,
+    "twilio": _probe_twilio,
+    "x": _probe_x,
+    "twitter": _probe_x,
+    "linkedin": _probe_linkedin,
+    "meta": _probe_meta,
+    "instagram": _probe_meta,
+    "facebook": _probe_meta,
+    "microsoft": _probe_microsoft,
 }
 
 

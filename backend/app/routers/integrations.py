@@ -1,6 +1,8 @@
 """Connected apps: OAuth + API keys + agent allocation."""
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
 import os
 import secrets
@@ -292,18 +294,23 @@ def google_oauth_status(request: Request, user=Depends(get_current_user)):
             f"Authorized redirect URIs → ADD EXACTLY (copy-paste): {redirect}",
             f"Also add (optional apex): {apex}",
             "Authorized JavaScript origins → https://www.aibusinessagent.xyz and https://aibusinessagent.xyz",
-            "OAuth consent screen → if Testing, add your Google account as a test user",
+            "OAuth consent screen → Publishing status Testing → Test users → Add the Google email you will use",
+            "Error 403 access_denied = email not in Test users (or app not published)",
             "Enable APIs: Gmail, Sheets, Calendar, Drive, YouTube Data (as needed)",
-            "Save credentials, wait ~1 minute, then try Connect again",
+            "Save, wait ~1 minute, then Connect with that same Google account",
         ],
         "note": (
-            "Google Error 400 redirect_uri_mismatch means the URI this API sends "
-            "is not listed under Authorized redirect URIs. Copy redirect_uri below "
-            "into Console with https, full path, and NO trailing slash."
+            "Error 400 redirect_uri_mismatch: add redirect_uri under Authorized redirect URIs. "
+            "Error 403 access_denied / verification message: add your email under OAuth consent "
+            "screen → Test users (while status is Testing)."
         ),
         "error_help": {
             "redirect_uri_mismatch": (
                 f"Add this exact URI in Google Cloud Console: {redirect}"
+            ),
+            "access_denied": (
+                "OAuth consent screen is in Testing. Add your Google account under "
+                "Test users, or publish the app (In production)."
             ),
         },
     }
@@ -588,13 +595,14 @@ def oauth_start(
     if not oauth:
         raise HTTPException(400, "This app does not support OAuth — use API credentials instead")
 
-    # Allow any app with OAuth credentials configured. Coming-soon only blocks
-    # apps that are not wired yet AND have no server credentials.
+    # Any app with OAuth block can start when platform client env is set.
+    # Explicit coming_soon with no credentials still returns a helpful message.
     ready = oauth_env_ready(app)
-    if app.get("coming_soon") and not ready and not _is_google_app(app):
+    if app.get("coming_soon") and not ready:
         raise HTTPException(
             503,
-            f"{app.get('name') or app_id} is coming soon. Google apps are available for 1-click connect.",
+            f"{app.get('name') or app_id} is not available for OAuth yet. "
+            "Use Connect with API keys if this app supports them.",
         )
     if not ready:
         return {
@@ -602,12 +610,13 @@ def oauth_start(
             "mode": "credentials",
             "message": (
                 f"OAuth app credentials not configured on the server "
-                f"({oauth.get('client_id_env')}). Set those env vars and redeploy, "
-                f"or use Connect with API keys."
+                f"({oauth.get('client_id_env')} / {oauth.get('client_secret_env')}). "
+                f"Set those env vars on Vercel and redeploy, or use Connect with API keys."
             ),
             "fields": public_app(app)["fields"],
             "oauth_ready": False,
             "redirect_uri": _oauth_redirect_uri(request),
+            "supports_api_key": "api_key" in (app.get("auth_modes") or []),
         }
 
     client_id = os.getenv(oauth["client_id_env"], "").strip()
@@ -686,10 +695,21 @@ def oauth_start(
     # Meta / Instagram
     if app["id"] in ("meta", "instagram"):
         params["client_id"] = client_id
-    # X (Twitter) OAuth 2.0 PKCE (confidential client still sends challenge)
+    # X (Twitter) OAuth 2.0 with PKCE (S256) — required by X API v2
     if app["id"] == "x":
-        params["code_challenge"] = "challenge"
-        params["code_challenge_method"] = "plain"
+        # 43–128 char verifier; store in state for token exchange
+        code_verifier = secrets.token_urlsafe(64)[:96]
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("ascii")).digest())
+            .rstrip(b"=")
+            .decode("ascii")
+        )
+        extra["cv"] = code_verifier
+        # Re-encode state with verifier
+        state = _encode_oauth_state(user.id, app["id"], extra)
+        params["state"] = state
+        params["code_challenge"] = challenge
+        params["code_challenge_method"] = "S256"
         if scopes:
             params["scope"] = scopes
 
@@ -809,17 +829,23 @@ async def oauth_callback(
                     },
                 )
             elif app_id == "x":
+                code_verifier = (payload.get("cv") or "").strip() or "challenge"
+                basic = base64.b64encode(
+                    f"{client_id}:{client_secret}".encode("utf-8")
+                ).decode("ascii")
                 r = await client.post(
                     token_url,
                     data={
-                        "client_id": client_id,
-                        "client_secret": client_secret,
                         "code": code,
-                        "redirect_uri": redirect_uri,
                         "grant_type": "authorization_code",
-                        "code_verifier": "challenge",
+                        "redirect_uri": redirect_uri,
+                        "code_verifier": code_verifier,
+                        "client_id": client_id,
                     },
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    headers={
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Authorization": f"Basic {basic}",
+                    },
                 )
             else:
                 # Google, HubSpot, LinkedIn, Meta, Microsoft, etc.

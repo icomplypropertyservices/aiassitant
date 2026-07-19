@@ -99,7 +99,8 @@ async def _skill_send_sms(db: Session, agent: models.Agent, user: models.User, a
     out = {"ok": sent, "to": to, "detail": detail, "provider": "twilio"}
     if not sent:
         out["hint"] = (
-            "Configure Twilio: Settings → API keys (twilio_sid, twilio_token, twilio_from) "
+            "Configure Twilio: Settings → Connected apps → Twilio, "
+            "or Settings → API keys (twilio_sid, twilio_token, twilio_from), "
             "or platform env TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER"
         )
     return out
@@ -172,8 +173,8 @@ async def _skill_make_voice_call(db: Session, agent: models.Agent, user: models.
     }
     if not sent:
         out["hint"] = (
-            "Configure Twilio: Settings → API keys (twilio_sid, twilio_token, twilio_from) "
-            "or platform env TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER. "
+            "Configure Twilio: Settings → Connected apps → Twilio, "
+            "or API keys / platform TWILIO_* env. "
             "From number must support Voice."
         )
     return out

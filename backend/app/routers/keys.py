@@ -258,17 +258,29 @@ async def test_smtp(
 ):
     data = data or SmtpTestIn()
     creds = credentials_for_user(db, user.id)
-    if not channels.smtp_or_resend_configured(creds):
-        # platform fallback
-        from .. import config
-        if not (
-            config.RESEND_API_KEY
-            or (config.SMTP_HOST and config.SMTP_USER and config.SMTP_PASSWORD)
-        ):
-            raise HTTPException(
-                400,
-                "No email channel configured. Save SMTP (Namecheap etc.) or Resend under Settings → API keys.",
-            )
+    from .. import config
+
+    has_user_smtp = bool(
+        (creds.get("smtp_host") or "").strip()
+        and (creds.get("smtp_user") or "").strip()
+        and (creds.get("smtp_password") or "").strip()
+    )
+    has_any = channels.smtp_or_resend_configured(creds) or bool(
+        config.RESEND_API_KEY
+        or (config.SMTP_HOST and config.SMTP_USER and config.SMTP_PASSWORD)
+    )
+    if not has_any:
+        raise HTTPException(
+            400,
+            "No email channel configured. Save SMTP (Namecheap etc.) or Resend under Settings → API keys.",
+        )
+    # Decrypt failed / incomplete SMTP
+    if (creds.get("smtp_host") or creds.get("smtp_user")) and not creds.get("smtp_password"):
+        raise HTTPException(
+            400,
+            "SMTP host/user saved but password is missing or could not be decrypted "
+            "(re-enter password; if ENCRYPTION_KEY changed, secrets must be re-saved).",
+        )
     to = (data.to or user.email or "").strip()
     if not to or "@" not in to:
         raise HTTPException(400, "Provide a valid test recipient email")
@@ -278,7 +290,21 @@ async def test_smtp(
         "SMTP / Resend test OK. Your workspace can send agent and notify emails.",
         credentials=creds,
     )
-    return {"ok": sent, "detail": detail, "to": to, "status": email_channel_status(db, user.id)}
+    st = email_channel_status(db, user.id)
+    out = {
+        "ok": sent,
+        "detail": detail,
+        "to": to,
+        "status": st,
+        "used_smtp": has_user_smtp,
+        "serverless_host": bool(st.get("serverless_host")),
+    }
+    if not sent and st.get("smtp_blocked_risk"):
+        out["hint"] = (
+            "Vercel blocks outbound SMTP. Add RESEND_API_KEY (Settings → API keys → Resend) "
+            "or connect Gmail under Connected apps."
+        )
+    return out
 
 
 @router.delete("/email/smtp")

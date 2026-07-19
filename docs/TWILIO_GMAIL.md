@@ -9,9 +9,14 @@ Agents can **SMS / WhatsApp / voice (Twilio)** and **send / read / reply / Cc / 
 2. Enable **Gmail API**
 3. OAuth consent screen (External or Internal)
 4. Create **OAuth 2.0 Client ID** (Web application)
-5. Authorized redirect URI (production):
-   - `https://www.aibusinessagent.xyz/api/integrations/oauth/callback`
-   - (and local if needed) `http://127.0.0.1:8000/api/integrations/oauth/callback`
+5. Authorized redirect URI (production) — **must match exactly** or Google shows Error 400 `redirect_uri_mismatch`:
+   - `https://www.aibusinessagent.xyz/api/integrations/oauth/callback` (required — this is what the app sends)
+   - `https://aibusinessagent.xyz/api/integrations/oauth/callback` (optional apex)
+   - (local) `http://127.0.0.1:8000/api/integrations/oauth/callback`
+6. Client type must be **Web application**. Authorized JavaScript origins: `https://www.aibusinessagent.xyz` and `https://aibusinessagent.xyz`.
+7. **OAuth consent screen → Test users**: while status is **Testing**, add every Google account that will click Connect.  
+   Missing this → Error **403 access_denied** (“has not completed the Google verification process”).  
+   To allow all users later: set Publishing status to **In production** (may require Google verification for Gmail scopes).
 
 ### 2. Platform env (Vercel)
 ```
@@ -48,7 +53,20 @@ Allocate the Gmail connection to agents under Connected apps if required by your
 
 Agents can **initiate SMS texts** and **outbound phone calls that speak** a message (Twilio TTS).
 
-### Platform env (Vercel)
+### Option A — Connected apps (recommended for multi-tenant)
+
+**Settings → Connected apps → Twilio → Connect**
+
+| Field | Value |
+|-------|--------|
+| Account SID | `ACxxxxxxxx` |
+| Auth Token | from Twilio Console |
+| From number | E.164 e.g. `+15551234567` |
+| WhatsApp From (optional) | `whatsapp:+14155238886` |
+
+This is tested live against Twilio’s API when you connect.
+
+### Option B — Platform env (Vercel, shared for all users)
 ```
 TWILIO_ACCOUNT_SID=ACxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxx
@@ -56,14 +74,14 @@ TWILIO_FROM_NUMBER=+15551234567
 ```
 `TWILIO_FROM_NUMBER` must be a Twilio number that supports **SMS** and/or **Voice**.
 
-### Or per-user BYOK (Settings → API keys)
+### Option C — Settings → API keys (BYOK)
 | Key | Value |
 |-----|--------|
 | `twilio_sid` | Account SID |
 | `twilio_token` | Auth Token |
 | `twilio_from` | E.164 from number |
 
-User keys override platform env when both exist.
+Priority: user API keys → Connected apps Twilio → platform `TWILIO_*` env.
 
 ### Skills (agents use these)
 | Skill | Action |
@@ -125,6 +143,34 @@ SMTP_FROM=AI Assistant <noreply@yourdomain.com>
 SMTP_TLS=1
 ```
 If SMTP is not set, **RESEND_API_KEY** + **RESEND_FROM** are used as fallback.
+
+### Fire Alarms Dublin / iComply (Namecheap Private Email + Vercel DNS)
+
+Mailbox: `sales@icomplypropertyservices.co.uk` · DNS for `icomplypropertyservices.co.uk` is on **Vercel**.
+
+**1. Vercel DNS** (Domains → icomplypropertyservices.co.uk → Records), Namecheap Private Email:
+
+| Type | Name | Value | Priority |
+|------|------|--------|----------|
+| MX | `@` | `mx1.privateemail.com` | 10 |
+| MX | `@` | `mx2.privateemail.com` | 10 |
+| TXT | `@` | `v=spf1 include:spf.privateemail.com ~all` | — |
+| CNAME | `mail` | `privateemail.com` | — |
+
+Also add **DKIM** TXT from Namecheap Private Email → Domain → DNS records (unique per domain).
+
+**2. Vercel Production env** (AI Assistant project):
+
+```
+SMTP_HOST=mail.privateemail.com
+SMTP_PORT=587
+SMTP_USER=sales@icomplypropertyservices.co.uk
+SMTP_PASSWORD=<mailbox password>
+SMTP_FROM=Fire Alarms Dublin <sales@icomplypropertyservices.co.uk>
+SMTP_TLS=1
+```
+
+Redeploy after env change. Verify: Settings → API keys → Email SMTP status, or agent `send_email` / notify human.
 
 ### Skills
 ```skill

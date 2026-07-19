@@ -184,14 +184,41 @@ def email_channel_status(db: Session, user_id: int) -> dict:
         and getattr(config, "SMTP_PASSWORD", "")
     )
     platform_resend = bool(getattr(config, "RESEND_API_KEY", ""))
+    serverless = bool(getattr(config, "IS_VERCEL", False) or getattr(config, "IS_PRODUCTION", False) and bool(
+        __import__("os").getenv("VERCEL")
+    ))
+    # More accurate: use channels helper
+    try:
+        serverless = channels._is_serverless_host()
+    except Exception:
+        pass
+    ready = channels.smtp_or_resend_configured(creds) or platform_smtp or platform_resend
+    warnings = []
+    if user_smtp and serverless and not (user_resend or platform_resend):
+        warnings.append(
+            "Raw SMTP often fails on Vercel (outbound ports blocked). "
+            "Add a Resend API key or connect Gmail for reliable production email."
+        )
+    if not ready:
+        warnings.append(
+            "No email channel configured. Save SMTP or Resend under Settings → API keys."
+        )
     return {
-        "ok": channels.smtp_or_resend_configured(creds) or platform_smtp or platform_resend,
+        "ok": ready,
         "user_smtp": user_smtp,
         "user_resend": user_resend,
         "platform_smtp": platform_smtp,
         "platform_resend": platform_resend,
         "smtp_host": (creds.get("smtp_host") or "")[:80] or None,
         "smtp_from": (creds.get("smtp_from") or creds.get("smtp_user") or "")[:120] or None,
+        "serverless_host": serverless,
+        "smtp_blocked_risk": bool(serverless and user_smtp and not (user_resend or platform_resend)),
+        "recommended": (
+            "resend_or_gmail"
+            if serverless
+            else ("smtp_or_resend" if not ready else "ok")
+        ),
+        "warnings": warnings,
         "presets": list(SMTP_PRESETS.values()),
     }
 
@@ -213,7 +240,11 @@ def get_decrypted_key(db: Session, user_id: int, provider: str) -> str | None:
 
 
 def credentials_for_user(db: Session, user_id: int) -> dict:
-    """Map of provider → plaintext key for in-process use only."""
+    """Map of provider → plaintext key for in-process use only.
+
+    Merges Settings → API keys with Connected apps (e.g. Twilio connection).
+    Explicit API keys win over connection secrets.
+    """
     out = {}
     rows = (
         db.query(models.UserApiKey)
@@ -227,4 +258,42 @@ def credentials_for_user(db: Session, user_id: int) -> dict:
                 out[row.provider] = val
         except Exception:
             continue
+
+    # Connected apps → channel credentials (Twilio, etc.)
+    try:
+        from .integrations_service import secrets_from_row, meta_from_row
+
+        conn = (
+            db.query(models.IntegrationConnection)
+            .filter_by(user_id=user_id, app_id="twilio", status="connected")
+            .order_by(models.IntegrationConnection.id.desc())
+            .first()
+        )
+        if conn:
+            sec = secrets_from_row(conn) or {}
+            meta = meta_from_row(conn) or {}
+            for key in (
+                "twilio_sid",
+                "twilio_token",
+                "twilio_from",
+                "twilio_whatsapp_from",
+                "account_sid",
+                "auth_token",
+                "from_number",
+            ):
+                val = (sec.get(key) or meta.get(key) or "").strip()
+                if not val:
+                    continue
+                # Normalize aliases into channel credential names
+                if key in ("account_sid",):
+                    out.setdefault("twilio_sid", val)
+                elif key in ("auth_token",):
+                    out.setdefault("twilio_token", val)
+                elif key in ("from_number",):
+                    out.setdefault("twilio_from", val)
+                else:
+                    out.setdefault(key, val)
+    except Exception:
+        pass
+
     return out

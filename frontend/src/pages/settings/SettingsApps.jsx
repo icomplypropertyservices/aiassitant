@@ -279,23 +279,44 @@ export default function SettingsApps({ onConnectedCountChange }) {
         </Button>
       )
     }
+    // Prefer 1-click OAuth when server credentials are ready
     if (app.supports_oauth && app.oauth_ready) {
       return (
-        <Button
-          type="primary"
-          size="middle"
-          icon={GOOGLE_IDS.has(app.id) ? <GoogleOutlined /> : <LinkOutlined />}
-          loading={oauthStarting === app.id}
-          onClick={() => startOAuth(app)}
-        >
-          Connect{GOOGLE_IDS.has(app.id) ? ' with Google' : ''}
-        </Button>
+        <Space size={4} wrap>
+          <Button
+            type="primary"
+            size="middle"
+            icon={GOOGLE_IDS.has(app.id) ? <GoogleOutlined /> : <LinkOutlined />}
+            loading={oauthStarting === app.id}
+            onClick={() => startOAuth(app)}
+          >
+            Connect{GOOGLE_IDS.has(app.id) ? ' with Google' : ' (OAuth)'}
+          </Button>
+          {(app.supports_api_key || (app.fields || []).length > 0) && (
+            <Button size="small" onClick={() => openConnect(app)}>
+              API key
+            </Button>
+          )}
+        </Space>
       )
     }
+    // API key / token connect (Twilio, Shopify, etc.) — always when not coming soon
     return (
-      <Button type="primary" size="middle" onClick={() => openConnect(app)}>
-        Connect
-      </Button>
+      <Space size={4} wrap>
+        <Button type="primary" size="middle" onClick={() => openConnect(app)}>
+          Connect
+        </Button>
+        {app.supports_oauth && !app.oauth_ready && (
+          <Button
+            size="small"
+            loading={oauthStarting === app.id}
+            onClick={() => startOAuth(app)}
+            title="Requires platform OAuth client env vars"
+          >
+            OAuth setup
+          </Button>
+        )}
+      </Space>
     )
   }
 
@@ -320,24 +341,90 @@ export default function SettingsApps({ onConnectedCountChange }) {
           </Button>
         }
       >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Connect Twilio, Google, Slack, Shopify, X, and more"
+          description={
+            <div>
+              <Paragraph style={{ marginBottom: 6, fontSize: 13 }}>
+                <strong>Twilio:</strong> Connect with Account SID, Auth Token, and From number
+                (or set platform <Text code>TWILIO_*</Text> env). Powers SMS, WhatsApp, and voice.
+              </Paragraph>
+              <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
+                Apps with OAuth show <strong>Connect (OAuth)</strong> when server client IDs are set;
+                otherwise use <strong>Connect</strong> with API keys / tokens.
+              </Paragraph>
+            </div>
+          }
+        />
         {googleOauthOk && !googleOauthOk.ok && (
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Google sign-in needs one setup step"
+            message="Google OAuth credentials missing on server"
             description={
               <div>
                 <Paragraph style={{ marginBottom: 8 }}>
-                  In Google Cloud Console → Credentials → your <strong>Web</strong> OAuth client,
-                  add this exact Authorized redirect URI (copy-paste, no trailing slash):
+                  Set <Text code>GOOGLE_OAUTH_CLIENT_ID</Text> and{' '}
+                  <Text code>GOOGLE_OAUTH_CLIENT_SECRET</Text> on Vercel (Production), then redeploy.
                 </Paragraph>
-                <Text code copyable style={{ display: 'block', wordBreak: 'break-all', marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Redirect URI that must also be in Google Cloud Console:
+                </Text>
+                <Text code copyable style={{ display: 'block', wordBreak: 'break-all', marginTop: 6 }}>
                   {redirectUri}
                 </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Also add JavaScript origins: https://www.aibusinessagent.xyz
-                </Text>
+              </div>
+            }
+          />
+        )}
+
+        {googleOauthOk?.ok && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Google OAuth: test users required (Error 403 access_denied)"
+            description={
+              <div>
+                <Paragraph style={{ marginBottom: 8 }}>
+                  While the consent screen is in <strong>Testing</strong>, only listed tester
+                  emails can sign in. Anyone else gets:{' '}
+                  <em>&quot;has not completed the Google verification process&quot;</em> /
+                  Error 403 access_denied.
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 8 }}>
+                  Fix now:{' '}
+                  <a
+                    href="https://console.cloud.google.com/apis/credentials/consent"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Google Cloud Console → OAuth consent screen
+                  </a>
+                  {' '}→ <strong>Test users</strong> → <strong>Add users</strong> → add the exact
+                  Google account email you will use to Connect → Save. Then try Connect again
+                  (use that same Google account).
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 8, fontSize: 12 }} type="secondary">
+                  Later (optional): publish the app (<strong>In production</strong>) so any Google
+                  user can connect — Google may require verification for sensitive scopes
+                  (Gmail, etc.). Until then, keep adding each person as a test user.
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 4, fontSize: 12 }} type="secondary">
+                  Redirect URI (Error 400 if missing):{' '}
+                  <Text code copyable>
+                    {redirectUri}
+                  </Text>
+                </Paragraph>
+                {googleOauthOk.client_id_preview && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Server client: {googleOauthOk.client_id_preview}
+                  </Text>
+                )}
               </div>
             }
           />

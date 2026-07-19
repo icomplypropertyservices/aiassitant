@@ -62,10 +62,15 @@ export default function Settings() {
     } else if (oauth === 'error') {
       const raw = searchParams.get('message') || 'OAuth failed'
       let friendly = decodeURIComponent(String(raw).replace(/\+/g, ' '))
-      if (/invalid_request|redirect_uri|redirect uri/i.test(friendly)) {
-        friendly = `${friendly} — Add the exact Redirect URI from Settings → Apps into Google Cloud Console.`
+      if (/access_denied|verification process|only be accessed by developer-approved|test user/i.test(friendly)) {
+        friendly = (
+          'Google 403 access_denied: OAuth consent screen is in Testing. '
+          + 'Add your Google email under Google Cloud Console → OAuth consent screen → Test users, then Connect again with that account.'
+        )
+      } else if (/invalid_request|redirect_uri|redirect uri|mismatch/i.test(friendly)) {
+        friendly = `${friendly} — Add this exact Redirect URI in Google Cloud Console → Credentials → Web client: https://www.aibusinessagent.xyz/api/integrations/oauth/callback`
       }
-      message.error(friendly, 8)
+      message.error(friendly, 14)
       setTab('apps')
       setAppsRefreshKey((k) => k + 1)
     }

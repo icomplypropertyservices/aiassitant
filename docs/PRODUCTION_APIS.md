@@ -187,7 +187,31 @@ Without Stripe **and** without crypto addresses in production: paid plans / top-
 
 ---
 
-## Email — Resend (agent notify + password reset)
+## Email — SMTP (preferred) or Resend
+
+Platform order: **classic SMTP** first, then Resend API.
+
+### Namecheap Private Email (Fire Alarms Dublin / iComply)
+
+| Variable | Production value |
+|----------|------------------|
+| `SMTP_HOST` | `mail.privateemail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `sales@icomplypropertyservices.co.uk` |
+| `SMTP_PASSWORD` | mailbox password (Namecheap Private Email) |
+| `SMTP_FROM` | `Fire Alarms Dublin <sales@icomplypropertyservices.co.uk>` |
+| `SMTP_TLS` | `1` |
+
+Domain DNS is on **Vercel** (`icomplypropertyservices.co.uk`). Required records:
+
+- MX `@` → `mx1.privateemail.com` (10) and `mx2.privateemail.com` (10)
+- TXT `@` → `v=spf1 include:spf.privateemail.com ~all`
+- CNAME `mail` → `privateemail.com`
+- DKIM TXT from Namecheap Private Email panel (domain-specific)
+
+After setting `SMTP_PASSWORD` on Vercel Production, **redeploy**.
+
+### Resend (optional fallback)
 
 | Variable | Purpose | Where |
 |----------|---------|--------|
@@ -249,34 +273,71 @@ Only needed for **one-click OAuth** (otherwise connect with tokens in the UI):
 | App | Env vars | Docs |
 |-----|----------|------|
 | Shopify | `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` | https://shopify.dev |
-| Google (Workspace/Gmail/Sheets/Business/YouTube) | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `API_PUBLIC_URL` or `OAUTH_REDIRECT_URI` | https://console.cloud.google.com — see **Google OAuth** below |
+| Google (Workspace/Gmail/Sheets + **Sign in / Sign up**) | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `API_PUBLIC_URL` or `OAUTH_REDIRECT_URI` | https://console.cloud.google.com — see **Google OAuth** below |
+| X (Twitter) Connected apps | `X_CLIENT_ID`, `X_CLIENT_SECRET` | https://developer.x.com — see **X OAuth** below |
 | Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | https://api.slack.com/apps |
 | HubSpot | `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET` | https://developers.hubspot.com |
 | Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | https://developers.notion.com |
 | Dropbox | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` | https://www.dropbox.com/developers |
 
-### Google OAuth (required for 1-click Connect)
+### Google OAuth (Connected apps + Login / Sign up)
+
+Production **always** pins Connected-apps callback to www. Google returns **Error 400: `redirect_uri_mismatch`** until every redirect URI you use is listed on the **same Web** OAuth client.
 
 | Variable | Example |
 |----------|---------|
 | `GOOGLE_OAUTH_CLIENT_ID` | `….apps.googleusercontent.com` |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | `GOCSPX-…` |
-| `API_PUBLIC_URL` | `https://aibusinessagent.xyz/api` |
-| `OAUTH_REDIRECT_URI` (optional override) | `https://aibusinessagent.xyz/api/integrations/oauth/callback` |
+| `API_PUBLIC_URL` | `https://www.aibusinessagent.xyz/api` |
+| `OAUTH_REDIRECT_URI` (optional; production pins www) | `https://www.aibusinessagent.xyz/api/integrations/oauth/callback` |
+| `GOOGLE_AUTH_REDIRECT_URI` (optional override) | `https://www.aibusinessagent.xyz/api/auth/google/callback` |
 
 **Google Cloud Console checklist**
 
-1. Create **OAuth client type = Web application** (not Desktop / iOS).
-2. **Authorized redirect URIs** — add **exactly**:
+1. Create **OAuth client type = Web application** (not Desktop / iOS / Chrome extension).
+2. **Authorized redirect URIs** — add **exactly** (copy-paste, https, no trailing slash):
+   ```text
+   https://www.aibusinessagent.xyz/api/integrations/oauth/callback
+   https://www.aibusinessagent.xyz/api/auth/google/callback
+   ```
+   - First URI = Settings → Connected apps (Gmail, Sheets, …)
+   - Second URI = Login / Sign up with Google
+   Optional apex:
    ```text
    https://aibusinessagent.xyz/api/integrations/oauth/callback
+   https://aibusinessagent.xyz/api/auth/google/callback
    ```
    Do **not** use `/agents/api/...` — that path is wrong and causes Google **“request is invalid”**.
-3. **Authorized JavaScript origins** — e.g. `https://aibusinessagent.xyz`
-4. OAuth consent screen: External or Internal; if **Testing**, add every tester email.
-5. Enable APIs as needed: Gmail, Sheets, Calendar, Drive, YouTube Data, Business Profile.
+3. **Authorized JavaScript origins**:
+   - `https://www.aibusinessagent.xyz`
+   - `https://aibusinessagent.xyz`
+4. OAuth consent screen: External or Internal; if **Testing**, add every tester email as a test user.
+5. Enable scopes used by apps (Gmail, etc.). Login only needs `openid email profile`.
 
-After deploy, Settings → Connected apps shows the live `redirect_uri` to copy. Token exchange reuses the same URI stored in OAuth `state`.
+### X (Twitter) OAuth 2.0 (Connected apps)
+
+| Variable | Example |
+|----------|---------|
+| `X_CLIENT_ID` | from developer.x.com app |
+| `X_CLIENT_SECRET` | confidential client secret |
+
+1. [developer.x.com](https://developer.x.com/) → Project → App → **User authentication settings**
+2. App type: **Web App** (confidential client)
+3. **Callback URI / Redirect URL** (exact):
+   ```text
+   https://www.aibusinessagent.xyz/api/integrations/oauth/callback
+   ```
+4. Website URL: `https://www.aibusinessagent.xyz`
+5. Permissions: Read and write (and offline.access for refresh) as needed
+6. Set `X_CLIENT_ID` + `X_CLIENT_SECRET` on Vercel → Production → redeploy
+7. In product: **Settings → Connected apps → X → Connect (OAuth)**
+5. Enable APIs as needed: Gmail, Sheets, Calendar, Drive, YouTube Data, Business Profile.
+6. Save → wait ~1 minute → Settings → Apps → Connect with Google.
+
+After deploy, Settings → Apps shows the live `redirect_uri` to copy. Token exchange reuses the same URI stored in OAuth `state`.
+
+**Verify:** production `GET /api/integrations/oauth/google-status` (authenticated) returns  
+`redirect_uri: "https://www.aibusinessagent.xyz/api/integrations/oauth/callback"`.
 
 ---
 

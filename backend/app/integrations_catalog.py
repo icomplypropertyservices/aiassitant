@@ -1,20 +1,35 @@
 """Catalog of connectable third-party apps (OAuth + API key).
 
-Launch rule:
-  - Google family apps → live 1-click OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET)
-  - Everything else → coming_soon (still listed, not connectable via 1-click yet)
+All apps with fields and/or oauth are connectable:
+  - OAuth 1-click when platform client env vars are set (oauth_ready)
+  - API key / token connect always available when auth_modes includes api_key
+  - coming_soon=True only for apps that are intentionally not wired yet
 """
 
-# Sorted list for 1-click OAuth UI (first = top of list)
+# Preferred order in Connected apps UI (Google family first, then comms, then rest)
 OAUTH_ONE_CLICK_ORDER = [
-    "google",           # Workspace hub
+    "google",
     "gmail",
     "google_sheets",
     "google_business",
     "youtube",
+    "twilio",
+    "slack",
+    "x",
+    "linkedin",
+    "meta",
+    "instagram",
+    "shopify",
+    "hubspot",
+    "notion",
+    "dropbox",
+    "microsoft",
+    "tiktok",
 ]
 
-GOOGLE_FAMILY = frozenset(OAUTH_ONE_CLICK_ORDER)
+GOOGLE_FAMILY = frozenset({
+    "google", "gmail", "google_sheets", "google_business", "youtube",
+})
 
 # Each app:
 #   id, name, category, description, auth_modes, fields (for API connect),
@@ -170,6 +185,57 @@ INTEGRATION_APPS = {
         },
         "agent_capabilities": ["List reviews", "Draft review replies", "Flag low ratings"],
     },
+    "twilio": {
+        "id": "twilio",
+        "name": "Twilio",
+        "category": "communication",
+        "description": (
+            "SMS, WhatsApp, and voice calls for agents. "
+            "Use your own Account SID / Auth Token / From number, or rely on platform TWILIO_* env."
+        ),
+        "auth_modes": ["api_key"],
+        "color": "#F22F46",
+        "docs_url": "https://www.twilio.com/docs",
+        "coming_soon": False,
+        "one_click_oauth": False,
+        "fields": [
+            {
+                "name": "twilio_sid",
+                "label": "Account SID",
+                "placeholder": "ACxxxxxxxx",
+                "secret": True,
+                "required": True,
+            },
+            {
+                "name": "twilio_token",
+                "label": "Auth Token",
+                "placeholder": "your auth token",
+                "secret": True,
+                "required": True,
+            },
+            {
+                "name": "twilio_from",
+                "label": "From number (E.164)",
+                "placeholder": "+15551234567",
+                "secret": False,
+                "required": True,
+            },
+            {
+                "name": "twilio_whatsapp_from",
+                "label": "WhatsApp From (optional)",
+                "placeholder": "whatsapp:+14155238886",
+                "secret": False,
+                "required": False,
+            },
+        ],
+        "oauth": None,
+        "agent_capabilities": [
+            "Send SMS (send_sms / initiate_text)",
+            "WhatsApp messages (send_whatsapp)",
+            "Outbound voice with TTS (make_voice_call)",
+            "Notify humans on escalation",
+        ],
+    },
     "slack": {
         "id": "slack",
         "name": "Slack",
@@ -178,8 +244,8 @@ INTEGRATION_APPS = {
         "auth_modes": ["api_key", "oauth"],
         "color": "#4A154B",
         "docs_url": "https://api.slack.com/apps",
-        "coming_soon": True,
-        "one_click_oauth": False,
+        "coming_soon": False,
+        "one_click_oauth": True,
         "fields": [
             {"name": "bot_token", "label": "Bot user OAuth token", "placeholder": "xoxb-…", "secret": True, "required": True},
             {"name": "default_channel", "label": "Default channel", "placeholder": "#ops", "secret": False, "required": False},
@@ -189,7 +255,7 @@ INTEGRATION_APPS = {
             "token_url": "https://slack.com/api/oauth.v2.access",
             "client_id_env": "SLACK_CLIENT_ID",
             "client_secret_env": "SLACK_CLIENT_SECRET",
-            "scopes": "chat:write,channels:read",
+            "scopes": "chat:write,channels:read,channels:history,groups:read,im:write,users:read",
             "needs_shop": False,
         },
         "agent_capabilities": ["Post channel messages", "Notify on task completion"],
@@ -523,10 +589,10 @@ INTEGRATION_APPS = {
 
 
 def _is_coming_soon(app: dict) -> bool:
+    """Only explicitly flagged apps are coming soon (default: available)."""
     if "coming_soon" in app:
         return bool(app.get("coming_soon"))
-    # Default: only Google family is live at launch
-    return app.get("id") not in GOOGLE_FAMILY and app.get("family") != "google"
+    return False
 
 
 def _oauth_sort_index(app_id: str) -> int:
@@ -543,8 +609,14 @@ def list_apps(*, oauth_ready_fn=None) -> list[dict]:
         if oauth_ready_fn and a.get("oauth"):
             ready = bool(oauth_ready_fn(a))
         apps.append(public_app(a, oauth_ready=ready))
-    # Live 1-click Google first (sorted), then coming soon by name
-    apps.sort(key=lambda x: (1 if x.get("coming_soon") else 0, x.get("oauth_sort", 999), x.get("name") or ""))
+    # Available first (by preferred order), then coming soon by name
+    apps.sort(
+        key=lambda x: (
+            1 if x.get("coming_soon") else 0,
+            x.get("oauth_sort", 999),
+            x.get("name") or "",
+        )
+    )
     return apps
 
 
@@ -557,11 +629,29 @@ def public_app(app: dict, *, oauth_ready: bool | None = None) -> dict:
     oauth = app.get("oauth")
     aid = app["id"]
     coming = _is_coming_soon(app)
-    one_click = bool(app.get("one_click_oauth")) and not coming and bool(oauth)
-    # Force coming_soon for non-Google unless explicitly live
-    if aid not in GOOGLE_FAMILY and app.get("family") != "google":
-        coming = True
-        one_click = False
+    # 1-click when OAuth block exists and not coming soon; UI greys out until oauth_ready
+    has_oauth = bool(oauth)
+    one_click = (
+        not coming
+        and has_oauth
+        and (
+            bool(app.get("one_click_oauth"))
+            or aid in GOOGLE_FAMILY
+            or app.get("family") == "google"
+            or has_oauth
+        )
+    )
+    supports_api = "api_key" in (app.get("auth_modes") or [])
+    status = "Coming soon"
+    if not coming:
+        if oauth_ready:
+            status = "1-click OAuth"
+        elif supports_api:
+            status = "Connect with API key"
+        elif has_oauth:
+            status = "OAuth (server credentials needed)"
+        else:
+            status = "Available"
     return {
         "id": aid,
         "name": app["name"],
@@ -572,8 +662,8 @@ def public_app(app: dict, *, oauth_ready: bool | None = None) -> dict:
         "docs_url": app.get("docs_url"),
         "family": app.get("family") or ("google" if aid in GOOGLE_FAMILY else None),
         "coming_soon": coming,
-        "one_click_oauth": one_click,
-        "oauth_sort": _oauth_sort_index(aid) if aid in GOOGLE_FAMILY else 2000,
+        "one_click_oauth": one_click and bool(oauth_ready),
+        "oauth_sort": _oauth_sort_index(aid),
         "fields": [
             {
                 "name": f["name"],
@@ -584,23 +674,33 @@ def public_app(app: dict, *, oauth_ready: bool | None = None) -> dict:
             }
             for f in (app.get("fields") or [])
         ],
-        "supports_oauth": bool(oauth) and not coming,
-        "oauth_ready": False if coming else oauth_ready,
+        "supports_oauth": has_oauth and not coming,
+        "supports_api_key": supports_api and not coming,
+        "oauth_ready": False if coming else bool(oauth_ready) if oauth_ready is not None else False,
         "oauth_scopes": (oauth or {}).get("scopes") if oauth else None,
         "oauth_needs_shop": bool((oauth or {}).get("needs_shop")),
         "agent_capabilities": list(app.get("agent_capabilities") or []),
-        "status_label": "Coming soon" if coming else ("1-click OAuth" if one_click else "Available"),
+        "status_label": status,
     }
 
 
 def one_click_oauth_list(*, oauth_ready_fn=None) -> list[dict]:
-    """Ordered list of live Google 1-click apps only."""
+    """Ordered list of apps that support 1-click OAuth (ready or not)."""
     out = []
     for aid in OAUTH_ONE_CLICK_ORDER:
         app = INTEGRATION_APPS.get(aid)
-        if not app:
+        if not app or not app.get("oauth"):
             continue
-        ready = oauth_ready_fn(app) if oauth_ready_fn and app.get("oauth") else None
+        if _is_coming_soon(app):
+            continue
+        ready = oauth_ready_fn(app) if oauth_ready_fn else None
         entry = public_app(app, oauth_ready=ready)
         out.append(entry)
+    # Also include any other oauth apps not in the preferred order
+    seen = {e["id"] for e in out}
+    for aid, app in INTEGRATION_APPS.items():
+        if aid in seen or not app.get("oauth") or _is_coming_soon(app):
+            continue
+        ready = oauth_ready_fn(app) if oauth_ready_fn else None
+        out.append(public_app(app, oauth_ready=ready))
     return out

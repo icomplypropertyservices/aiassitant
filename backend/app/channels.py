@@ -7,6 +7,8 @@ User keys are preferred over platform config.* env; RESEND_FROM still comes from
 
 Email also supports optional cc / bcc lists.
 """
+import os
+import os
 import re
 import httpx
 from . import config
@@ -79,6 +81,44 @@ def _smtp_settings(credentials: dict | None = None) -> dict:
     }
 
 
+def _is_serverless_host() -> bool:
+    """Vercel / Lambda — outbound SMTP ports (25/465/587) are typically blocked."""
+    return bool(
+        getattr(config, "IS_VERCEL", False)
+        or os.getenv("VERCEL")
+        or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+        or os.getenv("LAMBDA_TASK_ROOT")
+    )
+
+
+def _smtp_network_blocked_hint(err: BaseException | str) -> str:
+    msg = str(err or "").lower()
+    networky = any(
+        x in msg
+        for x in (
+            "timed out",
+            "timeout",
+            "connection refused",
+            "network is unreachable",
+            "name or service not known",
+            "getaddrinfo failed",
+            "connection reset",
+            "winerror 10060",
+            "errno 110",
+            "errno 101",
+            "errno 111",
+            "temporarily unavailable",
+        )
+    )
+    if not networky and not _is_serverless_host():
+        return ""
+    return (
+        " Outbound SMTP (ports 587/465/25) is blocked on this host (Vercel serverless). "
+        "Use Resend API (Settings → API keys → Resend) or Gmail Connected app for production. "
+        "Raw SMTP works on a VPS with open egress."
+    )
+
+
 def _send_via_smtp(
     to_list: list[str],
     subject: str,
@@ -99,6 +139,7 @@ def _send_via_smtp(
         return False, "SMTP not configured (SMTP_HOST / SMTP_USER / SMTP_PASSWORD)"
     if not to_list:
         return False, "Email failed: no recipients"
+    timeout = 8 if _is_serverless_host() else 20
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = cfg["from_addr"] or cfg["user"]
@@ -111,55 +152,35 @@ def _send_via_smtp(
     recipients = list(to_list) + list(cc_list or []) + list(bcc_list or [])
     try:
         if cfg["tls"]:
-            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as server:
+            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=timeout) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(cfg["user"], cfg["password"])
                 server.sendmail(msg["From"], recipients, msg.as_string())
         else:
-            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=20) as server:
+            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=timeout) as server:
                 server.login(cfg["user"], cfg["password"])
                 server.sendmail(msg["From"], recipients, msg.as_string())
-        return True, f"Email sent via SMTP to {','.join(to_list)}: “{subject}”"
+        return True, f"email sent via SMTP to {','.join(to_list)}: “{subject}”"
     except Exception as e:
-        return False, f"SMTP email failed: {e}"
+        hint = _smtp_network_blocked_hint(e)
+        return False, f"SMTP email failed: {e}.{hint}"
 
 
-async def send_email(
-    to: str,
+async def _send_via_resend(
+    resend_key: str,
+    to_list: list[str],
     subject: str,
     body: str,
-    credentials: dict | None = None,
     *,
-    cc: str | list | None = None,
-    bcc: str | list | None = None,
+    cc_list: list[str] | None = None,
+    bcc_list: list[str] | None = None,
     html: str | None = None,
-    **kwargs,
-):
-    """Send via SMTP if configured, else Resend. Supports to + optional cc/bcc."""
-    resend_key, _, _, _ = _resolve_channel_creds(credentials, **kwargs)
-    to_list = _addr_list(to)
-    cc_list = _addr_list(cc if cc is not None else kwargs.get("cc"))
-    bcc_list = _addr_list(bcc if bcc is not None else kwargs.get("bcc"))
-    if not to_list:
-        return False, "Email failed: no recipients"
-
-    # Prefer classic SMTP when fully set (user asked for SMTP notify path)
-    smtp_cfg = _smtp_settings(credentials)
-    if smtp_cfg["host"] and smtp_cfg["user"] and smtp_cfg["password"]:
-        return _send_via_smtp(
-            to_list, subject, body or "",
-            cc_list=cc_list, bcc_list=bcc_list, html=html, credentials=credentials,
-        )
-
-    if not resend_key:
-        return False, (
-            f"Email drafted for {to} (not sent — set SMTP_HOST/SMTP_USER/SMTP_PASSWORD "
-            "or RESEND_API_KEY; connect Gmail for OAuth mail)"
-        )
+    from_addr: str | None = None,
+) -> tuple[bool, str]:
     payload = {
-        "from": config.RESEND_FROM,
+        "from": (from_addr or config.RESEND_FROM or "").strip() or "assistant@yourdomain.com",
         "to": to_list,
         "subject": subject,
         "text": body or "",
@@ -178,13 +199,68 @@ async def send_email(
                 json=payload,
             )
         if r.status_code in (200, 201):
-            extra = ""
-            if cc_list:
-                extra += f" cc={','.join(cc_list)}"
-            return True, f"Email sent to {','.join(to_list)}{extra}: “{subject}”"
-        return False, f"Email to {','.join(to_list)} failed ({r.status_code}): {r.text[:200]}"
+            extra = f" cc={','.join(cc_list)}" if cc_list else ""
+            return True, f"email sent via Resend to {','.join(to_list)}{extra}: “{subject}”"
+        return False, f"Resend failed ({r.status_code}): {r.text[:200]}"
     except Exception as e:
-        return False, f"Email to {to} failed: {e}"
+        return False, f"Resend failed: {e}"
+
+
+async def send_email(
+    to: str,
+    subject: str,
+    body: str,
+    credentials: dict | None = None,
+    *,
+    cc: str | list | None = None,
+    bcc: str | list | None = None,
+    html: str | None = None,
+    **kwargs,
+):
+    """Send via SMTP if configured, else Resend. Supports to + optional cc/bcc.
+
+    On Vercel, raw SMTP is often blocked; we fall back to Resend HTTP when available.
+    """
+    resend_key, _, _, _ = _resolve_channel_creds(credentials, **kwargs)
+    to_list = _addr_list(to)
+    cc_list = _addr_list(cc if cc is not None else kwargs.get("cc"))
+    bcc_list = _addr_list(bcc if bcc is not None else kwargs.get("bcc"))
+    if not to_list:
+        return False, "Email failed: no recipients"
+
+    smtp_cfg = _smtp_settings(credentials)
+    if smtp_cfg["host"] and smtp_cfg["user"] and smtp_cfg["password"]:
+        ok, detail = _send_via_smtp(
+            to_list, subject, body or "",
+            cc_list=cc_list, bcc_list=bcc_list, html=html, credentials=credentials,
+        )
+        if ok:
+            return True, detail
+        if resend_key and _smtp_network_blocked_hint(detail):
+            rok, rdetail = await _send_via_resend(
+                resend_key, to_list, subject, body or "",
+                cc_list=cc_list, bcc_list=bcc_list, html=html,
+                from_addr=smtp_cfg.get("from_addr") or None,
+            )
+            if rok:
+                return True, f"{rdetail} (SMTP blocked on host; used Resend fallback)"
+            return False, f"{detail} | Resend fallback: {rdetail}"
+        return False, detail
+
+    if not resend_key:
+        note = (
+            " Note: raw SMTP usually fails on Vercel — prefer Resend or Gmail OAuth."
+            if _is_serverless_host()
+            else ""
+        )
+        return False, (
+            f"Email drafted for {to} (not sent — configure SMTP under Settings → API keys, "
+            f"or set RESEND_API_KEY; connect Gmail for OAuth mail){note}"
+        )
+    return await _send_via_resend(
+        resend_key, to_list, subject, body or "",
+        cc_list=cc_list, bcc_list=bcc_list, html=html,
+    )
 
 
 async def send_transactional_email(to: str, subject: str, html_body: str) -> dict:
@@ -196,24 +272,33 @@ async def send_transactional_email(to: str, subject: str, html_body: str) -> dic
       {ok: False, dev: True, detail: str} when nothing configured (safe for local/dev)
       {ok: False, error: str} on API/network failure
     """
-    # 1) Platform SMTP (works with Namecheap Private Email, etc.)
+    # 1) Platform SMTP (works on VPS; often blocked on Vercel)
     smtp_cfg = _smtp_settings(None)
+    smtp_detail = ""
     if smtp_cfg["host"] and smtp_cfg["user"] and smtp_cfg["password"]:
-        # Convert simple HTML to plain fallback
         plain = (html_body or "").replace("<br>", "\n").replace("<br/>", "\n")
-        import re
         plain = re.sub(r"<[^>]+>", "", plain)
         ok, detail = _send_via_smtp(
             [to], subject, plain or subject, html=html_body, credentials=None,
         )
         if ok:
             return {"ok": True, "to": to, "subject": subject, "provider": "smtp", "detail": detail}
-        return {"ok": False, "error": detail, "provider": "smtp"}
+        smtp_detail = detail
+        # Fall through to Resend on network/serverless block
+        if not _smtp_network_blocked_hint(detail):
+            return {"ok": False, "error": detail, "provider": "smtp"}
 
-    # 2) Resend
+    # 2) Resend (HTTP — works on Vercel)
     api_key = (config.RESEND_API_KEY or "").strip()
     from_addr = (config.RESEND_FROM or "").strip() or "assistant@yourdomain.com"
     if not api_key:
+        if smtp_detail:
+            return {
+                "ok": False,
+                "error": smtp_detail,
+                "provider": "smtp",
+                "hint": "Set RESEND_API_KEY for Vercel, or run SMTP on a host with open egress.",
+            }
         return {
             "ok": False,
             "dev": True,
