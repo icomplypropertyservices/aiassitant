@@ -170,7 +170,12 @@ async def accept_and_authenticate_ws(ws, token: str, db: Session):
 
 
 def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) -> float:
-    """Allow usage if monthly included tokens remain OR wallet has credits."""
+    """Gate AI / fuelled actions only (chat, skills, media).
+
+    Browsing the app (agents list, settings, CRM, billing, hierarchy) does **not**
+    call this. When tokens+wallet are empty, raise 402 with a clear AI-only message
+    so the client can keep the rest of the site usable.
+    """
     from .usage_billing import ensure_period
 
     user = db.get(models.User, user_id)
@@ -178,10 +183,29 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
         return 999.0
     if user:
         if not user.subscription_active or user.plan in (None, "", "none"):
-            raise HTTPException(402, "Choose a subscription plan to continue.")
+            raise HTTPException(
+                402,
+                detail={
+                    "code": "needs_plan",
+                    "ai_only": True,
+                    "message": (
+                        "Choose a plan to use AI. You can still browse the app and open Billing."
+                    ),
+                },
+            )
         exp = getattr(user, "subscription_expires_at", None)
         if exp is not None and exp < datetime.utcnow():
-            raise HTTPException(402, "Your access period has ended. Renew on Billing to continue.")
+            raise HTTPException(
+                402,
+                detail={
+                    "code": "plan_expired",
+                    "ai_only": True,
+                    "message": (
+                        "Your plan period ended — renew on Billing to use AI again. "
+                        "The rest of the site stays available."
+                    ),
+                },
+            )
     bal = db.query(models.Balance).filter_by(user_id=user_id).first()
     if not bal:
         # Active subscribers must be able to spawn agents even if Balance row
@@ -207,7 +231,14 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
             db.rollback()
             bal = db.query(models.Balance).filter_by(user_id=user_id).first()
             if not bal:
-                raise HTTPException(402, "No billing account. Choose a plan or top up credits.")
+                raise HTTPException(
+                    402,
+                    detail={
+                        "code": "no_balance",
+                        "ai_only": True,
+                        "message": "No billing account yet. Open Billing to activate a plan.",
+                    },
+                )
     if user:
         ensure_period(bal, user)
         db.commit()
@@ -220,7 +251,15 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
     if credits < need:
         raise HTTPException(
             402,
-            "Included tokens used up and wallet is empty. Top up on Billing to continue.",
+            detail={
+                "code": "ai_fuel_empty",
+                "ai_only": True,
+                "message": (
+                    "AI is paused — included tokens are used up and your credit wallet is empty. "
+                    "Top up on Billing to chat or run agents again. "
+                    "You can still use the rest of the site (agents, CRM, settings, billing)."
+                ),
+            },
         )
     return credits
 

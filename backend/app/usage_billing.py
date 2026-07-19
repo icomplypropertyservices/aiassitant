@@ -116,13 +116,14 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
     # Sales urgency tier for popups
     if hard_block:
         urgency = "critical"
-        headline = "Your agents just ran out of fuel"
+        headline = "AI is paused — site still works"
         sales_message = (
-            f"You've burned through your {limits.get('name') or 'plan'} token pool and your wallet is empty. "
-            "Every minute offline is lost replies, stalled tasks, and quiet revenue. "
-            f"Top up now — most teams grab ${int(auto_amt)} and keep crushing it."
+            f"You've used your {limits.get('name') or 'plan'} token pool and the credit wallet is empty. "
+            "Chat, agent runs, and media need a top-up. "
+            "You can still browse agents, CRM, settings, and billing. "
+            f"Most teams add ${int(auto_amt)} and keep going."
         )
-        cta = f"Power up — add ${int(auto_amt)} credits"
+        cta = f"Top up ${int(auto_amt)} to restart AI"
     elif hard_block_soon or (included_exhausted and credits < 15):
         urgency = "high"
         headline = "You're almost out — don't let agents go dark"

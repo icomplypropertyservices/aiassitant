@@ -145,8 +145,8 @@ export default function AppShell() {
             message={
               showTokenHard ? (
                 <>
-                  Included tokens exhausted — overage uses credits.{' '}
-                  <Link to="/billing">Top up / billing</Link>
+                  AI paused (tokens/credits empty) — you can still use the rest of the app.{' '}
+                  <Link to="/billing">Top up to chat again</Link>
                 </>
               ) : (
                 <>
@@ -211,9 +211,9 @@ export default function AppShell() {
           open={topupOpen}
           meter={meter}
           onClose={() => {
-            snoozeTopup(meter?.hard_block ? 5 : 45)
+            // Always allow dismiss — empty fuel blocks AI only, not the whole site
+            snoozeTopup(meter?.hard_block ? 15 : 45)
             setTopupOpen(false)
-            if (meter?.hard_block) nav('/billing')
           }}
           onTopped={() => {
             api('/billing/meter').then(setMeter).catch(() => {})

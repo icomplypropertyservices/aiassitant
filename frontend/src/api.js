@@ -470,6 +470,11 @@ export async function api(path, options = {}) {
       `Request failed (${res.status})`
     const err = new Error(detail)
     err.status = res.status
+    // Structured 402 from ensure_credits — AI fuel only; rest of app stays open
+    if (data.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)) {
+      err.code = data.detail.code || data.code
+      err.aiOnly = data.detail.ai_only === true || data.ai_only === true
+    }
     throw err
   }
 

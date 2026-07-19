@@ -393,9 +393,12 @@ export default function AgentChat() {
     } catch (e) {
       hapticError()
       const aborted = e?.name === 'AbortError' || /abort/i.test(String(e?.message || ''))
+      const fuelOut = e?.status === 402 || e?.aiOnly || /tokens used up|wallet is empty|AI is paused|ai_fuel/i.test(String(e?.message || ''))
       const err = aborted
         ? 'Reply timed out. Try a shorter message, or wait a moment and send again (cold start can take ~30s once).'
-        : (e.message || 'Chat failed')
+        : fuelOut
+          ? (e.message || 'AI is paused — top up on Billing. You can still use the rest of the app.')
+          : (e.message || 'Chat failed')
       message.error(err)
       setMessages((prev) => {
         const next = prev.filter((m) => !m.pending)

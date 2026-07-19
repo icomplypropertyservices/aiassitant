@@ -47,7 +47,7 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
   const theme = colors[urgency] || colors.medium
 
   const urgencyLabel =
-    urgency === 'critical' ? 'Agents offline risk'
+    urgency === 'critical' ? 'AI paused (site still open)'
       : urgency === 'high' ? 'Almost empty'
         : 'Running low'
 
@@ -309,14 +309,18 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
           </Paragraph>
 
           <Space direction="vertical" size={4} className="aba-topup-dismiss">
+            {meter.hard_block && (
+              <Paragraph type="secondary" style={{ margin: 0, fontSize: 12, textAlign: 'center' }}>
+                You can keep using the app (lists, CRM, settings). Only AI chat and agent runs need fuel.
+              </Paragraph>
+            )}
             <Button
               type="text"
               block
               onClick={onClose}
-              disabled={meter.hard_block && urgency === 'critical'}
               className="aba-topup-dismiss-btn"
             >
-              {meter.hard_block ? 'I understand — continue to Billing' : 'Not now'}
+              {meter.hard_block ? 'Keep browsing the app' : 'Not now'}
             </Button>
             {meter.hard_block && (
               <Button
@@ -324,7 +328,7 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
                 block
                 onClick={() => { onClose?.(); nav('/billing') }}
               >
-                Open Billing
+                Open Billing to top up
               </Button>
             )}
           </Space>

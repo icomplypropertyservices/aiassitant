@@ -33,7 +33,8 @@ export function useShellSession() {
     if (!m || u?.role === 'admin') return
     const pathNow = window.location.pathname || ''
     if (pathNow.includes('/billing') || pathNow.includes('/subscribe')) return
-    if (isSnoozed() && !m.hard_block) return
+    // Empty fuel still allows browsing — only show promo modal (always dismissible)
+    if (isSnoozed()) return
     if (m.needs_topup || m.hard_block || m.hard_block_soon || (m.warn && (m.credits || 0) < 10)) {
       setTopupOpen(true)
     }
