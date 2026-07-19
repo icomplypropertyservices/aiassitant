@@ -266,10 +266,11 @@ def health():
         # On Vercel there is no long-lived process — autonomy runs via cron/ticks only.
         "autonomy_offline": bool(__import__("os").getenv("VERCEL")),
         "autonomy_cron": "/api/ops/autonomy/tick-all",
-        "autonomy_cron_schedule": "*/5 * * * *",
+        "autonomy_cron_schedule": "0 6 * * *",
         "autonomy_note": (
-            "Serverless: agents keep working when cron hits /api/ops/autonomy/tick-all "
-            "every 5 minutes (vercel.json). Local non-Vercel runs autonomy_background_loop."
+            "Serverless: agents keep working offline when /api/ops/autonomy/tick-all is hit "
+            "(Vercel daily cron + external keep-alive every 5m). No owner login required. "
+            "Local non-Vercel runs autonomy_background_loop."
         ),
         "path_frontend_hint": config.FRONTEND_URL,
         "cli_api": True,
