@@ -297,6 +297,43 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     db.add(models.Message(conversation_id=conv.id, role="assistant", content=final_text))
     db.commit()
 
+    # After every actionable chat: workflow so the agent continues alone
+    workflow_info = None
+    try:
+        from ..post_conversation import schedule_post_conversation_workflow
+        workflow_info = await schedule_post_conversation_workflow(
+            db, user, a,
+            user_text=text,
+            assistant_text=final_text,
+            skill_results=skill_results,
+            conversation_id=conv.id,
+            force=False,
+        )
+        if workflow_info and workflow_info.get("ok") and not workflow_info.get("skipped"):
+            tid = workflow_info.get("task_id")
+            if tid:
+                final_text = (
+                    final_text
+                    + f"\n\n— Continuing on my own: workflow task #{tid}"
+                    + (" (running now)" if workflow_info.get("run_started") else " (queued)")
+                    + ". I'll complete the follow-through without waiting for you."
+                ).strip()
+                # Persist the updated reply with workflow footer
+                try:
+                    last = (
+                        db.query(models.Message)
+                        .filter_by(conversation_id=conv.id, role="assistant")
+                        .order_by(models.Message.id.desc())
+                        .first()
+                    )
+                    if last:
+                        last.content = final_text
+                        db.commit()
+                except Exception:
+                    pass
+    except Exception as wf_err:
+        log.warning("post-conversation workflow skipped: %s", wf_err)
+
     charged = bill_llm_turn(db, user, model, llm_messages, final_text)
     try:
         await manager.broadcast(f"tokens:{user.id}", {
@@ -333,6 +370,8 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     }
     if chain_info:
         out["goal_chain"] = chain_info
+    if workflow_info:
+        out["workflow"] = workflow_info
     return out
 
 
@@ -523,6 +562,32 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             except Exception as chain_err:
                 log.warning("auto-chain from live chat skipped: %s", chain_err)
 
+            # Post-chat workflow so agent continues alone
+            workflow_info = None
+            try:
+                a_wf = db.get(models.Agent, agent_id)
+                u_wf = db.get(models.User, user_id)
+                if a_wf and u_wf:
+                    from ..post_conversation import schedule_post_conversation_workflow
+                    workflow_info = await schedule_post_conversation_workflow(
+                        db, u_wf, a_wf,
+                        user_text=text,
+                        assistant_text=reply,
+                        skill_results=skill_results,
+                        conversation_id=conv.id,
+                    )
+                    if workflow_info and workflow_info.get("ok") and not workflow_info.get("skipped"):
+                        tid = workflow_info.get("task_id")
+                        if tid:
+                            reply = (
+                                reply.strip()
+                                + f"\n\n— Continuing on my own: workflow task #{tid}"
+                                + (" (running now)" if workflow_info.get("run_started") else " (queued)")
+                                + "."
+                            ).strip()
+            except Exception as wf_err:
+                log.warning("post-conversation workflow (ws) skipped: %s", wf_err)
+
             db.add(models.Message(conversation_id=conv.id, role="assistant", content=reply))
             db.commit()
 
@@ -539,6 +604,8 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
                 done_payload["goal_chain"] = chain_info
             if skill_results:
                 done_payload["skills"] = skill_results
+            if workflow_info:
+                done_payload["workflow"] = workflow_info
             await ws.send_text(json.dumps(done_payload))
             await manager.broadcast(f"tokens:{user_id}", {
                 "event": "usage",

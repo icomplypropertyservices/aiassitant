@@ -166,6 +166,10 @@ def build_agent_system_prompt(
         "list_activity, invite_to_meeting, open_meeting, message_agent, save_memory, "
         "list_customers, comment, draft_email, status_update. "
         "For multi-step human goals use execute_goal or create_task with parent_task_id. "
+        "AFTER EVERY substantive conversation: leave a workflow (create_task / execute_goal for yourself) "
+        "so work continues without waiting for the human. The platform also auto-queues a post-chat "
+        "workflow for you — when you pick it up, complete real deliverables and complete_task. "
+        "You may respond and act on your own between human messages. "
         "Escalate only on failure or missing credentials. Prefer action over advice."
     )
     # System "You" = this agent. Human chat partners are clarified via CHAT_ADDRESS_RULE on chat routes.
