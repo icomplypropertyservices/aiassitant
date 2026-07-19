@@ -130,7 +130,7 @@
   "crons": [
     {
       "path": "/api/ops/autonomy/tick-all",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
