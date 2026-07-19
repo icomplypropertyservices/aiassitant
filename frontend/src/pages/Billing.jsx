@@ -6,6 +6,12 @@ import { ArrowUpOutlined, CrownOutlined, ThunderboltOutlined, CloudServerOutline
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { api, IS_NATIVE, getUser, getToken, setAuth } from '../api'
 import { absoluteAppUrl } from '../publicPaths'
+import {
+  startNativePlanCheckout,
+  startNativeTopupCheckout,
+  openNativeManageBilling,
+  installNativeBillingListeners,
+} from '../nativeBilling'
 import TokenMeter from '../components/TokenMeter'
 import CryptoPay from '../components/CryptoPay'
 import PageShell from '../components/PageShell'
@@ -144,15 +150,43 @@ export default function Billing() {
     return entries
   }, [plans])
 
+  useEffect(() => {
+    if (!IS_NATIVE) return undefined
+    return installNativeBillingListeners(async ({ checkout, me }) => {
+      if (checkout === 'success') {
+        message.success(me?.plan_name ? `Plan updated: ${me.plan_name}` : 'Payment received')
+        load()
+      } else if (checkout === 'resume') {
+        load()
+      } else if (checkout === 'cancelled') {
+        message.info('Checkout cancelled')
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const topup = async () => {
-    if (IS_NATIVE) {
-      message.info('On iOS, open Billing on the website to top up (App Store rules).')
-      window.open(WEB_BILLING(), '_blank')
-      return
-    }
     setBusy(true)
     try {
-      const r = await api('/billing/topup', { method: 'POST', body: { amount } })
+      if (IS_NATIVE) {
+        message.loading({ content: 'Opening secure top-up…', key: 'stripe', duration: 2 })
+        const r = await startNativeTopupCheckout(amount)
+        if (r.opened) {
+          message.info({
+            content: 'Finish payment in the browser, then return here — credits update automatically.',
+            key: 'stripe',
+            duration: 5,
+          })
+          return
+        }
+        message.success(`Added $${amount} credit${r.dev_mode ? ' (dev mode)' : ''}`)
+        load()
+        return
+      }
+      const r = await api('/billing/topup', {
+        method: 'POST',
+        body: { amount, client: 'web' },
+      })
       if (r.checkout_url) {
         window.location.href = r.checkout_url
         return
@@ -167,19 +201,37 @@ export default function Billing() {
   }
 
   const choose = async (plan, intervalArg) => {
-    if (IS_NATIVE) {
-      message.info('Change plans on the website to comply with App Store rules.')
-      window.open(WEB_BILLING(), '_blank')
-      return
-    }
     const interval = (intervalArg === 'year' || billingInterval === 'year') && plans[plan]?.price > 0
       ? 'year'
       : 'month'
     setBusy(true)
     try {
+      if (IS_NATIVE) {
+        message.loading({
+          content: interval === 'year' ? 'Opening annual checkout…' : 'Opening secure checkout…',
+          key: 'stripe',
+          duration: 2,
+        })
+        const r = await startNativePlanCheckout({ plan, interval })
+        if (r.opened) {
+          message.info({
+            content: 'Complete payment in the browser, then return to the app.',
+            key: 'stripe',
+            duration: 5,
+          })
+          return
+        }
+        message.success(`Plan set to ${plan}${r.dev_mode ? ' (dev mode)' : ''}`)
+        try {
+          const me = await api('/auth/me')
+          setAuth(getToken(), me)
+        } catch { /* ignore */ }
+        load()
+        return
+      }
       const r = await api('/billing/plan', {
         method: 'POST',
-        body: { plan, interval },
+        body: { plan, interval, client: 'web' },
       })
       if (r.checkout_url) {
         message.loading({
@@ -210,13 +262,12 @@ export default function Billing() {
   }
 
   const openPortal = async () => {
-    if (IS_NATIVE) {
-      message.info('Manage subscription on the website.')
-      window.open(WEB_BILLING(), '_blank')
-      return
-    }
     setBusy(true)
     try {
+      if (IS_NATIVE) {
+        await openNativeManageBilling()
+        return
+      }
       const r = await api('/billing/portal', { method: 'POST', body: {} })
       if (r?.url) {
         window.location.href = r.url
@@ -283,13 +334,8 @@ export default function Billing() {
           type="info"
           showIcon
           style={{ marginBottom: 16, borderRadius: 12 }}
-          message="Subscriptions & top-ups"
-          description="On the iOS app, manage payments on the website. Token meters still work here."
-          action={
-            <Button size="small" type="primary" onClick={() => window.open(WEB_BILLING(), '_blank')}>
-              Open web billing
-            </Button>
-          }
+          message="In-app subscriptions"
+          description="Tap a plan or top-up to pay securely in the system browser (Stripe). Return to the app when done — your plan and credits update automatically."
         />
       )}
 
@@ -615,10 +661,6 @@ export default function Billing() {
               </Button>
               <Button
                 onClick={() => {
-                  if (IS_NATIVE) {
-                    window.open(WEB_BILLING(), '_blank')
-                    return
-                  }
                   setCryptoCtx({ kind: 'topup', amount })
                   setCryptoOpen(true)
                 }}
@@ -723,10 +765,6 @@ export default function Billing() {
               ctaFor={ctaFor}
               onChoose={choose}
               onCrypto={(key) => {
-                if (IS_NATIVE) {
-                  window.open(WEB_BILLING(), '_blank')
-                  return
-                }
                 setCryptoCtx({ kind: 'plan', plan: key })
                 setCryptoOpen(true)
               }}

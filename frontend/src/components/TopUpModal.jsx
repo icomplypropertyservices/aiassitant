@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, IS_NATIVE } from '../api'
+import { startNativeTopupCheckout } from '../nativeBilling'
 import { hapticWarning, hapticMedium, notifyLocal } from '../native'
 
 const { Title, Paragraph, Text } = Typography
@@ -52,10 +53,6 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
 
   const topup = async (amt) => {
     const a = Number(amt || amount)
-    if (IS_NATIVE) {
-      window.open(`${typeof window !== 'undefined' ? window.location.origin : 'https://aibusinessagent.xyz'}/agents/billing`, '_blank')
-      return
-    }
     setBusy(true)
     setErr('')
     hapticMedium()
@@ -71,7 +68,20 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
           },
         })
       }
-      const r = await api('/billing/topup', { method: 'POST', body: { amount: a } })
+      if (IS_NATIVE) {
+        const r = await startNativeTopupCheckout(a)
+        if (r.opened) {
+          onClose?.()
+          return
+        }
+        onTopped?.(r)
+        onClose?.()
+        return
+      }
+      const r = await api('/billing/topup', {
+        method: 'POST',
+        body: { amount: a, client: 'web' },
+      })
       if (r.checkout_url) {
         window.location.href = r.checkout_url
         return

@@ -4,14 +4,14 @@
 |--|-----|---------|
 | **Shell** | Capacitor 8 | Capacitor 8 |
 | **App ID** | `com.icomply.aibusinessassistant` | `com.icomply.aibusinessassistant` |
-| **Version** | 1.4.0 | 1.4.0 (`versionCode` 10400) |
+| **Version** | 1.5.0 | 1.5.0 (`versionCode` 10500) |
 | **API** | `https://aibusinessagent.xyz/api` | same |
 | **App (web)** | https://aibusinessagent.xyz/agents | same |
 | **Privacy** | https://aibusinessagent.xyz/privacy.html | same |
 | **Terms** | https://aibusinessagent.xyz/terms.html | same |
 | **Support** | https://aibusinessagent.xyz/support.html | same |
 
-Payments: **web Stripe (sandbox `sk_test`) + crypto**. Mobile billing buttons open the website where required by store rules (`IS_NATIVE` paths already do this).
+Payments: **Stripe Checkout inside the app** via the system browser (Capacitor Browser) + crypto on web. Free trial is in-app. See **[MOBILE_LAUNCH.md](./MOBILE_LAUNCH.md)** for full owner steps.
 
 ---
 

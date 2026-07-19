@@ -251,6 +251,9 @@ def _fulfill_stripe_session(db: Session, session) -> dict:
 
 class TopupIn(BaseModel):
     amount: float
+    # Mobile shell tags (ios | android | web | native)
+    platform: str | None = None
+    client: str | None = None  # mobile | web
 
 
 class StorageAddonIn(BaseModel):
@@ -270,6 +273,12 @@ class PlanIn(BaseModel):
     # month (default) | year — annual Stripe subscription (10× monthly)
     interval: str = "month"
     billing_interval: str | None = None  # alias
+    platform: str | None = None  # ios | android | web | native
+    client: str | None = None  # mobile | web
+
+
+class CheckoutConfirmIn(BaseModel):
+    session_id: str | None = None
 
 
 class CryptoInvoiceIn(BaseModel):
@@ -283,6 +292,54 @@ class CryptoInvoiceIn(BaseModel):
 class CryptoVerifyIn(BaseModel):
     tx_hash: str | None = None
     public_id: str | None = None
+
+
+@router.get("/native/products")
+def native_store_products():
+    """
+    Product IDs for App Store Connect + Google Play Console.
+    Create these as auto-renewing subscriptions (plans) or consumables (credits).
+    """
+    products = []
+    for plan_id in ("starter", "pro", "business"):
+        lim = plan_limits(plan_id)
+        price = float(lim.get("price") or 0)
+        annual = round(price * 10, 2) if price else 0
+        for interval, amount, suffix in (
+            ("month", price, "month"),
+            ("year", annual, "year"),
+        ):
+            if amount <= 0:
+                continue
+            products.append({
+                "key": f"{plan_id}_{suffix}",
+                "kind": "subscription",
+                "plan": plan_id,
+                "interval": interval,
+                "price_usd": amount,
+                "apple_product_id": f"com.icomply.aibusinessassistant.{plan_id}.{suffix}",
+                "google_product_id": f"{plan_id}_{suffix}",
+                "name": f"{lim.get('name') or plan_id.title()} ({'Annual' if interval == 'year' else 'Monthly'})",
+            })
+    for amt in (10, 25, 50, 100):
+        products.append({
+            "key": f"credits_{amt}",
+            "kind": "topup",
+            "amount_usd": amt,
+            "apple_product_id": f"com.icomply.aibusinessassistant.credits.{amt}",
+            "google_product_id": f"credits_{amt}",
+            "name": f"${amt} wallet credits",
+        })
+    return {
+        "bundle_id": "com.icomply.aibusinessassistant",
+        "scheme": "aiba",
+        "checkout_mode": "stripe_browser",  # in-app system browser; optional IAP later
+        "products": products,
+        "notes": (
+            "Mobile apps open Stripe Checkout in the system browser. "
+            "Optionally mirror the same SKUs as StoreKit / Play Billing products for pure IAP."
+        ),
+    }
 
 
 @router.get("/plans")
@@ -541,7 +598,13 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
                 success_url=success,
                 cancel_url=cancel,
                 customer_email=user.email,
-                metadata={"kind": "topup", "user_id": str(user.id), "amount": str(data.amount)},
+                metadata={
+                    "kind": "topup",
+                    "user_id": str(user.id),
+                    "amount": str(data.amount),
+                    "platform": (data.platform or "web")[:32],
+                    "client": (data.client or "web")[:32],
+                },
             )
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
@@ -875,6 +938,8 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
                 "checkout_price": str(amount),
                 "billing_mode": "subscription",
                 "interval": interval,
+                "platform": (data.platform or "web")[:32],
+                "client": (data.client or "web")[:32],
             }
             session_kwargs = {
                 "mode": "subscription",
@@ -890,6 +955,7 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
                         "plan": data.plan,
                         "kind": "plan",
                         "interval": interval,
+                        "platform": (data.platform or "web")[:32],
                     },
                 },
             }
@@ -947,19 +1013,24 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
 
 @router.post("/checkout/confirm")
 def confirm_checkout(
-    session_id: str = Query(..., description="Stripe Checkout Session id (cs_test_… / cs_live_…)"),
+    session_id: str | None = Query(None, description="Stripe Checkout Session id (cs_test_… / cs_live_…)"),
+    data: CheckoutConfirmIn | None = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     """
     Fulfill a Checkout session after redirect (works without webhooks — ideal for sandbox testing).
     success_url includes session_id={CHECKOUT_SESSION_ID}.
+    Accepts ?session_id= or JSON {\"session_id\": \"cs_…\"} (mobile clients).
     """
+    sid = (session_id or (getattr(data, "session_id", None) if data else None) or "").strip()
+    if not sid:
+        raise HTTPException(400, "session_id required")
     stripe = _stripe()
     if not stripe:
         raise HTTPException(503, "Stripe not configured")
     try:
-        session = stripe.checkout.Session.retrieve(session_id)
+        session = stripe.checkout.Session.retrieve(sid)
     except Exception as e:
         raise HTTPException(400, f"Could not load Checkout session: {e}") from e
     sess = session if isinstance(session, dict) else session.to_dict()

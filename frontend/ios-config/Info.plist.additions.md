@@ -54,3 +54,30 @@ Or set in Info.plist:
 <key>ITSAppUsesNonExemptEncryption</key>
 <false/>
 ```
+
+## URL scheme (return from Stripe checkout)
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>com.icomply.aibusinessassistant</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>aiba</string>
+    </array>
+  </dict>
+</array>
+```
+
+Also add **Associated Domains** (optional App Links):
+
+```
+applinks:aibusinessagent.xyz
+```
+
+## Production API host
+
+API base for native builds: `https://aibusinessagent.xyz/api`  
+(set in `frontend/.env.native` as `VITE_PROD_API_URL`)

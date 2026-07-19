@@ -8,6 +8,10 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { api, getToken, getUser, setAuth, clearAuth, IS_NATIVE } from '../api'
 import { absoluteAppUrl } from '../publicPaths'
+import {
+  startNativePlanCheckout,
+  installNativeBillingListeners,
+} from '../nativeBilling'
 import CryptoPay from '../components/CryptoPay'
 import PlanCards, { PlansSectionHeader } from '../components/PlanCards'
 
@@ -123,24 +127,76 @@ export default function Subscribe() {
     nav('/')
   }
 
+  useEffect(() => {
+    if (!IS_NATIVE) return undefined
+    return installNativeBillingListeners(async ({ checkout, me }) => {
+      if (checkout === 'success' || (me && me.subscription_active && me.plan && me.plan !== 'none')) {
+        message.success(me?.plan_name ? `You're on ${me.plan_name}` : 'Subscription updated')
+        if (me) setAuth(getToken(), me)
+        nav('/')
+      } else if (checkout === 'cancelled') {
+        message.info('Checkout cancelled — you can pick a plan anytime.')
+      }
+    })
+  }, [nav])
+
   const choose = async (planKey, intervalArg) => {
-    if (IS_NATIVE) {
-      message.info('Complete subscription on the web for your account, then return to the app.')
-      window.open(absoluteAppUrl('/subscribe'), '_blank')
-      return
-    }
     const interval = (intervalArg === 'year' || billingInterval === 'year') ? 'year' : 'month'
     // Free trial ignores interval
     const iv = planKey === 'trial' || !(plans[planKey]?.price > 0) ? 'month' : interval
     setBusy(planKey)
     try {
-      // Paid → Stripe Checkout mode=subscription (monthly or annual)
+      // Free trial — always in-app API
+      if (planKey === 'trial' || !(plans[planKey]?.price > 0)) {
+        const r = await api('/billing/plan', {
+          method: 'POST',
+          body: {
+            plan: planKey,
+            company_name: companyName || undefined,
+            interval: 'month',
+            platform: IS_NATIVE ? (window.Capacitor?.getPlatform?.() || 'native') : 'web',
+            client: IS_NATIVE ? 'mobile' : 'web',
+          },
+        })
+        if (r.checkout_url) {
+          // unexpected for free
+        } else {
+          await afterPaid(planKey)
+          return
+        }
+      }
+
+      // Paid — native opens Stripe in system browser; web redirects
+      if (IS_NATIVE) {
+        message.loading({
+          content: iv === 'year' ? 'Opening annual checkout…' : 'Opening secure checkout…',
+          key: 'stripe',
+          duration: 2,
+        })
+        const r = await startNativePlanCheckout({
+          plan: planKey,
+          interval: iv,
+          company_name: companyName || undefined,
+        })
+        if (r.opened) {
+          message.info({
+            content: 'Complete payment in the browser, then return to the app — your plan updates automatically.',
+            key: 'stripe',
+            duration: 5,
+          })
+          return
+        }
+        await afterPaid(planKey)
+        return
+      }
+
       const r = await api('/billing/plan', {
         method: 'POST',
         body: {
           plan: planKey,
           company_name: companyName || undefined,
           interval: iv,
+          client: 'web',
         },
       })
       if (r.checkout_url) {
@@ -192,10 +248,6 @@ export default function Subscribe() {
   }
 
   const payCrypto = (planKey) => {
-    if (IS_NATIVE) {
-      window.open(absoluteAppUrl('/subscribe'), '_blank')
-      return
-    }
     setCryptoPlan(planKey)
     setCryptoOpen(true)
   }
