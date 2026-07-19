@@ -26,6 +26,20 @@ const STARTERS = [
   'Run a quick plan for today',
 ]
 
+/** Status lines while waiting for a REST chat reply (rotated + live ops). */
+const WAIT_PHASES = [
+  'Reading your message…',
+  'Thinking…',
+  'Planning next steps…',
+  'Running tools if needed…',
+  'Writing a reply…',
+  'Still working — complex replies take longer…',
+]
+
+const CHAT_SOFT_MS = 120000 // first soft deadline
+const CHAT_EXTEND_MS = 90000 // extra time when agent is active
+const CHAT_HARD_MS = 300000 // never wait longer than 5 minutes
+
 /** Pull ```questions blocks out of assistant text for UI chips under the bubble. */
 function splitAssistantContent(raw) {
   const text = String(raw || '')
@@ -164,12 +178,17 @@ export default function AgentChat() {
   )
   const [menuOpen, setMenuOpen] = useState(false)
   const [sessionTokens, setSessionTokens] = useState(0)
+  /** Live status under the thinking dots while agent is working */
+  const [waitStatus, setWaitStatus] = useState('')
+  const [waitElapsedSec, setWaitElapsedSec] = useState(0)
 
   const bottomRef = useRef(null)
   const listRef = useRef(null)
   const wsRef = useRef(null)
   const speakRef = useRef(speakReplies)
   speakRef.current = speakReplies
+  const waitStatusRef = useRef('')
+  waitStatusRef.current = waitStatus
 
   const scrollBottom = useCallback((smooth = true) => {
     requestAnimationFrame(() => {
@@ -290,6 +309,9 @@ export default function AgentChat() {
   }, [id, load, scrollBottom])
 
   useEffect(() => { scrollBottom() }, [messages.length, scrollBottom])
+  useEffect(() => {
+    if (busy) scrollBottom(false)
+  }, [waitStatus, waitElapsedSec, busy, scrollBottom])
 
   const abortRef = useRef(null)
 
@@ -341,17 +363,92 @@ export default function AgentChat() {
     try { abortRef.current?.abort() } catch { /* ignore */ }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
     abortRef.current = controller
-    // Chat should return in ~10–40s; 120s hard cap (cold start + skills)
-    const timeoutMs = 120000
-    const timer = controller
-      ? setTimeout(() => controller.abort(), timeoutMs)
+
+    // Soft deadline extends while the agent is active (ops events / phase ticks).
+    // Hard cap 5 minutes so a stuck request never hangs the phone forever.
+    const waitStarted = Date.now()
+    let softDeadline = waitStarted + CHAT_SOFT_MS
+    let phaseIdx = 0
+    setWaitStatus(WAIT_PHASES[0])
+    setWaitElapsedSec(0)
+
+    const bumpActivity = (label) => {
+      const now = Date.now()
+      softDeadline = Math.min(now + CHAT_EXTEND_MS, waitStarted + CHAT_HARD_MS)
+      if (label && String(label).trim()) {
+        const clean = String(label).trim().slice(0, 120)
+        setWaitStatus(clean)
+        waitStatusRef.current = clean
+      }
+    }
+
+    const elapsedTimer = setInterval(() => {
+      const sec = Math.floor((Date.now() - waitStarted) / 1000)
+      setWaitElapsedSec(sec)
+    }, 1000)
+
+    const phaseTimer = setInterval(() => {
+      phaseIdx = (phaseIdx + 1) % WAIT_PHASES.length
+      // Don't overwrite a fresher live-ops status unless it looks like a phase line
+      const cur = waitStatusRef.current || ''
+      if (!cur || WAIT_PHASES.includes(cur) || /still working|thinking|planning|writing|running tools|reading/i.test(cur)) {
+        setWaitStatus(WAIT_PHASES[phaseIdx])
+        waitStatusRef.current = WAIT_PHASES[phaseIdx]
+      }
+      // Past 45s still waiting with no hard fail — lightly extend once (cold start / skills)
+      const elapsed = Date.now() - waitStarted
+      if (elapsed > 45000 && elapsed < CHAT_HARD_MS - 30000) {
+        softDeadline = Math.min(
+          Math.max(softDeadline, Date.now() + 45000),
+          waitStarted + CHAT_HARD_MS,
+        )
+      }
+    }, 4000)
+
+    const opsTimer = setInterval(async () => {
+      try {
+        const live = await api('/ops/live?limit=30', { timeoutMs: 8000 })
+        const events = Array.isArray(live?.events) ? live.events : []
+        const agentId = String(id)
+        const agentName = (agent?.name || '').toLowerCase()
+        const mine = events.find((ev) => {
+          if (!ev || typeof ev !== 'object') return false
+          if (ev.agent_id != null && String(ev.agent_id) === agentId) return true
+          const t = `${ev.title || ''} ${ev.detail || ''}`.toLowerCase()
+          return agentName && t.includes(agentName)
+        })
+        if (mine) {
+          const label = mine.title || mine.detail || mine.kind || 'Working…'
+          const st = mine.status ? ` (${mine.status})` : ''
+          bumpActivity(`${label}${st}`)
+        }
+        // Any recent running ops = agent/system is busy — allow more time
+        const running = events.some((ev) => {
+          const s = String(ev?.status || '').toLowerCase()
+          return s === 'running' || s === 'queued' || s === 'in_progress'
+        })
+        if (running) bumpActivity(null)
+      } catch {
+        /* ignore poll errors */
+      }
+    }, 2500)
+
+    const deadlineTimer = controller
+      ? setInterval(() => {
+        const now = Date.now()
+        if (now >= waitStarted + CHAT_HARD_MS || now >= softDeadline) {
+          try { controller.abort() } catch { /* ignore */ }
+        }
+      }, 500)
       : null
 
     try {
+      // timeoutMs: 0 — we own abort + extend while agent is active
       const r = await api(`/agents/${id}/chat`, {
         method: 'POST',
         body: { message: msg },
         signal: controller?.signal,
+        timeoutMs: 0,
       })
       const replyText = (r?.reply || r?.message || r?.content || '').toString().trim()
         || 'No reply text returned. Try again — if it keeps failing, refresh and re-send.'
@@ -394,8 +491,9 @@ export default function AgentChat() {
       hapticError()
       const aborted = e?.name === 'AbortError' || /abort/i.test(String(e?.message || ''))
       const fuelOut = e?.status === 402 || e?.aiOnly || /tokens used up|wallet is empty|AI is paused|ai_fuel/i.test(String(e?.message || ''))
+      const waited = Math.round((Date.now() - waitStarted) / 1000)
       const err = aborted
-        ? 'Reply timed out. Try a shorter message, or wait a moment and send again (cold start can take ~30s once).'
+        ? `Reply timed out after ${waited}s. The agent may still be finishing offline on Tasks — open the board, or send a shorter message.`
         : fuelOut
           ? (e.message || 'AI is paused — top up on Billing. You can still use the rest of the app.')
           : (e.message || 'Chat failed')
@@ -406,7 +504,12 @@ export default function AgentChat() {
         return next
       })
     } finally {
-      if (timer) clearTimeout(timer)
+      clearInterval(elapsedTimer)
+      clearInterval(phaseTimer)
+      clearInterval(opsTimer)
+      if (deadlineTimer) clearInterval(deadlineTimer)
+      setWaitStatus('')
+      setWaitElapsedSec(0)
       if (abortRef.current === controller) abortRef.current = null
       setBusy(false)
     }
@@ -565,7 +668,20 @@ export default function AgentChat() {
                   <div className="agent-chat-msg-stack">
                     <div className={`agent-chat-bubble ${m.streaming ? 'is-streaming' : ''}`}>
                       {split.display || (m.streaming ? (
-                        <span className="agent-chat-dots"><i /><i /><i /></span>
+                        <div className="agent-chat-waiting">
+                          <span className="agent-chat-dots" aria-hidden><i /><i /><i /></span>
+                          <span className="agent-chat-wait-status">
+                            {waitStatus || 'Thinking…'}
+                            {waitElapsedSec > 0 ? (
+                              <span className="agent-chat-wait-elapsed"> · {waitElapsedSec}s</span>
+                            ) : null}
+                          </span>
+                          {waitElapsedSec >= 20 ? (
+                            <span className="agent-chat-wait-hint">
+                              Still active — longer replies and tools get extra time
+                            </span>
+                          ) : null}
+                        </div>
                       ) : '')}
                     </div>
                     {!isUser && !m.streaming && (split.display || m.content) && (
@@ -686,7 +802,9 @@ export default function AgentChat() {
               </Button>
             </div>
             <Text type="secondary" className="agent-chat-hint">
-              Tap <strong>Send</strong> to message the agent · Mic to talk · Screen stays on while agent speaks
+              {busy
+                ? `${waitStatus || 'Agent working…'}${waitElapsedSec ? ` · ${waitElapsedSec}s` : ''} · extra time while active`
+                : 'Tap Send to message the agent · Mic to talk · Screen stays on while agent speaks'}
             </Text>
           </div>
         </footer>

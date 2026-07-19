@@ -449,6 +449,31 @@
   40% { transform: translateY(-4px); opacity: 1; }
 }
 
+/* Live “what is the agent doing” while waiting on REST chat */
+.agent-chat-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 12rem;
+}
+.agent-chat-wait-status {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: inherit;
+  opacity: 0.92;
+}
+.agent-chat-wait-elapsed {
+  font-weight: 400;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.agent-chat-wait-hint {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  line-height: 1.3;
+}
+
 .agent-chat-composer {
   flex-shrink: 0;
   padding: 0 0 calc(2px + env(safe-area-inset-bottom));
