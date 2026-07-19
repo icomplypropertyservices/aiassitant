@@ -404,10 +404,55 @@ async def _skill_execute_goal(db: Session, agent: models.Agent, user: models.Use
         auto_queue=True,
     )
 
+def _compose_task_brief(
+    description: str,
+    *,
+    title: str = "",
+    success_criteria: str = "",
+    done_when: str = "",
+    target: str = "",
+    owner_name: str = "",
+) -> str:
+    """Attach measurable DONE WHEN / TARGET lines so agents finish for real."""
+    body = (description or title or "Task").strip()
+    sc = (success_criteria or done_when or "").strip()
+    tgt = (target or "").strip()
+    if not sc and not tgt:
+        # Auto target from title when agent forgot criteria
+        sc = f"Deliver a concrete output for: {(title or body)[:160]}"
+    lines = [body, "", "---", "ACCEPTANCE (must satisfy to complete):"]
+    if sc:
+        lines.append(f"DONE WHEN: {sc}")
+    if tgt:
+        lines.append(f"TARGET: {tgt}")
+    if owner_name:
+        lines.append(f"Owner agent: {owner_name}")
+    lines.append("When finished, call complete_task with task_id and a result that proves the target.")
+    return "\n".join(lines)[:8000]
+
+
 async def _skill_create_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     title = (args.get("title") or args.get("description") or "Task")[:120]
-    description = (args.get("description") or title).strip()
-    agent_id = args.get("agent_id") or agent.id
+    raw_desc = (args.get("description") or title).strip()
+    success_criteria = (
+        args.get("success_criteria")
+        or args.get("done_when")
+        or args.get("acceptance")
+        or ""
+    )
+    target_metric = args.get("target") or args.get("goal_target") or ""
+    description = _compose_task_brief(
+        raw_desc,
+        title=title,
+        success_criteria=str(success_criteria),
+        done_when=str(args.get("done_when") or ""),
+        target=str(target_metric),
+        owner_name=agent.name or "",
+    )
+    # Default: assign to self (agents can give themselves work)
+    agent_id = args.get("agent_id")
+    if agent_id in (None, "", "self", "me"):
+        agent_id = agent.id
     human_id = args.get("human_id")
     try:
         agent_id = int(agent_id) if agent_id is not None else agent.id
@@ -446,6 +491,8 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
     )
 
     labels = "skill-created"
+    if agent_id == agent.id:
+        labels = f"{labels},self-assigned"
     task_kwargs: dict[str, Any] = {
         "user_id": user.id,
         "agent_id": target.id,
@@ -517,6 +564,20 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
     db.commit()
     db.refresh(t)
 
+    kicked = False
+    if (t.status or "") == "queued" and human_id is None:
+        try:
+            from ..task_runner import kick_queued_task
+            kicked = await kick_queued_task(
+                t.id,
+                user_id=user.id,
+                agent_id=target.id,
+                description=t.description,
+                agent_name=target.name,
+            )
+        except Exception:
+            kicked = False
+
     # Best-effort live UI update
     try:
         from ..ws import manager
@@ -530,10 +591,17 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
 
     return {
         "ok": True,
-        "message": "Task created",
+        "message": (
+            f"Task #{t.id} created → {target.name} [{t.status}]"
+            + (" · run started" if kicked else "")
+        ),
         "task_id": t.id,
         "status": t.status,
         "assignee_type": t.assignee_type,
+        "agent_id": target.id,
+        "agent_name": target.name,
+        "run_started": kicked,
+        "success_criteria": str(success_criteria or target_metric or "")[:300] or None,
     }
 
 async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:

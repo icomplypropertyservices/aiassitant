@@ -151,46 +151,68 @@ def decompose_goal(prompt: str, *, max_steps: int = 6) -> list[dict[str, Any]]:
             steps.append({"title": c[:120], "description": c})
         return steps
 
-    # Synthesized chain: clarify → plan → delegate workstreams → execute → verify
+    # Synthesized chain: each step has a measurable DONE WHEN target
     short = text[:200]
     template = [
         {
             "title": "Clarify goal & success criteria",
-            "description": f"Restate the goal, define done criteria, constraints, and owner. Goal: {short}",
+            "description": (
+                f"Restate the goal, constraints, and owner.\n"
+                f"DONE WHEN: Written success criteria + 3 measurable targets for: {short}\n"
+                f"TARGET: Criteria saved via save_memory or parent task note."
+            ),
             "role_hint": "orchestrator",
+            "done_when": "Success criteria and 3 measurable targets written",
         },
         {
             "title": "Set company/project targets",
             "description": (
-                f"Attach work to the right company and project; set targets and timeline. Goal: {short}"
+                f"Attach work to the right company/project and timeline.\n"
+                f"DONE WHEN: Company/project chosen and target metrics named for: {short}\n"
+                f"TARGET: Scope note on the goal task."
             ),
             "role_hint": "lead",
+            "done_when": "Scope and metrics attached to goal",
         },
         {
             "title": "Break work into owned workstreams",
             "description": (
-                f"Create concrete subtasks for specialists under the hierarchy. Goal: {short}"
+                f"Create concrete subtasks with assignees for: {short}\n"
+                f"DONE WHEN: At least 2 create_task or message_agent assignments with done_when each.\n"
+                f"TARGET: Board shows child work under this goal."
             ),
             "role_hint": "lead",
+            "done_when": "≥2 owned child tasks with acceptance criteria",
         },
         {
             "title": "Execute primary deliverable",
-            "description": f"Produce the main output for: {short}",
+            "description": (
+                f"Produce the main output for: {short}\n"
+                f"DONE WHEN: Full deliverable text (draft/plan/email/analysis) is in the task result.\n"
+                f"TARGET: Deliverable ready for human review."
+            ),
             "role_hint": "specialist",
+            "done_when": "Primary deliverable in task result",
         },
         {
             "title": "QA / review & pack result",
             "description": (
-                f"Review outputs, fix gaps, summarize results for the human owner. Goal: {short}"
+                f"Review outputs, fix gaps, summarize for the human owner.\n"
+                f"DONE WHEN: Short QA checklist + final summary vs goal: {short}\n"
+                f"TARGET: Human-ready summary via status_update or notify_human if possible."
             ),
             "role_hint": "orchestrator",
+            "done_when": "QA summary and human-facing pack complete",
         },
         {
-            "title": "Monitor completion & escalate blockers",
+            "title": "Close loop & escalate only if blocked",
             "description": (
-                f"Track open subtasks, re-queue stuck work, escalate only if blocked. Goal: {short}"
+                f"Confirm all sibling steps done; re-queue stuck work once if needed.\n"
+                f"DONE WHEN: Open chain steps = 0 or blockers escalated with reason.\n"
+                f"TARGET: Parent goal can roll up. Goal: {short}"
             ),
             "role_hint": "orchestrator",
+            "done_when": "Chain clear or blockers escalated",
         },
     ]
     return template[:max_steps]
@@ -266,9 +288,16 @@ async def start_goal_chain(
         normalized = decompose_goal(prompt, max_steps=max_steps)
 
     children: list[dict[str, Any]] = []
+    first_queued_id: int | None = None
     for i, step in enumerate(normalized[:max_steps]):
         stitle = (step.get("title") or step.get("description") or f"Step {i + 1}")[:120]
         sdesc = (step.get("description") or stitle)[:4000]
+        done_when = (
+            step.get("done_when")
+            or step.get("success_criteria")
+            or step.get("target")
+            or f"Complete step: {stitle}"
+        )
         pref_id = step.get("agent_id")
         try:
             pref_id = int(pref_id) if pref_id is not None and pref_id != "" else None
@@ -285,7 +314,6 @@ async def start_goal_chain(
         )
         # Sequential chain: only the first step is queued immediately.
         # Later steps stay todo until on_task_finished promotes the next sibling.
-        # (Queuing every child broke sequential unlock — all ran in parallel.)
         if auto_queue and i == 0 and getattr(assignee, "status", None) == "active":
             status = "queued"
         else:
@@ -300,8 +328,10 @@ async def start_goal_chain(
             title=f"[{i + 1}/{len(normalized)}] {stitle}"[:200],
             description=(
                 f"{sdesc}\n\n---\nParent goal #{parent.id}: {goal_title}\n"
-                f"Assigned via hierarchy auto-chain. Complete your part; "
-                f"parent monitors completion."
+                f"DONE WHEN: {done_when}\n"
+                f"TARGET: {done_when}\n"
+                f"Assigned to {assignee.name} via auto-chain. "
+                f"Call complete_task with evidence when the target is met."
             )[:8000],
             status=status,
             priority=priority or "high",
@@ -310,6 +340,8 @@ async def start_goal_chain(
         )
         db.add(child)
         db.flush()
+        if status == "queued" and first_queued_id is None:
+            first_queued_id = child.id
         children.append(
             {
                 "task_id": child.id,
@@ -317,11 +349,20 @@ async def start_goal_chain(
                 "agent_id": assignee.id,
                 "agent_name": assignee.name,
                 "status": child.status,
+                "done_when": str(done_when)[:200],
             }
         )
 
     db.commit()
     db.refresh(parent)
+
+    # Start first step immediately (do not wait for Vercel daily cron)
+    if first_queued_id:
+        try:
+            from .task_runner import kick_queued_task
+            await kick_queued_task(first_queued_id, user_id=user.id)
+        except Exception as e:
+            log.warning("kick first chain step failed: %s", e)
 
     # Live ops banner
     try:
@@ -536,6 +577,9 @@ async def on_task_finished(
     else:
         db.flush()
 
+    # Kick next sibling run immediately after unlock (outside caller's txn when possible)
+    next_to_kick = out.get("next_queued")
+
     if out.get("parent_updated") or out.get("next_queued"):
         try:
             from .live_ops import emit_ops
@@ -578,6 +622,15 @@ async def on_task_finished(
             )
         except Exception:
             pass
+
+    if next_to_kick:
+        try:
+            from .task_runner import kick_queued_task
+            # Runner reloads task by id after caller commits when commit=False.
+            await kick_queued_task(int(next_to_kick), user_id=task.user_id)
+            out["next_started"] = next_to_kick
+        except Exception as e:
+            log.warning("kick next chain step failed: %s", e)
 
     return out
 

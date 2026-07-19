@@ -92,9 +92,26 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "create_task",
         "name": "Create task",
-        "description": "Create a task for an agent or human. Active agent tasks queue for autonomy unless run_now=false.",
-        "args": ["title", "description", "agent_id", "human_id", "priority", "run_now", "meeting_id", "parent_task_id"],
+        "description": (
+            "Create a task for yourself (default) or another agent/human. "
+            "Always include success_criteria or done_when (measurable target). "
+            "Active agents are queued and run immediately unless run_now=false."
+        ),
+        "args": [
+            "title", "description", "agent_id", "human_id", "priority", "run_now",
+            "meeting_id", "parent_task_id", "success_criteria", "done_when", "target",
+        ],
         "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "claim_task",
+        "name": "Claim task",
+        "description": (
+            "Assign this task to yourself, attach DONE WHEN / TARGET acceptance criteria, "
+            "queue it, and start running it now."
+        ),
+        "args": ["task_id", "success_criteria", "done_when", "target"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
         "id": "announce_plan",
@@ -2726,6 +2743,7 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'update_task': ('_skill_update_task', 'std', ()),
     'respond_to_task': ('_skill_respond_to_task', 'std', ()),
     'complete_task': ('_skill_complete_task', 'std', ()),
+    'claim_task': ('_skill_claim_task', 'std', ()),
     'set_task_status': ('_skill_set_task_status', 'std', ()),
     'list_meetings': ('_skill_list_meetings', 'std', ()),
     'list_humans': ('_skill_list_humans', 'std', ()),

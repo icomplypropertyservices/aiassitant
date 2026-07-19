@@ -23,6 +23,77 @@ from .ws import manager
 log = logging.getLogger("app.task_runner")
 
 
+async def kick_queued_task(
+    task_id: int,
+    *,
+    user_id: int | None = None,
+    agent_id: int | None = None,
+    description: str | None = None,
+    agent_name: str | None = None,
+) -> bool:
+    """Schedule immediate execution for a queued task (do not wait for daily cron).
+
+    Returns True if a run was scheduled. Safe to call after create_task / claim /
+    goal-chain step unlock. No-ops if task missing, not queued, or agent paused.
+    """
+    from .async_jobs import schedule
+
+    db = SessionLocal()
+    try:
+        t = db.get(models.Task, task_id)
+        if not t:
+            return False
+        if (t.status or "") != "queued":
+            return False
+        aid = agent_id or t.agent_id
+        if not aid:
+            return False
+        a = db.get(models.Agent, aid)
+        if not a or (a.status or "") != "active":
+            return False
+        uid = user_id or t.user_id
+        desc = description if description is not None else (t.description or t.title or "")
+        name = agent_name or a.name or "Agent"
+        # Claim the row immediately so a second kick cannot double-run
+        t.status = "in_progress"
+        t.updated_at = datetime.utcnow()
+        db.commit()
+        # Capture scalars before session close
+        tid, a_id, u_id = t.id, a.id, uid
+        aname, tdesc = name, desc
+    except Exception as e:
+        log.warning("kick_queued_task claim failed task=%s: %s", task_id, e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        db.close()
+
+    try:
+        await schedule(run_agent_task(a_id, u_id, tid, tdesc, aname))
+        log.info("kicked task_id=%s agent_id=%s", tid, a_id)
+        return True
+    except Exception as e:
+        log.warning("kick_queued_task schedule failed task=%s: %s", task_id, e)
+        # Re-queue so autonomy can retry
+        db2 = SessionLocal()
+        try:
+            t2 = db2.get(models.Task, tid)
+            if t2 and (t2.status or "") == "in_progress" and not (t2.result or "").strip():
+                t2.status = "queued"
+                db2.commit()
+        except Exception:
+            try:
+                db2.rollback()
+            except Exception:
+                pass
+        finally:
+            db2.close()
+        return False
+
+
 def mode_for_template(template_type: str | None) -> str:
     t = (template_type or "").lower()
     if t in ("coding", "developer", "engineer", "qa"):
@@ -81,11 +152,15 @@ async def run_agent_task(
     model = "fast"
     mode = "general"
     agent_name = agent_name or "Agent"
+    task_title = ""
+    task_priority = "medium"
+    task_labels = ""
     try:
         t = db.get(models.Task, task_id)
         if not t:
             return
         t.status = "in_progress"
+        t.updated_at = datetime.utcnow()
         a = db.get(models.Agent, agent_id)
         if not a:
             t.status = "failed"
@@ -113,10 +188,18 @@ async def run_agent_task(
             db.commit()
             return
 
-        cfg = json.loads(a.config or "{}")
+        try:
+            cfg = json.loads(a.config or "{}")
+        except Exception:
+            cfg = {}
         model = rt.model
         mode = mode_for_template(a.template_type)
         labels = (getattr(t, "labels", None) or "")
+        task_labels = labels
+        task_title = (t.title or "")[:200]
+        task_priority = t.priority or "medium"
+        # Prefer DB description (has targets); fall back to arg
+        description = (t.description or description or t.title or "").strip()
         # Autonomy / self-run background work → small tier only (protect RunPod VRAM)
         if "autonomy" in labels or "self-run" in labels:
             from . import config as app_config
@@ -132,7 +215,7 @@ async def run_agent_task(
         db.close()
 
     try:
-        await log_activity(agent_id, user_id, "thinking", f"Analysing task: {description[:80]}")
+        await log_activity(agent_id, user_id, "thinking", f"Working task #{task_id}: {(task_title or description)[:80]}")
 
         db = SessionLocal()
         try:
@@ -140,9 +223,23 @@ async def run_agent_task(
             agent_row = db.get(models.Agent, agent_id)
             creds = credentials_for_user(db, user_id)
             prompt = (
-                build_task_prompt(db, agent_row, description, business_context=cfg)
+                build_task_prompt(
+                    db,
+                    agent_row,
+                    description,
+                    business_context=cfg,
+                    task_id=task_id,
+                    task_title=task_title,
+                    priority=task_priority,
+                    labels=task_labels,
+                )
                 if agent_row
-                else f"Complete this task:\n\n{description}"
+                else (
+                    f"TASK #{task_id}: {task_title or 'Work item'}\n\n"
+                    f"{description}\n\n"
+                    f"Do the work. End with ```skill\ncomplete_task\n"
+                    f'{{"task_id": {task_id}, "result": "<what you delivered>"}}\n```'
+                )
             )
             # Keep background prompts short to cut tokens / GPU time
             if "autonomy" in (labels or "") and len(prompt) > 6000:

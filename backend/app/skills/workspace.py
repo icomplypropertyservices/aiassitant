@@ -430,7 +430,124 @@ async def _skill_complete_task(db: Session, agent: models.Agent, user: models.Us
     out = await _skill_update_task(db, agent, user, args)
     if out.get("ok"):
         out["message"] = f"Completed task #{args.get('task_id') or args.get('id')}"
+        # Advance auto-chain: next sibling was queued — start it now (not daily cron)
+        try:
+            from ..task_runner import kick_queued_task
+            next_id = None
+            # on_task_finished inside update_task may have set next sibling queued
+            tid = int(args.get("task_id") or args.get("id"))
+            parent_id = (out.get("task") or {}).get("parent_task_id")
+            if parent_id:
+                nxt = (
+                    db.query(models.Task)
+                    .filter(
+                        models.Task.parent_task_id == parent_id,
+                        models.Task.status == "queued",
+                        models.Task.id != tid,
+                    )
+                    .order_by(models.Task.id.asc())
+                    .first()
+                )
+                if nxt:
+                    next_id = nxt.id
+                    await kick_queued_task(next_id, user_id=user.id)
+                    out["next_task_started"] = next_id
+        except Exception:
+            pass
     return out
+
+
+async def _skill_claim_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Assign this agent to a task, attach done-when targets, and queue for immediate run."""
+    args = dict(args or {})
+    try:
+        tid = int(args.get("task_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "task_id required"}
+    t = db.get(models.Task, tid)
+    if not t or t.user_id != user.id:
+        return {"ok": False, "error": "task not found"}
+    if (t.status or "") in ("completed", "failed"):
+        return {"ok": False, "error": f"task already {t.status}"}
+
+    t.agent_id = agent.id
+    t.assignee_type = "agent"
+    t.human_id = None
+
+    success = (
+        args.get("success_criteria")
+        or args.get("done_when")
+        or args.get("acceptance")
+        or args.get("target")
+        or ""
+    )
+    success = str(success).strip()
+    if success and "DONE WHEN:" not in (t.description or "").upper():
+        t.description = (
+            f"{(t.description or t.title or '').rstrip()}\n\n"
+            f"---\nDONE WHEN: {success}\n"
+            f"TARGET: {success}\n"
+            f"Claimed by {agent.name}. Call complete_task when the target is met."
+        )[:8000]
+    elif "DONE WHEN:" not in (t.description or "").upper():
+        t.description = (
+            f"{(t.description or t.title or '').rstrip()}\n\n"
+            f"---\nDONE WHEN: Produce the concrete deliverable for “{t.title or 'this task'}”.\n"
+            f"Claimed by {agent.name}. Call complete_task with evidence when done."
+        )[:8000]
+
+    labels = t.labels or ""
+    for tag in ("claimed", "self-assigned"):
+        if tag not in labels:
+            labels = f"{labels},{tag}".strip(",") if labels else tag
+    t.labels = labels
+    t.status = "queued"
+    t.updated_at = datetime.utcnow()
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id,
+            type="task_claim",
+            message=f"Claimed task #{t.id}: {t.title or ''}",
+        ))
+    except Exception:
+        pass
+    db.commit()
+    db.refresh(t)
+
+    kicked = False
+    try:
+        from ..task_runner import kick_queued_task
+        kicked = await kick_queued_task(
+            t.id,
+            user_id=user.id,
+            agent_id=agent.id,
+            description=t.description,
+            agent_name=agent.name,
+        )
+    except Exception:
+        kicked = False
+
+    try:
+        from ..ws import manager
+        from ..agent_serialize import task_dict
+        await manager.broadcast(
+            f"agents:{user.id}",
+            {"event": "task_updated", "task": task_dict(t, db)},
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "message": (
+            f"Claimed task #{t.id} → queued"
+            + (" · run started" if kicked else " · waiting for runner")
+        ),
+        "task_id": t.id,
+        "status": t.status,
+        "run_started": kicked,
+        "task": _task_row(t, full=True),
+    }
 
 
 async def _skill_set_task_status(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
@@ -438,7 +555,16 @@ async def _skill_set_task_status(db: Session, agent: models.Agent, user: models.
     args = dict(args or {})
     if not args.get("status"):
         return {"ok": False, "error": "status is required"}
-    return await _skill_update_task(db, agent, user, args)
+    out = await _skill_update_task(db, agent, user, args)
+    # If agent set status to queued, start immediately
+    if out.get("ok") and str(args.get("status") or "").lower() == "queued":
+        try:
+            from ..task_runner import kick_queued_task
+            tid = int(args.get("task_id") or args.get("id"))
+            await kick_queued_task(tid, user_id=user.id)
+        except Exception:
+            pass
+    return out
 
 async def _skill_list_humans(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
     try:
@@ -645,6 +771,7 @@ __all__ = [
     '_skill_update_task',
     '_skill_respond_to_task',
     '_skill_complete_task',
+    '_skill_claim_task',
     '_skill_set_task_status',
     '_skill_list_humans',
     '_skill_read_workspace',

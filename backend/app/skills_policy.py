@@ -390,6 +390,7 @@ _CORE_ALWAYS = frozenset({
     "update_task",
     "respond_to_task",
     "complete_task",
+    "claim_task",
     "set_task_status",
     "list_meetings",
     "list_humans",

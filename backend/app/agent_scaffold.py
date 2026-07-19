@@ -263,7 +263,7 @@ def ensure_open_workspace_access(db: Session, agent: models.Agent) -> None:
             instructions=(
                 "You can read the full training library, CRM, tasks, meetings, team, "
                 "and deals for this workspace. Comment/note on records when useful. "
-                "Use skills: list_tasks, search_tasks, get_task, create_task, "
+                "Use skills: list_tasks, search_tasks, get_task, create_task, claim_task, "
                 "respond_to_task, complete_task, update_task, set_task_status, "
                 "list_customers, list_meetings, list_humans, search_knowledge, "
                 "comment, post_to_meeting, message_agent. "

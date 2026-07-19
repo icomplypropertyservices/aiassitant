@@ -201,12 +201,67 @@ def should_escalate_for_policy(when: str, *, reason_code: str, priority: str = "
     return False
 
 
+async def _promote_assigned_todos(db: Session, user: models.User, summary: dict) -> None:
+    """Agent-owned todos (not waiting auto-chain steps) → queued so they actually run."""
+    from .agent_scaffold import resolve_runtime
+
+    todos = (
+        db.query(models.Task)
+        .filter(
+            models.Task.user_id == user.id,
+            models.Task.status == "todo",
+            models.Task.agent_id.isnot(None),
+            models.Task.assignee_type == "agent",
+        )
+        .order_by(models.Task.id)
+        .limit(20)
+        .all()
+    )
+    promoted = 0
+    for t in todos:
+        labels = t.labels or ""
+        # Sequential chain steps stay todo until previous step completes
+        if "auto-chain" in labels and "step" in labels:
+            # Only promote if no sibling in flight and this is the earliest open step
+            if t.parent_task_id:
+                siblings = (
+                    db.query(models.Task)
+                    .filter(models.Task.parent_task_id == t.parent_task_id)
+                    .order_by(models.Task.id)
+                    .all()
+                )
+                in_flight = any((s.status or "") in ("queued", "in_progress") for s in siblings)
+                earlier_todo = any(
+                    s.id < t.id and (s.status or "") == "todo" for s in siblings
+                )
+                if in_flight or earlier_todo:
+                    continue
+        agent = db.get(models.Agent, t.agent_id)
+        if not agent or (agent.status or "") != "active":
+            continue
+        rt = resolve_runtime(agent)
+        if not rt.can_execute:
+            continue
+        t.status = "queued"
+        t.updated_at = datetime.utcnow()
+        promoted += 1
+    if promoted:
+        db.commit()
+        summary["todos_promoted"] = summary.get("todos_promoted", 0) + promoted
+
+
 async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> None:
-    from .task_runner import run_agent_task
+    from .task_runner import run_agent_task, kick_queued_task
     from .async_jobs import schedule
     from .agent_scaffold import resolve_runtime
 
     from . import config as app_config
+
+    # First: promote stagnant agent todos into the queue
+    try:
+        await _promote_assigned_todos(db, user, summary)
+    except Exception:
+        pass
 
     max_tasks = int(getattr(app_config, "AUTONOMY_MAX_TASKS_PER_TICK", 3) or 3)
     queued = (
@@ -246,7 +301,19 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
             detail=(t.title or t.description or "")[:160],
             agent_id=agent.id, task_id=t.id, db=db,
         )
-        await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
+        # Prefer kick helper (same path as skills)
+        try:
+            ok = await kick_queued_task(
+                t.id,
+                user_id=user.id,
+                agent_id=agent.id,
+                description=t.description,
+                agent_name=agent.name,
+            )
+            if not ok:
+                await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
+        except Exception:
+            await schedule(run_agent_task(agent.id, user.id, t.id, t.description, agent.name))
 
 
 async def _check_stuck_and_failed(db: Session, user: models.User, settings: models.WorkspaceSettings, summary: dict) -> None:
@@ -379,15 +446,55 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
             continue
 
         role = rt.hierarchy_role
-        title = f"Autonomy cycle · {a.name}"
+        # Prefer claiming real open board work over fluff self-runs
+        open_unassigned = (
+            db.query(models.Task)
+            .filter(
+                models.Task.user_id == user.id,
+                models.Task.status.in_(("todo", "queued")),
+                models.Task.agent_id.is_(None),
+            )
+            .order_by(models.Task.id.asc())
+            .first()
+        )
+        if open_unassigned:
+            open_unassigned.agent_id = a.id
+            open_unassigned.assignee_type = "agent"
+            open_unassigned.status = "queued"
+            open_unassigned.updated_at = datetime.utcnow()
+            if "DONE WHEN:" not in (open_unassigned.description or "").upper():
+                open_unassigned.description = (
+                    f"{(open_unassigned.description or open_unassigned.title or '').rstrip()}\n\n"
+                    f"---\nDONE WHEN: Deliver the concrete output for this board item.\n"
+                    f"Claimed by {a.name} via autonomy. Call complete_task with evidence."
+                )[:8000]
+            db.commit()
+            fed += 1
+            summary["idle_tasks"] += 1
+            try:
+                from .task_runner import kick_queued_task
+                await kick_queued_task(open_unassigned.id, user_id=user.id, agent_id=a.id)
+            except Exception:
+                pass
+            await emit_ops(
+                user.id, kind="action", status="queued",
+                title=f"{a.name} claimed board task",
+                detail=(open_unassigned.title or "")[:160],
+                agent_id=a.id, task_id=open_unassigned.id, db=db,
+            )
+            continue
+
+        title = f"Self-run · {a.name} · concrete deliverable"
         desc = (
-            f"You are {a.name} ({role}), running autonomously.\n"
-            f"1) Review your scope (company/project if set).\n"
-            f"2) List top 3 concrete actions for the business today.\n"
-            f"3) Use free skills when useful (save_memory, create_task, list_customers, "
-            f"generate_content, draft_email). Do NOT use paid send/call/image skills "
-            f"unless essential and already enabled.\n"
-            f"4) Be concise. Escalate only if blocked.\n"
+            f"You are {a.name} ({role}), running autonomously for the business.\n"
+            f"1) list_tasks mine=true and read_workspace — see open work.\n"
+            f"2) If open work exists, claim_task or complete_task it with a real result.\n"
+            f"3) Else create_task for YOURSELF with a measurable done_when, then do that work now "
+            f"(draft_email, generate_content, list_customers + notes, research, etc.).\n"
+            f"4) You MUST end by complete_task on the task you worked (include task_id + result).\n"
+            f"DONE WHEN: At least one board task is completed or newly created+completed with evidence.\n"
+            f"TARGET: One concrete business deliverable in the task result.\n"
+            f"Do NOT use paid send/call/image skills unless essential.\n"
         )
         t = models.Task(
             user_id=user.id,
@@ -397,18 +504,24 @@ async def _feed_never_idle(db: Session, user: models.User, summary: dict) -> Non
             title=title,
             description=desc,
             status="queued",
-            priority="low",
-            labels="autonomy,self-run",
+            priority="medium",
+            labels="autonomy,self-run,self-assigned",
             assignee_type="agent",
         )
         db.add(t)
         db.commit()
+        db.refresh(t)
         fed += 1
         summary["idle_tasks"] += 1
+        try:
+            from .task_runner import kick_queued_task
+            await kick_queued_task(t.id, user_id=user.id, agent_id=a.id)
+        except Exception:
+            pass
         await emit_ops(
             user.id, kind="action", status="queued",
             title=f"{a.name} autonomy task",
-            detail="Idle never_idle agent assigned capped self-run",
+            detail="Self-assigned concrete deliverable with DONE WHEN",
             agent_id=a.id, task_id=t.id, db=db,
         )
 
@@ -422,6 +535,7 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
         "tasks_started": 0,
         "escalated": 0,
         "idle_tasks": 0,
+        "todos_promoted": 0,
         "skipped": False,
         "reason": "",
     }

@@ -138,12 +138,16 @@ def build_agent_system_prompt(
         "deals, team (use read_workspace, list_pipelines, get_pipeline, pipeline_summary, list_deals, "
         "list_tasks, search_tasks, get_task, list_customers, list_meetings, list_humans, "
         "search_knowledge, get_customer). "
-        "TASK BOARD (use automatically when needed — do not ask permission): "
-        "list_tasks / search_tasks to find work; get_task for detail; create_task to add work; "
-        "respond_to_task or complete_task when finishing or answering a board item; "
-        "update_task / set_task_status for progress (in_progress, review, failed). "
-        "Orchestrators: when the human mentions open work, a task id, or 'what's on the board', "
-        "call list_tasks or search_tasks first, then respond_to_task / complete_task / create_task. "
+        "TASK BOARD — you DO the work (not just advise). Use skills without asking permission: "
+        "list_tasks / search_tasks (mine=true for your queue); get_task for detail; "
+        "claim_task to assign yourself open work and queue it with exact done-when targets; "
+        "create_task to add work for yourself or teammates (include success_criteria / done_when / target); "
+        "set_task_status in_progress when you start; respond_to_task or complete_task when finished "
+        "with a concrete result that matches the target; update_task for progress notes. "
+        "When you create a task for yourself, set agent_id to your id and run_now true so it executes. "
+        "Orchestrators: open work / task id / 'board' → list_tasks or search_tasks first, then "
+        "claim_task / create_task / complete_task. Never leave work as vague advice — always a board row "
+        "with a measurable done-when, then complete it. "
         "Run the sales board with create_deal, move_deal, win_deal, lose_deal, update_pipeline. "
         "You may COMMENT / note on records with the comment skill (target_type + target_id + body) "
         "or post_to_meeting / log_customer_activity / message_agent / Human messages. "
@@ -178,14 +182,53 @@ def build_task_prompt(
     description: str,
     *,
     business_context: dict | None = None,
+    task_id: int | None = None,
+    task_title: str | None = None,
+    priority: str | None = None,
+    labels: str | None = None,
 ) -> str:
+    """Prompt for autonomy / task_runner — forces concrete work + complete_task."""
     system = build_agent_system_prompt(db, agent)
     ctx = json.dumps(business_context or {})
-    return (
-        f"{system}\nBusiness context: {ctx}\n"
-        f"Complete this task and produce the final deliverable text "
-        f"(e.g. the email/message itself), no preamble. "
-        f"If anything material happens mid-work (start, blocker, completion), surface it so the "
-        f"human owner stays informed — use status_update or a short note when useful:\n\n"
-        f"{description}"
-    )
+    tid = task_id if task_id is not None else "?"
+    title = (task_title or "").strip() or "Work item"
+    pri = (priority or "medium").strip()
+    labs = (labels or "").strip()
+    body = (description or "").strip()
+    # Extract success lines if already in description
+    success_hint = ""
+    for marker in ("DONE WHEN:", "SUCCESS:", "TARGET:", "ACCEPTANCE:"):
+        if marker in body.upper():
+            success_hint = " (match the DONE WHEN / TARGET lines in the brief exactly)"
+            break
+    work_block = f"""
+=== ACTIVE TASK (you must finish this) ===
+task_id: {tid}
+title: {title}
+priority: {pri}
+labels: {labs or "—"}
+
+BRIEF:
+{body}
+
+MANDATORY WORK ORDER:
+1) Do the real work now (draft, research, CRM, create child tasks, message agents, etc.).
+2) Hit the success criteria / DONE WHEN / TARGET in the brief{success_hint}.
+3) When finished, emit this skill (required — board stays open without it):
+
+```skill
+complete_task
+{{"task_id": {tid}, "result": "<1-5 sentences: what you delivered and how it meets the target>"}}
+```
+
+If blocked, use:
+```skill
+set_task_status
+{{"task_id": {tid}, "status": "failed"}}
+```
+and put the blocker in a result note via update_task.
+
+Produce the deliverable in your reply (email body, plan, analysis, etc.) — no empty "I'll do it later".
+If mid-work is material, status_update / notify_human so the owner stays informed.
+"""
+    return f"{system}\nBusiness context: {ctx}\n{work_block}"
