@@ -2,11 +2,15 @@ import React from 'react'
 import {
   Card, Form, Input, Select, Switch, Button, Space, Tag, Typography, Descriptions,
 } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { SettingOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import ModelSelect from '../../components/ModelSelect'
 
 /** Agent manage page — Config tab body. */
 export default function AgentConfigTab({ editForm, saveSettings, agent, humans }) {
+  const customFieldsObj = agent?.custom_fields
+    || (agent?.config && typeof agent.config.custom_fields === 'object' ? agent.config.custom_fields : {})
+    || {}
+
   return (
     <Form form={editForm} layout="vertical" onFinish={saveSettings}>
       <Space direction="vertical" size={12} style={{ width: '100%', maxWidth: 720 }}>
@@ -66,6 +70,71 @@ export default function AgentConfigTab({ editForm, saveSettings, agent, humans }
           <Form.Item name="escalate_human_id" label="Escalate human (optional)" style={{ marginBottom: 0 }}>
             <Select allowClear options={humans.map((h) => ({ value: h.id, label: h.name }))} placeholder="Human teammate" />
           </Form.Item>
+        </Card>
+
+        <Card
+          bordered
+          size="small"
+          className="aba-soft-card"
+          title="Custom fields"
+          extra={
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Free-form key/value metadata agents can read & update via skills
+            </Typography.Text>
+          }
+        >
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0, marginBottom: 12, fontSize: 13 }}>
+            Examples: territory, quota, niche, phone script, brand voice. Skills:{' '}
+            <Typography.Text code>list_agent_custom_fields</Typography.Text>,{' '}
+            <Typography.Text code>set_agent_custom_field</Typography.Text>,{' '}
+            <Typography.Text code>get_agent_custom_field</Typography.Text>,{' '}
+            <Typography.Text code>delete_agent_custom_field</Typography.Text>.
+          </Typography.Paragraph>
+          <Form.List name="custom_fields_list">
+            {(fields, { add, remove }) => (
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {fields.map((field) => (
+                  <Space key={field.key} align="start" style={{ width: '100%' }} wrap>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'key']}
+                      rules={[{ required: true, message: 'Key required' }]}
+                      style={{ marginBottom: 0, minWidth: 140, flex: 1 }}
+                    >
+                      <Input placeholder="key (e.g. territory)" />
+                    </Form.Item>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'value']}
+                      style={{ marginBottom: 0, minWidth: 180, flex: 2 }}
+                    >
+                      <Input placeholder="value" />
+                    </Form.Item>
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => remove(field.name)}
+                      aria-label="Remove field"
+                    />
+                  </Space>
+                ))}
+                <Button type="dashed" onClick={() => add({ key: '', value: '' })} block icon={<PlusOutlined />}>
+                  Add custom field
+                </Button>
+              </Space>
+            )}
+          </Form.List>
+          {Object.keys(customFieldsObj || {}).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Currently saved: </Typography.Text>
+              {Object.entries(customFieldsObj).map(([k, v]) => (
+                <Tag key={k} style={{ marginBottom: 4 }}>
+                  {k}={typeof v === 'string' ? v : JSON.stringify(v)}
+                </Tag>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card bordered size="small" className="aba-soft-card" title="Config & metadata">

@@ -14,6 +14,20 @@ from .agent_roles import is_orchestrator, is_lead_agent, normalize_role
 from .agent_prompts import team_context
 
 
+def _custom_fields_for_agent(a: models.Agent) -> dict:
+    """Expose free-form custom fields for API clients."""
+    try:
+        from .skills.agent_actions import get_custom_fields
+        return get_custom_fields(a)
+    except Exception:
+        try:
+            cfg = json.loads(a.config or "{}")
+            cf = cfg.get("custom_fields") if isinstance(cfg, dict) else {}
+            return dict(cf) if isinstance(cf, dict) else {}
+        except Exception:
+            return {}
+
+
 def task_dict(
     t: models.Task,
     db: Session | None = None,
@@ -240,6 +254,7 @@ def agent_out(
         "hierarchy_role": role,
         "reports_count": reports_count,
         "config": json.loads(a.config or "{}"),
+        "custom_fields": _custom_fields_for_agent(a),
         "created_at": a.created_at,
         "stats": {
             "tasks": tasks,

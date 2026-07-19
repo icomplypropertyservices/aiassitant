@@ -116,7 +116,27 @@ def build_agent_system_prompt(
         raw = agent.config or "{}"
         try:
             parsed = json.loads(raw) if isinstance(raw, str) else raw
-            cfg = f" Config: {json.dumps(parsed) if not isinstance(parsed, str) else parsed}."
+            if not isinstance(parsed, dict):
+                parsed = {}
+            # Prefer explicit custom_fields block for the model
+            custom = parsed.get("custom_fields") if isinstance(parsed.get("custom_fields"), dict) else {}
+            if not custom:
+                try:
+                    from .skills.agent_actions import get_custom_fields
+                    custom = get_custom_fields(agent)
+                except Exception:
+                    custom = {}
+            parts = []
+            if custom:
+                parts.append(f"Custom fields: {json.dumps(custom, ensure_ascii=False)}")
+            # Remaining config (without dumping huge blobs)
+            other = {k: v for k, v in parsed.items() if k != "custom_fields"}
+            if other:
+                parts.append(f"Config: {json.dumps(other, ensure_ascii=False)[:800]}")
+            if parts:
+                cfg = " " + " ".join(parts) + "."
+            elif parsed:
+                cfg = f" Config: {json.dumps(parsed) if not isinstance(parsed, str) else parsed}."
         except Exception:
             cfg = f" Config: {raw}."
     from .agent_skills import skills_prompt_block
@@ -165,7 +185,9 @@ def build_agent_system_prompt(
         "Key skills: execute_goal, create_task, claim_task, list_tasks, complete_task, "
         "list_activity, invite_to_meeting, open_meeting, message_agent, save_memory, "
         "list_customers, create_customer, list_products, create_product, update_product, "
-        "set_product_offer, comment, draft_email, status_update. "
+        "set_product_offer, comment, draft_email, status_update, "
+        "list_agent_custom_fields, set_agent_custom_field, get_agent_custom_field. "
+        "Use custom fields for free-form agent metadata (territory, quota, niche notes). "
         "After every skill, explain the result in plain language (names, ids, offers, prices). "
         "For multi-step human goals use execute_goal or create_task with parent_task_id. "
         "AFTER EVERY substantive conversation: leave a workflow (create_task / execute_goal for yourself) "

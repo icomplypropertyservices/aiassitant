@@ -198,6 +198,8 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         "emit the correct ```skill blocks with valid JSON args, THEN write a short plain-language "
         "summary of what you did (ids, names, offers). Never only describe skills — run them. "
         "Products: list_products, create_product, update_product, set_product_offer, delete_product. "
+        "Custom fields: list_agent_custom_fields, get_agent_custom_field, set_agent_custom_field, "
+        "delete_agent_custom_field, set_agent_custom_fields. "
         "After each substantive chat the system may start a post-chat workflow so you keep working alone. "
         "If you need input, end with a ```questions block of short questions."
     )

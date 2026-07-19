@@ -90,17 +90,27 @@ export default function AgentDetail() {
         } else {
           setMessages([])
         }
-        editForm.setFieldsValue({
-          name: a.name,
-          personality: a.personality,
-          model: a.model,
-          never_idle: a.idle_mode === 'never_idle',
-          permission_level: a.permission_level || 'operator',
-          escalate_when: a.escalate_when || 'on_failure',
-          escalate_reason: a.escalate_reason || '',
-          escalate_to: a.escalate_to || 'parent',
-          escalate_human_id: a.escalate_human_id || undefined,
-        })
+        {
+          const cf = a.custom_fields
+            || (a.config && typeof a.config.custom_fields === 'object' ? a.config.custom_fields : {})
+            || {}
+          const custom_fields_list = Object.entries(cf).map(([key, value]) => ({
+            key,
+            value: value == null ? '' : (typeof value === 'string' ? value : JSON.stringify(value)),
+          }))
+          editForm.setFieldsValue({
+            name: a.name,
+            personality: a.personality,
+            model: a.model,
+            never_idle: a.idle_mode === 'never_idle',
+            permission_level: a.permission_level || 'operator',
+            escalate_when: a.escalate_when || 'on_failure',
+            escalate_reason: a.escalate_reason || '',
+            escalate_to: a.escalate_to || 'parent',
+            escalate_human_id: a.escalate_human_id || undefined,
+            custom_fields_list,
+          })
+        }
         hierForm.setFieldsValue({
           is_lead: a.is_lead || a.hierarchy_role === 'lead',
           hierarchy_role: a.hierarchy_role || (a.is_lead ? 'lead' : 'member'),
@@ -274,6 +284,14 @@ export default function AgentDetail() {
 
   const saveSettings = async (v) => {
     try {
+      const baseConfig = (agent?.config && typeof agent.config === 'object') ? { ...agent.config } : {}
+      const custom_fields = {}
+      ;(v.custom_fields_list || []).forEach((row) => {
+        const key = (row?.key || '').trim()
+        if (!key) return
+        custom_fields[key] = row?.value == null ? '' : String(row.value)
+      })
+      baseConfig.custom_fields = custom_fields
       await api(`/agents/${id}`, {
         method: 'PATCH',
         body: {
@@ -286,6 +304,7 @@ export default function AgentDetail() {
           escalate_reason: v.escalate_reason || '',
           escalate_to: v.escalate_to,
           escalate_human_id: v.escalate_human_id || null,
+          config: baseConfig,
         },
       })
       message.success('Agent updated')

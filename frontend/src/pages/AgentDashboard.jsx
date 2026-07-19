@@ -404,7 +404,8 @@ export default function AgentDashboard() {
             <Text type="secondary">Tip:</Text>
             <Text type="secondary">
               Agents create products with <Text code>create_product</Text> / special offers with{' '}
-              <Text code>set_product_offer</Text>. After skills run, chat shows a full “What I just did” summary.
+              <Text code>set_product_offer</Text>. Custom metadata via{' '}
+              <Text code>set_agent_custom_field</Text>. After skills run, chat shows a full “What I just did” summary.
             </Text>
           </Space>
         </Card>

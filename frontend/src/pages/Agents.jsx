@@ -197,8 +197,11 @@ export default function Agents() {
     const tpl = catalog.find(
       (t) => t.id === values.template_id || String(t.id) === String(values.template_id),
     )
-    const config = {}
-    ;(tpl?.unique_fields || []).forEach((f) => { config[f.name] = values[`field_${f.name}`] || '' })
+    const custom_fields = {}
+    ;(tpl?.unique_fields || []).forEach((f) => {
+      if (f?.name) custom_fields[f.name] = values[`field_${f.name}`] || ''
+    })
+    const config = { custom_fields }
     const name = (values.name || tpl?.name || 'New agent').trim()
     if (!name) {
       message.error('Enter an agent name')

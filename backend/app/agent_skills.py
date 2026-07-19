@@ -2857,6 +2857,8 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
         "skill_recommend", "enable_skills_on", "configure_agent",
         "get_agent", "change_agent", "update_agent", "add_agent", "list_agent_fields",
         "reparent_agent", "rename_agent", "set_agent_field", "agent_field_ops",
+        "list_agent_custom_fields", "get_agent_custom_field", "set_agent_custom_field",
+        "delete_agent_custom_field", "set_agent_custom_fields",
     ]
     by_id = {s["id"]: s for s in skills}
     ordered: list[dict] = []
@@ -3161,6 +3163,11 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'set_agent_field': ('_skill_set_agent_field', 'std', ()),
     'list_agent_fields': ('_skill_list_agent_fields', 'std', ()),
     'agent_field_ops': ('_skill_agent_field_ops', 'std', ()),
+    'list_agent_custom_fields': ('_skill_list_agent_custom_fields', 'std', ()),
+    'get_agent_custom_field': ('_skill_get_agent_custom_field', 'std', ()),
+    'set_agent_custom_field': ('_skill_set_agent_custom_field', 'std', ()),
+    'delete_agent_custom_field': ('_skill_delete_agent_custom_field', 'std', ()),
+    'set_agent_custom_fields': ('_skill_set_agent_custom_fields', 'std', ()),
 
     'facebook_post': ('_skill_facebook_post', 'std', ()),
     'facebook_reply_comment': ('_skill_facebook_reply_comment', 'std', ()),
