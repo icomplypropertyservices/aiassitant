@@ -47,24 +47,34 @@ export default function Humans() {
   const load = async () => {
     setLoading(true)
     try {
+      // Long timeout: serverless cold start on /humans/ can exceed default 30s GET budget
+      const longGet = { timeoutMs: 90000 }
       const [h, co, pr, ag, sc] = await Promise.all([
-        api('/humans/'),
-        api('/org/companies').catch(() => []),
-        api('/org/projects').catch(() => []),
-        api('/agents/').catch(() => []),
-        api('/humans/subcontractors').catch(() => api('/marketplace/subcontractors').catch(() => null)),
+        api('/humans/', longGet).catch((e) => {
+          message.error(e?.message || 'Could not load team')
+          return { humans: [], my_human: null }
+        }),
+        api('/org/companies', longGet).catch(() => []),
+        api('/org/projects', longGet).catch(() => []),
+        // Prefer trailing slash (JSON); bare /api/agents can return SPA HTML
+        api('/agents/', longGet).catch(() => api('/agents', longGet).catch(() => [])),
+        api('/humans/subcontractors', longGet).catch(() =>
+          api('/marketplace/subcontractors', longGet).catch(() => null),
+        ),
       ])
-      setHumans(h.humans || [])
-      setMyHuman(h.my_human || (h.humans || []).find((x) => x.is_my_human) || null)
-      setCompanies(Array.isArray(co) ? co : co.companies || [])
-      setProjects(Array.isArray(pr) ? pr : pr.projects || [])
-      setAgents(Array.isArray(ag) ? ag : [])
-      if (sc) {
+      const list = Array.isArray(h?.humans) ? h.humans : []
+      setHumans(list)
+      setMyHuman(h?.my_human || list.find((x) => x.is_my_human) || null)
+      setCompanies(Array.isArray(co) ? co : (co?.companies || []))
+      setProjects(Array.isArray(pr) ? pr : (pr?.projects || []))
+      const agentList = Array.isArray(ag) ? ag : (ag?.agents || [])
+      setAgents(agentList)
+      if (sc && typeof sc === 'object') {
         setSubs(sc.subcontractors || [])
         setSubsMeta(sc)
       }
     } catch (e) {
-      message.error(e.message)
+      message.error(e?.message || 'Team page failed to load')
     } finally {
       setLoading(false)
     }

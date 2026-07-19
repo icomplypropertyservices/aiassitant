@@ -35,8 +35,81 @@ function roleTag(role) {
 }
 
 /**
- * Human Dashboard — inbox for notifications + messages from agents,
- * open human tasks, and quick reply as the owner (My Human).
+ * Load human desk using new APIs when deployed, else fall back to /humans/ + messages
+ * (production may still route /inbox|/dashboard to /{human_id} until backend is redeployed).
+ */
+async function loadHumanDesk() {
+  const longGet = { timeoutMs: 90000 }
+  // Prefer dedicated dashboard
+  try {
+    const d = await api('/humans/dashboard', longGet)
+    if (d && d.ok !== false && d.my_human && !d.detail) {
+      let messages = d.recent_messages || []
+      try {
+        const ib = await api('/humans/inbox?limit=80', longGet)
+        if (ib?.messages) messages = ib.messages
+      } catch {
+        /* keep dashboard recent_messages */
+      }
+      return {
+        dash: d,
+        inbox: messages,
+        source: 'dashboard',
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+
+  // Fallback: classic team APIs (always on production)
+  const h = await api('/humans/', longGet)
+  const my = h?.my_human || (h?.humans || []).find((x) => x.is_my_human) || null
+  let messages = []
+  if (my?.id) {
+    try {
+      const r = await api(`/humans/${my.id}/messages`, longGet)
+      messages = (r?.messages || []).slice().reverse()
+    } catch {
+      messages = []
+    }
+  }
+  let openTasks = []
+  try {
+    const board = await api('/agents/tasks/board', longGet)
+    const cols = board?.columns || {}
+    for (const st of ['todo', 'queued', 'in_progress', 'review']) {
+      for (const t of cols[st] || []) {
+        if (t.human_id || String(t.assignee_type || '') === 'human') {
+          openTasks.push({ ...t, status: t.status || st })
+        }
+      }
+    }
+  } catch {
+    openTasks = []
+  }
+  const unread = my?.unread_messages || messages.filter((m) => m.unread || !m.read_at).length
+  return {
+    dash: {
+      ok: true,
+      my_human: my,
+      unread_count: unread,
+      recent_messages: messages,
+      open_human_tasks: openTasks,
+      team: h?.humans || [],
+      stats: {
+        team_size: (h?.humans || []).length,
+        unread,
+        open_tasks: openTasks.length,
+        messages: messages.length,
+      },
+    },
+    inbox: messages,
+    source: 'fallback',
+  }
+}
+
+/**
+ * Human Dashboard — inbox for notifications + messages from agents.
  */
 export default function HumanDashboard() {
   const nav = useNavigate()
@@ -45,18 +118,19 @@ export default function HumanDashboard() {
   const [inbox, setInbox] = useState([])
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [source, setSource] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [d, ib] = await Promise.all([
-        api('/humans/dashboard'),
-        api('/humans/inbox?limit=80'),
-      ])
-      setDash(d)
-      setInbox(ib?.messages || [])
+      const r = await loadHumanDesk()
+      setDash(r.dash)
+      setInbox(r.inbox || [])
+      setSource(r.source || '')
     } catch (e) {
       message.error(e.message || 'Failed to load human dashboard')
+      setDash(null)
+      setInbox([])
     } finally {
       setLoading(false)
     }
@@ -64,7 +138,6 @@ export default function HumanDashboard() {
 
   useEffect(() => { load() }, [load])
 
-  // Auto-refresh while on page so agent notifies appear
   useEffect(() => {
     const t = setInterval(() => { load() }, 20000)
     return () => clearInterval(t)
@@ -72,11 +145,24 @@ export default function HumanDashboard() {
 
   const markAllRead = async () => {
     try {
-      await api('/humans/inbox/mark-read', { method: 'POST' })
+      await api('/humans/inbox/mark-read', { method: 'POST', timeoutMs: 30000 })
       message.success('Marked read')
       load()
-    } catch (e) {
-      message.error(e.message)
+    } catch {
+      // Fallback: opening messages marks read on classic API
+      const id = dash?.my_human?.id
+      if (id) {
+        try {
+          await api(`/humans/${id}/messages`, { timeoutMs: 60000 })
+          message.success('Marked read')
+          load()
+          return
+        } catch (e2) {
+          message.error(e2.message)
+          return
+        }
+      }
+      message.info('Open a message thread on Team to mark read')
     }
   }
 
@@ -85,7 +171,7 @@ export default function HumanDashboard() {
     if (!text) return
     const humanId = dash?.my_human?.id
     if (!humanId) {
-      message.error('No My Human profile yet')
+      message.error('No My Human profile yet — open Team admin once')
       return
     }
     setSending(true)
@@ -93,6 +179,7 @@ export default function HumanDashboard() {
       await api(`/humans/${humanId}/messages`, {
         method: 'POST',
         body: { content: text, kind: 'message' },
+        timeoutMs: 60000,
       })
       setReply('')
       message.success('Message posted')
@@ -127,7 +214,7 @@ export default function HumanDashboard() {
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
               Refresh
             </Button>
-            <Button icon={<CheckOutlined />} onClick={markAllRead} disabled={!unread}>
+            <Button icon={<CheckOutlined />} onClick={markAllRead} disabled={!unread && !inbox.length}>
               Mark all read
             </Button>
             <Button icon={<TeamOutlined />} onClick={() => nav('/humans')}>
@@ -140,12 +227,22 @@ export default function HumanDashboard() {
         )}
       />
 
-      {!my?.email && (
+      {source === 'fallback' && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Using classic team inbox"
+          description="Full /humans/dashboard API will light up after the next backend deploy. Messages still load from your My Human message box."
+        />
+      )}
+
+      {!my?.email && my && (
         <Alert
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message="Add your email on Team → My Human so SMS/email notifies also work"
+          message="Add your email on Team admin so SMS/email notifies also work"
           action={(
             <Button size="small" onClick={() => nav('/humans')}>
               Open Team
@@ -187,10 +284,10 @@ export default function HumanDashboard() {
                 {unread > 0 && <Badge count={unread} />}
               </Space>
             )}
-            loading={loading}
-            extra={<Text type="secondary">Agent status_update &amp; notify land here</Text>}
+            loading={loading && !inbox.length}
+            extra={<Text type="secondary">Agent updates appear here</Text>}
           >
-            {inbox.length === 0 ? (
+            {inbox.length === 0 && !loading ? (
               <Empty description="No messages yet. When agents run status_update or notify_human, they appear here." />
             ) : (
               <List
@@ -200,7 +297,9 @@ export default function HumanDashboard() {
                   <List.Item
                     key={m.id}
                     style={{
-                      background: m.unread ? 'rgba(22,104,220,0.06)' : undefined,
+                      background: (m.unread || !m.read_at) && m.sender_role !== 'owner'
+                        ? 'rgba(22,104,220,0.06)'
+                        : undefined,
                       borderRadius: 8,
                       padding: '10px 12px',
                       marginBottom: 8,
@@ -212,7 +311,9 @@ export default function HumanDashboard() {
                         <Tag color="processing">{m.sender_agent_name}</Tag>
                       )}
                       {m.kind && m.kind !== 'message' && <Tag>{m.kind}</Tag>}
-                      {m.unread && <Tag color="red">Unread</Tag>}
+                      {(m.unread || (!m.read_at && m.sender_role !== 'owner')) && (
+                        <Tag color="red">Unread</Tag>
+                      )}
                       <Text type="secondary" style={{ fontSize: 12 }}>{fmtWhen(m.created_at)}</Text>
                     </Space>
                     <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
@@ -238,7 +339,7 @@ export default function HumanDashboard() {
                 rows={3}
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
-                placeholder="Write a note back into your human inbox (visible on Team + here)…"
+                placeholder="Write a note into your human inbox…"
               />
               <Button
                 type="primary"
@@ -255,12 +356,8 @@ export default function HumanDashboard() {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card
-            title="Open work assigned to humans"
-            loading={loading}
-            style={{ marginBottom: 16 }}
-          >
-            {tasks.length === 0 ? (
+          <Card title="Open work assigned to humans" loading={loading && !tasks.length} style={{ marginBottom: 16 }}>
+            {tasks.length === 0 && !loading ? (
               <Empty description="No open human tasks" />
             ) : (
               <List
@@ -307,15 +404,21 @@ export default function HumanDashboard() {
                   <Tag>{my.status || 'active'}</Tag>
                   <Tag>{my.permission_level || 'operator'}</Tag>
                 </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Agents post status updates here. Configure email/phone on Team for SMS/email delivery.
-                </Text>
                 <Button block onClick={() => nav('/humans')}>
                   Manage team &amp; contacts
                 </Button>
               </Space>
             ) : (
-              <Empty description="Creating My Human…" />
+              <Empty
+                description="No My Human yet"
+              >
+                <Button
+                  type="primary"
+                  onClick={() => api('/humans/my/ensure', { method: 'POST', timeoutMs: 60000 }).then(load)}
+                >
+                  Create My Human
+                </Button>
+              </Empty>
             )}
           </Card>
         </Col>
