@@ -172,19 +172,28 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
         .all()
     )
     history = list(reversed(history))
-    from ..agent_skills import run_skills_from_text, extract_skill_calls
+    from ..agent_skills import run_skills_from_text, extract_skill_calls, strip_skill_blocks
     from ..live_ops import emit_ops
+
+    # Ensure core skills are persisted before chat so actions actually run
+    try:
+        from ..agent_scaffold import ensure_agent_skills
+        ensure_agent_skills(db, a)
+    except Exception:
+        pass
 
     # Compact prompt for chat (full skills catalogue reserved for tasks/autonomy)
     system = build_agent_system_prompt(db, a, include_config=True, extra="")
-    if len(system) > 4000:
-        system = system[:4000] + "\n[context truncated for speed]"
+    if len(system) > 5000:
+        system = system[:5000] + "\n[context truncated for speed]"
     system = (
         system
         + "\n"
         + chat_voice_extra()
         + "\nReply like a helpful human teammate: natural, concise, no code dumps. "
-        "Use skill blocks only when you must take a real action. "
+        "When the human asks you to DO something (tasks, meetings, CRM, messages, plans), "
+        "emit the correct ```skill blocks with valid JSON args, then give a clear short "
+        "confirmation of what you started/finished. Do not only describe skills — run them. "
         "If you need input, end with a ```questions block of short questions."
     )
     llm_messages: list[dict] = [{"role": "system", "content": system}]
@@ -228,20 +237,29 @@ async def chat_with_agent(agent_id: int, data: AgentChatIn, db: Session = Depend
     if extract_skill_calls(reply):
         try:
             import asyncio as _asyncio
+            # Allow real work (create_task / execute_goal / meetings) — 8s was killing runs
             clean_reply, skill_results = await _asyncio.wait_for(
                 run_skills_from_text(db, a, user, reply),
-                timeout=8.0,
+                timeout=45.0,
             )
         except Exception as e:
             log.warning("skill post-process skipped/failed: %s", e)
-            clean_reply = reply
-            skill_results = []
+            try:
+                clean_reply = strip_skill_blocks(reply)
+            except Exception:
+                clean_reply = reply
+            skill_results = [{"skill": "?", "ok": False, "error": str(e)[:200]}]
     if skill_results:
-        summary = "; ".join(
-            f"{r.get('skill')}: {r.get('message') or r.get('error')}" for r in skill_results[:8]
-        )
+        parts = []
+        for r in skill_results[:10]:
+            sid = r.get("skill") or "?"
+            if r.get("ok"):
+                parts.append(f"✓ {sid}: {r.get('message') or 'ok'}")
+            else:
+                parts.append(f"✗ {sid}: {r.get('error') or r.get('message') or 'failed'}")
+        summary = "; ".join(parts)
         if summary:
-            clean_reply = (clean_reply + f"\n\n— Skills: {summary}").strip()
+            clean_reply = (clean_reply + f"\n\n— Actions: {summary}").strip()
 
     # Auto chain: one human goal prompt → parent task + hierarchy-delegated steps + queue.
     # Pass skill_results so a successful execute_goal skill is not double-started.
@@ -401,6 +419,12 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
                 .all()
             )
             a_live = db.get(models.Agent, agent_id)
+            try:
+                if a_live:
+                    from ..agent_scaffold import ensure_agent_skills
+                    ensure_agent_skills(db, a_live)
+            except Exception:
+                pass
             system = (
                 build_agent_system_prompt(db, a_live)
                 if a_live
@@ -409,6 +433,7 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             system = (
                 f"{system}\n{chat_voice_extra()}\n"
                 "Reply like a helpful human teammate: natural, concise, no code dumps. "
+                "When asked to DO work, emit ```skill JSON blocks then confirm in plain language. "
                 "If you need input, end with a ```questions block of short questions."
             )
             llm_messages = [{"role": "system", "content": system}]
@@ -434,25 +459,33 @@ async def agent_live_chat(ws: WebSocket, agent_id: int, token: str = Query("")):
             # Skill side-effects (same as REST chat) — may include execute_goal
             skill_results: list = []
             try:
-                from ..agent_skills import run_skills_from_text, extract_skill_calls
+                from ..agent_skills import run_skills_from_text, extract_skill_calls, strip_skill_blocks
                 a_skills = db.get(models.Agent, agent_id)
                 u_skills = db.get(models.User, user_id)
                 if a_skills and u_skills and extract_skill_calls(reply):
                     import asyncio as _asyncio
                     clean_live, skill_results = await _asyncio.wait_for(
                         run_skills_from_text(db, a_skills, u_skills, reply),
-                        timeout=12.0,
+                        timeout=45.0,
                     )
                     reply = (clean_live or reply).strip()
                     if skill_results:
-                        summary = "; ".join(
-                            f"{r.get('skill')}: {r.get('message') or r.get('error')}"
-                            for r in skill_results[:8]
-                        )
-                        if summary:
-                            reply = (reply + f"\n\n— Skills: {summary}").strip()
+                        parts = []
+                        for r in skill_results[:10]:
+                            sid = r.get("skill") or "?"
+                            if r.get("ok"):
+                                parts.append(f"✓ {sid}: {r.get('message') or 'ok'}")
+                            else:
+                                parts.append(f"✗ {sid}: {r.get('error') or 'failed'}")
+                        if parts:
+                            reply = (reply + f"\n\n— Actions: {'; '.join(parts)}").strip()
             except Exception as skill_err:
                 log.warning("live chat skill post-process skipped: %s", skill_err)
+                try:
+                    from ..agent_skills import strip_skill_blocks
+                    reply = strip_skill_blocks(reply)
+                except Exception:
+                    pass
                 skill_results = []
 
             # Auto chain: goal-like human prompts → parent + hierarchy steps (same as REST).

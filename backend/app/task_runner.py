@@ -257,19 +257,30 @@ async def run_agent_task(
             agent_row = db.get(models.Agent, agent_id)
             user = db.get(models.User, user_id)
             if agent_row and user and output:
+                try:
+                    from .agent_scaffold import ensure_agent_skills
+                    ensure_agent_skills(db, agent_row)
+                except Exception:
+                    pass
                 clean, skill_results = await run_skills_from_text(db, agent_row, user, output)
                 output = clean or output
                 if skill_results:
-                    output = (
-                        output
-                        + "\n\n---\nAutonomous skill results:\n"
-                        + json.dumps(skill_results, default=str)[:4000]
-                    )
+                    lines = []
                     for r in skill_results[:12]:
+                        mark = "ok" if r.get("ok") else "FAIL"
+                        lines.append(
+                            f"- [{mark}] {r.get('skill')}: "
+                            f"{r.get('message') or r.get('error') or ''}"
+                        )
                         await log_activity(
                             agent_id, user_id, "action",
                             f"Skill {r.get('skill')}: {str(r.get('message') or r.get('ok') or r.get('error'))[:120]}",
                         )
+                    output = (
+                        output
+                        + "\n\n---\nSkill results:\n"
+                        + "\n".join(lines)
+                    )[:12000]
         finally:
             db.close()
 

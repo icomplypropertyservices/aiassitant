@@ -2439,10 +2439,65 @@ SKILL_CATALOG = dedupe_catalog(SKILL_CATALOG)
 DEFAULT_ENABLED = default_enabled_for_role("member", SKILL_CATALOG)
 PREMIUM_SKILL_IDS = premium_skill_ids(SKILL_CATALOG)
 
-_SKILL_BLOCK = re.compile(
-    r"```skill\s*(\{.*?\})\s*```",
-    re.DOTALL | re.IGNORECASE,
+# Outer fence only — body parsed with brace matching (nested JSON fails with non-greedy \{.*?\})
+_SKILL_FENCE = re.compile(
+    r"```(?:skill|skills|action)\s*([\s\S]*?)```",
+    re.IGNORECASE,
 )
+
+
+def _extract_balanced_json_objects(s: str) -> list[str]:
+    """Return top-level {...} JSON object strings with nested braces handled."""
+    out: list[str] = []
+    i = 0
+    n = len(s or "")
+    while i < n:
+        if s[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        in_str = False
+        esc = False
+        start = i
+        for j in range(i, n):
+            ch = s[j]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    out.append(s[start : j + 1])
+                    i = j + 1
+                    break
+        else:
+            break
+    return out
+
+
+def _normalize_skill_call(obj: dict) -> dict | None:
+    """Accept {skill, args} or flat {skill, title, ...}."""
+    if not isinstance(obj, dict):
+        return None
+    sid = obj.get("skill") or obj.get("name") or obj.get("id") or obj.get("action")
+    if not sid:
+        return None
+    sid = str(sid).strip()
+    if not sid:
+        return None
+    args = obj.get("args")
+    if not isinstance(args, dict):
+        args = {k: v for k, v in obj.items() if k not in ("skill", "name", "id", "action", "args")}
+    return {"skill": sid, "args": args or {}}
 
 
 def _created_skills_as_catalog(db: Session, user_id: int, agent_id: int | None = None) -> list[dict]:
@@ -2523,26 +2578,53 @@ def list_skills_grouped() -> list[dict]:
 
 
 def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
+    """Enabled skill set — always includes CORE free pack so agents never lose work tools."""
+    from .skills_policy import _CORE_ALWAYS
+
     role = normalize_role(agent)
+    defaults = set(default_enabled_for_role(role, SKILL_CATALOG))
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
-    if not row or not (row.enabled_json or "").strip():
-        return set(default_enabled_for_role(role, SKILL_CATALOG))
-    try:
-        data = json.loads(row.enabled_json)
-        if isinstance(data, list) and data:
-            return set(str(x) for x in data)
-    except Exception:
-        pass
-    return set(default_enabled_for_role(role, SKILL_CATALOG))
+    stored: set[str] = set()
+    if row and (row.enabled_json or "").strip():
+        try:
+            data = json.loads(row.enabled_json)
+            if isinstance(data, list) and data:
+                stored = {str(x) for x in data}
+        except Exception:
+            stored = set()
+    if not stored:
+        return defaults | set(_CORE_ALWAYS)
+    # Merge core always — saved state must not strip task/meeting/log skills
+    return stored | (set(_CORE_ALWAYS) & {s["id"] for s in SKILL_CATALOG}) | (
+        defaults & set(_CORE_ALWAYS)
+    )
 
 
 def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -> list[str]:
-    """Persist enabled skills, capped by the owner's plan skills_per_agent."""
+    """Persist enabled skills, capped by the owner's plan skills_per_agent.
+
+    Always re-attaches CORE free skills so saves never wipe task/meeting tooling.
+    """
     from .plans import max_enabled_skills, plan_skill_caps
+    from .skills_policy import _CORE_ALWAYS
 
     valid = {s["id"] for s in SKILL_CATALOG}
     by_id = {s["id"]: s for s in SKILL_CATALOG}
-    clean = [s for s in skill_ids if s in valid]
+    # Allow custom_* created skills through when present in DB state
+    clean = []
+    seen: set[str] = set()
+    for s in skill_ids or []:
+        sid = str(s).strip()
+        if not sid or sid in seen:
+            continue
+        if sid in valid or sid.startswith("custom_"):
+            clean.append(sid)
+            seen.add(sid)
+    # Force-save core pack (intersect catalog so unknown ids are not written)
+    for c in _CORE_ALWAYS:
+        if c in valid and c not in seen:
+            clean.insert(0, c)
+            seen.add(c)
 
     # Plan caps (admin accounts skip)
     plan_id = "none"
@@ -2562,14 +2644,10 @@ def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -
             clean = [sid for sid in clean if not by_id.get(sid, {}).get("premium")]
         cap = int(caps.get("skills_per_agent") or 0)
         if cap > 0 and len(clean) > cap:
-            # Keep earlier (priority) skills; prefer core ids first
-            core = {
-                "create_task", "message_agent", "spawn_agent", "list_team",
-                "execute_goal", "save_memory", "announce_plan", "draft_email",
-            }
-            core_on = [s for s in clean if s in core]
-            rest = [s for s in clean if s not in core]
-            clean = (core_on + rest)[:cap]
+            # Prefer core skills first so plan caps never strip work tools
+            core_on = [s for s in clean if s in _CORE_ALWAYS]
+            rest = [s for s in clean if s not in _CORE_ALWAYS]
+            clean = (core_on + rest)[: max(cap, len(core_on))]
 
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
     if not row:
@@ -2617,14 +2695,14 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
 
     # High-value skills always listed first (orchestrator / daily ops)
     priority_ids = [
-        "create_task", "message_agent", "spawn_agent", "list_team", "list_customers",
+        "create_task", "claim_task", "message_agent", "spawn_agent", "list_team", "list_customers",
         "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
-        "complete_task", "set_task_status",
-        "list_meetings", "list_humans", "list_deals",
+        "complete_task", "set_task_status", "list_activity",
+        "list_meetings", "invite_to_meeting", "open_meeting", "list_humans", "list_deals",
         "list_pipelines", "get_pipeline", "move_deal", "win_deal", "pipeline_summary",
         "read_workspace", "comment", "search_knowledge", "search_memory",
         "save_memory", "save_training", "announce_plan", "execute_goal", "status_update",
-        "draft_email", "generate_content", "post_to_meeting",
+        "draft_email", "generate_content", "post_to_meeting", "run_meeting_round",
         "research", "summarize", "get_time", "escalate_to_human",
         "log_customer_activity", "create_deal", "prioritize_list", "action_items",
         "skill_recommend", "enable_skills_on", "configure_agent",
@@ -2654,10 +2732,19 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
         cat_counts[cat] = cat_counts.get(cat, 0) + 1
 
     lines = [
-        "You have SKILLS. When you need to act (not just answer), emit one or more blocks:",
+        "You have SKILLS. When you must ACT (create/complete tasks, invite to meetings, CRM, etc.),",
+        "emit skill blocks THEN write a short human reply that confirms what you did.",
+        "CORRECT skill format (preferred — nested JSON is OK):",
         "```skill",
-        '{"skill":"<id>","args":{...}}',
+        '{"skill":"create_task","args":{"title":"...","description":"...","success_criteria":"..."}}',
         "```",
+        "ALSO accepted:",
+        "```skill",
+        "complete_task",
+        '{"task_id":123,"result":"what was delivered"}',
+        "```",
+        "Rules: use real skill ids from the list; fill required args; after skills run the system",
+        "appends results — still narrate outcomes in plain language for the human.",
         f"Catalog: {len(skills)} skills enabled. Showing top {len(ordered)} for context "
         "(★ = premium / costs credits). Prefer free skills unless paid delivery is required.",
         "Core / listed skills:",
@@ -2700,29 +2787,110 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
 
 
 def extract_skill_calls(text: str) -> list[dict]:
-    calls = []
-    for m in _SKILL_BLOCK.finditer(text or ""):
-        try:
-            obj = json.loads(m.group(1))
-            if isinstance(obj, dict) and obj.get("skill"):
-                calls.append(obj)
-        except Exception:
+    """Parse skill directives from model output.
+
+    Supported forms inside ```skill fences:
+      1) {"skill":"create_task","args":{...}}
+      2) create_task\\n{"title":"...","description":"..."}
+      3) create_task\\n{"skill":"create_task","args":{...}}
+    Also single-line JSON with "skill" outside fences.
+    Nested braces are handled (old non-greedy regex dropped mid-object).
+    """
+    calls: list[dict] = []
+    seen: set[str] = set()
+
+    def _add(obj: dict | None) -> None:
+        norm = _normalize_skill_call(obj) if obj else None
+        if not norm:
+            return
+        key = json.dumps(norm, sort_keys=True, default=str)
+        if key in seen:
+            return
+        seen.add(key)
+        calls.append(norm)
+
+    raw = text or ""
+    for m in _SKILL_FENCE.finditer(raw):
+        body = (m.group(1) or "").strip()
+        if not body:
             continue
-    # Also accept single-line JSON skill directives
-    for line in (text or "").splitlines():
+        # Form 1 / pure JSON body
+        parsed_any = False
+        for chunk in _extract_balanced_json_objects(body):
+            try:
+                obj = json.loads(chunk)
+            except Exception:
+                continue
+            if isinstance(obj, dict) and (obj.get("skill") or obj.get("name") or obj.get("id")):
+                _add(obj)
+                parsed_any = True
+            elif isinstance(obj, dict):
+                # Form 2: skill id on first line, args JSON only
+                first = body.splitlines()[0].strip() if body.splitlines() else ""
+                # skill id as bare word / snake_case
+                sid_m = re.match(r"^([a-z][a-z0-9_]{1,64})\s*$", first, re.I)
+                if sid_m and not obj.get("skill"):
+                    _add({"skill": sid_m.group(1), "args": obj})
+                    parsed_any = True
+                elif not obj.get("skill"):
+                    # bare args with skill: line above
+                    for line in body.splitlines()[:3]:
+                        lm = re.match(r"^([a-z][a-z0-9_]{1,64})\s*$", line.strip(), re.I)
+                        if lm:
+                            _add({"skill": lm.group(1), "args": obj})
+                            parsed_any = True
+                            break
+        if parsed_any:
+            continue
+        # Form 2 without nested detection: first line skill id + rest JSON
+        lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+        if len(lines) >= 2:
+            sid_m = re.match(r"^([a-z][a-z0-9_]{1,64})$", lines[0], re.I)
+            if sid_m:
+                rest = "\n".join(lines[1:])
+                for chunk in _extract_balanced_json_objects(rest) or ([rest] if rest.startswith("{") else []):
+                    try:
+                        args = json.loads(chunk)
+                        if isinstance(args, dict):
+                            if args.get("skill"):
+                                _add(args)
+                            else:
+                                _add({"skill": sid_m.group(1), "args": args})
+                    except Exception:
+                        continue
+
+    # Single-line JSON skill directives outside fences
+    for line in raw.splitlines():
         line = line.strip()
         if line.startswith("{") and '"skill"' in line:
             try:
                 obj = json.loads(line)
-                if isinstance(obj, dict) and obj.get("skill") and obj not in calls:
-                    calls.append(obj)
+                _add(obj if isinstance(obj, dict) else None)
             except Exception:
-                pass
+                # try balanced extract from line
+                for chunk in _extract_balanced_json_objects(line):
+                    try:
+                        _add(json.loads(chunk))
+                    except Exception:
+                        pass
     return calls
 
 
 def strip_skill_blocks(text: str) -> str:
-    cleaned = _SKILL_BLOCK.sub("", text or "")
+    cleaned = _SKILL_FENCE.sub("", text or "")
+    # Remove leftover single-line skill JSON so chat stays human-readable
+    lines_out = []
+    for line in cleaned.splitlines():
+        st = line.strip()
+        if st.startswith("{") and '"skill"' in st:
+            try:
+                obj = json.loads(st)
+                if isinstance(obj, dict) and obj.get("skill"):
+                    continue
+            except Exception:
+                pass
+        lines_out.append(line)
+    cleaned = "\n".join(lines_out)
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
