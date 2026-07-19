@@ -18,6 +18,7 @@ export function buildMenuItems({ isAdmin = false } = {}) {
   const main = [
     { key: '/', label: 'Dashboard', icon: 'home', group: 'Work' },
     { key: '/console', label: 'Agent console', icon: 'agents', group: 'Work' },
+    { key: '/agent-dash', label: 'Agent dashboard', icon: 'ops', group: 'Work' },
     { key: '/tasks', label: 'Tasks board', icon: 'tasks', group: 'Work' },
     { key: '/meetings', label: 'Meetings', icon: 'meetings', group: 'Work' },
     { key: '/business', label: 'Business CRM', icon: 'business', group: 'Work' },
@@ -45,6 +46,13 @@ export function buildMenuItems({ isAdmin = false } = {}) {
 /** Normalize route path for selected-key matching. */
 export function activeNavKey(pathname) {
   const p = pathname || '/'
+  if (
+    p === '/agent-dash'
+    || ((p.endsWith('/dash') || p.endsWith('/dash/'))
+      && (p.includes('/agents') || p.includes('/console') || p.includes('/army')))
+  ) {
+    return '/agent-dash'
+  }
   if (
     p.startsWith('/agents/')
     || p.startsWith('/army/')

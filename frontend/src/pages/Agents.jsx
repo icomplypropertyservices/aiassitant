@@ -450,6 +450,9 @@ export default function Agents() {
                 >
                   Refresh
                 </Button>
+                <Button icon={<ThunderboltOutlined />} onClick={() => nav('/agent-dash')}>
+                  Dashboard
+                </Button>
                 <Button icon={<ApartmentOutlined />} onClick={() => nav('/hierarchy')}>
                   Hierarchy
                 </Button>

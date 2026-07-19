@@ -40,6 +40,7 @@ _SKILLS_THAT_MEAN_WORK = frozenset({
     "create_task", "execute_goal", "announce_plan", "claim_task",
     "create_customer", "create_deal", "open_meeting", "invite_to_meeting",
     "message_agent", "spawn_agent", "extract_meeting_tasks",
+    "create_product", "update_product", "delete_product", "set_product_offer",
 })
 
 

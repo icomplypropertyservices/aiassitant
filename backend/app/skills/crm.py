@@ -660,6 +660,272 @@ async def _skill_list_deals(db: Session, agent: models.Agent, user: models.User,
     return {"ok": True, "count": len(out), "deals": out}
 
 
+# ── Products catalogue (+ special offers) ──────────────────────────────────
+
+def _product_brief(p: models.Product) -> dict:
+    return {
+        "id": p.id,
+        "name": p.name,
+        "sku": p.sku or "",
+        "kind": p.kind or "product",
+        "price": float(p.price or 0),
+        "currency": p.currency or "USD",
+        "status": p.status or "active",
+        "offer": p.offer or "",
+        "tags": p.tags or "",
+        "company_id": p.company_id,
+        "description": (p.description or "")[:240],
+        "benefits": (p.benefits or "")[:200],
+        "audience": (p.audience or "")[:120],
+    }
+
+
+def _default_company_id(db: Session, user: models.User, company_id=None) -> int | None:
+    try:
+        if company_id not in (None, ""):
+            return int(company_id)
+    except (TypeError, ValueError):
+        pass
+    co = (
+        db.query(models.Company)
+        .filter_by(owner_user_id=user.id)
+        .order_by(models.Company.id.asc())
+        .first()
+    )
+    return co.id if co else None
+
+
+async def _skill_list_products(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..tags_util import normalize_tags
+    try:
+        limit = min(100, max(1, int(args.get("limit") or 30)))
+    except (TypeError, ValueError):
+        limit = 30
+    q = (args.get("q") or args.get("query") or "").strip()
+    status = (args.get("status") or "").strip() or None
+    tag = (args.get("tag") or "").strip() or None
+    kind = (args.get("kind") or "").strip() or None
+    offer_only = args.get("has_offer") or args.get("special_offers")
+    if isinstance(offer_only, str):
+        offer_only = offer_only.strip().lower() in ("1", "true", "yes", "on")
+
+    query = db.query(models.Product).filter_by(owner_user_id=user.id)
+    if status:
+        query = query.filter_by(status=status)
+    if kind:
+        query = query.filter_by(kind=kind)
+    if q:
+        from sqlalchemy import or_
+        like = f"%{q}%"
+        query = query.filter(or_(
+            models.Product.name.ilike(like),
+            models.Product.sku.ilike(like),
+            models.Product.description.ilike(like),
+            models.Product.offer.ilike(like),
+            models.Product.tags.ilike(like),
+        ))
+    if tag:
+        query = query.filter(models.Product.tags.ilike(f"%{tag}%"))
+    if offer_only:
+        query = query.filter(models.Product.offer.isnot(None), models.Product.offer != "")
+    rows = query.order_by(models.Product.id.desc()).limit(limit).all()
+    return {
+        "ok": True,
+        "count": len(rows),
+        "products": [_product_brief(p) for p in rows],
+        "message": f"Found {len(rows)} product(s)",
+    }
+
+
+async def _skill_get_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    try:
+        pid = int(args.get("product_id") or args.get("id"))
+    except (TypeError, ValueError):
+        # fallback name search
+        name = (args.get("name") or args.get("q") or "").strip()
+        if not name:
+            return {"ok": False, "error": "product_id or name required"}
+        p = (
+            db.query(models.Product)
+            .filter(
+                models.Product.owner_user_id == user.id,
+                models.Product.name.ilike(f"%{name}%"),
+            )
+            .order_by(models.Product.id.desc())
+            .first()
+        )
+        if not p:
+            return {"ok": False, "error": f"product not found matching “{name}”"}
+        return {"ok": True, "product": _product_brief(p), "message": f"Product #{p.id}: {p.name}"}
+    p = db.get(models.Product, pid)
+    if not p or p.owner_user_id != user.id:
+        return {"ok": False, "error": "product not found"}
+    return {"ok": True, "product": _product_brief(p), "message": f"Product #{p.id}: {p.name}"}
+
+
+async def _skill_create_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..tags_util import normalize_tags
+    name = (args.get("name") or args.get("title") or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    company_id = _default_company_id(db, user, args.get("company_id"))
+    if not company_id:
+        return {"ok": False, "error": "No company in workspace — create a company first (Workspace)"}
+    try:
+        price = float(args.get("price") or 0)
+    except (TypeError, ValueError):
+        price = 0.0
+    p = models.Product(
+        owner_user_id=user.id,
+        company_id=company_id,
+        name=name[:200],
+        sku=str(args.get("sku") or "").strip()[:80],
+        description=str(args.get("description") or "").strip()[:8000],
+        kind=str(args.get("kind") or "product").strip() or "product",
+        price=price,
+        currency=str(args.get("currency") or "USD").strip() or "USD",
+        status=str(args.get("status") or "active").strip() or "active",
+        tags=normalize_tags(args.get("tags") or ""),
+        benefits=str(args.get("benefits") or "").strip()[:4000],
+        audience=str(args.get("audience") or "").strip()[:500],
+        offer=str(args.get("offer") or args.get("special_offer") or "").strip()[:1000],
+        image_url=str(args.get("image_url") or "").strip()[:500],
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    await emit_ops(
+        user.id, kind="system", status="info",
+        title=f"Product added: {p.name}",
+        detail=(p.offer or p.description or "")[:180],
+        agent_id=agent.id, db=db,
+    )
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id, type="product",
+            message=f"Created product #{p.id} {p.name}"
+            + (f" · offer: {p.offer[:80]}" if p.offer else ""),
+        ))
+        db.commit()
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "message": f"Created product “{p.name}” (#{p.id})"
+                   + (f" with special offer: {p.offer}" if p.offer else ""),
+        "product_id": p.id,
+        "product": _product_brief(p),
+    }
+
+
+async def _skill_update_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    from ..tags_util import normalize_tags
+    try:
+        pid = int(args.get("product_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "product_id required"}
+    p = db.get(models.Product, pid)
+    if not p or p.owner_user_id != user.id:
+        return {"ok": False, "error": "product not found"}
+    changed = []
+    str_fields = (
+        "name", "sku", "description", "kind", "currency", "status",
+        "benefits", "audience", "offer", "image_url",
+    )
+    for f in str_fields:
+        # special_offer alias for offer
+        val = args.get(f)
+        if f == "offer" and val is None:
+            val = args.get("special_offer")
+        if val is not None:
+            setattr(p, f, str(val).strip() if isinstance(val, str) else val)
+            changed.append(f)
+    if args.get("price") is not None:
+        try:
+            p.price = float(args.get("price"))
+            changed.append("price")
+        except (TypeError, ValueError):
+            pass
+    if args.get("tags") is not None:
+        p.tags = normalize_tags(args.get("tags"))
+        changed.append("tags")
+    if args.get("company_id") is not None:
+        cid = _default_company_id(db, user, args.get("company_id"))
+        if cid:
+            p.company_id = cid
+            changed.append("company_id")
+    if not changed:
+        return {"ok": False, "error": "no fields to update"}
+    from datetime import datetime
+    p.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(p)
+    await emit_ops(
+        user.id, kind="system", status="info",
+        title=f"Product updated: {p.name}",
+        detail=", ".join(changed),
+        agent_id=agent.id, db=db,
+    )
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id, type="product",
+            message=f"Updated product #{p.id} ({', '.join(changed)})",
+        ))
+        db.commit()
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "message": f"Updated product “{p.name}” ({', '.join(changed)})",
+        "changed": changed,
+        "product": _product_brief(p),
+    }
+
+
+async def _skill_delete_product(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    try:
+        pid = int(args.get("product_id") or args.get("id"))
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "product_id required"}
+    p = db.get(models.Product, pid)
+    if not p or p.owner_user_id != user.id:
+        return {"ok": False, "error": "product not found"}
+    name = p.name
+    db.delete(p)
+    db.commit()
+    await emit_ops(
+        user.id, kind="system", status="info",
+        title=f"Product deleted: {name}",
+        detail=f"by {agent.name}",
+        agent_id=agent.id, db=db,
+    )
+    try:
+        db.add(models.ActivityLog(
+            agent_id=agent.id, type="product",
+            message=f"Deleted product #{pid}: {name}",
+        ))
+        db.commit()
+    except Exception:
+        pass
+    return {"ok": True, "message": f"Deleted product “{name}”", "product_id": pid}
+
+
+async def _skill_set_product_offer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Set or clear a special offer on a product (promo / CTA text)."""
+    offer = args.get("offer") if "offer" in args else args.get("special_offer")
+    if offer is None:
+        return {"ok": False, "error": "offer / special_offer text required (empty string clears offer)"}
+    args = {**args, "offer": str(offer).strip(), "product_id": args.get("product_id") or args.get("id")}
+    out = await _skill_update_product(db, agent, user, args)
+    if out.get("ok"):
+        p = out.get("product") or {}
+        if p.get("offer"):
+            out["message"] = f"Special offer set on “{p.get('name')}”: {p.get('offer')}"
+        else:
+            out["message"] = f"Special offer cleared on “{p.get('name')}”"
+    return out
+
+
 __all__ = [
     '_skill_list_customers',
     '_skill_get_customer',
@@ -683,4 +949,10 @@ __all__ = [
     '_skill_pipeline_summary',
     '_skill_ensure_sales_pipeline',
     '_skill_list_deals',
+    '_skill_list_products',
+    '_skill_get_product',
+    '_skill_create_product',
+    '_skill_update_product',
+    '_skill_delete_product',
+    '_skill_set_product_offer',
 ]

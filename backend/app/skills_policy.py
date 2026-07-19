@@ -122,6 +122,17 @@ _ID_CATEGORY: dict[str, str] = {
     "promote_to_lead": "meta",
     "skill_recommend": "meta",
     "agent_compare": "meta",
+    "get_agent": "meta",
+    "add_agent": "meta",
+    "create_agent": "meta",
+    "change_agent": "meta",
+    "update_agent": "meta",
+    "reparent_agent": "meta",
+    "demote_agent": "meta",
+    "rename_agent": "meta",
+    "set_agent_field": "meta",
+    "list_agent_fields": "meta",
+    "agent_field_ops": "meta",
     # crm
     "list_customers": "crm",
     "get_customer": "crm",
@@ -132,6 +143,12 @@ _ID_CATEGORY: dict[str, str] = {
     "create_deal": "crm",
     "update_deal": "crm",
     "delete_deal": "crm",
+    "list_products": "crm",
+    "get_product": "crm",
+    "create_product": "crm",
+    "update_product": "crm",
+    "delete_product": "crm",
+    "set_product_offer": "crm",
     "schedule_meeting": "crm",
     "list_diary": "crm",
     "list_pipelines": "crm",
@@ -195,6 +212,8 @@ _ID_CATEGORY: dict[str, str] = {
     "escalate_to_human": "support",
     "search_memory": "core",
     "search_knowledge": "core",
+    # auto field CRUD gate + discovery
+    "db_field_ops": "data",
 }
 
 
@@ -202,6 +221,16 @@ def category_for(skill_id: str) -> str:
     sid = (skill_id or "").strip()
     if sid in _ID_CATEGORY:
         return _ID_CATEGORY[sid]
+    # Agent field skillset (prefer meta over generic data)
+    if sid.startswith(("add_agent_", "change_agent_", "delete_agent_")) or sid in (
+        "add_agent", "create_agent", "change_agent", "update_agent", "get_agent",
+        "reparent_agent", "demote_agent", "rename_agent", "set_agent_field",
+        "list_agent_fields", "agent_field_ops",
+    ):
+        return "meta"
+    # Auto-generated per-field CRUD skills (add_*/change_*/delete_* on entity fields)
+    if sid.startswith(("add_", "change_", "delete_")):
+        return "data"
     for prefix, cat in sorted(_PREFIX_CATEGORY, key=lambda x: -len(x[0])):
         if sid.startswith(prefix):
             return cat
@@ -369,6 +398,10 @@ _META_DANGEROUS = frozenset({
     "configure_agent",
     "clone_agent",
     "spawn_team",
+    "demote_agent",
+    "reparent_agent",
+    "change_agent",
+    "update_agent",
 })
 
 # Core free pack for every role — read + comment across the workspace
@@ -399,6 +432,12 @@ _CORE_ALWAYS = frozenset({
     "update_pipeline",
     "pipeline_summary",
     "ensure_sales_pipeline",
+    "list_products",
+    "get_product",
+    "create_product",
+    "update_product",
+    "delete_product",
+    "set_product_offer",
     "list_tasks",
     "search_tasks",
     "get_task",
@@ -426,6 +465,16 @@ _CORE_ALWAYS = frozenset({
     "search_knowledge",
     "create_reminder",
     "list_team",
+    "get_agent",
+    "list_agent_fields",
+    "agent_field_ops",
+    "change_agent",
+    "update_agent",
+    "configure_agent",
+    "add_agent",
+    "create_agent",
+    "rename_agent",
+    "set_agent_field",
     "weekly_review",
     "status_update",
     "notify_human",
@@ -443,6 +492,8 @@ _CORE_ALWAYS = frozenset({
     "list_created_skills",
     "publish_skill_to_bay",
     "share_skill",
+    # Gate for auto-generated per-field CRUD (add_*/change_*/delete_*)
+    "db_field_ops",
 })
 
 # Mega domain packs (20×50) — stay in SKILL_CATALOG for search/opt-in, never default-on.
@@ -502,6 +553,39 @@ def is_mega_catalog_skill(skill: dict | str) -> bool:
         return False
     # Prefix fallback for id-only checks (logistics uses log_*; core log_* is excluded above)
     return sid.startswith(_MEGA_ID_PREFIXES)
+
+
+def is_auto_field_skill(skill: dict | str) -> bool:
+    """True for generated add_*/change_*/delete_* field skills (not entity-level CRUD).
+
+    These stay in SKILL_CATALOG for search/discovery but are NOT default-enabled.
+    Runtime uses db_field_ops / agent_field_ops gates instead of enabling hundreds of ids.
+    """
+    if isinstance(skill, dict):
+        if skill.get("field_skill") or skill.get("field_action") or skill.get("handler") == "db_field":
+            return True
+        # Per-field agent skills carry field= on the catalog entry
+        if skill.get("field") and skill.get("agent_action"):
+            return True
+        sid = str(skill.get("id") or "")
+    else:
+        sid = str(skill or "")
+    if not sid or sid in _CORE_ALWAYS:
+        return False
+    # Meta gates and entity-level aliases stay enableable
+    if sid in (
+        "db_field_ops", "agent_field_ops", "list_db_fields", "list_agent_fields",
+        "get_agent", "add_agent", "create_agent", "change_agent", "update_agent",
+        "configure_agent", "set_agent_field", "rename_agent", "reparent_agent",
+        "demote_agent",
+    ):
+        return False
+    parts = sid.split("_")
+    # Field form: add_customer_email / change_agent_personality / delete_task_labels
+    # Entity form: add_customer / delete_task (exactly 2 tokens after action) — NOT auto field
+    if len(parts) >= 3 and parts[0] in ("add", "change", "delete"):
+        return True
+    return False
 
 
 def premium_skill_ids(catalog: list[dict]) -> frozenset[str]:
@@ -694,12 +778,17 @@ def skills_for_pack(
     if include_premium is None:
         include_premium = role in ("lead", "orchestrator")
 
-    # Full / orchestrator → everything the role may use
+    # Full / orchestrator → everything the role may use (still skip auto field flood)
     if pack in ("full", "all", "orchestrator"):
         if role == "orchestrator" or pack == "orchestrator":
-            return list(dict.fromkeys(s["id"] for s in catalog))
+            return list(dict.fromkeys(
+                s["id"] for s in catalog if not is_auto_field_skill(s)
+            ))
         if role == "lead":
-            return [s["id"] for s in catalog if s["id"] != "delete_agent"]
+            return [
+                s["id"] for s in catalog
+                if s["id"] != "delete_agent" and not is_auto_field_skill(s)
+            ]
         return default_enabled_for_role(role, catalog)
 
     if pack == "lead":
@@ -798,15 +887,20 @@ def default_enabled_for_role(role: str, catalog: list[dict]) -> list[str]:
     premium = premium_skill_ids(catalog)
 
     if role == "orchestrator":
-        # Full catalog for orchestrator (includes mega for intentional full enable)
-        out = list(dict.fromkeys(allowed))
+        # Full catalog except auto field skills (gated by db_field_ops / agent_field_ops)
+        out = []
+        for i in allowed:
+            meta = catalog_by_id.get(i) or {"id": i}
+            if is_auto_field_skill(meta):
+                continue
+            out.append(i)
         for c in _CORE_ALWAYS:
             if c in by_id and c not in out:
                 out.append(c)
-        return out
+        return list(dict.fromkeys(out))
 
     if role == "lead":
-        # Premium yes; mega no (opt-in); delete_agent no
+        # Premium yes; mega no (opt-in); delete_agent no; field skills via ops gate
         out = []
         for i in allowed:
             if i == "delete_agent":
@@ -814,17 +908,21 @@ def default_enabled_for_role(role: str, catalog: list[dict]) -> list[str]:
             meta = catalog_by_id.get(i) or {"id": i}
             if is_mega_catalog_skill(meta):
                 continue
+            if is_auto_field_skill(meta):
+                continue
             out.append(i)
         for c in _CORE_ALWAYS:
             if c in by_id and c not in out and role_matches_skill(role, by_id[c].get("roles")):
                 out.append(c)
         return list(dict.fromkeys(out))
 
-    # member + specialist: lean free toolkit — no mega, no free content dumps
+    # member + specialist: lean free toolkit — no mega, no free content dumps, no field flood
     out = []
     for i in allowed:
         meta = catalog_by_id.get(i) or {"id": i}
         if is_mega_catalog_skill(meta):
+            continue
+        if is_auto_field_skill(meta):
             continue
         if i in premium:
             continue

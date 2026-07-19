@@ -171,6 +171,18 @@ SKILL_CATALOG: list[dict] = [
         "roles": ["orchestrator", "lead", "member"],
     },
     {
+        "id": "db_field_ops",
+        "name": "DB field operations",
+        "description": (
+            "Core gate for auto-generated per-field CRUD skills "
+            "(add_*/change_*/delete_* on entity fields). When enabled, agents may "
+            "run any registered field skill without enabling each one individually."
+        ),
+        "args": ["entity", "field", "op"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "category": "data",
+    },
+    {
         "id": "delete_customer",
         "name": "Delete customer",
         "description": "Permanently remove a customer and their deals/activities from CRM.",
@@ -203,6 +215,61 @@ SKILL_CATALOG: list[dict] = [
         "name": "Delete deal",
         "description": "Permanently remove a deal/opportunity from the pipeline board.",
         "args": ["deal_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    # ── Products + special offers ───────────────────────────────────
+    {
+        "id": "list_products",
+        "name": "List products",
+        "description": "List catalogue products. Filter q/status/kind/tag; has_offer=true for special offers only.",
+        "args": ["q", "status", "kind", "tag", "has_offer", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "get_product",
+        "name": "Get product",
+        "description": "Fetch one product by product_id or name search (includes price and special offer).",
+        "args": ["product_id", "name"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "create_product",
+        "name": "Create product",
+        "description": (
+            "Add a product/service to the catalogue. Supports price, benefits, audience, "
+            "and special offer (offer / special_offer promo text)."
+        ),
+        "args": [
+            "name", "description", "price", "currency", "sku", "kind", "status",
+            "tags", "benefits", "audience", "offer", "special_offer", "company_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "update_product",
+        "name": "Update product",
+        "description": "Change product fields: name, price, description, tags, status, benefits, offer, etc.",
+        "args": [
+            "product_id", "name", "description", "price", "currency", "sku", "kind", "status",
+            "tags", "benefits", "audience", "offer", "special_offer", "company_id",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "delete_product",
+        "name": "Delete product",
+        "description": "Permanently remove a product from the catalogue.",
+        "args": ["product_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "set_product_offer",
+        "name": "Set product special offer",
+        "description": (
+            "Set or clear a special offer / promo CTA on a product "
+            "(e.g. '20% off this week', 'Free survey for multi-lets'). Empty string clears."
+        ),
+        "args": ["product_id", "offer", "special_offer"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -768,8 +835,17 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "configure_agent",
         "name": "Configure agent",
-        "description": "Change model, personality, idle mode, permission level of another agent.",
-        "args": ["target_agent_id", "model", "personality", "idle_mode", "permission_level"],
+        "description": (
+            "Change any writable agent field: name, template_type, personality, model, status, "
+            "idle_mode, hierarchy_role, is_lead, permission_level, company_id, project_id, "
+            "parent_id, escalate_when, escalate_reason, escalate_to, escalate_human_id, config."
+        ),
+        "args": [
+            "target_agent_id", "name", "template_type", "personality", "model", "status",
+            "idle_mode", "hierarchy_role", "is_lead", "permission_level", "company_id",
+            "project_id", "parent_id", "escalate_when", "escalate_reason", "escalate_to",
+            "escalate_human_id", "config",
+        ],
         "roles": ["orchestrator", "lead"],
     },
     {
@@ -1213,8 +1289,17 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "configure_agent",
         "name": "Configure agent",
-        "description": "Change model, personality, idle_mode, permission_level, escalate rules on another agent.",
-        "args": ["target_agent_id", "model", "personality", "idle_mode", "permission_level", "escalate_when"],
+        "description": (
+            "Change any writable agent field (full DB surface): name, template_type, personality, "
+            "model, status, idle_mode, hierarchy_role, is_lead, permission_level, company_id, "
+            "project_id, parent_id, escalate_when/reason/to/human_id, config."
+        ),
+        "args": [
+            "target_agent_id", "name", "template_type", "personality", "model", "status",
+            "idle_mode", "hierarchy_role", "is_lead", "permission_level", "company_id",
+            "project_id", "parent_id", "escalate_when", "escalate_reason", "escalate_to",
+            "escalate_human_id", "config",
+        ],
         "roles": ["orchestrator", "lead"],
     },
     {
@@ -2457,6 +2542,26 @@ try:
 except Exception:
     _MEGA = []
 
+# Auto-generated per-field CRUD skills (optional package from skills.db_fields)
+try:
+    from .skills import db_fields as _db_fields_pkg
+
+    _db_field_catalog = getattr(_db_fields_pkg, "build_catalog_entries", None)
+    if callable(_db_field_catalog):
+        SKILL_CATALOG.extend(_db_field_catalog() or [])
+except Exception:
+    pass
+
+# Full agent actions: add/change/delete for every Agent column + entity ops
+try:
+    from .skills.agent_actions import build_agent_action_catalog  # noqa: E402
+
+    _AGENT_ACTION_CAT = build_agent_action_catalog()
+    if _AGENT_ACTION_CAT:
+        SKILL_CATALOG.extend(_AGENT_ACTION_CAT)
+except Exception:
+    _AGENT_ACTION_CAT = []
+
 # Finalize: dedupe + categories (skills_policy)
 from .skills_policy import (  # noqa: E402
     dedupe_catalog,
@@ -2738,6 +2843,8 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
     priority_ids = [
         "create_task", "claim_task", "delete_task", "message_agent", "spawn_agent", "list_team",
         "list_customers", "create_customer", "update_customer", "delete_customer",
+        "list_products", "get_product", "create_product", "update_product", "delete_product",
+        "set_product_offer",
         "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
         "complete_task", "set_task_status", "list_activity", "create_deal", "update_deal", "delete_deal",
         "list_meetings", "invite_to_meeting", "open_meeting", "list_humans", "list_deals",
@@ -2748,6 +2855,8 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
         "research", "summarize", "get_time", "escalate_to_human",
         "log_customer_activity", "create_deal", "prioritize_list", "action_items",
         "skill_recommend", "enable_skills_on", "configure_agent",
+        "get_agent", "change_agent", "update_agent", "add_agent", "list_agent_fields",
+        "reparent_agent", "rename_agent", "set_agent_field", "agent_field_ops",
     ]
     by_id = {s["id"]: s for s in skills}
     ordered: list[dict] = []
@@ -2961,6 +3070,12 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'create_deal': ('_skill_create_deal', 'std', ()),
     'update_deal': ('_skill_update_deal', 'std', ()),
     'delete_deal': ('_skill_delete_deal', 'std', ()),
+    'list_products': ('_skill_list_products', 'std', ()),
+    'get_product': ('_skill_get_product', 'std', ()),
+    'create_product': ('_skill_create_product', 'std', ()),
+    'update_product': ('_skill_update_product', 'std', ()),
+    'delete_product': ('_skill_delete_product', 'std', ()),
+    'set_product_offer': ('_skill_set_product_offer', 'std', ()),
     'schedule_meeting': ('_skill_schedule_meeting', 'std', ()),
     'list_diary': ('_skill_list_diary', 'std', ()),
     'list_pipelines': ('_skill_list_pipelines', 'std', ()),
@@ -3034,6 +3149,19 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'resume_agent': ('_skill_resume_agent', 'std', ()),
     'delete_agent': ('_skill_delete_agent', 'std', ()),
     'list_team': ('_skill_list_team', 'std', ()),
+    # Full agent field / entity action skillset
+    'get_agent': ('_skill_get_agent', 'std', ()),
+    'add_agent': ('_skill_add_agent', 'std', ()),
+    'create_agent': ('_skill_create_agent', 'std', ()),
+    'change_agent': ('_skill_change_agent', 'std', ()),
+    'update_agent': ('_skill_update_agent', 'std', ()),
+    'reparent_agent': ('_skill_reparent_agent', 'std', ()),
+    'demote_agent': ('_skill_demote_agent', 'std', ()),
+    'rename_agent': ('_skill_rename_agent', 'std', ()),
+    'set_agent_field': ('_skill_set_agent_field', 'std', ()),
+    'list_agent_fields': ('_skill_list_agent_fields', 'std', ()),
+    'agent_field_ops': ('_skill_agent_field_ops', 'std', ()),
+
     'facebook_post': ('_skill_facebook_post', 'std', ()),
     'facebook_reply_comment': ('_skill_facebook_reply_comment', 'std', ()),
     'facebook_reply_message': ('_skill_facebook_reply_message', 'std', ()),
@@ -3142,6 +3270,38 @@ async def _dispatch_skill(
             return await fn(db, agent, user, skill_id, meta, args, custom_row)
         return await fn(db, agent, user, args)
 
+    # Full agent field skillset: add_agent_<field> / change_agent_<field> / delete_agent_<field>
+    try:
+        from .skills.agent_actions import parse_agent_field_skill, _skill_agent_field_dispatch
+        if parse_agent_field_skill(skill_id):
+            return await _skill_agent_field_dispatch(db, agent, user, skill_id, args)
+    except Exception:
+        pass
+
+    # Auto-generated per-field CRUD (add_*/change_*/delete_*) — pattern dispatch.
+    # Skip via_alias matches (create_customer etc.) so HANDLER_TABLE / default path wins.
+    _parse_field_skill = None
+    _exec_field_skill = None
+    try:
+        from .skills import db_fields as _db_fields_mod
+
+        _parse_field_skill = getattr(_db_fields_mod, "parse_skill_id", None)
+        _exec_field_skill = (
+            getattr(_db_fields_mod, "execute_field_skill", None)
+            or getattr(_db_fields_mod, "_skill_db_field_dispatch", None)
+            or getattr(_db_fields_mod, "FIELD_SKILL_HANDLER", None)
+        )
+    except Exception:
+        pass
+    if callable(_parse_field_skill) and callable(_exec_field_skill):
+        try:
+            _field_parsed = _parse_field_skill(skill_id)
+        except Exception:
+            _field_parsed = None
+        _is_alias = isinstance(_field_parsed, dict) and _field_parsed.get("via_alias")
+        if _field_parsed and not _is_alias:
+            return await _exec_field_skill(db, agent, user, skill_id, args)
+
     # Catalog skills without dedicated side-effects
     fn = g.get(DEFAULT_SKILL_HANDLER)
     if not fn:
@@ -3179,11 +3339,63 @@ async def execute_skill(
         "unpublish_skill_from_bay",
         "share_skill",
     }
+    # Field CRUD: allow when db_field_ops (core) or parent entity update skill is enabled.
+    # via_alias (create_customer / update_deal / …) keeps normal enable rules.
+    field_gate_ok = False
+    _field_parsed = None
+    try:
+        from .skills.db_fields import parse_skill_id as _parse_field_skill
+
+        _field_parsed = _parse_field_skill(skill_id)
+        _is_alias = isinstance(_field_parsed, dict) and _field_parsed.get("via_alias")
+        if _field_parsed and not _is_alias:
+            parent_skill = None
+            if isinstance(_field_parsed, dict):
+                parent_skill = (
+                    _field_parsed.get("parent_skill")
+                    or _field_parsed.get("entity_update_skill")
+                    or _field_parsed.get("update_skill")
+                )
+                # Infer parent entity update skill: change_customer → update_customer
+                if not parent_skill and _field_parsed.get("entity"):
+                    parent_skill = f"update_{_field_parsed['entity']}"
+            field_gate_ok = (
+                "db_field_ops" in enabled
+                or skill_id in enabled
+                or (bool(parent_skill) and parent_skill in enabled)
+            )
+        if _is_alias:
+            _field_parsed = None  # do not build synthetic meta for aliases
+    except Exception:
+        _field_parsed = None
+        field_gate_ok = False
+
+    # Agent field skillset: add_agent_* / change_agent_* / delete_agent_* / entity ops
+    agent_field_gate_ok = False
+    _agent_field_parsed = None
+    try:
+        from .skills.agent_actions import parse_agent_field_skill
+        _agent_field_parsed = parse_agent_field_skill(skill_id)
+        if _agent_field_parsed:
+            agent_field_gate_ok = bool(
+                "agent_field_ops" in enabled
+                or "change_agent" in enabled
+                or "configure_agent" in enabled
+                or "update_agent" in enabled
+                or skill_id in enabled
+                or is_orchestrator(agent)
+            )
+    except Exception:
+        _agent_field_parsed = None
+        agent_field_gate_ok = False
+
     if (
         skill_id not in enabled
         and not is_orchestrator(agent)
         and not is_custom
         and not meta_skill_factory
+        and not field_gate_ok
+        and not agent_field_gate_ok
     ):
         return {"ok": False, "error": f"Skill '{skill_id}' is disabled for this agent"}
 
@@ -3202,6 +3414,43 @@ async def execute_skill(
             "handler": "created_skill",
             "custom": True,
             "instructions": custom_row.instructions or "",
+        }
+    # Minimal meta for field skills not yet (or no longer) in SKILL_CATALOG
+    if not meta and _field_parsed:
+        if isinstance(_field_parsed, dict):
+            meta = {
+                "id": skill_id,
+                "name": _field_parsed.get("name") or skill_id.replace("_", " ").title(),
+                "description": _field_parsed.get("description") or f"Field skill {skill_id}",
+                "args": list(_field_parsed.get("args") or ["entity_id", "value"]),
+                "roles": list(
+                    _field_parsed.get("roles")
+                    or ["orchestrator", "lead", "member", "specialist"]
+                ),
+                "category": _field_parsed.get("category") or "data",
+                "handler": "db_field",
+                "field_skill": True,
+            }
+        else:
+            meta = {
+                "id": skill_id,
+                "name": skill_id.replace("_", " ").title(),
+                "description": f"Auto field skill: {skill_id}",
+                "args": ["entity_id", "value"],
+                "roles": ["orchestrator", "lead", "member", "specialist"],
+                "category": "data",
+                "handler": "db_field",
+                "field_skill": True,
+            }
+    if not meta and _agent_field_parsed:
+        meta = {
+            "id": skill_id,
+            "name": skill_id.replace("_", " ").title(),
+            "description": f"Agent action: {skill_id}",
+            "args": ["target_agent_id", "value"],
+            "roles": ["orchestrator", "lead", "member", "specialist"],
+            "category": "meta",
+            "agent_action": True,
         }
     if not meta:
         return {"ok": False, "error": f"Unknown skill '{skill_id}'"}
@@ -3331,6 +3580,39 @@ async def run_skills_from_text(
         r = await execute_skill(db, agent, user, sid, args)
         results.append({"skill": sid, **r})
     return strip_skill_blocks(text), results
+
+
+def format_skill_results_human(skill_results: list[dict] | None, *, max_items: int = 12) -> str:
+    """Rich human-readable summary of skill outcomes for chat replies."""
+    if not skill_results:
+        return ""
+    lines: list[str] = []
+    for r in skill_results[:max_items]:
+        sid = r.get("skill") or "?"
+        ok = bool(r.get("ok"))
+        mark = "✓" if ok else "✗"
+        msg = (r.get("message") or r.get("error") or ("ok" if ok else "failed")).strip()
+        # Extra detail for product / CRM / task skills
+        extra = []
+        for key in (
+            "product_id", "customer_id", "deal_id", "task_id", "meeting_id",
+            "changed", "status", "title", "name",
+        ):
+            if r.get(key) is not None and key not in ("message",):
+                val = r.get(key)
+                if isinstance(val, list):
+                    val = ", ".join(str(x) for x in val[:8])
+                extra.append(f"{key}={val}")
+        prod = r.get("product") if isinstance(r.get("product"), dict) else None
+        if prod and prod.get("offer"):
+            extra.append(f"offer={prod.get('offer')[:80]}")
+        if prod and prod.get("price") is not None:
+            extra.append(f"price={prod.get('price')} {prod.get('currency') or ''}".strip())
+        detail = f" ({'; '.join(extra)})" if extra else ""
+        lines.append(f"{mark} **{sid}**: {msg}{detail}")
+    if not lines:
+        return ""
+    return "What I just did:\n" + "\n".join(f"- {ln}" for ln in lines)
 
 
 # ── Load implementations from skills.handlers_all into this module ─────────
