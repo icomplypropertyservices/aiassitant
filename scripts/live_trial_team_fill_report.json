@@ -1,0 +1,764 @@
+{
+  "account": {
+    "email": "test+1784463080@aibusinessagent.xyz",
+    "user_id": 41,
+    "plan": "trial",
+    "subscription_active": true,
+    "limits": {
+      "agents": 10,
+      "companies": 2,
+      "projects": 2
+    }
+  },
+  "agent_count": 10,
+  "max_agents": 10,
+  "slots_filled": "10/10",
+  "seed_status": 200,
+  "seed": {
+    "ok": true,
+    "count": 8,
+    "agents": [
+      {
+        "id": 43,
+        "name": "Main AI Orchestrator",
+        "template_type": "orchestrator",
+        "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "admin",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "owner",
+        "escalate_human_id": null,
+        "company_id": 43,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": null,
+        "parent_name": null,
+        "is_lead": true,
+        "is_orchestrator": true,
+        "hierarchy_role": "orchestrator",
+        "reports_count": 4,
+        "config": {
+          "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+          "autonomy": "full",
+          "companies_guidance": [
+            "Fire Alarms Dublin",
+            "iComply Property Services",
+            "iComply Products"
+          ],
+          "bootstrap_at": "2026-07-19T12:19:33.994546Z"
+        },
+        "created_at": "2026-07-19T12:11:19.235091",
+        "stats": {
+          "tasks": 10,
+          "completed": 1,
+          "open": 9,
+          "conversations": 1,
+          "reports": 4
+        },
+        "activity": [
+          {
+            "id": 1231,
+            "type": "action",
+            "message": "Main AI Orchestrator \u2192 Message agent: Messaged FAD Ops Lead",
+            "created_at": "2026-07-19T12:17:42.657839"
+          },
+          {
+            "id": 1232,
+            "type": "action",
+            "message": "Skill list_team: True",
+            "created_at": "2026-07-19T12:17:43.130465"
+          },
+          {
+            "id": 1234,
+            "type": "action",
+            "message": "Skill search_memory: True",
+            "created_at": "2026-07-19T12:17:43.651254"
+          },
+          {
+            "id": 1235,
+            "type": "action",
+            "message": "Skill message_agent: Messaged FAD Ops Lead",
+            "created_at": "2026-07-19T12:17:44.214975"
+          },
+          {
+            "id": 1237,
+            "type": "done",
+            "message": "Task completed (3 skills)",
+            "created_at": "2026-07-19T12:17:46.163775"
+          },
+          {
+            "id": 1258,
+            "type": "action",
+            "message": "Main AI Orchestrator \u2192 Bulk enable skills: {\"agent_ids\": [43, 44], \"preset\": \"full\"}",
+            "created_at": "2026-07-19T12:18:27.191096"
+          },
+          {
+            "id": 1259,
+            "type": "action",
+            "message": "Main AI Orchestrator \u2192 Bulk enable skills",
+            "created_at": "2026-07-19T12:18:29.814421"
+          },
+          {
+            "id": 1260,
+            "type": "action",
+            "message": "Orchestrator bootstrap: 3 companies + wallets ready",
+            "created_at": "2026-07-19T12:19:34.488089"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 46,
+        "name": "Master Designer",
+        "template_type": "designer",
+        "personality": "Exacting product designer. You judge UI polish for mobile and desktop: ChatGPT-like agent chat, touch targets, spacing, hierarchy, contrast, and clarity. You block ship until the experience feels premium and simple \u2014 one agent per page for chat.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "UI polish not acceptable until designer gates pass",
+        "escalate_to": "orchestrator",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 43,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "specialist",
+        "reports_count": 0,
+        "config": {
+          "brand": "AI Business Assistant",
+          "mobile_first": true,
+          "autonomy": "full",
+          "gates": [
+            "Agent chat is full-screen ChatGPT style",
+            "One agent per chat page",
+            "Touch targets \u2265 44px on mobile",
+            "Bottom nav on phone for main areas",
+            "Safe-area padding"
+          ]
+        },
+        "created_at": "2026-07-19T12:19:43.121627",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 47,
+        "name": "Lead Agent / Team Lead",
+        "template_type": "lead",
+        "personality": "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 43,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 2,
+        "config": {
+          "team_goal": "",
+          "reporting_style": "",
+          "delegation_rules": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:44.188683",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 2
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 48,
+        "name": "Sales Lead Agent",
+        "template_type": "lead",
+        "personality": "Owns the sales pod: pipeline hygiene, coaching scripts, and assigning leads to outreach agents.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 47,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 3,
+        "config": {
+          "pipeline_stages": "",
+          "quota": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:45.161596",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 3
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 50,
+        "name": "Sales Outreach Agent",
+        "template_type": "sales",
+        "personality": "Finds leads, drafts personalised outreach and follows up automatically.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 48,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "product": "",
+          "target": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:47.038504",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 51,
+        "name": "Lead Qualifier",
+        "template_type": "sales",
+        "personality": "Scores inbound enquiries, asks qualifying questions, and routes hot leads to you.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 48,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "icp": "",
+          "disqualify": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:47.962859",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 52,
+        "name": "Appointment Booker",
+        "template_type": "booking",
+        "personality": "Handles booking requests, confirms slots and sends reminders.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 48,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "services": "",
+          "hours": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:48.888606",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 49,
+        "name": "Operations Lead",
+        "template_type": "lead",
+        "personality": "Runs multi-agent workflows across sales, support and ops \u2014 assigns owners and tracks completion.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 47,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 0,
+        "config": {
+          "scope": "",
+          "sla": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T12:19:46.128369",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      }
+    ],
+    "message": "Starter team seeded up to your plan limit (10 agents). Upgrade on Billing for more agent slots.",
+    "plan_limit": 10,
+    "at_limit": true
+  },
+  "scaffold_status": 200,
+  "scaffold": {
+    "ok": true,
+    "agents": 10,
+    "updated": 0,
+    "orchestrator_id": 43,
+    "autonomy_enabled": true
+  },
+  "bulk_enable_status": 200,
+  "bulk_enable": {
+    "ok": true,
+    "updated": 10,
+    "results": [
+      {
+        "id": 43,
+        "name": "Main AI Orchestrator",
+        "ok": true
+      },
+      {
+        "id": 44,
+        "name": "FAD Ops Lead",
+        "ok": true
+      },
+      {
+        "id": 47,
+        "name": "Lead Agent / Team Lead",
+        "ok": true
+      },
+      {
+        "id": 49,
+        "name": "Operations Lead",
+        "ok": true
+      },
+      {
+        "id": 48,
+        "name": "Sales Lead Agent",
+        "ok": true
+      },
+      {
+        "id": 52,
+        "name": "Appointment Booker",
+        "ok": true
+      },
+      {
+        "id": 51,
+        "name": "Lead Qualifier",
+        "ok": true
+      },
+      {
+        "id": 45,
+        "name": "Live Specialist mrrrjjir",
+        "ok": true
+      },
+      {
+        "id": 46,
+        "name": "Master Designer",
+        "ok": true
+      },
+      {
+        "id": 50,
+        "name": "Sales Outreach Agent",
+        "ok": true
+      }
+    ]
+  },
+  "agents": [
+    {
+      "id": 43,
+      "name": "Main AI Orchestrator",
+      "template_type": "orchestrator",
+      "hierarchy_role": "orchestrator",
+      "parent_id": null,
+      "is_lead": true,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 240,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 240,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 44,
+      "name": "FAD Ops Lead",
+      "template_type": "ops",
+      "hierarchy_role": "lead",
+      "parent_id": 43,
+      "is_lead": true,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 240,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 240,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 45,
+      "name": "Live Specialist mrrrjjir",
+      "template_type": "researcher",
+      "hierarchy_role": "specialist",
+      "parent_id": 43,
+      "is_lead": false,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 190,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 190,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 46,
+      "name": "Master Designer",
+      "template_type": "designer",
+      "hierarchy_role": "specialist",
+      "parent_id": 43,
+      "is_lead": false,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 190,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 190,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 47,
+      "name": "Lead Agent / Team Lead",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 43,
+      "is_lead": true,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 240,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 240,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 48,
+      "name": "Sales Lead Agent",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 47,
+      "is_lead": true,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 240,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 240,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 49,
+      "name": "Operations Lead",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 47,
+      "is_lead": true,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 240,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 240,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 50,
+      "name": "Sales Outreach Agent",
+      "template_type": "sales",
+      "hierarchy_role": "member",
+      "parent_id": 48,
+      "is_lead": false,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 189,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 189,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 51,
+      "name": "Lead Qualifier",
+      "template_type": "sales",
+      "hierarchy_role": "member",
+      "parent_id": 48,
+      "is_lead": false,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 189,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 189,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    },
+    {
+      "id": 52,
+      "name": "Appointment Booker",
+      "template_type": "booking",
+      "hierarchy_role": "member",
+      "parent_id": 48,
+      "is_lead": false,
+      "status": "active",
+      "skills_http": 200,
+      "enabled_count": 189,
+      "summary": {
+        "total": 257,
+        "unique_catalog": 257,
+        "enabled": 189,
+        "free": 226,
+        "premium": 31,
+        "premium_examples": [
+          "Send email (premium)",
+          "Send SMS / text (Twilio)",
+          "Send WhatsApp (Twilio)",
+          "Make phone call + speech (Twilio)",
+          "Initiate phone call",
+          "Initiate text / SMS",
+          "Send message (any channel)",
+          "Generate image (premium)"
+        ]
+      }
+    }
+  ],
+  "template_types": [
+    "booking",
+    "designer",
+    "lead",
+    "ops",
+    "orchestrator",
+    "researcher",
+    "sales"
+  ],
+  "hierarchy_roles": [
+    "lead",
+    "member",
+    "orchestrator",
+    "specialist"
+  ],
+  "all_have_skills": true,
+  "sum_enabled": 2147
+}

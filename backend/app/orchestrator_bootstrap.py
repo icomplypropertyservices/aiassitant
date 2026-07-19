@@ -1,6 +1,8 @@
 """
-Orchestrator guidance: ensure Main Orchestrator + 3 companies + wallets + starter work.
-Default Jack Scott / Fire Alarms Dublin group brands.
+Orchestrator guidance: ensure Main Orchestrator + companies + wallets + starter work.
+
+Companies are PRIVATE to the logged-in user. Defaults are generic placeholders
+built from the account's own company name — never seed another customer's brands.
 """
 from __future__ import annotations
 
@@ -16,85 +18,76 @@ from .agent_wallets import get_or_create_wallet
 from .plans import plan_limits
 from .usage_billing import ensure_period, heal_subscription_flags
 
-# Canonical 3-company workspace for this group
-DEFAULT_COMPANIES: list[dict[str, Any]] = [
-    {
-        "slug": "fire-alarms-dublin",
-        "name": "Fire Alarms Dublin",
-        "industry": "Fire protection / Trades",
-        "notes": (
-            "Install, service and certify fire alarm systems (BS 5839). "
-            "Sales, scheduling, quotes, certificates."
-        ),
-        "projects": [
-            {
-                "name": "Service & certificates",
-                "description": "Annual service visits, certificates, follow-ups",
-                "tasks": [
-                    "Triage open service enquiries",
-                    "Chase overdue certificates",
-                    "Draft quote follow-up emails",
-                ],
-            },
-            {
-                "name": "New installs",
-                "description": "New fire detection system sales and installs",
-                "tasks": ["Qualify new install leads", "Prepare system design notes"],
-            },
-        ],
-        "lead_name": "FAD Ops Lead",
-        "lead_type": "ops",
-    },
-    {
-        "slug": "icomply-property-services",
-        "name": "iComply Property Services",
-        "industry": "Property compliance",
-        "notes": (
-            "Property compliance, landlord/HMO services, multi-site compliance ops."
-        ),
-        "projects": [
-            {
-                "name": "Compliance ops",
-                "description": "Portfolio compliance tracking and renewals",
-                "tasks": ["List properties due this month", "Draft landlord renewal notices"],
-            },
-            {
-                "name": "Sales pipeline",
-                "description": "New property management / compliance clients",
-                "tasks": ["Build ICP notes", "Draft outreach sequence"],
-            },
-        ],
-        "lead_name": "iComply Services Lead",
-        "lead_type": "sales",
-    },
-    {
-        "slug": "icomply-products",
-        "name": "iComply Products",
-        "industry": "E-commerce / Fire products",
-        "notes": (
-            "Shopify trade supply — products.icomplypropertyservices.co.uk SEO landings "
-            "and shop.icomplypropertyservices.co.uk checkout. Apollo, Hochiki, Advanced, C-TEC."
-        ),
-        "projects": [
-            {
-                "name": "Catalogue & SEO",
-                "description": "Product landings, manufacturer pages, keyword guides",
-                "tasks": [
-                    "Sync Shopify catalogue status",
-                    "Review top manufacturer pages",
-                    "Plan next keyword batch",
-                ],
-            },
-            {
-                "name": "Trade sales",
-                "description": "Trade enquiries and bulk quotes",
-                "tasks": ["Draft trade account welcome email", "List top movers by brand"],
-            },
-        ],
-        "lead_name": "Products Commerce Lead",
-        "lead_type": "sales",
-    },
-]
+
+def default_companies_for_user(user: models.User) -> list[dict[str, Any]]:
+    """Private starter companies for this account only (no shared brand names)."""
+    base = (getattr(user, "name", None) or "My").strip().split()[0] or "My"
+    primary = None
+    # Prefer first owned company name if already created at register
+    # (caller may pass companies= explicitly)
+    primary_name = f"{base} company"
+    return [
+        {
+            "slug": "primary",
+            "name": primary_name,
+            "industry": "General",
+            "notes": "Your primary private workspace company.",
+            "projects": [
+                {
+                    "name": "Operations",
+                    "description": "Day-to-day ops and follow-ups",
+                    "tasks": [
+                        "Triage open enquiries",
+                        "List top priorities this week",
+                        "Draft follow-up messages",
+                    ],
+                },
+                {
+                    "name": "Growth",
+                    "description": "Sales and pipeline",
+                    "tasks": ["Build ICP notes", "Draft outreach sequence"],
+                },
+            ],
+            "lead_name": "Ops Lead",
+            "lead_type": "ops",
+        },
+        {
+            "slug": "clients",
+            "name": f"{base} clients",
+            "industry": "Client work",
+            "notes": "Separate client delivery from internal ops (private to your account).",
+            "projects": [
+                {
+                    "name": "Delivery",
+                    "description": "Active client work",
+                    "tasks": ["List open client tasks", "Draft status update for owner"],
+                },
+            ],
+            "lead_name": "Client Services Lead",
+            "lead_type": "sales",
+        },
+        {
+            "slug": "products",
+            "name": f"{base} products",
+            "industry": "Products / catalogue",
+            "notes": "Optional products or catalogue stream.",
+            "projects": [
+                {
+                    "name": "Catalogue",
+                    "description": "Offers and product notes",
+                    "tasks": ["List top offers", "Draft product blurb"],
+                },
+            ],
+            "lead_name": "Products Lead",
+            "lead_type": "sales",
+        },
+    ]
+
+
+# Back-compat name for imports that expect DEFAULT_COMPANIES (generic only)
+DEFAULT_COMPANIES: list[dict[str, Any]] = default_companies_for_user(
+    type("U", (), {"name": "My"})()  # type: ignore[misc]
+)
 
 
 def _company_by_name(db: Session, user_id: int, name: str) -> models.Company | None:
@@ -164,6 +157,20 @@ def bootstrap_workspace(
     4. Company leads under orchestrator
     5. Crypto wallets per orchestrator + leads
     """
+    # Always private to this user — never inject another tenant's brand names
+    if companies is None:
+        companies = default_companies_for_user(user)
+        # Prefer real company name from register / first company
+        existing0 = (
+            db.query(models.Company)
+            .filter_by(owner_user_id=user.id)
+            .order_by(models.Company.id)
+            .first()
+        )
+        if existing0 and existing0.name and companies:
+            companies = list(companies)
+            companies[0] = {**companies[0], "name": existing0.name}
+
     report: dict[str, Any] = {
         "user_id": user.id,
         "email": user.email,
@@ -251,6 +258,11 @@ def bootstrap_workspace(
                 db.add(proj)
                 db.flush()
                 report["projects_created"] += 1
+                from .task_status import initial_task_status
+
+                seed_status = initial_task_status(
+                    agent=orch, assignee_type="agent", run_now=True
+                )
                 for title in pspec.get("tasks") or []:
                     t = models.Task(
                         user_id=user.id,
@@ -258,7 +270,7 @@ def bootstrap_workspace(
                         project_id=proj.id,
                         title=title,
                         description=title,
-                        status="todo",
+                        status=seed_status,
                         assignee_type="agent",
                         agent_id=orch.id,
                         priority="medium",
@@ -312,12 +324,13 @@ def bootstrap_workspace(
     except Exception:
         cfg = {}
     cfg["mission"] = (
-        "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. "
-        "Route sales, ops, catalogue/SEO, git repos, and local machine agents. "
-        "Keep wallets funded and skills enabled."
+        "Coordinate this account's private companies, projects, and agents. "
+        "Route sales, ops, products, git repos, and local machine agents. "
+        "Keep wallets funded and skills enabled. Never expose data outside this workspace."
     )
-    cfg["companies_guidance"] = [c["name"] for c in DEFAULT_COMPANIES]
+    cfg["companies_guidance"] = [c.get("name") for c in (companies or DEFAULT_COMPANIES)]
     cfg["bootstrap_at"] = datetime.utcnow().isoformat() + "Z"
+    cfg["private"] = True
     orch.config = json.dumps(cfg)
     db.commit()
 

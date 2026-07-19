@@ -1,8 +1,9 @@
-"""Shared order fulfillment after Stripe payment."""
+"""Shared order fulfillment after Stripe / crypto payment."""
 from datetime import datetime
 from sqlalchemy.orm import Session
 
 from . import models
+from .payouts import apply_escrow_on_paid, compute_fees
 
 
 def ensure_order_chat(db: Session, order: models.Order, listing: models.Listing, buyer: models.User):
@@ -24,13 +25,15 @@ def ensure_order_chat(db: Session, order: models.Order, listing: models.Listing,
     for uid in (order.buyer_id, order.seller_id):
         if not db.query(models.RoomMember).filter_by(room_id=room.id, user_id=uid).first():
             db.add(models.RoomMember(room_id=room.id, user_id=uid, role="member"))
+    fees = compute_fees(order.total)
     db.add(
         models.ChatMessage(
             room_id=room.id,
             sender_id=buyer.id,
             content=(
                 f"Order #{order.id} paid for {order.quantity}× {listing.title} "
-                f"(${order.total})."
+                f"(${order.total}). Funds held in escrow until the buyer verifies completion. "
+                f"Seller payout (after fee): ${fees['seller_net']:.2f}."
             ),
             msg_type="system",
         )
@@ -38,8 +41,30 @@ def ensure_order_chat(db: Session, order: models.Order, listing: models.Listing,
     return slug
 
 
-def mark_order_paid(db: Session, order: models.Order) -> str | None:
-    """Finalize stock + chat when payment succeeds. Returns chat room slug."""
+def post_order_system_message(db: Session, order: models.Order, content: str):
+    slug = f"order-{order.id}"
+    room = db.query(models.ChatRoom).filter_by(slug=slug).first()
+    if not room:
+        return
+    db.add(
+        models.ChatMessage(
+            room_id=room.id,
+            sender_id=order.buyer_id,
+            content=content,
+            msg_type="system",
+        )
+    )
+
+
+def mark_order_paid(
+    db: Session,
+    order: models.Order,
+    *,
+    payment_method: str = "stripe",
+    crypto_chain: str = "",
+    crypto_tx_hash: str = "",
+) -> str | None:
+    """Finalize stock + chat when payment succeeds. Holds seller payout in escrow."""
     listing = db.get(models.Listing, order.listing_id)
     buyer = db.get(models.User, order.buyer_id)
     if not listing or not buyer:
@@ -70,6 +95,9 @@ def mark_order_paid(db: Session, order: models.Order) -> str | None:
 
     order.payment_status = "paid"
     order.status = "paid"
+    if crypto_tx_hash:
+        order.crypto_tx_hash = crypto_tx_hash
+    apply_escrow_on_paid(order, payment_method=payment_method, crypto_chain=crypto_chain)
     order.updated_at = datetime.utcnow()
     slug = ensure_order_chat(db, order, listing, buyer)
     db.commit()

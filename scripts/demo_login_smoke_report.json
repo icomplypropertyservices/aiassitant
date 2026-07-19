@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-07-19T11:54:33Z",
+  "base": "https://www.aibusinessagent.xyz",
+  "login_path": "scripts/.demo_login.json",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "user_id": 37,
+  "agent_id": 27,
+  "pass": true,
+  "checks": {
+    "trial": {
+      "ok": true,
+      "plan": "trial",
+      "subscription_active": true,
+      "expires": "2026-08-02T11:50:52.958524Z"
+    },
+    "orchestrator": {
+      "ok": true,
+      "status": 200,
+      "id": 27,
+      "name": "Main AI Orchestrator"
+    },
+    "agents": {
+      "ok": true,
+      "status": 200,
+      "count": 10
+    },
+    "templates": {
+      "ok": true,
+      "status": 200,
+      "count": 41
+    },
+    "meetings": {
+      "ok": true,
+      "status": 200,
+      "count": 2,
+      "sample_ids": [
+        20,
+        18
+      ]
+    },
+    "health": {
+      "ok": true,
+      "status": 200,
+      "environment": "production",
+      "version": "1.5.0"
+    }
+  },
+  "notes": [
+    "Credentials in scripts/.demo_login.json (gitignored-style local secret).",
+    "Login rotates aba_ session keys; concurrent re-login invalidates prior keys.",
+    "Earlier partial FAIL on stale account was key rotation/401; fresh register and current file both green."
+  ]
+}

@@ -1,0 +1,1082 @@
+{
+  "generated_at": "2026-07-19T12:04:09.419391+00:00",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "accounts": [
+    {
+      "email": "test+live1784460867@aibusinessagent.xyz",
+      "user": {
+        "id": 19,
+        "email": "test+live1784460867@aibusinessagent.xyz",
+        "name": "Live Demo",
+        "role": "user",
+        "plan": "trial",
+        "subscription_active": true,
+        "subscription_expires_at": "2026-08-02T11:34:24.710902Z",
+        "needs_subscription": false,
+        "email_verified": false,
+        "needs_email_verification": true,
+        "has_api_key": true,
+        "api_key_prefix": "aba_Tzf13Q5KUcWS",
+        "auth_type": "api_key"
+      },
+      "login_ok": true,
+      "board_http": 200,
+      "agent_tasks_http": 200,
+      "task_count": 50,
+      "goal_chains": [
+        {
+          "parent": {
+            "id": 200,
+            "title": "Goal: Build and launch a multi-step fire alarm service campaign for Dublin SMEs: research three competitors, draft a professional outreach email, create a customer fo",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:07.779140",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 201,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 202,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 203,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 204,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 200
+            },
+            {
+              "id": 205,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 206,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        {
+          "parent": {
+            "id": 171,
+            "title": "Goal: Dublin SME fire alarm launch campaign",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:54:15.908448",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 172,
+              "title": "[1/4] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 171
+            },
+            {
+              "id": 173,
+              "title": "[2/4] Set company/project targets",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 171
+            },
+            {
+              "id": 174,
+              "title": "[3/4] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 171
+            },
+            {
+              "id": 175,
+              "title": "[4/4] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 171
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 3
+          }
+        },
+        {
+          "parent": {
+            "id": 76,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:44:15.561514",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 77,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            },
+            {
+              "id": 78,
+              "title": "[2/6] Set company/project targets",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 79,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 80,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 81,
+              "title": "[5/6] QA / review & pack result",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            },
+            {
+              "id": 82,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            }
+          ],
+          "child_status_counts": {
+            "queued": 6
+          }
+        },
+        {
+          "parent": {
+            "id": 52,
+            "title": "Plan: Fire Alarms Dublin \u2014 SME Campaign (This Week)",
+            "status": "todo",
+            "labels": "plan",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "medium",
+            "created_at": "2026-07-19T11:42:36.108560",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 53,
+              "title": "Step 1: Research 3 Dublin fire alarm competitors",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 52
+            },
+            {
+              "id": 54,
+              "title": "Step 2: Draft professional SME outreach email",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 52
+            },
+            {
+              "id": 55,
+              "title": "Step 3: Build customer follow-up checklist",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 52
+            },
+            {
+              "id": 56,
+              "title": "Step 4: Brief sales specialists and assign owners",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 52
+            },
+            {
+              "id": 57,
+              "title": "Step 5: Execute outreach and track replies this week",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 52
+            }
+          ],
+          "child_status_counts": {
+            "queued": 5
+          }
+        }
+      ],
+      "highlights": {
+        "skill_execute_goal_parent_171": {
+          "parent": {
+            "id": 171,
+            "title": "Goal: Dublin SME fire alarm launch campaign",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:54:15.908448",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 172,
+              "title": "[1/4] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 171
+            },
+            {
+              "id": 173,
+              "title": "[2/4] Set company/project targets",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 171
+            },
+            {
+              "id": 174,
+              "title": "[3/4] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 171
+            },
+            {
+              "id": 175,
+              "title": "[4/4] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 171
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 3
+          }
+        },
+        "chat_long_goal_parent_200": {
+          "parent": {
+            "id": 200,
+            "title": "Goal: Build and launch a multi-step fire alarm service campaign for Dublin SMEs: research three competitors, draft a professional outreach email, create a customer fo",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:07.779140",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 201,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 202,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 203,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 204,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 200
+            },
+            {
+              "id": 205,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 206,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        "chat_goal_parent_76": {
+          "parent": {
+            "id": 76,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:44:15.561514",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 77,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            },
+            {
+              "id": 78,
+              "title": "[2/6] Set company/project targets",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 79,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 80,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "queued",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 76
+            },
+            {
+              "id": 81,
+              "title": "[5/6] QA / review & pack result",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            },
+            {
+              "id": 82,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 76
+            }
+          ],
+          "child_status_counts": {
+            "queued": 6
+          }
+        },
+        "latest_goal_chain": {
+          "parent": {
+            "id": 200,
+            "title": "Goal: Build and launch a multi-step fire alarm service campaign for Dublin SMEs: research three competitors, draft a professional outreach email, create a customer fo",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 9,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:07.779140",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 201,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 202,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 203,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 25,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 200
+            },
+            {
+              "id": 204,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 15,
+              "agent_name": "E2E Specialist mrrq1di4",
+              "parent_task_id": 200
+            },
+            {
+              "id": 205,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            },
+            {
+              "id": 206,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 9,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 200
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        }
+      }
+    },
+    {
+      "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+      "user": {
+        "id": 37,
+        "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+        "name": "E2E B",
+        "role": "user",
+        "plan": "trial",
+        "subscription_active": true,
+        "subscription_expires_at": "2026-08-02T11:50:52.958524Z",
+        "needs_subscription": false,
+        "email_verified": false,
+        "needs_email_verification": true,
+        "has_api_key": true,
+        "api_key_prefix": "aba_3SJAHPRnqZ0E",
+        "auth_type": "api_key"
+      },
+      "login_ok": true,
+      "board_http": 200,
+      "orch_id": null,
+      "task_count": 75,
+      "goal_chains": [
+        {
+          "parent": {
+            "id": 214,
+            "title": "Goal: Complete Live Demo Co full sales plan: synthesize ICP from research, finalize 5 outreach emails, define weekly sales targets (demos booked, demos run, follow-up",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:41.006200",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 215,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 216,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 217,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 218,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 214
+            },
+            {
+              "id": 219,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 220,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        {
+          "parent": {
+            "id": 184,
+            "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:54:44.494985",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 185,
+              "title": "[1/2] Create a short company mission for Live Demo Co and list 3 next actions.",
+              "status": "queued",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 184
+            },
+            {
+              "id": 186,
+              "title": "[2/2] Reply as the orchestrator to the human owner.",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 184
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 1
+          }
+        },
+        {
+          "parent": {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:53:35.808970",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 150,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            },
+            {
+              "id": 151,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 149
+            },
+            {
+              "id": 154,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 149
+            },
+            {
+              "id": 157,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 149
+            },
+            {
+              "id": 160,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            },
+            {
+              "id": 161,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        {
+          "parent": {
+            "id": 135,
+            "title": "Goal: Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella. Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that conv",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:53:23.804818",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 136,
+              "title": "[1/6] Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella.",
+              "status": "queued",
+              "agent_id": 33,
+              "agent_name": "Sales Outreach Agent",
+              "parent_task_id": 135
+            },
+            {
+              "id": 137,
+              "title": "[2/6] Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that convert to FAD, iComply Property Services, and iCo",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 135
+            },
+            {
+              "id": 138,
+              "title": "[3/6] (2) Write 5 outreach emails (sequences/variants) aligned to that ICP.",
+              "status": "todo",
+              "agent_id": 30,
+              "agent_name": "Lead Agent / Team Lead",
+              "parent_task_id": 135
+            },
+            {
+              "id": 139,
+              "title": "[4/6] (3) Set clear weekly sales targets (demos booked, demos run, follow-ups, pipeline value).",
+              "status": "todo",
+              "agent_id": 33,
+              "agent_name": "Sales Outreach Agent",
+              "parent_task_id": 135
+            },
+            {
+              "id": 140,
+              "title": "[5/6] (4) Report progress structure and initial baseline status to owner.",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 135
+            },
+            {
+              "id": 141,
+              "title": "[6/6] Coordinate via Lead Agent; use research and generate_content; save final plan to memory.",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 135
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        {
+          "parent": {
+            "id": 124,
+            "title": "Goal: Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Services, iComply Products (property managers,",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:53:18.103207",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 125,
+              "title": "[1/5] Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Servic",
+              "status": "queued",
+              "agent_id": 33,
+              "agent_name": "Sales Outreach Agent",
+              "parent_task_id": 124
+            },
+            {
+              "id": 126,
+              "title": "[2/5] 2) Write 5 outreach emails mapped to ICP pains.",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 124
+            },
+            {
+              "id": 127,
+              "title": "[3/5] 3) Set weekly sales targets (demos booked, emails sent, follow-ups, conversion).",
+              "status": "todo",
+              "agent_id": 33,
+              "agent_name": "Sales Outreach Agent",
+              "parent_task_id": 124
+            },
+            {
+              "id": 128,
+              "title": "[4/5] 4) Structure a progress report cadence for the owner.",
+              "status": "todo",
+              "agent_id": 36,
+              "agent_name": "Customer Support Agent",
+              "parent_task_id": 124
+            },
+            {
+              "id": 129,
+              "title": "[5/5] Deliver a consolidated sales plan; delegate research/content to team leads where useful; save key outputs to memory.",
+              "status": "todo",
+              "agent_id": 33,
+              "agent_name": "Sales Outreach Agent",
+              "parent_task_id": 124
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 4
+          }
+        },
+        {
+          "parent": {
+            "id": 111,
+            "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:51:57.079786",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 112,
+              "title": "[1/2] Create a short company mission for Live Demo Co and list 3 next actions.",
+              "status": "queued",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 111
+            },
+            {
+              "id": 113,
+              "title": "[2/2] Reply as the orchestrator to the human owner.",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 111
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 1
+          }
+        }
+      ],
+      "highlights": {
+        "smoke_parent_214": {
+          "parent": {
+            "id": 214,
+            "title": "Goal: Complete Live Demo Co full sales plan: synthesize ICP from research, finalize 5 outreach emails, define weekly sales targets (demos booked, demos run, follow-up",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:41.006200",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 215,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 216,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 217,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 218,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 214
+            },
+            {
+              "id": 219,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 220,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        "chat_probe_parent_149": {
+          "parent": {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:53:35.808970",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 150,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            },
+            {
+              "id": 151,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 149
+            },
+            {
+              "id": 154,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 149
+            },
+            {
+              "id": 157,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 149
+            },
+            {
+              "id": 160,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            },
+            {
+              "id": 161,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 149
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        },
+        "latest_goal_chain": {
+          "parent": {
+            "id": 214,
+            "title": "Goal: Complete Live Demo Co full sales plan: synthesize ICP from research, finalize 5 outreach emails, define weekly sales targets (demos booked, demos run, follow-up",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "priority": "high",
+            "created_at": "2026-07-19T11:55:41.006200",
+            "completed_at": null
+          },
+          "children": [
+            {
+              "id": 215,
+              "title": "[1/6] Clarify goal & success criteria",
+              "status": "queued",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 216,
+              "title": "[2/6] Set company/project targets",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 217,
+              "title": "[3/6] Break work into owned workstreams",
+              "status": "todo",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "parent_task_id": 214
+            },
+            {
+              "id": 218,
+              "title": "[4/6] Execute primary deliverable",
+              "status": "todo",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "parent_task_id": 214
+            },
+            {
+              "id": 219,
+              "title": "[5/6] QA / review & pack result",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            },
+            {
+              "id": 220,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "status": "todo",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "parent_task_id": 214
+            }
+          ],
+          "child_status_counts": {
+            "queued": 1,
+            "todo": 5
+          }
+        }
+      }
+    }
+  ]
+}

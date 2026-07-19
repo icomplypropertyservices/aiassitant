@@ -25,7 +25,7 @@ Until DNS is wired, app may still be at `https://aiassitant-nu.vercel.app` (then
 
 | Plan | Price | Included tokens / mo | Agents | Companies | Projects | Payment |
 |------|------:|---------------------:|-------:|----------:|---------:|---------|
-| **Free trial** | $0 | 50,000 | 3 | 1 | 2 | None |
+| **Free trial** | $0 | 50,000 | 10 | 2 | 2 | None |
 | **Starter** | **$39**/mo | 2,000,000 | 5 | 1 | 10 | Card or crypto |
 | **Pro** ⭐ | **$99**/mo | 10,000,000 | 20 | 3 | 50 | Card or crypto |
 | **Business** | **$249**/mo | 40,000,000 | 100 | 15 | 200 | Card or crypto |

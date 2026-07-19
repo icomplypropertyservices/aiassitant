@@ -161,6 +161,29 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         message = ""
 
     exp = getattr(user, "subscription_expires_at", None)
+    # Training library storage quota (plan + purchased add-ons)
+    storage = {}
+    try:
+        from .storage_quota import storage_snapshot
+        storage = storage_snapshot(db, user)
+    except Exception:
+        storage = {}
+    if storage.get("hard_block") and urgency == "ok":
+        urgency = "medium"
+        if not headline:
+            headline = "Training storage is full"
+            sales_message = storage.get("upgrade_hint") or (
+                "Free up files or upgrade storage / plan to keep uploading."
+            )
+            cta = "Upgrade storage"
+        needs_topup = needs_topup or True
+    elif storage.get("warn") and urgency == "ok":
+        urgency = "medium"
+        if not headline:
+            headline = "Training storage running low"
+            sales_message = storage.get("upgrade_hint") or "Consider a storage add-on or plan upgrade."
+            cta = "Get more storage"
+
     return {
         "plan": user.plan,
         "plan_name": limits.get("name"),
@@ -171,7 +194,7 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         "tokens_used_period": used,
         "tokens_remaining_included": remaining_included,
         "usage_percent": pct,
-        "warn": warn,
+        "warn": warn or bool(storage.get("warn")),
         "hard_block_soon": hard_block_soon,
         "hard_block": hard_block,
         "needs_topup": needs_topup and user.role != "admin",
@@ -180,6 +203,7 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         "sales_message": sales_message,
         "cta": cta,
         "message": message,
+        "storage": storage,
         "period_start": bal.period_start.isoformat() if bal.period_start else None,
         "auto_topup": {
             "enabled": auto_on,
@@ -199,18 +223,33 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         },
         "suggested_amounts": [10, 25, 50, 100],
         "upgrade_teaser": (
-            "Pro unlocks 10M tokens/mo — fewer top-ups, more agents."
-            if (user.plan or "") in ("trial", "starter", "none")
-            else (
-                "Business unlocks 40M tokens for serious volume."
-                if (user.plan or "") == "pro"
-                else None
+            limits.get("upgrade_teaser")
+            or (
+                "Pro unlocks 10M tokens, 40 agents, 500 skills/agent, all skill packs."
+                if (user.plan or "") in ("trial", "starter", "none")
+                else (
+                    "Business unlocks 40M tokens, 120 agents, 1,000 skills/agent."
+                    if (user.plan or "") == "pro"
+                    else None
+                )
             )
         ),
         "limits": {
             "agents": limits.get("agents", 0),
             "companies": limits.get("companies", 0),
             "projects": limits.get("projects", 0),
+            "skills_per_agent": limits.get("skills_per_agent", 0),
+            "skill_packs": limits.get("skill_packs", 0),
+            "prompt_skills": limits.get("prompt_skills", 0),
+            "premium_skills": bool(limits.get("premium_skills")),
+            "tokens_included": limits.get("tokens_included", 0),
+        },
+        "skills": {
+            "enabled_cap": int(limits.get("skills_per_agent") or 0),
+            "packs": int(limits.get("skill_packs") or 0),
+            "packs_total": 20,
+            "catalog_target": 1250,
+            "premium": bool(limits.get("premium_skills")),
         },
     }
 
@@ -227,16 +266,21 @@ def _normalize_bill_model(model: str | None) -> str:
         m = map_model(model)
     except Exception:
         m = (model or "fast").lower().strip()
-    # Voice / media keep their own catalog ids
-    if m in ("voice-stt", "voice-tts", "voice-call", "image", "video", "premium-comm"):
+    m = (m or "fast").lower().strip().replace("_", "-")
+    # Voice / media / skill meters keep their catalog ids
+    if m in (
+        "voice-stt", "voice-tts", "voice-call", "image", "video", "premium-comm",
+        "skill-read", "skill-write", "skill-action",
+    ):
         return m
     if m.startswith("voice"):
-        return m.replace("_", "-")
-    if m in ("grok-max",) or (m or "").startswith("grok"):
+        return m
+    if m in ("grok-max",) or m.startswith("grok"):
         return "quality"
     if m not in (
         "fast", "quality", "reasoning", "large", "small", "medium",
         "image", "video", "voice-stt", "voice-tts", "voice-call", "premium-comm",
+        "skill-read", "skill-write", "skill-action",
     ):
         return "fast"
     return m
@@ -379,6 +423,12 @@ def charge_event(
         "video": "video",
         "premium-comm": "premium-comm",
         "premium-skill": "premium-comm",
+        "skill-read": "skill-read",
+        "skill-write": "skill-write",
+        "skill-action": "skill-action",
+        "skill_read": "skill-read",
+        "skill_write": "skill-write",
+        "skill_action": "skill-action",
     }
     model = model_map.get(kind, model_map.get(kind_key, kind_key))
 
@@ -389,9 +439,10 @@ def charge_event(
     inp = max(1, weight // 2)
     out = max(1, weight - inp)
 
-    # Voice: token-pool first (no flat force). Media: flat wallet.
-    if model in ("voice-stt", "voice-tts", "voice-call"):
-        flat = cost_override  # usually None → rate-based tokens
+    # Voice + skill actions: token-pool first (no flat wallet force).
+    # Media / premium-comm: flat wallet when EVENT_PRICING has usd.
+    if model in ("voice-stt", "voice-tts", "voice-call", "skill-read", "skill-write", "skill-action"):
+        flat = cost_override  # usually None → rate-based tokens from included pool
     else:
         flat = cost_override if cost_override is not None else event_usd(model)
     return charge_usage(
@@ -400,3 +451,130 @@ def charge_event(
         project_id=project_id,
         cost_override=flat,
     )
+
+
+_READ_SKILL_PREFIXES = ("list_", "get_", "search_", "read_")
+_READ_SKILL_IDS = frozenset({
+    "pipeline_summary", "weekly_review", "get_time", "suggest_times",
+    "list_team", "agent_compare", "skill_recommend",
+})
+_HEAVY_WRITE_IDS = frozenset({
+    "spawn_agent", "spawn_team", "spawn_specialist", "clone_agent",
+    "execute_goal", "create_skill", "publish_skill_to_bay",
+    "generate_content", "research", "summarize",
+})
+
+
+def classify_skill_billing(skill_id: str, meta: dict | None = None) -> str:
+    """
+    premium | llm | read | write
+
+    premium — wallet credits (cost_credits)
+    llm — token bill via bill_llm_turn (chat-quality)
+    read — light skill-read meter (included pool first)
+    write — skill-write meter (included pool first)
+    """
+    meta = meta or {}
+    if meta.get("premium"):
+        return "premium"
+    sid = (skill_id or "").strip()
+    if meta.get("handler") in ("catalog_deliverable", "created_skill") or sid.startswith("custom_"):
+        return "llm"
+    if sid.startswith(_READ_SKILL_PREFIXES) or sid in _READ_SKILL_IDS:
+        return "read"
+    if sid in _HEAVY_WRITE_IDS:
+        return "write"
+    return "write"
+
+
+def bill_skill_execution(
+    db: Session,
+    user: models.User,
+    skill_id: str,
+    meta: dict | None,
+    result: dict | None,
+    args: dict | None,
+    *,
+    company_id: int | None = None,
+    project_id: int | None = None,
+) -> dict:
+    """
+    Ensure every successful skill run is metered:
+    - premium: already charged wallet (cost_credits) before run
+    - llm: use handler-attached usage or bill content length
+    - read/write: included token pool first, then wallet at skill-* rates
+    """
+    meta = meta or {}
+    args = args or {}
+    result = result if isinstance(result, dict) else {}
+
+    if getattr(user, "role", None) == "admin":
+        return {"bill_source": "admin", "cost": 0.0, "tokens": 0, "kind": "admin"}
+
+    kind = classify_skill_billing(skill_id, meta)
+
+    # Premium already charged at execute_skill entry
+    if kind == "premium" and args.get("_billed"):
+        cost = float(meta.get("cost_credits") or 0.02)
+        return {
+            "bill_source": "credits",
+            "cost": cost,
+            "tokens": event_meter_tokens(str(meta.get("meter_kind") or "premium-comm").replace("_", "-")),
+            "kind": "premium",
+            "already_billed": True,
+        }
+
+    # Handler already attached usage (e.g. catalog deliverable / a2a reply)
+    if isinstance(result.get("usage"), dict) and result["usage"].get("tokens") is not None:
+        return {**result["usage"], "kind": result["usage"].get("kind") or kind}
+
+    # LLM-shaped results without usage — bill as chat tokens
+    content = (
+        result.get("content")
+        or result.get("deliverable")
+        or result.get("reply")
+        or result.get("reply_text")
+        or ""
+    )
+    if kind == "llm" or (content and len(str(content)) > 80):
+        usage = bill_llm_turn(
+            db, user,
+            meta.get("model") or "fast",
+            [{"role": "user", "content": f"skill:{skill_id}"}],
+            str(content)[:12_000] or skill_id,
+            company_id=company_id,
+            project_id=project_id,
+        )
+        usage["kind"] = "llm"
+        return usage
+
+    # Read / write action meters — always hit the pool
+    meter_kind = "skill-read" if kind == "read" else "skill-write"
+    if meta.get("meter_tokens"):
+        try:
+            weight = max(10, int(meta["meter_tokens"]))
+        except Exception:
+            weight = event_meter_tokens(meter_kind)
+    else:
+        weight = event_meter_tokens(meter_kind)
+    text = json_dumps_safe(args)[:400] if args else skill_id
+    usage = charge_event(
+        db, user, meter_kind,
+        text=f"{skill_id}:{text}",
+        cost_override=None,  # included pool first
+        company_id=company_id,
+        project_id=project_id,
+    )
+    # charge_event may not use our weight if EVENT has meter_tokens — re-charge if needed?
+    # EVENT skill-read has 20 tokens; skill-write 50 — good enough
+    usage["kind"] = kind
+    usage["skill_id"] = skill_id
+    return usage
+
+
+def json_dumps_safe(obj) -> str:
+    import json
+    try:
+        return json.dumps(obj, default=str)
+    except Exception:
+        return str(obj)[:200]

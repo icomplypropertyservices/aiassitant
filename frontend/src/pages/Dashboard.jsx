@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from 'react'
 import {
-  Row, Col, Card, Statistic, List, Button, Space, Typography, Tag, Spin, Alert, Progress,
+  Row, Col, Card, Statistic, List, Button, Space, Typography, Tag, Spin, Alert, Progress, Empty,
 } from 'antd'
 import {
   MessageOutlined, ThunderboltOutlined, RobotOutlined,
   PlusOutlined, CheckSquareOutlined, ApartmentOutlined,
   CheckCircleFilled, CheckCircleOutlined, CrownOutlined,
   BankOutlined, TeamOutlined, SafetyCertificateOutlined, UserOutlined,
+  CommentOutlined, NodeIndexOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api'
 import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
+import { LogoLoading } from '../components/BrandLogo'
+import SystemNav from '../components/SystemNav'
+import CoreTeam from '../components/CoreTeam'
 
+/**
+ * Dashboard — every block lives inside an Ant Design Card within the
+ * centered page shell (aba-page-center / aba-page-shell / aba-page-shell-inner).
+ * Goal / auto-chain open-task counts come from the tasks board API.
+ */
 export default function Dashboard() {
   const nav = useNavigate()
   const [data, setData] = useState(null)
@@ -21,6 +31,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([])
   const [keysConfigured, setKeysConfigured] = useState(false)
   const [checklistReady, setChecklistReady] = useState(false)
+  const [meetingsCount, setMeetingsCount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -34,16 +45,29 @@ export default function Dashboard() {
       api('/org/companies').catch(() => []),
       api('/org/projects').catch(() => []),
       api('/keys').catch(() => ({ keys: [] })),
+      api('/meetings/').catch(() => null),
     ])
-      .then(([dash, a, b, cos, projs, k]) => {
+      .then(([dash, a, b, cos, projs, k, meetings]) => {
         setData(dash)
-        setAgents(a || [])
+        setAgents(Array.isArray(a) ? a : [])
         setBoard(b)
-        setCompanies(cos || [])
-        setProjects(projs || [])
-        const keyList = k?.keys || []
+        setCompanies(Array.isArray(cos) ? cos : (cos?.companies || []))
+        setProjects(Array.isArray(projs) ? projs : (projs?.projects || []))
+        const keyList = Array.isArray(k?.keys) ? k.keys : []
         setKeysConfigured(keyList.some(x => x.configured || x.id))
         setChecklistReady(true)
+        if (meetings != null) {
+          const list = Array.isArray(meetings)
+            ? meetings
+            : (Array.isArray(meetings.rooms) ? meetings.rooms
+              : Array.isArray(meetings.meetings) ? meetings.meetings
+                : Array.isArray(meetings.items) ? meetings.items
+                  : [])
+          const n = typeof meetings.count === 'number' ? meetings.count : list.length
+          setMeetingsCount(n)
+        } else {
+          setMeetingsCount(null)
+        }
       })
       .catch(e => {
         setError(e.message || 'Failed to load dashboard')
@@ -56,21 +80,27 @@ export default function Dashboard() {
 
   if (loading && !data) {
     return (
-      <div style={{ textAlign: 'center', padding: 80 }}>
-        <Spin size="large" tip="Loading dashboard…" />
-      </div>
+      <PageShell>
+        <Card className="aba-soft-card">
+          <LogoLoading tip="Loading home…" minHeight={320} />
+        </Card>
+      </PageShell>
     )
   }
 
   if (error && !data) {
     return (
-      <Alert
-        type="error"
-        showIcon
-        message="Could not load dashboard"
-        description={error}
-        action={<Button onClick={load}>Retry</Button>}
-      />
+      <PageShell>
+        <Card className="aba-soft-card">
+          <Alert
+            type="error"
+            showIcon
+            message="Could not load dashboard"
+            description={error}
+            action={<Button onClick={load}>Retry</Button>}
+          />
+        </Card>
+      </PageShell>
     )
   }
 
@@ -82,6 +112,17 @@ export default function Dashboard() {
   const showChecklist = checklistReady && requiredDone < 4
   const firstAgent = agents[0]
   const firstLead = agents.find(a => a.is_lead || a.hierarchy_role === 'lead')
+
+  // Open goal / auto-chain tasks (labels from task_chain) when board API is available
+  let openGoalChainCount = 0
+  if (board?.columns) {
+    for (const st of ['todo', 'queued', 'in_progress']) {
+      for (const t of board.columns[st] || []) {
+        const labels = String(t.labels || '').toLowerCase()
+        if (labels.includes('goal') || labels.includes('auto-chain')) openGoalChainCount += 1
+      }
+    }
+  }
 
   const checklist = [
     {
@@ -124,184 +165,408 @@ export default function Dashboard() {
     },
   ]
 
+  const openTasks =
+    (board?.counts?.todo || 0) + (board?.counts?.queued || 0) + (board?.counts?.in_progress || 0)
+
+  const quickActions = [
+    {
+      key: 'agents',
+      label: 'Agents',
+      icon: <RobotOutlined />,
+      type: 'primary',
+      onClick: () => nav('/console'),
+    },
+    {
+      key: 'tasks',
+      label: 'Tasks',
+      icon: <CheckSquareOutlined />,
+      onClick: () => nav('/tasks'),
+    },
+    {
+      key: 'business',
+      label: 'Business',
+      icon: <BankOutlined />,
+      onClick: () => nav('/business'),
+    },
+    {
+      key: 'chat',
+      label: 'AI Chat',
+      icon: <MessageOutlined />,
+      onClick: () => nav('/chat'),
+    },
+  ]
+
   return (
-    <div>
-      {error && (
-        <Alert type="warning" showIcon closable message={error} style={{ marginBottom: 16 }} onClose={() => setError(null)} />
-      )}
-      <PageHeader
-        title={`Welcome back${getUser()?.name ? `, ${getUser().name}` : ''}`}
-        subtitle="Your workspace overview — companies, agents, tasks and token usage in one place."
-        extra={
-          <Space wrap>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/console')}>Create agent</Button>
-            <Button icon={<MessageOutlined />} onClick={() => nav('/chat')}>AI Chat</Button>
-          </Space>
-        }
-      />
-
-      {showChecklist && (
-        <Card
-          className="aba-soft-card"
-          title={
-            <Space>
-              Getting started
-              <Tag color="blue">{requiredDone}/4 required</Tag>
-              <Progress type="circle" percent={Math.round((requiredDone / 4) * 100)} width={28} />
-            </Space>
-          }
-          style={{ marginBottom: 16 }}
-        >
-          <List
-            dataSource={checklist}
-            renderItem={item => (
-              <List.Item
-                actions={
-                  item.done
-                    ? [<Tag key="ok" color="success">Done</Tag>]
-                    : [
-                        <Button key="go" type="link" onClick={item.action}>{item.label}</Button>,
-                        item.extra && (
-                          <Button key="ex" type="link" onClick={item.extra}>{item.extraLabel}</Button>
-                        ),
-                      ].filter(Boolean)
-                }
-              >
-                <List.Item.Meta
-                  avatar={
-                    item.done
-                      ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 18 }} />
-                      : <CheckCircleOutlined style={{ color: '#bfbfbf', fontSize: 18 }} />
-                  }
-                  title={
-                    <Space>
-                      <span style={{ opacity: item.done ? 0.65 : 1 }}>{item.title}</span>
-                      {item.optional && <Tag>Optional</Tag>}
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
+    <PageShell>
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        {/* Welcome header — Card */}
+        <Card className="aba-soft-card" styles={{ body: { paddingBlock: 16 } }}>
+          <PageHeader
+            title={`Welcome back${getUser()?.name ? `, ${getUser().name}` : ''}`}
+            subtitle="Your workspace overview — companies, agents, tasks and token usage in one place."
+            style={{ marginBottom: 0 }}
+            extra={
+              <Space wrap className="aba-v2-header-extra-desktop">
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/console')}>
+                  Create agent
+                </Button>
+                <Button icon={<MessageOutlined />} onClick={() => nav('/chat')}>
+                  AI Chat
+                </Button>
+              </Space>
+            }
           />
+          {/* Mobile-first primary actions (2×2 → 4-col from 480px) */}
+          <div className="aba-v2-quick-actions" style={{ marginTop: 14 }}>
+            {quickActions.map((a) => (
+              <Button
+                key={a.key}
+                type={a.type || 'default'}
+                className="aba-v2-quick-actions__btn"
+                icon={a.icon}
+                onClick={a.onClick}
+                block
+              >
+                <span className="aba-v2-quick-actions__label">{a.label}</span>
+              </Button>
+            ))}
+          </div>
         </Card>
-      )}
 
-      <Row gutter={[16, 16]}>
-        <Col xs={12} md={6}>
-          <Card className="aba-stat-card" hoverable onClick={() => nav('/console')}>
-            <Statistic title="Active agents" value={agents.length} prefix={<RobotOutlined style={{ color: '#7c3aed' }} />} />
-            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-              {agents.length >= 15 ? 'Full professional team' : 'Click to open team →'}
-            </div>
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card className="aba-stat-card"><Statistic title="Messages today" value={data?.messages_today ?? 0} prefix={<MessageOutlined style={{ color: '#1668dc' }} />} /></Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card className="aba-stat-card"><Statistic title="Tokens used" value={data?.tokens_used ?? 0} prefix={<ThunderboltOutlined style={{ color: '#d97706' }} />} /></Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card className="aba-stat-card">
-            <Statistic
-              title="Open tasks"
-              value={(board?.counts?.todo || 0) + (board?.counts?.queued || 0) + (board?.counts?.in_progress || 0)}
-              prefix={<CheckSquareOutlined style={{ color: '#16a34a' }} />}
+        {error && (
+          <Card className="aba-soft-card">
+            <Alert
+              type="warning"
+              showIcon
+              closable
+              message={error}
+              action={<Button size="small" onClick={load}>Retry</Button>}
+              onClose={() => setError(null)}
             />
           </Card>
-        </Col>
-      </Row>
+        )}
 
-      <Space wrap style={{ margin: '16px 0' }}>
-        <Button icon={<CheckSquareOutlined />} onClick={() => nav('/tasks')}>Tasks board</Button>
-        <Button icon={<ApartmentOutlined />} onClick={() => nav('/workspace')}>Workspace</Button>
-        <Button icon={<TeamOutlined />} onClick={() => nav('/humans')}>Users / Team</Button>
-        <Button icon={<SafetyCertificateOutlined />} onClick={() => nav('/permissions')}>Permissions</Button>
-        <Button icon={<UserOutlined />} onClick={() => nav('/profile')}>Profile</Button>
-        <Button onClick={() => nav('/templates')}>Templates</Button>
-        <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
-      </Space>
-
-      {companies.length > 0 && (
-        <Card
-          title="Companies"
-          extra={<Button type="link" onClick={() => nav('/workspace')}>Workspace</Button>}
-          style={{ marginBottom: 16 }}
-        >
-          <List
-            dataSource={companies.slice(0, 6)}
-            renderItem={(c) => (
-              <List.Item
-                style={{ cursor: 'pointer' }}
-                onClick={() => nav(`/companies/${c.id}`)}
-                actions={[
-                  <Tag key="p">{c.project_count ?? 0} projects</Tag>,
-                  <Button key="g" type="link" size="small" onClick={(e) => { e.stopPropagation(); nav(`/companies/${c.id}`) }}>
-                    P&amp;L / profile
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={<BankOutlined style={{ fontSize: 18, color: '#1668dc' }} />}
-                  title={c.name}
-                  description={c.industry || 'Open company profile for AI cost, pipeline & profit'}
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
-
-      <Row gutter={16}>
-        <Col xs={24} md={12}>
+        {showChecklist && (
           <Card
-            title="Your agents"
-            extra={<Button type="link" onClick={() => nav('/console')}>Console</Button>}
-            style={{ marginBottom: 16 }}
+            className="aba-soft-card"
+            title={
+              <Space wrap>
+                Getting started
+                <Tag color="blue">{requiredDone}/4 required</Tag>
+                <Progress type="circle" percent={Math.round((requiredDone / 4) * 100)} width={28} />
+              </Space>
+            }
           >
             <List
-              dataSource={agents.slice(0, 5)}
-              locale={{ emptyText: 'No agents yet' }}
-              renderItem={a => (
+              dataSource={checklist}
+              renderItem={item => (
                 <List.Item
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => nav(`/agents/${a.id}`)}
-                  actions={[
-                    (a.is_lead || a.hierarchy_role === 'lead') && <Tag key="l" color="gold" icon={<CrownOutlined />}>Lead</Tag>,
-                    <Tag key="s" color={a.status === 'active' ? 'green' : 'orange'}>{a.status}</Tag>,
-                  ].filter(Boolean)}
+                  className="aba-click-row"
+                  onClick={() => { item.action?.() }}
+                  actions={
+                    item.done
+                      ? [
+                          <Tag key="ok" color="success">Done</Tag>,
+                          <Button key="go" type="link" className="aba-touch-btn" onClick={(e) => { e.stopPropagation(); item.action?.() }}>{item.label}</Button>,
+                        ]
+                      : [
+                          <Button key="go" type="link" className="aba-touch-btn" onClick={(e) => { e.stopPropagation(); item.action?.() }}>{item.label}</Button>,
+                          item.extra && (
+                            <Button key="ex" type="link" className="aba-touch-btn" onClick={(e) => { e.stopPropagation(); item.extra?.() }}>{item.extraLabel}</Button>
+                          ),
+                        ].filter(Boolean)
+                  }
                 >
                   <List.Item.Meta
-                    avatar={<RobotOutlined style={{ fontSize: 20, color: '#1668dc' }} />}
-                    title={a.name}
-                    description={`${a.template_type} · ${a.stats?.open || 0} open tasks — click for live chat`}
+                    avatar={
+                      item.done
+                        ? <CheckCircleFilled style={{ color: '#52c41a', fontSize: 18 }} />
+                        : <CheckCircleOutlined style={{ color: '#bfbfbf', fontSize: 18 }} />
+                    }
+                    title={
+                      <Space>
+                        <span style={{ opacity: item.done ? 0.65 : 1 }}>{item.title}</span>
+                        {item.optional && <Tag>Optional</Tag>}
+                      </Space>
+                    }
                   />
                 </List.Item>
               )}
             />
           </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card title="Task pipeline" extra={<Button type="link" onClick={() => nav('/tasks')}>Board</Button>}>
-            <Space wrap size="large">
-              {['todo', 'queued', 'in_progress', 'review', 'completed'].map(k => (
-                <Statistic key={k} title={k.replace('_', ' ')} value={board?.counts?.[k] || 0} />
-              ))}
-            </Space>
-          </Card>
-          <Card title="Recent conversations" style={{ marginTop: 16 }}>
+        )}
+
+        {/* KPI stats — each metric is its own Card */}
+        <Row gutter={[16, 16]}>
+          <Col xs={12} md={6}>
+            <Card className="aba-stat-card aba-soft-card aba-card-clickable" hoverable onClick={() => nav('/console')}>
+              <Statistic
+                title="Active agents"
+                value={agents.length}
+                prefix={<RobotOutlined style={{ color: '#7c3aed' }} />}
+              />
+              <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                {agents.length >= 15 ? 'Full professional team' : 'Click to open team →'}
+              </Typography.Text>
+            </Card>
+          </Col>
+          <Col xs={12} md={6}>
+            <Card className="aba-stat-card aba-soft-card aba-card-clickable" hoverable onClick={() => nav('/chat')}>
+              <Statistic
+                title="Messages today"
+                value={data?.messages_today ?? 0}
+                prefix={<MessageOutlined style={{ color: '#1668dc' }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={6}>
+            <Card className="aba-stat-card aba-soft-card aba-card-clickable" hoverable onClick={() => nav('/billing')}>
+              <Statistic
+                title="Tokens used"
+                value={data?.tokens_used ?? 0}
+                prefix={<ThunderboltOutlined style={{ color: '#d97706' }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={6}>
+            <Card className="aba-stat-card aba-soft-card aba-card-clickable" hoverable onClick={() => nav('/tasks')}>
+              <Statistic
+                title="Open tasks"
+                value={openTasks}
+                prefix={<CheckSquareOutlined style={{ color: '#16a34a' }} />}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Meetings + goals / auto-chain shortcuts — Cards */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={board != null ? 12 : 24}>
+            <Card
+              className="aba-soft-card"
+              size="small"
+              hoverable
+              onClick={() => nav('/meetings')}
+            >
+              <Space wrap>
+                <CommentOutlined style={{ color: '#7c3aed', fontSize: 18 }} />
+                <Typography.Text strong>Meetings</Typography.Text>
+                {meetingsCount != null && (
+                  <Tag color="blue">{meetingsCount}</Tag>
+                )}
+                <Typography.Text type="secondary">
+                  {meetingsCount != null ? 'Open meeting rooms →' : 'Open meetings →'}
+                </Typography.Text>
+              </Space>
+            </Card>
+          </Col>
+          {board != null && (
+            <Col xs={24} md={12}>
+              <Card
+                className="aba-soft-card"
+                size="small"
+                hoverable
+                onClick={() => nav('/tasks')}
+              >
+                <Space wrap>
+                  <NodeIndexOutlined style={{ color: '#d97706', fontSize: 18 }} />
+                  <Typography.Text strong>Goals / auto-chain</Typography.Text>
+                  <Tag color="orange">{openGoalChainCount}</Tag>
+                  <Typography.Text type="secondary">Open goal tasks →</Typography.Text>
+                </Space>
+              </Card>
+            </Col>
+          )}
+        </Row>
+
+        {/* Core Team — every user gets a standing agent roster + My Human */}
+        <CoreTeam />
+
+        {/* Full system map — click into every area */}
+        <Card
+          className="aba-soft-card"
+          title="Explore the system"
+          extra={(
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Tap any card
+            </Typography.Text>
+          )}
+        >
+          <SystemNav compact />
+        </Card>
+
+        {/* Quick links — still handy as buttons */}
+        <Card className="aba-soft-card" size="small" title="Quick links">
+          <Space wrap>
+            <Button icon={<CheckSquareOutlined />} onClick={() => nav('/tasks')}>Tasks board</Button>
+            <Button icon={<ApartmentOutlined />} onClick={() => nav('/workspace')}>Workspace</Button>
+            <Button icon={<TeamOutlined />} onClick={() => nav('/humans')}>Users / Team</Button>
+            <Button icon={<SafetyCertificateOutlined />} onClick={() => nav('/permissions')}>Permissions</Button>
+            <Button icon={<UserOutlined />} onClick={() => nav('/profile')}>Profile</Button>
+            <Button onClick={() => nav('/templates')}>Templates</Button>
+            <Button onClick={() => nav('/hierarchy')}>Hierarchy</Button>
+            <Button onClick={() => nav('/meetings')}>Meetings</Button>
+            <Button onClick={() => nav('/ops')}>Live ops</Button>
+            <Button onClick={() => nav('/billing')}>Billing</Button>
+            <Button onClick={() => nav('/analytics')}>Analytics</Button>
+            <Button onClick={() => nav('/training')}>Training</Button>
+            <Button onClick={() => nav('/comms')}>Calls · SMS · Email</Button>
+            <Button onClick={() => nav('/settings')}>Settings</Button>
+            <Button onClick={() => { window.location.href = '/bay' }}>AgentBay</Button>
+          </Space>
+        </Card>
+
+        {companies.length > 0 && (
+          <Card
+            className="aba-soft-card"
+            title="Companies"
+            extra={<Button type="link" onClick={() => nav('/workspace')}>Workspace</Button>}
+          >
             <List
-              dataSource={data?.recent_conversations || []}
-              locale={{ emptyText: 'No conversations yet' }}
-              renderItem={c => (
-                <List.Item style={{ cursor: 'pointer' }} onClick={() => nav('/chat', { state: { conversation_id: c.id } })}>
-                  <MessageOutlined style={{ marginRight: 8 }} /> {c.title}
+              dataSource={companies.slice(0, 6)}
+              renderItem={(c) => (
+                <List.Item
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => nav(`/companies/${c.id}`)}
+                  actions={[
+                    <Tag key="p">{c.project_count ?? 0} projects</Tag>,
+                    <Button
+                      key="g"
+                      type="link"
+                      size="small"
+                      onClick={(e) => { e.stopPropagation(); nav(`/companies/${c.id}`) }}
+                    >
+                      P&amp;L / profile
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={<BankOutlined style={{ fontSize: 18, color: '#1668dc' }} />}
+                    title={c.name}
+                    description={c.industry || 'Open company profile for AI cost, pipeline & profit'}
+                  />
                 </List.Item>
               )}
             />
           </Card>
-        </Col>
-      </Row>
-    </div>
+        )}
+
+        {/* Agents + pipeline / conversations — Cards */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12}>
+            <Card
+              className="aba-soft-card"
+              title="Your agents"
+              extra={<Button type="link" onClick={() => nav('/console')}>Console</Button>}
+            >
+              <List
+                dataSource={agents.slice(0, 5)}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description="No agents yet"
+                    >
+                      <Button type="primary" size="small" onClick={() => nav('/console')}>
+                        Create agent
+                      </Button>
+                    </Empty>
+                  ),
+                }}
+                renderItem={a => (
+                  <List.Item
+                    className="aba-click-row"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => nav(`/console/${a.id}`)}
+                    actions={[
+                      (a.is_lead || a.hierarchy_role === 'lead') && (
+                        <Tag key="l" color="gold" icon={<CrownOutlined />}>Lead</Tag>
+                      ),
+                      <Tag key="s" color={a.status === 'active' ? 'green' : 'orange'}>{a.status}</Tag>,
+                      <Button
+                        key="m"
+                        type="link"
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/manage`) }}
+                      >
+                        Manage
+                      </Button>,
+                    ].filter(Boolean)}
+                  >
+                    <List.Item.Meta
+                      avatar={<RobotOutlined style={{ fontSize: 20, color: '#1668dc' }} />}
+                      title={a.name}
+                      description={`${a.template_type} · ${a.stats?.open || 0} open tasks — click for live chat`}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} md={12}>
+            <Row gutter={[16, 16]}>
+              <Col span={24}>
+                <Card
+                  className="aba-soft-card aba-card-clickable"
+                  hoverable
+                  title="Task pipeline"
+                  extra={<Button type="link" onClick={(e) => { e.stopPropagation(); nav('/tasks') }}>Board</Button>}
+                  onClick={() => nav('/tasks')}
+                >
+                  <Row gutter={[16, 16]} justify="space-around">
+                    {['todo', 'queued', 'in_progress', 'review', 'completed'].map(k => (
+                      <Col
+                        key={k}
+                        xs={12}
+                        sm={8}
+                        md={8}
+                        lg={4}
+                        style={{ textAlign: 'center', cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); nav('/tasks') }}
+                      >
+                        <Statistic
+                          title={k.replace(/_/g, ' ')}
+                          value={board?.counts?.[k] || 0}
+                        />
+                      </Col>
+                    ))}
+                  </Row>
+                </Card>
+              </Col>
+              <Col span={24}>
+                <Card className="aba-soft-card" title="Recent conversations">
+                  <List
+                    dataSource={data?.recent_conversations || []}
+                    locale={{
+                      emptyText: (
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description="No conversations yet"
+                        >
+                          <Button type="primary" size="small" onClick={() => nav('/chat')}>
+                            AI Chat
+                          </Button>
+                        </Empty>
+                      ),
+                    }}
+                    renderItem={c => (
+                      <List.Item
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => nav('/chat', { state: { conversation_id: c.id } })}
+                      >
+                        <List.Item.Meta
+                          avatar={<MessageOutlined />}
+                          title={c.title}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      </Space>
+    </PageShell>
   )
 }

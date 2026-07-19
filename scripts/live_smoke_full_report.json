@@ -1,0 +1,233 @@
+{
+  "generated_at": "2026-07-19T11:54:39Z",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "checks": [
+    {
+      "name": "health",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "version": "1.5.0",
+        "environment": "production",
+        "meetings": true
+      }
+    },
+    {
+      "name": "demo_login",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "source": "stored_key",
+        "has_token": true,
+        "user_id": 37,
+        "plan": "trial",
+        "subscription_active": true
+      }
+    },
+    {
+      "name": "auth_me",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "plan": "trial",
+        "subscription_active": true
+      }
+    },
+    {
+      "name": "activate_trial",
+      "pass": true,
+      "detail": {
+        "status": "skipped",
+        "plan": "trial"
+      }
+    },
+    {
+      "name": "templates_list",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "count": 41,
+        "html": false,
+        "first": "Main AI Orchestrator"
+      }
+    },
+    {
+      "name": "ensure_orchestrator",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "agent_id": 27,
+        "name": "Main AI Orchestrator",
+        "detail": null
+      }
+    },
+    {
+      "name": "agents_list",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "count": 10,
+        "selected_agent_id": 27,
+        "names": [
+          "Main AI Orchestrator",
+          "FAD Ops Lead",
+          "Lead Agent / Team Lead",
+          "Operations Lead",
+          "Sales Lead Agent",
+          "Appointment Booker"
+        ]
+      }
+    },
+    {
+      "name": "meetings_list",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "count": 2,
+        "html": false
+      }
+    },
+    {
+      "name": "meetings_create",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "meeting_id": 21,
+        "detail": null,
+        "keys": [
+          "chair_agent_id",
+          "chair_agent_name",
+          "chair_name",
+          "closed_at",
+          "company_id",
+          "company_name",
+          "created_at",
+          "id",
+          "message_count",
+          "messages",
+          "participant_count",
+          "participants",
+          "project_id",
+          "project_name",
+          "purpose",
+          "room_type",
+          "settings",
+          "status",
+          "summary_text",
+          "task_id",
+          "task_title",
+          "title",
+          "user_id"
+        ]
+      }
+    },
+    {
+      "name": "meetings_post_message",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "detail": null
+      }
+    },
+    {
+      "name": "meetings_list_messages",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "count": 2
+      }
+    },
+    {
+      "name": "chat_goal_chain",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "elapsed_sec": 58.6,
+        "has_goal_chain_field": true,
+        "goal_chain_ok": true,
+        "goal_chain": {
+          "skill": "execute_goal",
+          "ok": true,
+          "message": "Goal chain started with 6 delegated steps",
+          "parent_task_id": 214,
+          "owner_agent_id": 27,
+          "company_id": 36,
+          "project_id": null,
+          "children": [
+            {
+              "task_id": 215,
+              "title": "[1/6] Clarify goal & success criteria",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "status": "queued"
+            },
+            {
+              "task_id": 216,
+              "title": "[2/6] Set company/project targets",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "status": "todo"
+            },
+            {
+              "task_id": 217,
+              "title": "[3/6] Break work into owned workstreams",
+              "agent_id": 28,
+              "agent_name": "FAD Ops Lead",
+              "status": "todo"
+            },
+            {
+              "task_id": 218,
+              "title": "[4/6] Execute primary deliverable",
+              "agent_id": 29,
+              "agent_name": "Master Designer",
+              "status": "todo"
+            },
+            {
+              "task_id": 219,
+              "title": "[5/6] QA / review & pack result",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "status": "todo"
+            },
+            {
+              "task_id": 220,
+              "title": "[6/6] Monitor completion & escalate blockers",
+              "agent_id": 27,
+              "agent_name": "Main AI Orchestrator",
+              "status": "todo"
+            }
+          ],
+          "steps": 6,
+          "from_skill": true
+        },
+        "auto_chain_markers": [
+          "delegated steps"
+        ],
+        "reply_preview": "Building the full Live Demo Co sales plan now: ICP research, 5 outreach emails, weekly targets, and a progress frame. Delegating and running the work.\n\n**Status for you:** Plan is live. I\u2019m researching the ICP, drafting the 5 demo-offer emails, then locking weekly targets and a simple progress report loop with the Lead Agent.\n\n**You\u2019ll get next:**\n1. ICP one-pager (who / pain / trigger / message) ",
+        "detail": null
+      }
+    },
+    {
+      "name": "tasks_chain_visible",
+      "pass": true,
+      "detail": {
+        "status": 401,
+        "count": null,
+        "chain_related": [],
+        "accepted_via_goal_chain": true
+      }
+    }
+  ],
+  "summary": {
+    "ok": true,
+    "passed": 13,
+    "total": 13,
+    "failed": [],
+    "failed_critical": [],
+    "agent_id": 27,
+    "meeting_id": 21,
+    "goal_parent_task_id": 214,
+    "chat_http": 200
+  }
+}

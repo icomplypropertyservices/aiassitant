@@ -1,0 +1,95 @@
+{
+  "at": "2026-07-19T12:18:26.027Z",
+  "base": "https://www.aibusinessagent.xyz",
+  "email": "test+1784463080@aibusinessagent.xyz",
+  "user_id": 41,
+  "agent_id": 43,
+  "screenshots_dir": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop",
+  "required_steps": [
+    "login",
+    "agents",
+    "chat_get_reply",
+    "create_task",
+    "meetings_list",
+    "billing_shows_trial"
+  ],
+  "steps": [
+    {
+      "name": "login",
+      "pass": true,
+      "detail": "user_id=41 plan=trial",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\01_login.png"
+    },
+    {
+      "name": "agents",
+      "pass": true,
+      "detail": "count=2 agent_id=43 url=https://www.aibusinessagent.xyz/agents/agents ui=true api=true",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\02_agents.png"
+    },
+    {
+      "name": "chat_get_reply",
+      "pass": true,
+      "detail": "/api/agents/43/chat status=200 reply=\"I'm online and ready for the full browser loop test.\\n\\n— Auto-chain started: goal task #312 with 6 delegated steps (hierarchy). Autonomy will run/monitor them.\"",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\03_chat_after.png"
+    },
+    {
+      "name": "create_task",
+      "pass": true,
+      "detail": "/api/agents/43/tasks id=319 status=queued",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\04_create_task.png"
+    },
+    {
+      "name": "meetings_list",
+      "pass": true,
+      "detail": "api_status=200 count=1 url=https://www.aibusinessagent.xyz/agents/meetings ui=true",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\05_meetings_list.png"
+    },
+    {
+      "name": "billing_shows_trial",
+      "pass": true,
+      "detail": "plan=trial trial_ui=true trial_api=true url=https://www.aibusinessagent.xyz/agents/billing",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\06_billing.png"
+    }
+  ],
+  "results": [
+    {
+      "name": "login",
+      "pass": true,
+      "detail": "user_id=41 plan=trial",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\01_login.png"
+    },
+    {
+      "name": "agents",
+      "pass": true,
+      "detail": "count=2 agent_id=43 url=https://www.aibusinessagent.xyz/agents/agents ui=true api=true",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\02_agents.png"
+    },
+    {
+      "name": "chat_get_reply",
+      "pass": true,
+      "detail": "/api/agents/43/chat status=200 reply=\"I'm online and ready for the full browser loop test.\\n\\n— Auto-chain started: goal task #312 with 6 delegated steps (hierarchy). Autonomy will run/monitor them.\"",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\03_chat_after.png"
+    },
+    {
+      "name": "create_task",
+      "pass": true,
+      "detail": "/api/agents/43/tasks id=319 status=queued",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\04_create_task.png"
+    },
+    {
+      "name": "meetings_list",
+      "pass": true,
+      "detail": "api_status=200 count=1 url=https://www.aibusinessagent.xyz/agents/meetings ui=true",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\05_meetings_list.png"
+    },
+    {
+      "name": "billing_shows_trial",
+      "pass": true,
+      "detail": "plan=trial trial_ui=true trial_api=true url=https://www.aibusinessagent.xyz/agents/billing",
+      "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\full-loop\\06_billing.png"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "all_required_pass": true
+}

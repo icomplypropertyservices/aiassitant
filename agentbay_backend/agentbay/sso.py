@@ -1,8 +1,8 @@
 """
-Unified login with AI Business Assistant (aibusinessagent.xyz).
+Unified login with AI Business Assistant via API keys (no JWT).
 
-Same JWT_SECRET → main app tokens work on AgentBay.
-Marketplace profile is auto-created/linked on first use.
+Main app session key: aba_…
+AgentBay accepts X-API-Key / Bearer aba_… and links bay_users to main users.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from .auth_utils import hash_password
 
 
 SOURCE = "ai-business-assistant"
+MAIN_KEY_PREFIX = "aba_"
 
 
 def _slug_username(email: str, name: str, main_id: int) -> str:
@@ -25,8 +26,25 @@ def _slug_username(email: str, name: str, main_id: int) -> str:
     return f"{base}_{main_id}"[:40]
 
 
+def lookup_main_user_by_api_key(raw_key: str) -> Optional[Any]:
+    """Resolve main app user from aba_ API key (monorepo shared process)."""
+    if not raw_key or not str(raw_key).strip().startswith(MAIN_KEY_PREFIX):
+        return None
+    try:
+        from app.auth_utils import get_user_from_api_key  # type: ignore
+        from app.database import SessionLocal as MainSession  # type: ignore
+    except Exception:
+        return None
+    db = MainSession()
+    try:
+        return get_user_from_api_key(str(raw_key).strip(), db)
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
 def fetch_main_user(main_user_id: int) -> Optional[Any]:
-    """Load user from AI Business Assistant DB (same process / monorepo)."""
     try:
         from app.models import User as MainUser  # type: ignore
         from app.database import SessionLocal as MainSession  # type: ignore
@@ -50,21 +68,31 @@ def verify_main_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def issue_main_token(main_user) -> Optional[str]:
+def issue_main_api_key(main_user, main_db=None) -> Optional[str]:
+    """Issue/rotate main session API key (login on bay with main password)."""
     try:
-        from app.auth_utils import create_token  # type: ignore
-
-        return create_token(
-            main_user.id,
-            getattr(main_user, "role", None) or "user",
-            token_version=int(getattr(main_user, "token_version", None) or 0),
-        )
+        from app.auth_utils import issue_session_api_key  # type: ignore
+        from app.database import SessionLocal as MainSession  # type: ignore
     except Exception:
         return None
+    own = main_db is None
+    db = main_db or MainSession()
+    try:
+        # re-load attached instance
+        from app.models import User as MainUser  # type: ignore
+
+        u = db.get(MainUser, main_user.id)
+        if not u:
+            return None
+        return issue_session_api_key(db, u)
+    except Exception:
+        return None
+    finally:
+        if own:
+            db.close()
 
 
 def ensure_bay_user_from_main(db: Session, main_user) -> models.User:
-    """Upsert marketplace user linked to main app account."""
     ext = f"user:{main_user.id}"
     bay = (
         db.query(models.User)
@@ -91,7 +119,6 @@ def ensure_bay_user_from_main(db: Session, main_user) -> models.User:
         db.refresh(bay)
         return bay
 
-    # Unique username
     if db.query(models.User).filter_by(username=username).first():
         username = f"user_{main_user.id}"
     if db.query(models.User).filter_by(email=email).first():
@@ -101,7 +128,6 @@ def ensure_bay_user_from_main(db: Session, main_user) -> models.User:
         email=email,
         username=username,
         display_name=display,
-        # Random — real login goes through main app / SSO
         password_hash=hash_password(secrets.token_urlsafe(24)),
         account_type="human",
         bio="Linked to AI Business Assistant account",
@@ -115,50 +141,30 @@ def ensure_bay_user_from_main(db: Session, main_user) -> models.User:
     return bay
 
 
-def resolve_user_from_jwt_payload(db: Session, payload: dict) -> Optional[models.User]:
+def resolve_user_from_credential(db: Session, raw: str) -> Optional[models.User]:
     """
-    Accept:
-    - AgentBay tokens: { sub, type: human|agent }
-    - Main app tokens: { sub, role, tv }
+    Auth material:
+    - Main app API key aba_… → SSO link
+    - AgentBay marketplace key abm_… (handled elsewhere)
     """
-    try:
-        sub = int(payload.get("sub"))
-    except (TypeError, ValueError):
-        return None
+    key = (raw or "").strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
 
-    # Main app JWT (has role claim)
-    if "role" in payload or "tv" in payload:
-        # Already linked?
-        bay = (
-            db.query(models.User)
-            .filter_by(source_system=SOURCE, external_id=f"user:{sub}")
-            .first()
-        )
-        if bay and bay.is_active:
-            return bay
-        bay = db.query(models.User).filter_by(main_user_id=sub, is_active=True).first()
-        if bay:
-            return bay
-        main_user = fetch_main_user(sub)
+    # Main product API key
+    if key.startswith(MAIN_KEY_PREFIX):
+        main_user = lookup_main_user_by_api_key(key)
         if main_user:
             return ensure_bay_user_from_main(db, main_user)
         return None
 
-    # AgentBay-native JWT (type claim)
-    if payload.get("type") in ("human", "agent", "admin"):
-        user = db.get(models.User, sub)
-        if user and user.is_active:
-            return user
-
-    # Fallback: treat sub as bay user id
-    user = db.get(models.User, sub)
-    if user and user.is_active:
-        return user
     return None
 
 
-def login_via_main_credentials(db: Session, email: str, password: str) -> Optional[tuple[models.User, str]]:
-    """Email/password against main app; returns (bay_user, main_jwt)."""
+def login_via_main_credentials(
+    db: Session, email: str, password: str
+) -> Optional[tuple[models.User, str]]:
+    """Email/password against main app; returns (bay_user, main_api_key)."""
     try:
         from app.models import User as MainUser  # type: ignore
         from app.database import SessionLocal as MainSession  # type: ignore
@@ -172,10 +178,10 @@ def login_via_main_credentials(db: Session, email: str, password: str) -> Option
             return None
         if not verify_main_password(password, main_user.password_hash):
             return None
-        token = issue_main_token(main_user)
-        if not token:
+        api_key = issue_main_api_key(main_user, mdb)
+        if not api_key:
             return None
         bay = ensure_bay_user_from_main(db, main_user)
-        return bay, token
+        return bay, api_key
     finally:
         mdb.close()

@@ -115,8 +115,11 @@ else:
 # Stripe success/cancel URLs are built from FRONTEND_URL.
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "http://localhost:5173" if not IS_PRODUCTION else "https://aibusinessagent.xyz/agents",
+    "http://localhost:5173" if not IS_PRODUCTION else "https://www.aibusinessagent.xyz/agents",
 ).rstrip("/")
+# Prefer www on production so email/SMS notification links don't bounce apex redirects
+if IS_PRODUCTION and "aibusinessagent.xyz" in FRONTEND_URL and "www." not in FRONTEND_URL:
+    FRONTEND_URL = FRONTEND_URL.replace("://aibusinessagent.xyz", "://www.aibusinessagent.xyz")
 _default_cors = (
     "https://aibusinessagent.xyz,https://www.aibusinessagent.xyz"
     if IS_PRODUCTION
@@ -126,6 +129,34 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_cors).spli
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 # AgentBay marketplace (same domain path /bay)
 AGENTBAY_PUBLIC_URL = (os.getenv("AGENTBAY_PUBLIC_URL") or "https://aibusinessagent.xyz/bay").rstrip("/")
+
+# Public API origin (no trailing slash). Used for OAuth redirect_uri.
+# Production path deploy: https://aibusinessagent.xyz/api
+# Must match Google Cloud Console → OAuth client → Authorized redirect URIs.
+_api_public_env = (os.getenv("API_PUBLIC_URL") or "").strip().rstrip("/")
+_oauth_redirect_env = (os.getenv("OAUTH_REDIRECT_URI") or "").strip()
+if _api_public_env:
+    API_PUBLIC_URL = _api_public_env
+else:
+    # Derive from FRONTEND_URL: strip /agents (or trailing SPA path) → {origin}/api
+    _fu = FRONTEND_URL or ""
+    if _fu.endswith("/agents"):
+        API_PUBLIC_URL = _fu[: -len("/agents")] + "/api"
+    elif _fu:
+        from urllib.parse import urlparse as _urlparse
+        _p = _urlparse(_fu)
+        if _p.scheme and _p.netloc:
+            API_PUBLIC_URL = f"{_p.scheme}://{_p.netloc}/api"
+        else:
+            API_PUBLIC_URL = ""
+    else:
+        API_PUBLIC_URL = "http://localhost:8000" if not IS_PRODUCTION else "https://aibusinessagent.xyz/api"
+
+# Exact callback Google/Slack/etc. must redirect to (prefer explicit env)
+OAUTH_REDIRECT_URI = (
+    _oauth_redirect_env
+    or (f"{API_PUBLIC_URL}/integrations/oauth/callback" if API_PUBLIC_URL else "")
+)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
@@ -172,11 +203,11 @@ try:
     OLLAMA_NUM_CTX = max(512, int(os.getenv("OLLAMA_NUM_CTX", "4096") or "4096"))
 except ValueError:
     OLLAMA_NUM_CTX = 4096
-# Autonomy / background ticks
+# Autonomy / background ticks (default 3 so multi-step chains drain faster per tick)
 try:
-    AUTONOMY_MAX_TASKS_PER_TICK = max(1, int(os.getenv("AUTONOMY_MAX_TASKS_PER_TICK", "1") or "1"))
+    AUTONOMY_MAX_TASKS_PER_TICK = max(1, int(os.getenv("AUTONOMY_MAX_TASKS_PER_TICK", "3") or "3"))
 except ValueError:
-    AUTONOMY_MAX_TASKS_PER_TICK = 1
+    AUTONOMY_MAX_TASKS_PER_TICK = 3
 try:
     AUTONOMY_MAX_IDLE_FEEDS = max(0, int(os.getenv("AUTONOMY_MAX_IDLE_FEEDS", "1") or "1"))
 except ValueError:
@@ -361,13 +392,22 @@ CRYPTO_INVOICE_TTL_MIN = int(os.getenv("CRYPTO_INVOICE_TTL_MIN", "60") or "60")
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM = os.getenv("RESEND_FROM", "assistant@yourdomain.com")
+# Optional classic SMTP (for notify-human email). Resend API is used when set instead.
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587") or "587")
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_FROM = os.getenv("SMTP_FROM", "").strip() or RESEND_FROM
+SMTP_TLS = os.getenv("SMTP_TLS", "1").strip().lower() not in ("0", "false", "no")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
 
-# Cron / automation secret for /ops/autonomy/tick-all (and similar scheduled jobs)
-# Set the same value in Vercel Environment Variables.
-# When calling tick-all from a scheduler, send header `X-Cron-Secret: <value>` (or ?cron_secret=...).
+# Cron / automation secret for GET|POST /ops/autonomy/tick-all (Vercel Cron path:
+# /api/ops/autonomy/tick-all — see root vercel.json). Set the same value in Vercel
+# Project → Environment Variables as CRON_SECRET; Vercel then sends
+# Authorization: Bearer <CRON_SECRET> on scheduled GETs. Manual callers may use
+# header X-Cron-Secret: <value> instead.
 CRON_SECRET = os.getenv("CRON_SECRET", "").strip()
 
 # Minimum credits required to run LLM-backed actions
@@ -462,9 +502,14 @@ def integration_status() -> dict:
         },
         "channels": {
             "email_resend": bool(RESEND_API_KEY),
+            "email_smtp": bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD),
             "resend_from": RESEND_FROM if RESEND_API_KEY else None,
+            "smtp_from": SMTP_FROM if (SMTP_HOST and SMTP_USER) else None,
             "sms_twilio": twilio_ok,
             "voice_twilio": twilio_ok,
+            "notify_human": bool(
+                (RESEND_API_KEY or (SMTP_HOST and SMTP_USER and SMTP_PASSWORD)) and twilio_ok
+            ),
         },
         "oauth": oauth_apps,
         "database": {

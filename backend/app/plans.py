@@ -13,6 +13,74 @@ from datetime import date, datetime, timezone
 # Order for UI cards
 PLAN_ORDER = ("trial", "starter", "pro", "business")
 
+# ── Free trial product caps (source of truth for register + billing + meter) ─
+# Trial is intentionally generous enough to try hierarchy + multi-company before pay.
+TRIAL_TOKENS_INCLUDED = 50_000
+TRIAL_AGENTS = 12
+TRIAL_COMPANIES = 2
+TRIAL_PROJECTS = 3
+TRIAL_DAYS = 14
+
+# ── Skills model (catalog is ~1,250+ skills: core + 20×50 mega packs) ─────────
+# Plans do NOT hide the catalog — agents *enable* skills up to a cap.
+# skill_packs = domain packs (sales, support, ops, …) the plan can fully unlock.
+# skills_per_agent = max simultaneously enabled skills on one agent.
+# prompt_skills = how many enabled skills are listed in the LLM system prompt.
+CATALOG_SKILL_TARGET = 1_250  # marketing + capacity planning number
+SKILL_PACKS_TOTAL = 20
+SKILLS_PER_PACK = 50
+
+# Training library storage (GB) included with each plan — not cloud Dropbox/GCS free quota
+# (those use the customer's own cloud accounts; local+indexed text still counts against us).
+TRIAL_STORAGE_GB = 0.5
+STARTER_STORAGE_GB = 5
+PRO_STORAGE_GB = 25
+BUSINESS_STORAGE_GB = 100
+PAYG_STORAGE_GB = 2
+
+
+def _gb_to_bytes(gb: float) -> int:
+    return int(float(gb or 0) * 1024 * 1024 * 1024)
+
+
+def storage_bytes_for_plan(plan_id: str) -> int:
+    p = PLANS.get(plan_id) or PLANS["none"]
+    if "storage_bytes" in p:
+        return int(p.get("storage_bytes") or 0)
+    return _gb_to_bytes(float(p.get("storage_gb") or 0))
+
+
+# One-time storage expansion packs (permanent bonus on Balance.storage_bonus_bytes)
+STORAGE_ADDONS: dict[str, dict] = {
+    "storage_5gb": {
+        "name": "+5 GB storage",
+        "blurb": "Permanent training-library expansion — never expires.",
+        "gb": 5,
+        "bytes": _gb_to_bytes(5),
+        "price_usd": 9,
+        "public": True,
+        "cta": "Add 5 GB",
+    },
+    "storage_25gb": {
+        "name": "+25 GB storage",
+        "blurb": "Best value for growing knowledge bases and multi-agent training.",
+        "gb": 25,
+        "bytes": _gb_to_bytes(25),
+        "price_usd": 29,
+        "public": True,
+        "cta": "Add 25 GB",
+    },
+    "storage_100gb": {
+        "name": "+100 GB storage",
+        "blurb": "Agency / multi-brand libraries and heavy document ops.",
+        "gb": 100,
+        "bytes": _gb_to_bytes(100),
+        "price_usd": 79,
+        "public": True,
+        "cta": "Add 100 GB",
+    },
+}
+
 # ── Pre-order / launch ──────────────────────────────────────────────────────
 # Pre-orders open now; public launch 27 July 2026. Pre-orders get 10% off and early access.
 LAUNCH_DATE = date(2026, 7, 27)
@@ -95,41 +163,56 @@ PLANS = {
         "agents": 0,
         "companies": 0,
         "projects": 0,
+        "storage_gb": 0,
+        # Skills (enabled caps — catalog remains browsable after you have a plan)
+        "skills_per_agent": 0,
+        "skill_packs": 0,
+        "prompt_skills": 0,
+        "premium_skills": False,
         "features": [],
         "public": False,
         "requires_payment": False,
         "cta": "Choose a plan",
         "badge": None,
-        "upgrade_teaser": "Pick a plan to unlock agents and tokens.",
+        "upgrade_teaser": "Pick a plan to unlock agents, skills, and tokens.",
         "next_plan": "trial",
     },
     "trial": {
         "name": "Free trial",
         "price": 0,
         "currency": "usd",
-        "blurb": "Try the full product — no card required to start.",
-        "tokens_included": 50_000,
-        "agents": 3,
-        "companies": 1,
-        "projects": 2,
+        "blurb": "Try multi-agent ops + skill packs — no card required to start.",
+        "tokens_included": TRIAL_TOKENS_INCLUDED,
+        "agents": TRIAL_AGENTS,
+        "companies": TRIAL_COMPANIES,
+        "projects": TRIAL_PROJECTS,
+        "storage_gb": TRIAL_STORAGE_GB,
+        "trial_days": TRIAL_DAYS,
+        # Enough to feel the 1,000-skill platform without matching paid volume
+        "skills_per_agent": 120,
+        "skill_packs": 6,
+        "prompt_skills": 40,
+        "premium_skills": False,
         "features": [
-            "50,000 tokens in your included pool this month",
-            "1 company · 2 projects",
-            "Up to 3 AI agents",
+            f"{TRIAL_TOKENS_INCLUDED:,} tokens / month included pool",
+            f"{TRIAL_COMPANIES} companies · {TRIAL_PROJECTS} projects · {TRIAL_AGENTS} agents",
+            f"Up to 120 skills enabled per agent (of ~{CATALOG_SKILL_TARGET:,} catalog)",
+            f"{6} of {SKILL_PACKS_TOTAL} domain skill packs",
+            f"{TRIAL_STORAGE_GB} GB training storage",
             "Managed Fast & Quality models",
-            "Live chat + templates",
+            "Live chat, hierarchy, meetings",
         ],
         "teasers": [
-            "See real agents before you pay",
+            "See real agents + skill packs before you pay",
             "Upgrade anytime — tokens reset monthly on paid plans",
         ],
         "public": True,
         "requires_payment": False,
-        "highlight": False,
+        "highlight": True,
         "badge": "Try free",
-        "cta": "Start free",
-        "cta_upgrade": "Start free",
-        "upgrade_teaser": "Need more power? Starter includes 2M tokens — 40× this trial.",
+        "cta": "Start free trial",
+        "cta_upgrade": "Start free trial",
+        "upgrade_teaser": "Starter: 2M tokens, 15 agents, 200 skills/agent, 12 packs.",
         "next_plan": "starter",
         "sort": 0,
     },
@@ -137,22 +220,29 @@ PLANS = {
         "name": "Starter",
         "price": 39,
         "currency": "usd",
-        "blurb": "Freelancers & small teams — serious volume at a clear monthly price.",
+        "blurb": "Freelancers & small teams — agents + hundreds of skills at a clear price.",
         "tokens_included": 2_000_000,
-        "agents": 5,
-        "companies": 1,
-        "projects": 10,
+        "agents": 15,
+        "companies": 2,
+        "projects": 15,
+        "storage_gb": STARTER_STORAGE_GB,
+        "skills_per_agent": 200,
+        "skill_packs": 12,
+        "prompt_skills": 48,
+        "premium_skills": False,
         "features": [
             "2M tokens / month included pool",
-            "1 company · 10 projects",
-            "Up to 5 AI agents",
+            "2 companies · 15 projects · 15 AI agents",
+            "Up to 200 skills enabled per agent",
+            f"12 of {SKILL_PACKS_TOTAL} domain skill packs (~{12 * SKILLS_PER_PACK} pack skills)",
+            f"Full catalog browse (~{CATALOG_SKILL_TARGET:,} skills)",
+            f"{STARTER_STORAGE_GB} GB training storage",
             "Managed Fast & Quality models",
-            "Usage meter always visible",
-            "Email outbound when connected",
+            "Email outbound when SMTP/Resend connected",
         ],
         "teasers": [
             "Best first paid step after trial",
-            "Overage only if you burn past 2M",
+            "Hundreds of skills ready to enable per agent",
         ],
         "public": True,
         "requires_payment": True,
@@ -160,7 +250,7 @@ PLANS = {
         "badge": None,
         "cta": "Pre-order Starter",
         "cta_upgrade": "Pre-order Starter",
-        "upgrade_teaser": "Pro unlocks 10M tokens, 20 agents, and 3 companies.",
+        "upgrade_teaser": "Pro: 10M tokens, 40 agents, 500 skills/agent, all 20 packs.",
         "next_plan": "pro",
         "sort": 1,
     },
@@ -168,23 +258,29 @@ PLANS = {
         "name": "Pro",
         "price": 99,
         "currency": "usd",
-        "blurb": "Growing teams — more agents, more projects, full model ladder.",
+        "blurb": "Growing teams — full skill catalog, more agents, full model ladder.",
         "tokens_included": 10_000_000,
-        "agents": 20,
-        "companies": 3,
-        "projects": 50,
+        "agents": 40,
+        "companies": 5,
+        "projects": 60,
+        "storage_gb": PRO_STORAGE_GB,
+        "skills_per_agent": 500,
+        "skill_packs": SKILL_PACKS_TOTAL,  # all 20 packs
+        "prompt_skills": 56,
+        "premium_skills": True,
         "features": [
             "10M tokens / month included pool",
-            "3 companies · 50 projects",
-            "Up to 20 AI agents",
-            "Full managed model ladder (Fast → Large)",
-            "Premium Reasoning & Large tiers",
-            "Priority support queue",
+            "5 companies · 60 projects · 40 AI agents",
+            "Up to 500 skills enabled per agent",
+            f"All {SKILL_PACKS_TOTAL} domain packs (~{SKILL_PACKS_TOTAL * SKILLS_PER_PACK} pack skills)",
+            f"Full ~{CATALOG_SKILL_TARGET:,}-skill catalog + premium skills",
+            f"{PRO_STORAGE_GB} GB training storage",
+            "Full managed model ladder (Fast → Large / Reasoning)",
             "Wallet top-ups for overage & media",
         ],
         "teasers": [
-            "Most popular for active ops teams",
-            "5× tokens vs Starter",
+            "Most popular for active multi-agent ops",
+            "All skill packs unlocked",
         ],
         "public": True,
         "requires_payment": True,
@@ -192,7 +288,7 @@ PLANS = {
         "badge": "Most popular",
         "cta": "Pre-order Pro",
         "cta_upgrade": "Pre-order Pro",
-        "upgrade_teaser": "Business unlocks 40M tokens and 100 agents for agencies.",
+        "upgrade_teaser": "Business: 40M tokens, 120 agents, 1,000 skills/agent for agencies.",
         "next_plan": "business",
         "sort": 2,
     },
@@ -200,23 +296,29 @@ PLANS = {
         "name": "Business",
         "price": 249,
         "currency": "usd",
-        "blurb": "Agencies & multi-brand ops — high volume and room to scale.",
+        "blurb": "Agencies & multi-brand ops — max agents and full skill enablement.",
         "tokens_included": 40_000_000,
-        "agents": 100,
-        "companies": 15,
-        "projects": 200,
+        "agents": 120,
+        "companies": 20,
+        "projects": 250,
+        "storage_gb": BUSINESS_STORAGE_GB,
+        "skills_per_agent": 1_000,
+        "skill_packs": SKILL_PACKS_TOTAL,
+        "prompt_skills": 64,
+        "premium_skills": True,
         "features": [
             "40M tokens / month included pool",
-            "15 companies · 200 projects",
-            "Up to 100 AI agents",
+            "20 companies · 250 projects · 120 AI agents",
+            "Up to 1,000 skills enabled per agent",
+            f"All {SKILL_PACKS_TOTAL} packs + full ~{CATALOG_SKILL_TARGET:,} catalog",
+            f"{BUSINESS_STORAGE_GB} GB training storage",
             "Best included-pool rate at high volume",
-            "Full managed + premium model ladder",
-            "Media events included in platform usage",
+            "Premium models + media in platform usage",
             "Dedicated onboarding path",
         ],
         "teasers": [
-            "Run multiple client workspaces",
-            "Lowest effective cost per token when you use the included pool",
+            "Run multiple client workspaces at scale",
+            "Enable essentially the whole skill library per agent",
         ],
         "public": True,
         "requires_payment": True,
@@ -234,18 +336,24 @@ PLANS = {
         "currency": "usd",
         "blurb": "No monthly fee — top up credits only.",
         "tokens_included": 0,
-        "agents": 10,
+        "agents": 12,
         "companies": 1,
-        "projects": 5,
+        "projects": 8,
+        "storage_gb": PAYG_STORAGE_GB,
+        "skills_per_agent": 150,
+        "skill_packs": 8,
+        "prompt_skills": 40,
+        "premium_skills": True,
         "features": [
             "No monthly commitment",
             "Top up $10–$1,000",
-            "1 company · 5 projects · 10 agents",
+            f"{PAYG_STORAGE_GB} GB training storage",
+            "1 company · 8 projects · 12 agents",
+            "Up to 150 skills enabled per agent",
             "Managed models at public rates",
         ],
         "teasers": [],
         "public": False,
-        # Wallet-funded: no free activation / free $5 in production (billing.choose_plan enforces)
         "requires_payment": True,
         "highlight": False,
         "badge": None,
@@ -265,6 +373,35 @@ def public_plans() -> dict:
 
 def plan_limits(plan_id: str) -> dict:
     return PLANS.get(plan_id) or PLANS["none"]
+
+
+def plan_skill_caps(plan_id: str | None) -> dict:
+    """
+    How skills work on a plan (used by agent skill enablement + UI).
+
+    - catalog: always full browse once user has any active plan (trial+)
+    - skills_per_agent: hard max enabled skills stored on AgentSkillState
+    - skill_packs: domain packs the plan can fully unlock (of SKILL_PACKS_TOTAL)
+    - prompt_skills: max skill lines injected into the LLM system prompt
+    - premium_skills: whether premium/metered skills may be enabled
+    """
+    p = plan_limits(plan_id or "none")
+    return {
+        "catalog_size_target": CATALOG_SKILL_TARGET,
+        "skill_packs_total": SKILL_PACKS_TOTAL,
+        "skills_per_pack": SKILLS_PER_PACK,
+        "skills_per_agent": int(p.get("skills_per_agent") or 0),
+        "skill_packs": int(p.get("skill_packs") or 0),
+        "prompt_skills": int(p.get("prompt_skills") or 0) or 40,
+        "premium_skills": bool(p.get("premium_skills")),
+        "agents": int(p.get("agents") or 0),
+        "tokens_included": int(p.get("tokens_included") or 0),
+    }
+
+
+def max_enabled_skills(plan_id: str | None) -> int:
+    """Hard cap for enabled skills on a single agent for this plan."""
+    return int(plan_skill_caps(plan_id).get("skills_per_agent") or 0)
 
 
 def enrich_plan_for_public(plan_id: str, p: dict | None = None) -> dict:

@@ -282,7 +282,14 @@ def _xai_model_id(model: str) -> str:
     return quality
 
 
-async def _xai_stream(messages: list[dict], model: str, credentials: dict | None = None):
+async def _xai_stream(
+    messages: list[dict],
+    model: str,
+    credentials: dict | None = None,
+    *,
+    max_tokens: int = 2048,
+    prefer_nonstream: bool = False,
+):
     """xAI chat via API key (prod) or Grok Super JWT (local/dev)."""
     user_key = None
     if credentials:
@@ -305,15 +312,41 @@ async def _xai_stream(messages: list[dict], model: str, credentials: dict | None
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
+    mt = max(64, min(int(max_tokens or 2048), 4096))
+    log.info("xai_chat model_in=%s xai_model=%s max_tokens=%s nonstream=%s", model, xai_model, mt, prefer_nonstream)
+
+    # REST chat: non-stream is often faster end-to-end (one round-trip, no SSE parse)
+    if prefer_nonstream:
+        payload_ns = {
+            "model": xai_model,
+            "messages": messages,
+            "stream": False,
+            "max_tokens": mt,
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(
+                f"{base}/chat/completions", headers=headers, json=payload_ns,
+            )
+            if r.status_code >= 400:
+                raise RuntimeError(f"xAI HTTP {r.status_code}: {r.text[:500]!r}")
+            data = r.json()
+            text = (
+                ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
+                or ""
+            )
+            if text:
+                yield text
+                return
+            raise RuntimeError("xAI returned empty content")
+
     payload = {
         "model": xai_model,
         "messages": messages,
         "stream": True,
-        "max_tokens": 4096,
+        "max_tokens": mt,
     }
-    log.info("xai_chat model_in=%s xai_model=%s", model, xai_model)
     got_any = False
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=90.0) as client:
         async with client.stream(
             "POST", f"{base}/chat/completions", headers=headers, json=payload,
         ) as r:
@@ -342,9 +375,9 @@ async def _xai_stream(messages: list[dict], model: str, credentials: dict | None
             "model": xai_model,
             "messages": messages,
             "stream": False,
-            "max_tokens": 2048,
+            "max_tokens": min(mt, 2048),
         }
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             r = await client.post(
                 f"{base}/chat/completions", headers=headers, json=payload_ns,
             )
@@ -366,6 +399,9 @@ async def stream_completion(
     model: str,
     mode: str = "general",
     credentials: dict | None = None,
+    *,
+    max_tokens: int = 2048,
+    prefer_nonstream: bool = False,
 ):
     """
     Default (LLM_GROK_ONLY=true): all chat → xAI Grok only.
@@ -381,7 +417,10 @@ async def stream_completion(
     # Grok-only mode (production default): never call Ollama/RunPod
     if _grok_only() or _is_grok_model(m):
         try:
-            async for c in _xai_stream(messages, m, credentials=credentials):
+            async for c in _xai_stream(
+                messages, m, credentials=credentials,
+                max_tokens=max_tokens, prefer_nonstream=prefer_nonstream,
+            ):
                 yield c
             return
         except Exception as e:
@@ -407,7 +446,10 @@ async def stream_completion(
         # GPU / Ollama down — keep conversations alive via xAI if configured
         try:
             log.warning("falling back to xAI for model=%s after ollama failure", m)
-            async for c in _xai_stream(messages, m, credentials=credentials):
+            async for c in _xai_stream(
+                messages, m, credentials=credentials,
+                max_tokens=max_tokens, prefer_nonstream=prefer_nonstream,
+            ):
                 yield c
             return
         except Exception as e:
@@ -444,8 +486,13 @@ async def complete(
     model: str,
     mode: str = "general",
     credentials: dict | None = None,
+    *,
+    max_tokens: int = 2048,
 ) -> str:
     out = ""
-    async for c in stream_completion(messages, model, mode, credentials=credentials):
+    async for c in stream_completion(
+        messages, model, mode, credentials=credentials,
+        max_tokens=max_tokens, prefer_nonstream=True,
+    ):
         out += c
     return out.strip()

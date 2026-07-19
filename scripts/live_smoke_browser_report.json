@@ -1,0 +1,39 @@
+{
+  "at": "2026-07-19T11:58:32.229Z",
+  "base": "https://www.aibusinessagent.xyz",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "results": [
+    {
+      "name": "browser_login",
+      "pass": true,
+      "detail": "user=37 plan=trial sub=true"
+    },
+    {
+      "name": "dashboard",
+      "pass": true,
+      "detail": "url=https://www.aibusinessagent.xyz/agents/ cards=3 text_len=886"
+    },
+    {
+      "name": "templates",
+      "pass": true,
+      "detail": "url=https://www.aibusinessagent.xyz/agents/templates cards=45 text_len=7362"
+    },
+    {
+      "name": "agents",
+      "pass": true,
+      "detail": "url=https://www.aibusinessagent.xyz/agents/agents cards=7 text_len=1337"
+    },
+    {
+      "name": "meetings",
+      "pass": true,
+      "detail": "url=https://www.aibusinessagent.xyz/agents/meetings cards=8 text_len=1485"
+    },
+    {
+      "name": "chat",
+      "pass": true,
+      "detail": "url=https://www.aibusinessagent.xyz/agents/agents/27 cards=2 text_len=6078"
+    }
+  ],
+  "passed": 6,
+  "failed": 0
+}

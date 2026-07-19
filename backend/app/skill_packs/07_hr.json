@@ -1,0 +1,999 @@
+{
+  "pack": "07_hr",
+  "category": "hr",
+  "label": "HR & people",
+  "skills": [
+    {
+      "id": "hr_job_description",
+      "name": "Job description",
+      "description": "Write a clear job description with role purpose, responsibilities, requirements, and success criteria.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_job_scorecard",
+      "name": "Hiring scorecard",
+      "description": "Build a role scorecard with outcomes, competencies, and must-have vs nice-to-have criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_interview_plan",
+      "name": "Interview plan",
+      "description": "Design a multi-stage interview plan with stages, owners, focus areas, and decision points.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_interview_questions",
+      "name": "Interview questions",
+      "description": "Generate structured interview questions aligned to competencies, with probes and red flags.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_scorecard_rubric",
+      "name": "Interview scoring rubric",
+      "description": "Create a scoring rubric with levels, evidence examples, and consistent rating guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_offer_comp_range",
+      "name": "Offer compensation range",
+      "description": "Recommend a competitive offer range with base, variable, equity, and rationale.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_offer_email",
+      "name": "Offer email",
+      "description": "Draft a professional offer email covering role, compensation highlights, and next steps.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_reject_email",
+      "name": "Candidate rejection email",
+      "description": "Write a respectful rejection email that preserves brand and leaves the door open.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_onboarding_30_60_90",
+      "name": "30-60-90 onboarding plan",
+      "description": "Create a 30-60-90 day onboarding plan with goals, milestones, and check-ins.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_orientation_agenda",
+      "name": "New-hire orientation agenda",
+      "description": "Build a day-one orientation agenda covering people, tools, policies, and culture.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_performance_review",
+      "name": "Performance review write-up",
+      "description": "Draft a balanced performance review with strengths, gaps, goals, and development actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_pip_draft",
+      "name": "Performance improvement plan",
+      "description": "Draft a PIP with clear expectations, support, milestones, and review dates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_promotion_case",
+      "name": "Promotion business case",
+      "description": "Build a promotion case with impact evidence, level criteria, and compensation notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_comp_review_note",
+      "name": "Compensation review note",
+      "description": "Write a compensation review note with market context, recommendation, and rationale.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_equity_explain",
+      "name": "Equity grant explainer",
+      "description": "Explain equity grants, vesting, dilution, and value in plain language for employees.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_benefits_summary",
+      "name": "Benefits summary",
+      "description": "Summarize benefits packages with eligibility, key offerings, and enrollment guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_policy_update",
+      "name": "HR policy update",
+      "description": "Draft an HR policy update with what changed, why, effective date, and employee impact.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_handbook_section",
+      "name": "Employee handbook section",
+      "description": "Write a clear handbook section with policy rules, examples, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_leave_policy_explain",
+      "name": "Leave policy explainer",
+      "description": "Explain leave types, accrual, request process, and manager responsibilities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_remote_policy",
+      "name": "Remote work policy",
+      "description": "Draft a remote/hybrid work policy covering eligibility, expectations, and equipment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_dei_initiative",
+      "name": "DEI initiative plan",
+      "description": "Design a DEI initiative with goals, tactics, owners, metrics, and risk notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_engagement_survey",
+      "name": "Engagement survey design",
+      "description": "Design an employee engagement survey with themes, questions, and analysis plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_pulse_analysis",
+      "name": "Pulse survey analysis",
+      "description": "Analyze pulse survey results with themes, risk areas, and recommended actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_exit_interview",
+      "name": "Exit interview guide",
+      "description": "Prepare exit interview questions and a summary template for retention insights.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_retention_plan",
+      "name": "Retention plan",
+      "description": "Build a retention plan targeting flight risks with interventions and owners.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_org_design_note",
+      "name": "Org design note",
+      "description": "Document an org design proposal with structure, spans of control, and trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_headcount_plan",
+      "name": "Headcount plan",
+      "description": "Create a headcount plan by team, role, timing, and budget assumptions.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_hiring_forecast",
+      "name": "Hiring forecast",
+      "description": "Forecast hiring demand and capacity with pipeline assumptions and risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_agency_brief",
+      "name": "Recruiting agency brief",
+      "description": "Write a recruiting agency brief with role profile, must-haves, process, and SLAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_internal_mobility",
+      "name": "Internal mobility plan",
+      "description": "Design an internal mobility approach for open roles, eligibility, and employee paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_learning_path",
+      "name": "Learning path",
+      "description": "Design a role-based learning path with skills, resources, milestones, and assessment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_manager_coaching",
+      "name": "Manager coaching guide",
+      "description": "Create a manager coaching guide with scenarios, scripts, and follow-up actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_1on1_agenda",
+      "name": "1:1 meeting agenda",
+      "description": "Build a recurring 1:1 agenda template for goals, blockers, feedback, and growth.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_team_offsite",
+      "name": "Team offsite plan",
+      "description": "Plan a team offsite with objectives, agenda, logistics checklist, and outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_culture_values",
+      "name": "Culture and values framework",
+      "description": "Articulate culture values with behaviors, examples, and how they show up in hiring and reviews.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_recognition_program",
+      "name": "Employee recognition program",
+      "description": "Design a recognition program with channels, criteria, cadence, and budget guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_referral_program_hr",
+      "name": "Employee referral program",
+      "description": "Design an employee referral program with rewards, eligibility, process, and tracking.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_background_check_note",
+      "name": "Background check process note",
+      "description": "Document background check process, timing, vendors, and candidate communication.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_visa_checklist",
+      "name": "Work visa checklist",
+      "description": "Create a work-authorization/visa checklist with documents, owners, and timeline.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_relocate_package",
+      "name": "Relocation package outline",
+      "description": "Outline a relocation package covering benefits, allowances, timeline, and conditions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_contractor_vs_employee",
+      "name": "Contractor vs employee guide",
+      "description": "Compare contractor vs employee classification factors, risks, and recommended setup.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_workforce_plan",
+      "name": "Workforce plan",
+      "description": "Build a workforce plan linking strategy, skills demand, capacity, and hiring vs build options.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_succession_plan",
+      "name": "Succession plan",
+      "description": "Create a succession plan for key roles with readiness levels and development actions.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_critical_role",
+      "name": "Critical role profile",
+      "description": "Define a critical role profile with impact, scarcity, successors, and mitigation plans.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_skills_matrix",
+      "name": "Skills matrix",
+      "description": "Build a team skills matrix with proficiency levels, gaps, and development priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hris_change",
+      "name": "HRIS change request",
+      "description": "Document an HRIS change request with process impact, requirements, owners, and rollout steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_payroll_issue_note",
+      "name": "Payroll issue note",
+      "description": "Write a payroll issue note with root cause, correction steps, and employee communication.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_harassment_report_path",
+      "name": "Harassment reporting path",
+      "description": "Document the harassment reporting path, contacts, confidentiality, and non-retaliation steps.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_investigation_plan",
+      "name": "Workplace investigation plan",
+      "description": "Plan a workplace investigation with scope, interviews, evidence, timeline, and fairness steps.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hr_weekly",
+      "name": "HR weekly update",
+      "description": "Produce an HR weekly update covering hiring, people ops, risks, and priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "07_hr",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

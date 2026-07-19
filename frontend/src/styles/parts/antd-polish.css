@@ -1,0 +1,636 @@
+/* part: antd-polish.css */
+/* ── Ant Design polish ───────────────────────────────────────────── */
+
+.ant-layout {
+  background: transparent !important;
+}
+
+.ant-layout-sider {
+  background: linear-gradient(180deg, #0b1f3a 0%, #0f2a4d 55%, #123a66 100%) !important;
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.12);
+}
+
+.ant-layout-sider .ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-item {
+  margin: 2px 10px !important;
+  width: calc(100% - 20px) !important;
+  border-radius: 8px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-item-selected {
+  background: rgba(255, 255, 255, 0.14) !important;
+  font-weight: 600;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-layout-sider-trigger {
+  background: rgba(0, 0, 0, 0.25) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-card {
+  border-radius: var(--aba-radius) !important;
+  border: 1px solid var(--aba-border) !important;
+  border-color: var(--aba-border) !important;
+  box-shadow: var(--aba-shadow);
+  background: var(--aba-surface) !important;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.ant-card-bordered {
+  border-color: var(--aba-border) !important;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid var(--aba-border) !important;
+  min-height: 48px !important;
+  padding-inline: 20px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ant-card-head-wrapper {
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.ant-card-head-title {
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  letter-spacing: -0.01em;
+  color: var(--aba-ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.ant-card-extra {
+  color: var(--aba-muted);
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-inline-start: 8px !important;
+  max-width: 100%;
+}
+
+.ant-card-body {
+  padding: 20px 22px !important;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.ant-card-hoverable {
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.ant-card-hoverable:hover {
+  border-color: #c7d7f0 !important;
+  box-shadow: var(--aba-shadow-md);
+  transform: translateY(-1px);
+}
+
+@media (hover: none) {
+  .ant-card-hoverable:hover {
+    transform: none;
+    box-shadow: var(--aba-shadow);
+    border-color: var(--aba-border) !important;
+  }
+  .ant-card-hoverable:active {
+    border-color: #c7d7f0 !important;
+    box-shadow: var(--aba-shadow-md);
+  }
+}
+
+.ant-card-cover img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.ant-card-cover,
+.ant-card-actions {
+  border-color: var(--aba-border) !important;
+  background: #fafbfc;
+}
+
+.ant-card-actions > li {
+  margin: 8px 0 !important;
+}
+
+.ant-card-actions > li > span {
+  color: var(--aba-muted);
+}
+
+.ant-card-actions > li > span:hover {
+  color: var(--aba-primary);
+}
+
+.ant-btn {
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.ant-btn-primary {
+  box-shadow: 0 1px 2px rgba(22, 104, 220, 0.25) !important;
+}
+
+.ant-btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(22, 104, 220, 0.3) !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--aba-radius-sm) !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 3px rgba(22, 104, 220, 0.12) !important;
+}
+
+.ant-table-wrapper .ant-table {
+  border-radius: var(--aba-radius-sm);
+}
+
+.ant-tag {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.ant-alert {
+  border-radius: var(--aba-radius-sm) !important;
+}
+
+.ant-modal-content {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+.ant-tabs-tab {
+  font-weight: 500;
+}
+
+/* ── App shell ───────────────────────────────────────────────────── */
+
+.aba-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  color: #fff;
+  user-select: none;
+}
+
+.aba-brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+  font-size: 18px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.aba-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.aba-brand-logo.is-rounded {
+  border-radius: 22%;
+}
+
+/* Auth + boot splash logo */
+.aba-auth-logo {
+  width: auto;
+  height: auto;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.aba-auth-logo img,
+.aba-auth-logo .aba-brand-logo {
+  width: 88px !important;
+  height: 88px !important;
+  border-radius: 22%;
+  object-fit: contain !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.45);
+  background: transparent;
+}
+
+/* Home / route loading with brand mark */
+.aba-logo-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
+.aba-logo-loading-mark {
+  animation: aba-logo-pulse 1.6s ease-in-out infinite;
+}
+
+.aba-logo-loading-mark .aba-brand-logo {
+  box-shadow: 0 10px 32px rgba(22, 104, 220, 0.25);
+  border-radius: 22%;
+}
+
+.aba-logo-loading-tip {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--aba-muted, #64748b);
+  letter-spacing: -0.01em;
+}
+
+.aba-logo-loading-bar {
+  width: 120px;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--aba-primary, #1668dc),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: aba-logo-shimmer 1.2s linear infinite;
+}
+
+@keyframes aba-logo-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.92; }
+}
+
+@keyframes aba-logo-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.aba-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.aba-brand-text strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aba-brand-text span {
+  font-size: 11px;
+  opacity: 0.65;
+  font-weight: 500;
+}
+
+.aba-header {
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--aba-border) !important;
+  padding: 0 20px !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  height: auto !important;
+  min-height: var(--aba-header-h) !important;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.aba-header-title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--aba-ink);
+}
+
+.aba-header-back {
+  color: var(--aba-ink) !important;
+  width: 36px;
+  height: 36px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px !important;
+}
+
+.aba-header-back:hover {
+  background: rgba(22, 104, 220, 0.08) !important;
+  color: var(--aba-primary, #1668dc) !important;
+}
+
+.aba-content {
+  padding:
+    var(--aba-content-pad-y)
+    max(var(--aba-content-pad-x), env(safe-area-inset-right, 0px))
+    var(--aba-content-pad-bottom)
+    max(var(--aba-content-pad-x), env(safe-area-inset-left, 0px)) !important;
+  background:
+    radial-gradient(1200px 400px at 10% -10%, rgba(22, 104, 220, 0.06), transparent 55%),
+    radial-gradient(900px 360px at 100% 0%, rgba(14, 165, 233, 0.05), transparent 50%),
+    var(--aba-bg) !important;
+  min-height: calc(100vh - var(--aba-header-h));
+  min-height: calc(100dvh - var(--aba-header-h));
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+/* Center page roots inside the main content area */
+.aba-content > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Opt-out for full-bleed layouts (chat, wide tools, etc.) */
+.aba-content > .aba-content-full,
+.aba-content > .aba-agent-chat-host,
+.aba-content > .agent-chat-shell,
+.aba-page-center:has(> .aba-content-full),
+.aba-page-center:has(> .aba-agent-chat-host),
+.aba-page-center:has(> .agent-chat-shell),
+.aba-page-shell:has(> .aba-content-full),
+.aba-page-shell:has(> .aba-agent-chat-host),
+.aba-page-shell:has(> .agent-chat-shell) {
+  max-width: none;
+  width: 100%;
+}
+
+.aba-page-shell > .aba-content-full,
+.aba-page-shell > .aba-agent-chat-host,
+.aba-page-shell > .agent-chat-shell {
+  max-width: none !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.aba-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--aba-border);
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.aba-user-chip:hover {
+  border-color: #c7d7f0;
+  box-shadow: var(--aba-shadow);
+}
+
+.aba-user-chip .name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--aba-ink);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Top-up modal ─────────────────────────────────────────────── */
+
+.aba-topup-modal .ant-modal-close {
+  top: 12px;
+  inset-inline-end: 12px;
+}
+
+.aba-topup-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+  padding: 28px 28px 20px;
+  gap: 0;
+}
+
+.aba-topup-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.aba-topup-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  flex-shrink: 0;
+}
+
+.aba-topup-urgency.ant-tag {
+  margin: 0 0 12px;
+}
+
+.aba-topup-title.ant-typography {
+  margin: 0 0 8px !important;
+  letter-spacing: -0.02em;
+  text-align: center;
+  max-width: 380px;
+}
+
+.aba-topup-sub.ant-typography {
+  margin: 0 !important;
+  font-size: 14.5px;
+  line-height: 1.55;
+  max-width: 380px;
+  text-align: center;
+}
+
+.aba-topup-stats {
+  margin-bottom: 20px !important;
+  text-align: center;
+}
+
+.aba-topup-stat {
+  background: var(--aba-bg-warm, #f8fafc);
+  border: 1px solid var(--aba-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 12px;
+  height: 100%;
+}
+
+.aba-topup-stat .ant-statistic {
+  text-align: center;
+}
+
+.aba-topup-stat .ant-statistic-title {
+  font-size: 12px;
+  color: var(--aba-muted);
+  margin-bottom: 4px;
+}
+
+.aba-topup-stat .ant-statistic-content {
+  justify-content: center;
+}
+
+.aba-topup-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.aba-topup-section-label {
+  display: block;
+  margin-bottom: 10px;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+}
+
+.aba-topup-amount-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.aba-topup-amount-btn.ant-btn {
+  min-width: 72px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.aba-topup-custom.ant-input-number {
+  width: 148px;
+  border-radius: 10px;
+}
+
+.aba-topup-custom .ant-input-number-input {
+  text-align: center;
+  font-weight: 600;
+}
+
+.aba-topup-alert.ant-alert {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.aba-topup-actions {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.aba-topup-btn-primary.ant-btn,
+.aba-topup-btn-success.ant-btn {
+  height: 48px;
+  font-weight: 600;
+}
+
+.aba-topup-btn-success.ant-btn {
+  background: var(--aba-success, #16a34a);
+}
+
+.aba-topup-btn-success.ant-btn:hover {
+  background: #15803d !important;
+}
+
+.aba-topup-btn-secondary.ant-btn {
+  height: 44px;
+}
+
+.aba-topup-upgrade.ant-alert {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.aba-topup-upgrade-link.ant-btn {
+  padding: 0;
+  height: auto;
+}
+
+.aba-topup-divider.ant-divider {
+  margin: 20px 0 12px;
+}
+
+.aba-topup-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.aba-topup-footnote.ant-typography {
+  margin: 0 !important;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  max-width: 380px;
+}
+
+.aba-topup-dismiss {
+  width: 100%;
+}
+
+.aba-topup-dismiss-btn.ant-btn {
+  color: var(--aba-muted, #64748b);
+}

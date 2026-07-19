@@ -5,8 +5,10 @@ import {
 import { SafetyCertificateOutlined, RobotOutlined, UserOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 const LEVEL_COLORS = { viewer: 'default', operator: 'blue', lead: 'purple', admin: 'gold' }
 
@@ -75,7 +77,11 @@ export default function Permissions() {
   }
 
   if (loading && !data) {
-    return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+    return (
+      <PageShell style={{ textAlign: 'center', padding: 48 }}>
+        <Spin size="large" />
+      </PageShell>
+    )
   }
 
   const agentCols = [
@@ -185,6 +191,7 @@ export default function Permissions() {
           style={{ width: '100%', minWidth: 120 }}
           value={v}
           options={levelOpts}
+          loading={saving === `human-${r.id}`}
           onChange={(val) => patchHuman(r.id, 'permission_level', val)}
         />
       ),
@@ -225,40 +232,52 @@ export default function Permissions() {
   ]
 
   return (
-    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-      <Space style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }} wrap>
-        <div>
-          <Title level={3} style={{ margin: 0 }}><SafetyCertificateOutlined /> Permissions</Title>
-          <Text type="secondary">
-            Control what agents and human teammates can do, when they escalate, and idle behaviour.
-          </Text>
-        </div>
-        <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Button type="primary" icon={<TeamOutlined />} onClick={() => nav('/humans')}>
-            Add people
-          </Button>
-          <Button onClick={() => nav('/profile')}>Your profile</Button>
-        </Space>
-      </Space>
-
-      <Alert
-        style={{ margin: '16px 0' }}
-        type="info"
-        showIcon
-        message="Permission levels"
-        description={
+    <PageShell>
+      <PageHeader
+        title={(
+          <span>
+            <SafetyCertificateOutlined style={{ marginRight: 8 }} />
+            Permissions
+          </span>
+        )}
+        subtitle="Control what agents and human teammates can do, when they escalate, and idle behaviour."
+        extra={(
           <Space wrap>
-            {(catalog?.levels || []).map((l) => (
-              <Tag key={l.id} color={LEVEL_COLORS[l.id] || 'default'}>
-                <strong>{l.label}</strong>: {l.description}
-              </Tag>
-            ))}
+            <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
+            <Button type="primary" icon={<TeamOutlined />} onClick={() => nav('/humans')}>
+              Add people
+            </Button>
+            <Button onClick={() => nav('/profile')}>Your profile</Button>
           </Space>
-        }
+        )}
       />
 
-      <Card>
+      <Card className="aba-soft-card" size="small" style={{ marginBottom: 16 }} title="Permission levels">
+        <Alert
+          type="info"
+          showIcon
+          style={{ background: 'transparent', border: 'none', padding: 0, marginBottom: 8 }}
+          message="Levels apply to both agents and human teammates"
+          description={
+            <Text type="secondary">
+              Changes save immediately. Use the matrix below to set permission, escalation, and idle behaviour.
+            </Text>
+          }
+        />
+        <Space wrap style={{ marginTop: 4 }}>
+          {(catalog?.levels || []).map((l) => (
+            <Tag key={l.id} color={LEVEL_COLORS[l.id] || 'default'}>
+              <strong>{l.label}</strong>: {l.description}
+            </Tag>
+          ))}
+        </Space>
+      </Card>
+
+      <Card
+        className="aba-soft-card"
+        title="Permissions matrix"
+        styles={{ body: { paddingTop: 8, overflowX: 'auto' } }}
+      >
         <Tabs
           items={[
             {
@@ -293,6 +312,6 @@ export default function Permissions() {
           ]}
         />
       </Card>
-    </div>
+    </PageShell>
   )
 }

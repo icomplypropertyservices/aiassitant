@@ -26,6 +26,10 @@ PRICING = {
     "voice-tts": 3.50,
     "voice-call": 8.00,
     "premium-comm": 6.00,
+    # Skill actions (included pool first, then wallet at these rates)
+    "skill-read": 0.80,      # list/get/search
+    "skill-write": 1.20,     # create/update/move/spawn
+    "skill-action": 1.00,    # generic skill meter
     # Internal staff ids map to quality rates if they leak into billing rows
     "grok-max": 12.00,
 }
@@ -38,6 +42,10 @@ EVENT_PRICING = {
     "image": {"usd": 0.06, "meter_tokens": 1200},
     "video": {"usd": 0.25, "meter_tokens": 4000},
     "premium-comm": {"usd": 0.02, "meter_tokens": 100},
+    # Non-LLM skill actions — tokens meter, included pool first (no forced wallet flat)
+    "skill-read": {"usd": None, "meter_tokens": 20},
+    "skill-write": {"usd": None, "meter_tokens": 50},
+    "skill-action": {"usd": None, "meter_tokens": 35},
 }
 
 
@@ -47,6 +55,8 @@ def event_usd(kind: str) -> float | None:
     if row is None:
         return None
     if isinstance(row, dict):
+        if row.get("usd") is None:
+            return None  # skill-read/write: pool rates only, no flat wallet fee
         return float(row.get("usd") or 0)
     return float(row)
 

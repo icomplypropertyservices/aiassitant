@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models
 from ..auth_utils import get_current_user
 from ..permissions import (
@@ -114,9 +115,10 @@ def update_agent_permissions(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or (a.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     if data.permission_level is not None:
         a.permission_level = normalize_permission(data.permission_level)
     if data.escalate_when is not None:
@@ -138,9 +140,10 @@ def update_human_permissions(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    h = db.get(models.Human, human_id)
-    if not h or (h.owner_user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Human not found")
+    h = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
     if data.permission_level is not None:
         h.permission_level = normalize_permission(data.permission_level)
     if data.escalate_when is not None:

@@ -1,0 +1,999 @@
+{
+  "pack": "03_customer_success",
+  "category": "support",
+  "label": "Customer Success",
+  "skills": [
+    {
+      "id": "cs_health_score",
+      "name": "Account health score",
+      "description": "Build or refresh a customer health score with signals, weights, and risk tiers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_qbr_prep",
+      "name": "QBR preparation pack",
+      "description": "Prepare a quarterly business review agenda, metrics, wins, and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_onboarding_plan",
+      "name": "Customer onboarding plan",
+      "description": "Create a structured onboarding plan with milestones, owners, and success criteria.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_adoption_plan",
+      "name": "Product adoption plan",
+      "description": "Design an adoption plan to drive feature usage and depth of engagement.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_churn_risk",
+      "name": "Churn risk assessment",
+      "description": "Assess churn risk drivers, early warnings, and recommended interventions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_expansion_signal",
+      "name": "Expansion signal analysis",
+      "description": "Identify expansion signals and prioritize upsell or cross-sell opportunities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "csm_call_agenda",
+      "name": "CSM call agenda",
+      "description": "Build a CSM check-in agenda with talking points, risks, and next steps.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_success_plan",
+      "name": "Customer success plan",
+      "description": "Draft a joint success plan with outcomes, KPIs, owners, and timeline.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_milestone_map",
+      "name": "Milestone map",
+      "description": "Map customer journey milestones from kickoff through value realization.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_nps_followup",
+      "name": "NPS follow-up plan",
+      "description": "Plan NPS follow-up outreach for promoters, passives, and detractors.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "csat_response",
+      "name": "CSAT response playbook",
+      "description": "Draft CSAT response guidance for low, mid, and high satisfaction scores.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_escalation_path",
+      "name": "Escalation path",
+      "description": "Define clear escalation paths, owners, SLAs, and communication templates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_renewal_forecast",
+      "name": "Renewal forecast",
+      "description": "Forecast renewals with probability, ARR impact, and save or expand actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_usage_review",
+      "name": "Usage review",
+      "description": "Review product usage trends, underused features, and coaching opportunities.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_training_plan",
+      "name": "Customer training plan",
+      "description": "Design a training plan with modules, audiences, cadence, and success metrics.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_value_realization",
+      "name": "Value realization review",
+      "description": "Document realized customer value, ROI proof points, and remaining gaps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_stakeholder_map",
+      "name": "Stakeholder map",
+      "description": "Map customer stakeholders, influence, sentiment, and engagement strategy.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_executive_sponsor",
+      "name": "Executive sponsor briefing",
+      "description": "Prepare an executive sponsor brief with priorities, risks, and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_playbook_at_risk",
+      "name": "At-risk account playbook",
+      "description": "Build an at-risk account playbook with triggers, plays, and save tactics.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_winback_cs",
+      "name": "Customer win-back plan",
+      "description": "Create a win-back plan for churned or lapsed accounts with offers and outreach.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_feature_request_log",
+      "name": "Feature request log",
+      "description": "Structure a feature request log with priority, impact, and product feedback notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_roadmap_sync",
+      "name": "Roadmap sync brief",
+      "description": "Prepare a customer-facing roadmap sync with relevance mapping and expectations.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_handoff_intake",
+      "name": "Sales-to-CS handoff intake",
+      "description": "Build a sales-to-CS handoff intake with context, commitments, and open risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_kickoff_agenda",
+      "name": "Kickoff agenda",
+      "description": "Create a customer kickoff agenda covering goals, roles, timeline, and success criteria.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_go_live_checklist",
+      "name": "Go-live checklist",
+      "description": "Produce a go-live checklist with readiness criteria, owners, and cutover steps.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_support_trend",
+      "name": "Support trend analysis",
+      "description": "Analyze support ticket trends for root themes and proactive CS actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_time_to_value",
+      "name": "Time-to-value plan",
+      "description": "Define time-to-value milestones and actions to accelerate first value.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_segment_play",
+      "name": "Segment success play",
+      "description": "Design a CS play tailored to a customer segment, tier, or motion.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_lifecycle_stage",
+      "name": "Lifecycle stage model",
+      "description": "Define CS lifecycle stages, entry criteria, KPIs, and stage-specific plays.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_reference_ask",
+      "name": "Reference customer ask",
+      "description": "Draft a reference request outreach with talking points and approval path.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_case_study_cs",
+      "name": "Case study brief (CS)",
+      "description": "Capture a customer case study brief with problem, solution, and outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_community_invite",
+      "name": "Community invite",
+      "description": "Write a community invitation for customers with value props and join steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_office_hours",
+      "name": "Office hours plan",
+      "description": "Plan customer office hours with format, topics, promotion, and follow-up.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_webinar_cs",
+      "name": "Customer webinar plan",
+      "description": "Outline a customer webinar with audience, agenda, speakers, and CTAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_email_checkin",
+      "name": "Check-in email",
+      "description": "Write a customer check-in email with progress recap and clear next step.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_slack_update_cs",
+      "name": "Customer Slack update",
+      "description": "Draft a concise Slack or shared-channel update for account status and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_risk_mitigation",
+      "name": "Risk mitigation plan",
+      "description": "Create a risk mitigation plan with owners, timelines, and success checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_multi_product",
+      "name": "Multi-product adoption plan",
+      "description": "Plan multi-product adoption sequencing, enablement, and expansion criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_partner_cs",
+      "name": "Partner CS playbook",
+      "description": "Define partner-assisted CS motions, responsibilities, and escalation rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_implementation_gap",
+      "name": "Implementation gap analysis",
+      "description": "Analyze implementation gaps versus plan and recommend recovery actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_data_migration_cs",
+      "name": "Data migration CS plan",
+      "description": "Support data migration with CS checklist, validation steps, and customer comms.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_integration_help",
+      "name": "Integration help guide",
+      "description": "Provide integration guidance, common blockers, and escalation paths for customers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_security_review_cs",
+      "name": "Security review (CS)",
+      "description": "Prepare CS materials for a customer security review with FAQ and evidence map.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_compliance_check",
+      "name": "Compliance readiness check",
+      "description": "Run a compliance readiness check for customer requirements and documentation gaps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_sla_review",
+      "name": "SLA performance review",
+      "description": "Review SLA performance, breaches, root causes, and improvement actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_capacity_plan_cs",
+      "name": "CS capacity plan",
+      "description": "Plan CSM capacity by book-of-business, coverage model, and hiring needs.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_territory_cs",
+      "name": "CS territory design",
+      "description": "Design CS territories or book assignments by segment, ARR, and workload.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_portfolio_review",
+      "name": "Portfolio review",
+      "description": "Review a CSM portfolio for health, renewals, expansion, and action priorities.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_weekly_cs_report",
+      "name": "Weekly CS report",
+      "description": "Produce a weekly customer success report with KPIs, risks, and wins.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cs_play_custom",
+      "name": "Custom CS play",
+      "description": "Design a custom customer success play for a specific goal, segment, or trigger.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "03_customer_success",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

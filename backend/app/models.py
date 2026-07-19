@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, Text, ForeignKey, Boolean
 from .database import Base
 
 
@@ -13,13 +13,17 @@ class User(Base):
     # Bumped on password change/reset so existing JWTs (claim "tv") become invalid
     token_version = Column(Integer, default=0, nullable=False)
     role = Column(String, default="user")  # user | admin
-    # none = must pick plan; trial | starter | pro | business | pay_as_you_go
+    # none = inactive; new registers get trial via auth.register → _activate_plan
+    # trial | starter | pro | business | pay_as_you_go
     plan = Column(String, default="none")
     subscription_active = Column(Boolean, default=False)
-    # When set, access ends after this UTC time (null = no time limit while active)
+    # When set, access ends after this UTC time (null = no time limit while active).
+    # Free trial stamps a 14-day window on register / choose_plan(trial).
     subscription_expires_at = Column(DateTime, nullable=True)
     # Email ownership confirmed via /auth/verify-email (admins/dev seed may start True)
     email_verified = Column(Boolean, default=False)
+    # Email-based two-factor auth (OTP to registered email on login)
+    twofa_enabled = Column(Boolean, default=False)
     # Session API key (aba_…) — preferred auth site-wide (no JWT for sessions)
     api_key_hash = Column(String, nullable=True, index=True)
     api_key_prefix = Column(String, nullable=True, index=True)
@@ -77,6 +81,9 @@ class Balance(Base):
     auto_topup_threshold_credits = Column(Float, default=5.0)  # when credits below this
     auto_topup_token_pct = Column(Integer, default=85)  # when usage_percent >= this
     auto_topup_last_at = Column(DateTime, nullable=True)
+    # Permanent training-library storage purchased via storage add-ons (bytes).
+    # BIGINT: multi-GB packs exceed signed int32 on Postgres.
+    storage_bonus_bytes = Column(BigInteger, default=0)
 
 
 class Company(Base):
@@ -187,6 +194,15 @@ class Task(Base):
     # agent | human | unassigned
     assignee_type = Column(String, default="agent")
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    # Task DAG + meeting origin
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    # use_alter: circular with MeetingRoom.task_id → tasks.id; constraint via ALTER after both tables exist
+    meeting_id = Column(
+        Integer,
+        ForeignKey("meeting_rooms.id", use_alter=True, name="fk_tasks_meeting_id"),
+        nullable=True,
+        index=True,
+    )
     title = Column(String, default="")
     description = Column(Text)
     result = Column(Text, default="")
@@ -363,6 +379,8 @@ class Human(Base):
     id = Column(Integer, primary_key=True)
     owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     email = Column(String, default="")
+    # E.164 phone for SMS notify shortcuts (Twilio)
+    phone = Column(String, default="")
     name = Column(String, nullable=False)
     role_title = Column(String, default="")  # e.g. Sales Manager
     skills = Column(Text, default="")  # free text / tags
@@ -379,8 +397,30 @@ class Human(Base):
     # parent | orchestrator | human | owner
     escalate_to = Column(String, default="orchestrator")
     notes = Column(Text, default="")
+    # Exactly one "My Human" per account (primary operator who delegates with agents)
+    is_my_human = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HumanMessage(Base):
+    """Message box for a human teammate (owner, agents, and the human themselves)."""
+    __tablename__ = "human_messages"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    human_id = Column(Integer, ForeignKey("humans.id"), index=True, nullable=False)
+    # owner | agent | human | system
+    sender_role = Column(String, default="owner", index=True)
+    sender_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    # Optional peer human when My Human delegates / threads with another human
+    related_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    # Optional linked task for delegation threads
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    content = Column(Text, default="")
+    # message | task_delegate | status | system
+    kind = Column(String, default="message")
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class WorkspaceSettings(Base):
@@ -509,6 +549,43 @@ class AgentSkillState(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class CreatedSkill(Base):
+    """
+    Skills invented by agents (or the owner) for this workspace.
+
+    skill_key is the runtime id (e.g. custom_42_outreach_playbook).
+    Agents can share privately (workspace) or list for sale on AgentBay.
+    """
+    __tablename__ = "created_skills"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    # Creator agent (who invented it)
+    agent_id = Column(Integer, ForeignKey("agents.id"), index=True, nullable=True)
+    skill_key = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    # JSON list of arg names
+    args_json = Column(Text, default="[]")
+    # Standing instructions / prompt for deliverable execution
+    instructions = Column(Text, default="")
+    category = Column(String, default="custom")
+    # draft | active | archived
+    status = Column(String, default="active", index=True)
+    # Shared with all agents in this workspace
+    shared = Column(Boolean, default=True)
+    # Listed for sale on AgentBay
+    listed_on_bay = Column(Boolean, default=False, index=True)
+    list_price = Column(Float, default=29.0)
+    bay_listing_id = Column(Integer, nullable=True)
+    bay_external_id = Column(String, default="")
+    bay_url = Column(String, default="")
+    # times used / sold (bookkeeping)
+    use_count = Column(Integer, default=0)
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ── Business CRM ──────────────────────────────────────────────────────────
 
 class Pipeline(Base):
@@ -564,6 +641,9 @@ class Customer(Base):
     owner_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
     annual_value = Column(Float, default=0.0)
     notes = Column(Text, default="")
+    # e.g. shopify / woocommerce external key for two-way sync
+    external_source = Column(String, default="", index=True)
+    external_id = Column(String, default="", index=True)
     meta_json = Column(Text, default="{}")
     last_contacted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -612,6 +692,34 @@ class CustomerActivity(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Product(Base):
+    """Sellable product / service / SKU owned by the subscriber, linked to a company."""
+    __tablename__ = "products"
+    id = Column(Integer, primary_key=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    sku = Column(String, default="", index=True)
+    description = Column(Text, default="")
+    # product | service | digital | subscription | other
+    kind = Column(String, default="product")
+    price = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
+    # active | draft | archived
+    status = Column(String, default="active", index=True)
+    tags = Column(String, default="")  # comma-separated
+    benefits = Column(Text, default="")
+    audience = Column(String, default="")
+    offer = Column(String, default="")
+    image_url = Column(String, default="")
+    # e.g. shopify product id for two-way sync
+    external_source = Column(String, default="", index=True)
+    external_id = Column(String, default="", index=True)
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ── Diary / Appointments (arrange diaries for customers) ─────────────────
 
 class DiaryEntry(Base):
@@ -635,6 +743,62 @@ class DiaryEntry(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+
+
+# ── Meeting rooms (multi-party human + agent brainstorm) ───────────────────
+
+class MeetingRoom(Base):
+    """Shared brainstorm / war-room thread for humans + agents about a task or topic."""
+    __tablename__ = "meeting_rooms"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    title = Column(String, default="Meeting")
+    purpose = Column(Text, default="")
+    # brainstorm | task_war_room | standup | review
+    room_type = Column(String, default="brainstorm", index=True)
+    # open | active | closed
+    status = Column(String, default="open", index=True)
+    chair_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    settings_json = Column(Text, default="{}")
+    summary_text = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class MeetingParticipant(Base):
+    """Who is in a meeting room (user / agent / human)."""
+    __tablename__ = "meeting_participants"
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("meeting_rooms.id"), index=True, nullable=False)
+    # user | agent | human
+    kind = Column(String, default="agent", index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
+    human_id = Column(Integer, ForeignKey("humans.id"), nullable=True, index=True)
+    # chair | member | observer
+    role = Column(String, default="member")
+    last_read_at = Column(DateTime, nullable=True)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MeetingMessage(Base):
+    """One message in a meeting room thread."""
+    __tablename__ = "meeting_messages"
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("meeting_rooms.id"), index=True, nullable=False)
+    # user | agent | human | system
+    sender_kind = Column(String, default="user", index=True)
+    sender_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    sender_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    sender_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True)
+    content = Column(Text, default="")
+    # chat | decision | task_created | system
+    msg_type = Column(String, default="chat")
+    meta_json = Column(Text, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # ── Agent CLI / crypto wallets / git / local machines ─────────────────────

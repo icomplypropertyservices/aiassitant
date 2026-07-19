@@ -16,6 +16,17 @@ from .routers import (
     integrations, training, humans, ops, business, devices, marketplace,
     cli_api,
 )
+# Meetings is a first-class router but imported separately so a failure in
+# meetings.py cannot prevent the rest of the API (auth, billing, chat, …)
+# from loading. Path: app.routers.meetings → backend/app/routers/meetings.py
+try:
+    from .routers import meetings
+except ImportError as e:  # pragma: no cover - module present in normal deploys
+    meetings = None
+    print(f"[startup] meetings router unavailable (ImportError): {e}")
+except Exception as e:  # pragma: no cover
+    meetings = None
+    print(f"[startup] meetings router failed to load: {type(e).__name__}: {e}")
 from .seed_templates import SEED_TEMPLATES, NOTIFY_FIELDS
 
 IDLE_WORK = [
@@ -31,27 +42,37 @@ IDLE_WORK = [
 
 
 def seed_db():
+    """Bootstrap templates (and local demo admin). Keep production cold starts light.
+
+    On Vercel/production we only ensure the template catalogue is present — no
+    full-user scans (those made every cold start load every User row).
+    """
     db = SessionLocal()
     try:
-        # Upsert templates by name so new catalog entries appear on restart
+        # Templates: only insert missing names (avoid rewriting every template every boot)
         existing = {t.name: t for t in db.query(models.AgentTemplate).all()}
+        added = 0
         for name, type_, desc, fields, cost in SEED_TEMPLATES:
-            full_fields = fields + list(NOTIFY_FIELDS)
-            payload = {
-                "type": type_,
-                "description": desc,
-                "unique_fields": json.dumps(full_fields),
-                "est_cost": cost,
-            }
             if name in existing:
-                t = existing[name]
-                for k, v in payload.items():
-                    setattr(t, k, v)
-            else:
-                db.add(models.AgentTemplate(name=name, **payload))
-        db.commit()
+                continue
+            full_fields = fields + list(NOTIFY_FIELDS)
+            db.add(models.AgentTemplate(
+                name=name,
+                type=type_,
+                description=desc,
+                unique_fields=json.dumps(full_fields),
+                est_cost=cost,
+            ))
+            added += 1
+        if added:
+            db.commit()
+
         # Never seed weak demo admin in production
         allow_demo = not config.IS_PRODUCTION and os.getenv("SEED_DEMO_ADMIN", "1") not in ("0", "false", "no")
+        if config.IS_PRODUCTION or os.getenv("VERCEL"):
+            # Production/serverless: skip user backfills — balances created on register/login
+            return
+
         admin = db.query(models.User).filter_by(email="admin@local").first()
         if allow_demo and not admin:
             u = models.User(
@@ -69,7 +90,7 @@ def seed_db():
             ))
             db.add(models.Company(owner_user_id=u.id, name="Demo Company", industry="Technology"))
             db.commit()
-        elif admin and not config.IS_PRODUCTION:
+        elif admin:
             # Dev only: keep legacy admin usable
             if admin.role == "admin":
                 admin.subscription_active = True
@@ -85,16 +106,14 @@ def seed_db():
         for admin_u in db.query(models.User).filter_by(role="admin").all():
             if not getattr(admin_u, "email_verified", False):
                 admin_u.email_verified = True
-        # Backfill balances only (do not auto-activate paid plans in production)
+        # Backfill balances (dev only)
         from .plans import plan_limits
         for u in db.query(models.User).all():
             bal = db.query(models.Balance).filter_by(user_id=u.id).first()
             if not bal:
-                bal = models.Balance(user_id=u.id, credits=0.0 if config.IS_PRODUCTION else 5.0)
+                bal = models.Balance(user_id=u.id, credits=5.0)
                 db.add(bal)
                 db.flush()
-            if config.IS_PRODUCTION:
-                continue  # never mass-activate subscriptions in production
             if u.plan and u.plan not in ("none", ""):
                 u.subscription_active = True
                 lim = plan_limits(u.plan)
@@ -187,13 +206,19 @@ app.add_middleware(
 )
 from .routers import media as media_router
 from .routers import permissions_api as permissions_router
-for r in (
+from .routers import comms as comms_router
+from .routers import business_products as business_products_router
+_routers = [
     auth.router, templates.router, agents.router, chat.router,
     billing.router, dashboard.router, admin.router, org.router, keys.router,
     integrations.router, training.router, humans.router, ops.router, business.router,
+    business_products_router.router,
     media_router.router, permissions_router.router, devices.router, marketplace.router,
-    cli_api.router,
-):
+    cli_api.router, comms_router.router,
+]
+if meetings is not None:
+    _routers.append(meetings.router)
+for r in _routers:
     app.include_router(r)
 
 
@@ -211,7 +236,14 @@ def health():
         "cron_secret_configured": bool(config.CRON_SECRET),
         "path_frontend_hint": config.FRONTEND_URL,
         "cli_api": True,
-        "features": ["agent_wallets", "git_repos", "local_machines", "orchestrator_bootstrap"],
+        "meetings": meetings is not None,
+        "features": [
+            "agent_wallets",
+            "git_repos",
+            "local_machines",
+            "orchestrator_bootstrap",
+            *(["meeting_rooms"] if meetings is not None else []),
+        ],
     }
 
 

@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Card, Tag, Button, Space, Typography, Modal, Form, Input, Select, Switch,
-  message, Empty, Badge, Dropdown, Spin,
+  message, Empty, Badge, Dropdown, Spin, Tooltip,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, ThunderboltOutlined, MoreOutlined,
-  RobotOutlined, ProjectOutlined,
+  RobotOutlined, ProjectOutlined, CommentOutlined, LinkOutlined,
+  FlagOutlined, NodeIndexOutlined, ApartmentOutlined, CheckSquareOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, connectAuthedWs } from '../api'
+import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
 
 const COLUMNS = [
   { key: 'todo', title: 'To do', color: '#8c8c8c' },
@@ -23,6 +27,92 @@ const PRIORITY_COLOR = {
   low: 'default', medium: 'blue', high: 'orange', urgent: 'red',
 }
 
+/** Parse comma-separated or array labels from task.labels */
+function parseLabels(labels) {
+  if (!labels) return []
+  if (Array.isArray(labels)) return labels.map(String).map(s => s.trim()).filter(Boolean)
+  return String(labels).split(',').map(s => s.trim()).filter(Boolean)
+}
+
+/**
+ * Chain / goal meta for display.
+ * Backend: parent labels "goal,auto-chain,monitor"; children "auto-chain,step,N".
+ * Keeps auto-chain prompt → task → delegate → monitor → complete visible on the board.
+ */
+function chainMeta(task) {
+  if (!task) {
+    return {
+      labels: [], isGoal: false, isAutoChain: false, isStep: false,
+      isMonitor: false, stepN: null, parentId: null, meetingId: null, inChain: false,
+    }
+  }
+  const labels = parseLabels(task.labels)
+  const lower = labels.map(l => l.toLowerCase())
+  const hasExact = (name) => lower.some(l => l === name)
+  const isGoal = hasExact('goal') || /^(goal\s*:)/i.test(task.title || '')
+  const isAutoChain = hasExact('auto-chain') || hasExact('autochain')
+  const isMonitor = hasExact('monitor')
+  const numeric = labels.find(l => /^\d+$/.test(String(l).trim()))
+  const stepLabel = lower.find(l => /^step[-_\s]?\d+$/i.test(l) || l === 'step' || l === 'plan-step')
+  let stepN = null
+  if (numeric) stepN = String(numeric)
+  else if (stepLabel) {
+    const m = String(stepLabel).match(/(\d+)/)
+    if (m) stepN = m[1]
+  }
+  const isStep = !!(stepLabel || numeric || task.parent_task_id) && !isGoal
+  const parentId = task.parent_task_id || null
+  const meetingId = task.meeting_id || null
+  const inChain = !!(isGoal || isAutoChain || isStep || parentId)
+  return {
+    labels,
+    isGoal,
+    isAutoChain,
+    isMonitor: isMonitor && isGoal,
+    isStep,
+    stepN,
+    parentId,
+    meetingId,
+    inChain,
+  }
+}
+
+function ChainTags({ task, size = 'default' }) {
+  const m = chainMeta(task)
+  if (!m.inChain && !m.meetingId) return null
+  const style = size === 'small' ? { fontSize: 11, lineHeight: '18px', marginInlineEnd: 0 } : undefined
+  return (
+    <span className="tasks-board-chain-tags" role="group" aria-label="Goal chain tags">
+      {m.isGoal && (
+        <Tag icon={<FlagOutlined />} color="gold" style={style}>Goal</Tag>
+      )}
+      {m.isMonitor && (
+        <Tag color="magenta" style={style}>Monitor</Tag>
+      )}
+      {m.isAutoChain && (
+        <Tag icon={<NodeIndexOutlined />} color="cyan" style={style}>Auto-chain</Tag>
+      )}
+      {m.isStep && (
+        <Tag color="processing" style={style}>
+          {m.stepN ? `Step ${m.stepN}` : 'Step'}
+        </Tag>
+      )}
+      {m.parentId && (
+        <Tooltip title={`Child of goal/parent task #${m.parentId}`}>
+          <Tag icon={<ApartmentOutlined />} color="blue" style={style}>
+            Parent #{m.parentId}
+          </Tag>
+        </Tooltip>
+      )}
+      {m.meetingId && (
+        <Tag icon={<CommentOutlined />} color="purple" style={style}>
+          Room #{m.meetingId}
+        </Tag>
+      )}
+    </span>
+  )
+}
+
 export default function TasksBoard() {
   const nav = useNavigate()
   const [board, setBoard] = useState(null)
@@ -32,6 +122,8 @@ export default function TasksBoard() {
   const [createOpen, setCreateOpen] = useState(false)
   const [detail, setDetail] = useState(null)
   const [projectFilter, setProjectFilter] = useState(undefined)
+  const [chainOnly, setChainOnly] = useState(false)
+  const [discussingId, setDiscussingId] = useState(null)
   const [form] = Form.useForm()
   const agentId = Form.useWatch('agent_id', form)
   const wsRef = useRef(null)
@@ -45,8 +137,8 @@ export default function TasksBoard() {
     ])
       .then(([b, a, p]) => {
         setBoard(b)
-        setAgents(a)
-        setProjects(p)
+        setAgents(Array.isArray(a) ? a : [])
+        setProjects(Array.isArray(p) ? p : (p?.projects || []))
       })
       .catch(e => message.error(e.message))
       .finally(() => setLoading(false))
@@ -80,7 +172,6 @@ export default function TasksBoard() {
         return
       }
       if (!v.agent_id) {
-        // Project-only task: no agent → todo, run_now false
         await api('/org/tasks', {
           method: 'POST',
           body: {
@@ -122,140 +213,290 @@ export default function TasksBoard() {
     }
   }
 
+  const discussInRoom = async (task) => {
+    if (!task?.id) return
+    const existingId = task.meeting_id
+    if (existingId) {
+      setDetail(null)
+      nav(`/meetings/${existingId}`)
+      return
+    }
+    setDiscussingId(task.id)
+    try {
+      const body = {
+        title: task.title || 'Task discussion',
+        task_id: task.id,
+      }
+      if (task.agent_id) {
+        body.agent_ids = [task.agent_id]
+      }
+      const room = await api('/meetings', { method: 'POST', body })
+      const roomId = room?.id ?? room?.meeting_id
+      if (!roomId) throw new Error('Meeting room created but no id returned')
+      message.success('Meeting room created')
+      setDetail(null)
+      nav(`/meetings/${roomId}`)
+    } catch (e) {
+      message.error(e.message)
+    } finally {
+      setDiscussingId(null)
+    }
+  }
+
+  const discussLabel = (task) => (task?.meeting_id ? 'Open room' : 'Discuss in room')
+
+  const allTasks = useMemo(() => {
+    const cols = board?.columns || {}
+    return COLUMNS.flatMap(c => cols[c.key] || [])
+  }, [board])
+
+  const chainStats = useMemo(() => {
+    let goals = 0
+    let autoChains = 0
+    let steps = 0
+    let monitors = 0
+    allTasks.forEach((t) => {
+      const m = chainMeta(t)
+      if (m.isGoal) goals += 1
+      if (m.isAutoChain) autoChains += 1
+      if (m.isStep) steps += 1
+      if (m.isMonitor) monitors += 1
+    })
+    return { goals, autoChains, steps, monitors }
+  }, [allTasks])
+
+  const filterTask = (task) => {
+    if (projectFilter) {
+      const pname = projects.find(p => p.id === projectFilter)?.name
+      if (!(task.project_id === projectFilter || task.project_name === pname)) return false
+    }
+    if (chainOnly && !chainMeta(task).inChain) return false
+    return true
+  }
+
   if (loading && !board) {
-    return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
+    return (
+      <PageShell wide>
+        <Card className="aba-soft-card">
+          <div style={{ textAlign: 'center', padding: '64px 24px' }}>
+            <Spin size="large" tip="Loading tasks board…" />
+          </div>
+        </Card>
+      </PageShell>
+    )
   }
 
   const columns = board?.columns || {}
-  const counts = board?.counts || {}
-  const filterTask = (task) => {
-    if (!projectFilter) return true
-    return task.project_id === projectFilter || task.project_name === projects.find(p => p.id === projectFilter)?.name
-  }
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>Tasks workflow</Typography.Title>
-          <Typography.Text type="secondary">
-            Separate board for all agent &amp; project work · {board?.total || 0} tasks
-          </Typography.Text>
-        </div>
-        <Space wrap>
-          <Select
-            allowClear
-            placeholder="Filter by project"
-            style={{ minWidth: 180 }}
-            value={projectFilter}
-            onChange={setProjectFilter}
-            options={projects.map(p => ({ value: p.id, label: p.name }))}
-          />
-          <Button icon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>New task</Button>
-        </Space>
-      </Space>
-
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12, minHeight: 480 }}>
-        {COLUMNS.map(col => (
-          <div key={col.key} style={{ minWidth: 260, maxWidth: 300, flex: '0 0 260px' }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: 8, padding: '4px 8px', borderLeft: `3px solid ${col.color}`,
-            }}>
-              <Typography.Text strong>{col.title}</Typography.Text>
-              <Badge
-                count={(columns[col.key] || []).filter(filterTask).length || 0}
-                style={{ background: col.color }}
-              />
-            </div>
-            <div style={{
-              background: '#f0f2f5', borderRadius: 10, padding: 8,
-              minHeight: 400, maxHeight: 'calc(100vh - 240px)', overflowY: 'auto',
-            }}>
-              {(columns[col.key] || []).filter(filterTask).length === 0 && (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Empty" />
-              )}
-              {(columns[col.key] || []).filter(filterTask).map(task => (
-                <Card
-                  key={task.id}
-                  size="small"
-                  hoverable
-                  style={{ marginBottom: 8, borderRadius: 8 }}
-                  onClick={() => setDetail(task)}
+    <PageShell wide className="tasks-board-page">
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        {/* Header card — stats + filters */}
+        <Card className="aba-soft-card" styles={{ body: { paddingBlock: 16 } }}>
+          <PageHeader
+            style={{ marginBottom: 12 }}
+            title={(
+              <span>
+                <CheckSquareOutlined style={{ marginRight: 8 }} />
+                Tasks workflow
+              </span>
+            )}
+            subtitle={`Agent & project work board · ${board?.total || 0} tasks · goals, auto-chain steps, and rooms in one place`}
+            extra={(
+              <Space wrap>
+                <Select
+                  allowClear
+                  placeholder="Filter by project"
+                  style={{ minWidth: 180 }}
+                  value={projectFilter}
+                  onChange={setProjectFilter}
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                />
+                <Button
+                  icon={<FilterOutlined />}
+                  type={chainOnly ? 'primary' : 'default'}
+                  ghost={chainOnly}
+                  onClick={() => setChainOnly(v => !v)}
                 >
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <Typography.Text strong ellipsis style={{ flex: 1 }}>
-                        {task.title}
-                      </Typography.Text>
-                      <Dropdown
-                        menu={{
-                          items: [
-                            ...COLUMNS.filter(c => c.key !== task.status).map(c => ({
-                              key: c.key,
-                              label: `Move to ${c.title}`,
-                              onClick: ({ domEvent }) => {
-                                domEvent.stopPropagation()
-                                move(task, c.key)
-                              },
-                            })),
-                            task.agent_id && {
-                              key: 'run',
-                              label: 'Run with agent',
-                              icon: <ThunderboltOutlined />,
-                              onClick: ({ domEvent }) => {
-                                domEvent.stopPropagation()
-                                run(task)
-                              },
-                            },
-                            task.agent_id && {
-                              key: 'agent',
-                              label: 'Open agent',
-                              icon: <RobotOutlined />,
-                              onClick: ({ domEvent }) => {
-                                domEvent.stopPropagation()
-                                nav(`/agents/${task.agent_id}`)
-                              },
-                            },
-                          ].filter(Boolean),
-                        }}
-                        trigger={['click']}
+                  {chainOnly ? 'Chain only' : 'All tasks'}
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+                  Refresh
+                </Button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                  New task
+                </Button>
+              </Space>
+            )}
+          />
+          <Space wrap size={[8, 8]} className="tasks-board-header-stats">
+            <Tag icon={<FlagOutlined />} color="gold">
+              Goals {chainStats.goals}
+            </Tag>
+            <Tag color="magenta">
+              Monitor {chainStats.monitors}
+            </Tag>
+            <Tag icon={<NodeIndexOutlined />} color="cyan">
+              Auto-chain {chainStats.autoChains}
+            </Tag>
+            <Tag color="processing">
+              Steps {chainStats.steps}
+            </Tag>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Column Cards · Goal · Monitor · Auto-chain · Step · Parent # · Room
+            </Typography.Text>
+          </Space>
+        </Card>
+
+        {/* Kanban: each status column is an Ant Design Card */}
+        <div className="aba-box tasks-board-container" style={{ marginBottom: 0 }}>
+          <div className="tasks-board-columns">
+            {COLUMNS.map(col => {
+              const colTasks = (columns[col.key] || []).filter(filterTask)
+              return (
+                <Card
+                  key={col.key}
+                  size="small"
+                  className="tasks-board-column-card aba-soft-card"
+                  title={(
+                    <span className="tasks-board-col-title">
+                      <span
+                        className="tasks-board-col-dot"
+                        style={{ background: col.color }}
+                        aria-hidden
+                      />
+                      <span>{col.title}</span>
+                      <Badge
+                        count={colTasks.length || 0}
+                        showZero
+                        style={{ background: col.color }}
+                      />
+                    </span>
+                  )}
+                  styles={{
+                    header: {
+                      borderBottom: `2px solid ${col.color}`,
+                      minHeight: 44,
+                      textAlign: 'center',
+                    },
+                  }}
+                >
+                  {colTasks.length === 0 && (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Empty" />
+                  )}
+                  {colTasks.map(task => {
+                    const meta = chainMeta(task)
+                    return (
+                      <Card
+                        key={task.id}
+                        size="small"
+                        hoverable
+                        className={[
+                          'tasks-board-task-card',
+                          meta.isGoal ? 'is-goal' : '',
+                          meta.isStep ? 'is-step' : '',
+                          meta.inChain ? 'is-chain' : '',
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => setDetail(task)}
                       >
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<MoreOutlined />}
-                          onClick={e => e.stopPropagation()}
-                        />
-                      </Dropdown>
-                    </div>
-                    <Typography.Paragraph
-                      type="secondary"
-                      ellipsis={{ rows: 2 }}
-                      style={{ margin: 0, fontSize: 12 }}
-                    >
-                      {task.description}
-                    </Typography.Paragraph>
-                    <Space wrap size={[4, 4]}>
-                      <Tag color={PRIORITY_COLOR[task.priority] || 'default'}>{task.priority}</Tag>
-                      {task.agent_name && (
-                        <Tag icon={<RobotOutlined />} color="geekblue">{task.agent_name}</Tag>
-                      )}
-                      {task.project_name && (
-                        <Tag icon={<ProjectOutlined />}>{task.project_name}</Tag>
-                      )}
-                      {task.tokens_used > 0 && (
-                        <Tag color="purple">{task.tokens_used} tok</Tag>
-                      )}
-                    </Space>
-                  </Space>
+                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <Typography.Text strong ellipsis style={{ flex: 1 }}>
+                              {task.title}
+                            </Typography.Text>
+                            <Dropdown
+                              menu={{
+                                items: [
+                                  ...COLUMNS.filter(c => c.key !== task.status).map(c => ({
+                                    key: c.key,
+                                    label: `Move to ${c.title}`,
+                                    onClick: ({ domEvent }) => {
+                                      domEvent.stopPropagation()
+                                      move(task, c.key)
+                                    },
+                                  })),
+                                  task.agent_id && {
+                                    key: 'run',
+                                    label: 'Run with agent',
+                                    icon: <ThunderboltOutlined />,
+                                    onClick: ({ domEvent }) => {
+                                      domEvent.stopPropagation()
+                                      run(task)
+                                    },
+                                  },
+                                  task.agent_id && {
+                                    key: 'agent',
+                                    label: 'Open agent',
+                                    icon: <RobotOutlined />,
+                                    onClick: ({ domEvent }) => {
+                                      domEvent.stopPropagation()
+                                      nav(`/agents/${task.agent_id}`)
+                                    },
+                                  },
+                                  {
+                                    key: 'discuss',
+                                    label: discussLabel(task),
+                                    icon: <CommentOutlined />,
+                                    onClick: ({ domEvent }) => {
+                                      domEvent.stopPropagation()
+                                      discussInRoom(task)
+                                    },
+                                  },
+                                ].filter(Boolean),
+                              }}
+                              trigger={['click']}
+                            >
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<MoreOutlined />}
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </Dropdown>
+                          </div>
+                          <Typography.Paragraph
+                            type="secondary"
+                            ellipsis={{ rows: 2 }}
+                            style={{ margin: 0, fontSize: 12 }}
+                          >
+                            {task.description}
+                          </Typography.Paragraph>
+                          <Space wrap size={[4, 4]}>
+                            <ChainTags task={task} size="small" />
+                            <Tag color={PRIORITY_COLOR[task.priority] || 'default'}>{task.priority}</Tag>
+                            {task.agent_name && (
+                              <Tag icon={<RobotOutlined />} color="geekblue">{task.agent_name}</Tag>
+                            )}
+                            {task.project_name && (
+                              <Tag icon={<ProjectOutlined />}>{task.project_name}</Tag>
+                            )}
+                            {task.tokens_used > 0 && (
+                              <Tag color="purple">{task.tokens_used} tok</Tag>
+                            )}
+                          </Space>
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<CommentOutlined />}
+                            loading={discussingId === task.id}
+                            style={{ padding: 0, height: 'auto' }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              discussInRoom(task)
+                            }}
+                          >
+                            {discussLabel(task)}
+                          </Button>
+                        </Space>
+                      </Card>
+                    )
+                  })}
                 </Card>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      </Space>
 
       <Modal title="New task" open={createOpen} onCancel={() => setCreateOpen(false)} footer={null} destroyOnClose>
         <Form
@@ -325,6 +566,16 @@ export default function TasksBoard() {
         width={700}
         footer={[
           <Button key="c" onClick={() => setDetail(null)}>Close</Button>,
+          detail && (
+            <Button
+              key="d"
+              icon={<CommentOutlined />}
+              loading={discussingId === detail.id}
+              onClick={() => discussInRoom(detail)}
+            >
+              {discussLabel(detail)}
+            </Button>
+          ),
           detail?.agent_id && (
             <Button key="a" onClick={() => nav(`/agents/${detail.agent_id}`)}>Open agent chat</Button>
           ),
@@ -335,35 +586,100 @@ export default function TasksBoard() {
           ),
         ]}
       >
-        {detail && (
-          <>
-            <Space wrap style={{ marginBottom: 12 }}>
-              <Tag>{detail.status}</Tag>
-              <Tag color={PRIORITY_COLOR[detail.priority]}>{detail.priority}</Tag>
-              {detail.agent_name && <Tag color="geekblue">{detail.agent_name}</Tag>}
-              {detail.project_name && <Tag>{detail.project_name}</Tag>}
-            </Space>
-            <Typography.Paragraph>{detail.description}</Typography.Paragraph>
-            <Space style={{ marginBottom: 12 }} wrap>
-              {COLUMNS.filter(c => c.key !== detail.status).map(c => (
-                <Button key={c.key} size="small" onClick={() => { move(detail, c.key); setDetail(null) }}>
-                  → {c.title}
-                </Button>
-              ))}
-            </Space>
-            {detail.result ? (
-              <>
-                <Typography.Title level={5}>Result</Typography.Title>
-                <div style={{ background: '#f6f8fa', padding: 12, borderRadius: 8, whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto' }}>
-                  {detail.result}
-                </div>
-              </>
-            ) : (
-              <Typography.Text type="secondary">No deliverable yet — run the task with an agent.</Typography.Text>
-            )}
-          </>
-        )}
+        {detail && (() => {
+          const meta = chainMeta(detail)
+          return (
+            <>
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Tag>{detail.status}</Tag>
+                <Tag color={PRIORITY_COLOR[detail.priority]}>{detail.priority}</Tag>
+                <ChainTags task={detail} />
+                {detail.agent_name && <Tag color="geekblue" icon={<RobotOutlined />}>{detail.agent_name}</Tag>}
+                {detail.project_name && <Tag icon={<ProjectOutlined />}>{detail.project_name}</Tag>}
+              </Space>
+              {(meta.inChain || meta.meetingId || meta.labels.length > 0) && (
+                <Card
+                  size="small"
+                  className="tasks-board-chain-detail-card"
+                  style={{ marginBottom: 12 }}
+                  styles={{ header: { textAlign: 'center' } }}
+                  title={(
+                    <Space size={6}>
+                      <NodeIndexOutlined />
+                      <span>Goal chain</span>
+                    </Space>
+                  )}
+                >
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    {meta.parentId && (
+                      <Typography.Text>
+                        <ApartmentOutlined style={{ marginRight: 6 }} />
+                        Parent task <Typography.Text code>#{meta.parentId}</Typography.Text>
+                        <Typography.Text type="secondary"> · part of goal / auto-chain</Typography.Text>
+                      </Typography.Text>
+                    )}
+                    {meta.isGoal && (
+                      <Typography.Text>
+                        <FlagOutlined style={{ marginRight: 6 }} />
+                        Goal task — monitors child auto-chain steps
+                        {meta.isMonitor ? ' · labeled monitor' : ''}
+                      </Typography.Text>
+                    )}
+                    {meta.isAutoChain && !meta.isGoal && (
+                      <Typography.Text>
+                        <NodeIndexOutlined style={{ marginRight: 6 }} />
+                        Auto-chain step{meta.stepN ? ` ${meta.stepN}` : ''}
+                      </Typography.Text>
+                    )}
+                    {meta.isStep && !meta.isAutoChain && (
+                      <Typography.Text type="secondary">
+                        Child step{meta.stepN ? ` ${meta.stepN}` : ''} in a task chain
+                      </Typography.Text>
+                    )}
+                    {meta.meetingId && (
+                      <Typography.Text>
+                        <LinkOutlined style={{ marginRight: 6 }} />
+                        Linked room{' '}
+                        <Button
+                          type="link"
+                          size="small"
+                          style={{ padding: 0, height: 'auto' }}
+                          onClick={() => nav(`/meetings/${meta.meetingId}`)}
+                        >
+                          #{meta.meetingId}
+                        </Button>
+                      </Typography.Text>
+                    )}
+                    {meta.labels.length > 0 && (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        Labels: {meta.labels.join(', ')}
+                      </Typography.Text>
+                    )}
+                  </Space>
+                </Card>
+              )}
+              <Typography.Paragraph>{detail.description}</Typography.Paragraph>
+              <Space style={{ marginBottom: 12 }} wrap>
+                {COLUMNS.filter(c => c.key !== detail.status).map(c => (
+                  <Button key={c.key} size="small" onClick={() => { move(detail, c.key); setDetail(null) }}>
+                    → {c.title}
+                  </Button>
+                ))}
+              </Space>
+              {detail.result ? (
+                <>
+                  <Typography.Title level={5}>Result</Typography.Title>
+                  <div style={{ background: '#f6f8fa', padding: 12, borderRadius: 8, whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto' }}>
+                    {detail.result}
+                  </div>
+                </>
+              ) : (
+                <Typography.Text type="secondary">No deliverable yet — run the task with an agent.</Typography.Text>
+              )}
+            </>
+          )
+        })()}
       </Modal>
-    </div>
+    </PageShell>
   )
 }

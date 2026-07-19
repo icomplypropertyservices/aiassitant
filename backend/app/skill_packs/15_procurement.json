@@ -1,0 +1,999 @@
+{
+  "pack": "15_procurement",
+  "category": "commerce",
+  "label": "Procurement",
+  "skills": [
+    {
+      "id": "prc_rfp_write",
+      "name": "RFP draft",
+      "description": "Draft a request for proposal with scope, evaluation criteria, timeline, and response instructions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_rfi_write",
+      "name": "RFI draft",
+      "description": "Draft a request for information to gather vendor capabilities, approach, and market options.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_rfq_write",
+      "name": "RFQ draft",
+      "description": "Draft a request for quotation with item specs, quantities, delivery terms, and pricing format.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_vendor_scorecard",
+      "name": "Vendor scorecard",
+      "description": "Build a weighted vendor scorecard covering quality, cost, delivery, risk, and service.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_bid_analysis",
+      "name": "Bid analysis",
+      "description": "Compare supplier bids on price, terms, risk, and total value; recommend a shortlist or award.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_negotiation_prc",
+      "name": "Negotiation plan",
+      "description": "Plan procurement negotiation targets, trades, walk-aways, and BATNA for a supplier deal.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_contract_prc",
+      "name": "Procurement contract brief",
+      "description": "Outline key commercial and legal terms for a procurement contract ready for legal review.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_sla_prc",
+      "name": "Supplier SLA",
+      "description": "Define supplier service levels, metrics, remedies, and reporting cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_msa_prc",
+      "name": "Master service agreement brief",
+      "description": "Outline MSA structure covering scope framework, liability, IP, and commercial defaults.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_sow_prc",
+      "name": "Statement of work",
+      "description": "Draft a supplier SOW with deliverables, milestones, acceptance criteria, and pricing.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_po_narrative",
+      "name": "Purchase order narrative",
+      "description": "Write a clear PO narrative covering items, terms, delivery, and approval context.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_three_way_match_note",
+      "name": "Three-way match note",
+      "description": "Explain or resolve PO–receipt–invoice mismatches with recommended actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_supplier_onboard",
+      "name": "Supplier onboarding plan",
+      "description": "Create a supplier onboarding checklist covering compliance, systems, contacts, and kickoff.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_supplier_exit",
+      "name": "Supplier exit plan",
+      "description": "Plan a controlled supplier offboarding with transition, inventory, data, and risk steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_dual_source",
+      "name": "Dual-sourcing strategy",
+      "description": "Design a dual- or multi-source strategy with split ratios, qualification, and risk coverage.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_make_buy_prc",
+      "name": "Make-vs-buy analysis",
+      "description": "Compare in-house production versus outsourcing on cost, capability, control, and risk.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_tco_model",
+      "name": "Total cost of ownership model",
+      "description": "Build a TCO model including purchase price, logistics, quality, risk, and lifecycle costs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_should_cost",
+      "name": "Should-cost model",
+      "description": "Estimate a should-cost baseline from materials, labor, overhead, and margin assumptions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_price_benchmark",
+      "name": "Price benchmark",
+      "description": "Benchmark supplier prices against market, peers, or historical data with variance notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_index_clause",
+      "name": "Price index clause",
+      "description": "Draft index-linked pricing clauses with base, formula, collars, and review triggers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_volume_commitment",
+      "name": "Volume commitment terms",
+      "description": "Structure volume commitments, tiers, shortfalls, and flexibility for buyer and supplier.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_rebate_structure",
+      "name": "Rebate structure",
+      "description": "Design volume or performance rebates with thresholds, calculation, and claim process.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_payment_terms_prc",
+      "name": "Payment terms proposal",
+      "description": "Propose payment terms, discounts, and cash-flow trade-offs for a procurement deal.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_incoterms_note",
+      "name": "Incoterms note",
+      "description": "Recommend and explain Incoterms for a shipment, including risk transfer and cost split.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_import_export",
+      "name": "Import/export brief",
+      "description": "Summarize import/export requirements, documentation, duties, and logistics handoffs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_customs_checklist",
+      "name": "Customs checklist",
+      "description": "Produce a customs compliance checklist covering classification, valuation, and paperwork.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_quality_agreement",
+      "name": "Quality agreement",
+      "description": "Draft a supplier quality agreement covering specs, inspection, nonconformance, and CAPA.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_audit_supplier",
+      "name": "Supplier audit plan",
+      "description": "Plan a supplier audit with scope, criteria, agenda, findings format, and follow-up.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_csr_supplier",
+      "name": "Supplier CSR requirements",
+      "description": "Define supplier corporate social responsibility expectations, evidence, and remediation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_conflict_minerals",
+      "name": "Conflict minerals policy",
+      "description": "Outline conflict-minerals due diligence, supplier questionnaires, and reporting steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_sustainability_prc",
+      "name": "Sustainable procurement plan",
+      "description": "Build a sustainable sourcing plan with criteria, metrics, suppliers, and improvement goals.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_diversity_spend",
+      "name": "Supplier diversity spend plan",
+      "description": "Plan diverse-supplier spend targets, pipeline, tracking, and reporting.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_preferred_vendor",
+      "name": "Preferred vendor list",
+      "description": "Define preferred-vendor criteria, tiers, onboarding path, and exception rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_catalog_manage",
+      "name": "Catalog management plan",
+      "description": "Plan punchout/catalog content, governance, pricing hygiene, and user enablement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_tail_spend",
+      "name": "Tail spend strategy",
+      "description": "Analyze and rationalize tail spend with consolidation, catalogs, and policy levers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_maverick_spend",
+      "name": "Maverick spend reduction",
+      "description": "Diagnose off-contract buying and design controls, enablement, and savings actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_p2p_process",
+      "name": "Procure-to-pay process",
+      "description": "Map or improve the P2P process from requisition through payment with controls and SLAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_approval_matrix",
+      "name": "Approval matrix",
+      "description": "Design a spend approval matrix by amount, category, role, and exception path.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_budget_check_prc",
+      "name": "Budget availability check",
+      "description": "Assess budget availability and funding options for a purchase request or category.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_savings_track",
+      "name": "Savings tracker",
+      "description": "Track procurement savings with baseline, realized, pipeline, and validation rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_risk_supplier",
+      "name": "Supplier risk assessment",
+      "description": "Assess supplier financial, operational, compliance, and concentration risks with mitigations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_geo_risk",
+      "name": "Geographic supply risk",
+      "description": "Evaluate geo-political and regional supply risks and recommend diversification actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_force_majeure_note",
+      "name": "Force majeure note",
+      "description": "Summarize force majeure exposure, notice steps, and operational response for a disruption.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_inventory_prc",
+      "name": "Procurement inventory plan",
+      "description": "Align purchasing with inventory targets, reorder points, and buffer policy.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_consignment",
+      "name": "Consignment stock plan",
+      "description": "Design a consignment inventory model with ownership, replenishment, and billing rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_vmi_plan",
+      "name": "VMI plan",
+      "description": "Plan vendor-managed inventory with min/max, visibility, roles, and performance metrics.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_edi_note",
+      "name": "EDI integration note",
+      "description": "Outline EDI document types, mapping needs, testing, and go-live for supplier connectivity.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_weekly",
+      "name": "Procurement weekly update",
+      "description": "Produce a weekly procurement status covering savings, risk, open RFXs, and actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_playbook",
+      "name": "Procurement playbook",
+      "description": "Create an end-to-end procurement playbook with policies, process steps, and templates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prc_custom",
+      "name": "Custom procurement deliverable",
+      "description": "Produce a custom procurement deliverable tailored to the stated goal and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "commerce",
+      "pack": "15_procurement",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

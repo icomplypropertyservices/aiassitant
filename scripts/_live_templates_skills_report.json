@@ -1,0 +1,386 @@
+{
+  "base": "https://www.aibusinessagent.xyz",
+  "attempt": 1,
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "templates_http": 200,
+  "templates_count": 41,
+  "template_names": [
+    {
+      "id": 1,
+      "name": "Main AI Orchestrator",
+      "slug": null
+    },
+    {
+      "id": 36,
+      "name": "Master Designer",
+      "slug": null
+    },
+    {
+      "id": 2,
+      "name": "Lead Agent / Team Lead",
+      "slug": null
+    },
+    {
+      "id": 3,
+      "name": "Operations Lead",
+      "slug": null
+    },
+    {
+      "id": 4,
+      "name": "Sales Lead Agent",
+      "slug": null
+    },
+    {
+      "id": 12,
+      "name": "Appointment Booker",
+      "slug": null
+    },
+    {
+      "id": 18,
+      "name": "Backend API Engineer",
+      "slug": null
+    },
+    {
+      "id": 40,
+      "name": "Billing Ops Specialist",
+      "slug": null
+    },
+    {
+      "id": 22,
+      "name": "Bug Fixer",
+      "slug": null
+    },
+    {
+      "id": 21,
+      "name": "Code Reviewer",
+      "slug": null
+    },
+    {
+      "id": 7,
+      "name": "Cold Call Scriptwriter",
+      "slug": null
+    },
+    {
+      "id": 11,
+      "name": "Complaint Handler",
+      "slug": null
+    },
+    {
+      "id": 13,
+      "name": "Content Writer Agent",
+      "slug": null
+    },
+    {
+      "id": 9,
+      "name": "Customer Support Agent",
+      "slug": null
+    },
+    {
+      "id": 23,
+      "name": "DevOps / Infra Agent",
+      "slug": null
+    },
+    {
+      "id": 16,
+      "name": "Email Newsletter Writer",
+      "slug": null
+    },
+    {
+      "id": 39,
+      "name": "Fleet Ops Specialist",
+      "slug": null
+    },
+    {
+      "id": 19,
+      "name": "Frontend Engineer",
+      "slug": null
+    },
+    {
+      "id": 17,
+      "name": "Full-Stack Developer",
+      "slug": null
+    },
+    {
+      "id": 32,
+      "name": "HR Screening Assistant",
+      "slug": null
+    },
+    {
+      "id": 31,
+      "name": "Invoice & Accounts Helper",
+      "slug": null
+    },
+    {
+      "id": 6,
+      "name": "Lead Qualifier",
+      "slug": null
+    },
+    {
+      "id": 33,
+      "name": "Legal Draft Helper",
+      "slug": null
+    },
+    {
+      "id": 8,
+      "name": "LinkedIn Outreach",
+      "slug": null
+    },
+    {
+      "id": 30,
+      "name": "Meeting Summariser",
+      "slug": null
+    },
+    {
+      "id": 28,
+      "name": "Mobile App Helper",
+      "slug": null
+    },
+    {
+      "id": 34,
+      "name": "Product Manager",
+      "slug": null
+    },
+    {
+      "id": 20,
+      "name": "Python Automation Coder",
+      "slug": null
+    },
+    {
+      "id": 25,
+      "name": "QA / Test Engineer",
+      "slug": null
+    },
+    {
+      "id": 29,
+      "name": "Research Analyst",
+      "slug": null
+    },
+    {
+      "id": 10,
+      "name": "Review Responder",
+      "slug": null
+    },
+    {
+      "id": 5,
+      "name": "Sales Outreach Agent",
+      "slug": null
+    },
+    {
+      "id": 41,
+      "name": "Security Ops Specialist",
+      "slug": null
+    },
+    {
+      "id": 26,
+      "name": "Security Reviewer",
+      "slug": null
+    },
+    {
+      "id": 14,
+      "name": "SEO Content Strategist",
+      "slug": null
+    },
+    {
+      "id": 38,
+      "name": "Server Monitor Specialist",
+      "slug": null
+    },
+    {
+      "id": 15,
+      "name": "Social Media Manager",
+      "slug": null
+    },
+    {
+      "id": 24,
+      "name": "SQL & Data Engineer",
+      "slug": null
+    },
+    {
+      "id": 37,
+      "name": "Staff Admin Orchestrator",
+      "slug": null
+    },
+    {
+      "id": 27,
+      "name": "Tech Docs Writer",
+      "slug": null
+    },
+    {
+      "id": 35,
+      "name": "Translator / Localiser",
+      "slug": null
+    }
+  ],
+  "agents_http": 401,
+  "agents_count": 0,
+  "orchestrator_id": 27,
+  "orchestrator": {
+    "id": 27,
+    "name": null,
+    "role": null,
+    "status": null
+  },
+  "skills": {
+    "path": "/api/agents/27/skills",
+    "http": 200,
+    "enabled_count": 254,
+    "total_catalog": 254,
+    "presence": {
+      "create_task": {
+        "present": true,
+        "enabled": true,
+        "in_catalog": true
+      },
+      "execute_goal": {
+        "present": true,
+        "enabled": true,
+        "in_catalog": true
+      },
+      "message_agent": {
+        "present": true,
+        "enabled": true,
+        "in_catalog": true
+      },
+      "status_update": {
+        "present": true,
+        "enabled": true,
+        "in_catalog": true
+      }
+    },
+    "skills_keys": [
+      "agent_id",
+      "role",
+      "skills",
+      "catalog",
+      "categories",
+      "grouped",
+      "enabled_count",
+      "summary"
+    ],
+    "enabled_sample": [
+      "spawn_agent",
+      "message_agent",
+      "use_app",
+      "assign_human",
+      "save_memory",
+      "save_training",
+      "create_task",
+      "announce_plan",
+      "execute_goal",
+      "list_customers",
+      "get_customer",
+      "update_customer",
+      "log_customer_activity",
+      "create_deal",
+      "schedule_meeting",
+      "list_diary",
+      "open_meeting",
+      "post_to_meeting",
+      "run_meeting_round",
+      "close_meeting",
+      "extract_meeting_tasks",
+      "draft_email",
+      "send_email",
+      "draft_sms",
+      "send_sms",
+      "send_whatsapp",
+      "make_voice_call",
+      "log_communication",
+      "send_message",
+      "generate_image",
+      "generate_video",
+      "generate_content",
+      "research",
+      "summarize",
+      "get_time",
+      "suggest_times",
+      "create_invoice_draft",
+      "update_pipeline",
+      "escalate_to_human",
+      "search_memory",
+      "search_knowledge",
+      "set_agent_status",
+      "create_reminder",
+      "spawn_team",
+      "spawn_specialist",
+      "clone_agent",
+      "enable_skills_on",
+      "bulk_enable_skills",
+      "configure_agent",
+      "promote_to_lead",
+      "qualify_lead",
+      "write_proposal",
+      "objection_handler",
+      "follow_up_sequence",
+      "cold_outreach",
+      "book_meeting",
+      "triage_ticket",
+      "refund_or_credit",
+      "knowledge_answer",
+      "escalation_reason"
+    ],
+    "catalog_sample": [
+      "spawn_agent",
+      "message_agent",
+      "use_app",
+      "assign_human",
+      "save_memory",
+      "save_training",
+      "create_task",
+      "announce_plan",
+      "execute_goal",
+      "list_customers",
+      "get_customer",
+      "update_customer",
+      "log_customer_activity",
+      "create_deal",
+      "schedule_meeting",
+      "list_diary",
+      "open_meeting",
+      "post_to_meeting",
+      "run_meeting_round",
+      "close_meeting",
+      "extract_meeting_tasks",
+      "draft_email",
+      "send_email",
+      "draft_sms",
+      "send_sms",
+      "send_whatsapp",
+      "make_voice_call",
+      "log_communication",
+      "send_message",
+      "generate_image",
+      "generate_video",
+      "generate_content",
+      "research",
+      "summarize",
+      "get_time",
+      "suggest_times",
+      "create_invoice_draft",
+      "update_pipeline",
+      "escalate_to_human",
+      "search_memory",
+      "search_knowledge",
+      "set_agent_status",
+      "create_reminder",
+      "spawn_team",
+      "spawn_specialist",
+      "clone_agent",
+      "enable_skills_on",
+      "bulk_enable_skills",
+      "configure_agent",
+      "promote_to_lead",
+      "qualify_lead",
+      "write_proposal",
+      "objection_handler",
+      "follow_up_sequence",
+      "cold_outreach",
+      "book_meeting",
+      "triage_ticket",
+      "refund_or_credit",
+      "knowledge_answer",
+      "escalation_reason"
+    ],
+    "stats": null
+  }
+}

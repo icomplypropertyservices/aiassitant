@@ -15,9 +15,9 @@ from .. import models, config
 from ..auth_utils import (
     hash_password,
     verify_password,
-    create_token,
     get_current_user,
     hash_reset_token,
+    issue_session_api_key,
 )
 from ..usage_billing import meter_snapshot
 from ..rate_limit import check_rate_limit, client_ip
@@ -31,6 +31,7 @@ _PASSWORD_DIGIT_RE = re.compile(r"[0-9]")
 
 _EMAIL_TOKEN_TTL = timedelta(hours=48)
 _RESET_TOKEN_TTL = timedelta(hours=1)
+_OTP_TTL = timedelta(minutes=10)
 
 
 def _validate_password(password: str) -> None:
@@ -78,12 +79,9 @@ def _bump_token_version(u: models.User) -> None:
     u.token_version = int(getattr(u, "token_version", None) or 0) + 1
 
 
-def _issue_session(user: models.User) -> str:
-    return create_token(
-        user.id,
-        user.role,
-        token_version=int(getattr(user, "token_version", None) or 0),
-    )
+def _issue_session(db: Session, user: models.User) -> str:
+    """Issue session API key (aba_…). Returned once; stored hashed."""
+    return issue_session_api_key(db, user)
 
 
 def _frontend_base() -> str:
@@ -111,18 +109,124 @@ async def _send_verification_email(user: models.User, raw_token: str) -> tuple[b
     return await send_email(user.email, subject, body)
 
 
-async def _send_reset_email(user: models.User, raw_token: str) -> tuple[bool, str]:
+async def _send_reset_email(
+    user: models.User,
+    raw_token: str,
+    otp_code: str | None = None,
+) -> tuple[bool, str]:
     link = _reset_link(raw_token)
     name = (user.name or "").strip() or "there"
     subject = "Reset your password — AI Business Assistant"
+    code_block = ""
+    if otp_code:
+        code_block = (
+            f"Or enter this verification code on the reset page (expires in 10 minutes):\n\n"
+            f"    {otp_code}\n\n"
+        )
     body = (
         f"Hi {name},\n\n"
         f"We received a request to reset the password for {user.email}.\n\n"
         f"Open this link to choose a new password (expires in 1 hour):\n\n"
         f"{link}\n\n"
+        f"{code_block}"
         f"If you did not request this, you can ignore this email.\n"
     )
     return await send_email(user.email, subject, body)
+
+
+def _otp_hash(user_id: int, purpose: str, code: str) -> str:
+    return _hash_email_token(f"{user_id}:{purpose}:{code.strip()}")
+
+
+def _issue_otp(
+    db: Session,
+    user: models.User,
+    purpose: str,
+    ttl: timedelta | None = None,
+) -> str:
+    """Issue a 6-digit email OTP. Returns the raw code (send via email once)."""
+    now = datetime.utcnow()
+    for old in (
+        db.query(models.EmailToken)
+        .filter_by(user_id=user.id, purpose=purpose)
+        .filter(models.EmailToken.used_at.is_(None))
+        .all()
+    ):
+        old.used_at = now
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    row = models.EmailToken(
+        user_id=user.id,
+        purpose=purpose,
+        token_hash=_otp_hash(user.id, purpose, code),
+        expires_at=now + (ttl or _OTP_TTL),
+    )
+    db.add(row)
+    db.commit()
+    return code
+
+
+def _consume_otp(
+    db: Session,
+    user: models.User,
+    purpose: str,
+    code: str,
+) -> bool:
+    """Validate and consume a 6-digit OTP. Returns True if ok."""
+    raw = (code or "").strip().replace(" ", "")
+    if not raw or not raw.isdigit() or len(raw) != 6:
+        return False
+    th = _otp_hash(user.id, purpose, raw)
+    now = datetime.utcnow()
+    row = (
+        db.query(models.EmailToken)
+        .filter_by(user_id=user.id, purpose=purpose, token_hash=th)
+        .filter(models.EmailToken.used_at.is_(None))
+        .first()
+    )
+    if not row or row.expires_at < now:
+        return False
+    row.used_at = now
+    for other in (
+        db.query(models.EmailToken)
+        .filter_by(user_id=user.id, purpose=purpose)
+        .filter(models.EmailToken.used_at.is_(None))
+        .filter(models.EmailToken.id != row.id)
+        .all()
+    ):
+        other.used_at = now
+    db.flush()
+    return True
+
+
+async def _send_otp_email(
+    user: models.User,
+    code: str,
+    *,
+    subject: str,
+    reason: str,
+) -> tuple[bool, str]:
+    name = (user.name or "").strip() or "there"
+    body = (
+        f"Hi {name},\n\n"
+        f"{reason}\n\n"
+        f"Your verification code is:\n\n"
+        f"    {code}\n\n"
+        f"This code expires in 10 minutes. If you did not request this, "
+        f"secure your account and ignore this email.\n"
+    )
+    return await send_email(user.email, subject, body)
+
+
+def _email_hint(email: str) -> str:
+    email = (email or "").strip()
+    if "@" not in email:
+        return "***"
+    local, _, domain = email.partition("@")
+    if len(local) <= 2:
+        masked = local[:1] + "***"
+    else:
+        masked = local[:2] + "***"
+    return f"{masked}@{domain}"
 
 
 class RegisterIn(BaseModel):
@@ -139,7 +243,10 @@ class LoginIn(BaseModel):
 
 class ProfileIn(BaseModel):
     name: str | None = None
+    # Password change without email OTP is rejected when twofa_enabled or always prefer OTP path
     password: str | None = Field(default=None, min_length=8)
+    current_password: str | None = None
+    otp_code: str | None = None
 
 
 class VerifyEmailIn(BaseModel):
@@ -151,8 +258,30 @@ class ForgotPasswordIn(BaseModel):
 
 
 class ResetPasswordIn(BaseModel):
-    token: str
+    token: str | None = None  # link token OR omit when using email+code
+    email: str | None = None
+    code: str | None = None  # 6-digit email verification code
     password: str = Field(min_length=8)
+
+
+class TwoFaCodeIn(BaseModel):
+    code: str = Field(min_length=6, max_length=8)
+    email: str | None = None  # required for login challenge
+
+
+class TwoFaLoginIn(BaseModel):
+    email: str
+    code: str = Field(min_length=6, max_length=8)
+
+
+class PasswordChangeStartIn(BaseModel):
+    current_password: str
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    password: str = Field(min_length=8)
+    code: str = Field(min_length=6, max_length=8)
 
 
 class DeleteAccountIn(BaseModel):
@@ -174,6 +303,7 @@ def user_out(u: models.User):
     live = _subscription_live(u)
     exp = getattr(u, "subscription_expires_at", None)
     verified = bool(getattr(u, "email_verified", False))
+    twofa = bool(getattr(u, "twofa_enabled", False))
     return {
         "id": u.id,
         "email": u.email,
@@ -185,6 +315,11 @@ def user_out(u: models.User):
         "needs_subscription": u.role != "admin" and not live,
         "email_verified": verified,
         "needs_email_verification": u.role != "admin" and not verified,
+        "twofa_enabled": twofa,
+        "twofa_method": "email" if twofa else None,
+        "has_api_key": bool(getattr(u, "api_key_hash", None)),
+        "api_key_prefix": getattr(u, "api_key_prefix", None),
+        "auth_type": "api_key",
     }
 
 
@@ -204,6 +339,10 @@ async def register(data: RegisterIn, request: Request, db: Session = Depends(get
     if db.query(models.User).filter_by(email=email).first():
         raise HTTPException(400, "An account with that email already exists")
     _validate_password(data.password)
+    # Create account, then auto-activate Free trial so first login can create agents
+    # (ensure-orchestrator / chat / meetings) without a separate Billing click.
+    # Limits: plans.PLANS["trial"] — 10 agents, 2 companies, 50k tokens, 14 days (one-shot).
+    # Paid plans are NOT granted here; Stripe/crypto still required via /billing/plan.
     user = models.User(
         email=email,
         name=data.name.strip(),
@@ -216,22 +355,123 @@ async def register(data: RegisterIn, request: Request, db: Session = Depends(get
     db.add(user)
     db.commit()
     db.refresh(user)
-    db.add(
-        models.Balance(
-            user_id=user.id, credits=0.0, tokens_included=0, tokens_used_period=0
+
+    # Shared path with POST /billing/plan: plan=trial, expires_at, token pool, company.
+    # Production never mints free wallet credits (see billing._activate_plan).
+    company_name = (data.company_name or "").strip() or None
+    trial_started = False
+    try:
+        from .billing import _activate_plan
+        from ..plans import TRIAL_DAYS, TRIAL_TOKENS_INCLUDED, plan_limits
+
+        user = _activate_plan(db, user, "trial", company_name)
+        db.refresh(user)
+        trial_started = bool(
+            user.subscription_active and (user.plan or "") == "trial"
         )
-    )
-    db.commit()
+        # Inline fallback if activate returned without applying trial (should not happen)
+        if not trial_started:
+            limits = plan_limits("trial")
+            user.plan = "trial"
+            user.subscription_active = True
+            if not getattr(user, "subscription_expires_at", None):
+                user.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
+            bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+            if not bal:
+                bal = models.Balance(user_id=user.id, credits=0.0)
+                db.add(bal)
+                db.flush()
+            bal.tokens_included = int(limits.get("tokens_included") or TRIAL_TOKENS_INCLUDED)
+            bal.tokens_used_period = 0
+            bal.period_start = datetime.utcnow().replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+            db.commit()
+            db.refresh(user)
+            trial_started = True
+    except Exception as e:
+        # Keep the account; attempt minimal inline trial so first login is usable.
+        # User can still POST /billing/plan {"plan":"trial"} if this also fails.
+        log.warning(
+            "register trial activation failed for user_id=%s: %s: %s",
+            user.id,
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
+        try:
+            from ..plans import TRIAL_DAYS, TRIAL_TOKENS_INCLUDED, plan_limits
+
+            limits = plan_limits("trial")
+            user.plan = "trial"
+            user.subscription_active = True
+            if not getattr(user, "subscription_expires_at", None):
+                user.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
+            bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+            if not bal:
+                bal = models.Balance(user_id=user.id, credits=0.0)
+                db.add(bal)
+                db.flush()
+            if int(bal.tokens_included or 0) <= 0:
+                bal.tokens_included = int(limits.get("tokens_included") or TRIAL_TOKENS_INCLUDED)
+                bal.tokens_used_period = 0
+                bal.period_start = datetime.utcnow().replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0
+                )
+            db.commit()
+            db.refresh(user)
+            trial_started = bool(
+                user.subscription_active and (user.plan or "") == "trial"
+            )
+        except Exception as e2:
+            log.warning(
+                "register inline trial fallback failed for user_id=%s: %s: %s",
+                user.id,
+                type(e2).__name__,
+                e2,
+                exc_info=True,
+            )
+            bal = db.query(models.Balance).filter_by(user_id=user.id).first()
+            if not bal:
+                db.add(
+                    models.Balance(
+                        user_id=user.id,
+                        credits=0.0,
+                        tokens_included=0,
+                        tokens_used_period=0,
+                    )
+                )
+                db.commit()
+
+    # Every account gets a primary "My Human" for human task delegation with agents
+    try:
+        from ..human_service import ensure_my_human
+        ensure_my_human(db, user)
+        db.commit()
+    except Exception as e:
+        log.warning("ensure_my_human failed for user_id=%s: %s", user.id, e)
+
+    # Standing Core Team (orchestrator + leads) when trial/subscription is active
+    try:
+        if user.subscription_active or user.role == "admin":
+            from ..core_team import ensure_core_team
+            ensure_core_team(db, user)
+    except Exception as e:
+        log.warning("ensure_core_team failed for user_id=%s: %s", user.id, e)
 
     raw_token = _issue_email_token(db, user, purpose="verify")
     sent, detail = await _send_verification_email(user, raw_token)
 
+    api_key = _issue_session(db, user)
     out = {
-        "token": _issue_session(user),
+        "token": api_key,  # legacy field name — value is session API key (aba_…)
+        "api_key": api_key,
+        "auth_type": "api_key",
         "user": user_out(user),
-        "preferred_company_name": data.company_name.strip() or None,
+        "preferred_company_name": company_name,
         "verification_email_sent": sent,
         "verification_detail": detail,
+        "trial_started": trial_started,
     }
     if not sent and not config.IS_PRODUCTION:
         out["dev_verification_token"] = raw_token
@@ -240,14 +480,15 @@ async def register(data: RegisterIn, request: Request, db: Session = Depends(get
 
 
 @router.post("/login")
-def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
+async def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
     ip = client_ip(request)
     check_rate_limit(f"login:{ip}", limit=20, window_sec=60)
     email = (data.email or "").strip().lower()
     password = data.password or ""
     if not email or not password:
         raise HTTPException(400, "Email and password are required")
-    check_rate_limit(f"login-email:{email}", limit=10, window_sec=300)
+    # Shared demo/e2e accounts + multi-tab clients need more than 10/5m without blocking legit use
+    check_rate_limit(f"login-email:{email}", limit=40, window_sec=300)
     try:
         user = db.query(models.User).filter_by(email=email).first()
     except Exception as e:
@@ -259,11 +500,47 @@ def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Incorrect email or password")
     if _is_deleted_user(user):
         raise HTTPException(401, "This account has been deleted")
+
+    # Email 2FA: password OK → send OTP, do not issue session yet
+    if bool(getattr(user, "twofa_enabled", False)):
+        check_rate_limit(f"2fa-login-send:{user.id}", limit=5, window_sec=900)
+        code = _issue_otp(db, user, purpose="2fa_login", ttl=_OTP_TTL)
+        sent, detail = False, ""
+        try:
+            sent, detail = await _send_otp_email(
+                user,
+                code,
+                subject="Your sign-in code — AI Business Assistant",
+                reason="Someone is signing in to your AI Business Assistant account. Enter this code to continue.",
+            )
+        except Exception as e:
+            detail = str(e)
+            log.warning("2fa login email error: %s", e)
+        out = {
+            "ok": True,
+            "requires_2fa": True,
+            "twofa_method": "email",
+            "email_hint": _email_hint(user.email),
+            "message": "We sent a 6-digit verification code to your email. Enter it to finish signing in.",
+            "email_sent": sent,
+            "expires_in_sec": int(_OTP_TTL.total_seconds()),
+        }
+        if not sent and not config.IS_PRODUCTION:
+            out["dev_otp_code"] = code
+            out["email_detail"] = detail
+        return out
+
     try:
-        token = _issue_session(user)
+        api_key = _issue_session(db, user)
     except Exception as e:
-        raise HTTPException(500, f"Could not issue session token: {type(e).__name__}") from e
-    return {"token": token, "user": user_out(user)}
+        raise HTTPException(500, f"Could not issue API key: {type(e).__name__}") from e
+    return {
+        "token": api_key,
+        "api_key": api_key,
+        "auth_type": "api_key",
+        "requires_2fa": False,
+        "user": user_out(user),
+    }
 
 
 @router.get("/me")
@@ -286,14 +563,14 @@ def update_me(
     if data.name is not None:
         u.name = data.name.strip()
     if data.password:
-        _validate_password(data.password)
-        u.password_hash = hash_password(data.password)
-        _bump_token_version(u)
+        # Password changes require email OTP (+ current password when 2FA on)
+        raise HTTPException(
+            400,
+            "To change your password, use Settings → Security: request an email code "
+            "(POST /auth/password/change/start) then POST /auth/password/change with the code.",
+        )
     db.commit()
     db.refresh(u)
-    if data.password:
-        # Fresh JWT; prior sessions fail token_version check
-        return {**user_out(u), "token": _issue_session(u)}
     return user_out(u)
 
 
@@ -331,9 +608,10 @@ async def forgot_password(
         return ok_body
 
     raw = _issue_email_token(db, user, purpose="reset", ttl=_RESET_TOKEN_TTL)
+    otp = _issue_otp(db, user, purpose="reset_code", ttl=_OTP_TTL)
     sent, detail = False, ""
     try:
-        sent, detail = await _send_reset_email(user, raw)
+        sent, detail = await _send_reset_email(user, raw, otp_code=otp)
     except Exception as e:
         detail = str(e)
         log.warning("forgot-password email error: %s", e)
@@ -341,21 +619,31 @@ async def forgot_password(
     if not sent:
         if not config.IS_PRODUCTION:
             log.warning(
-                "password-reset token for %s (not emailed): %s | detail=%s",
+                "password-reset token for %s (not emailed): %s code=%s | detail=%s",
                 email,
                 raw,
+                otp,
                 detail,
             )
             return {
                 **ok_body,
                 "dev_reset_token": raw,
                 "dev_reset_link": _reset_link(raw),
+                "dev_otp_code": otp,
                 "email_sent": False,
                 "email_detail": detail,
             }
         log.error("password-reset email failed for user_id=%s: %s", user.id, detail)
 
-    return {**ok_body, "email_sent": sent}
+    return {
+        **ok_body,
+        "email_sent": sent,
+        "email_hint": _email_hint(email),
+        "message": (
+            "If an account exists for that email, we sent a reset link and a 6-digit "
+            "verification code. Use either to set a new password."
+        ),
+    }
 
 
 @router.post("/reset-password")
@@ -364,49 +652,87 @@ def reset_password(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Validate one-time reset token, set password, mark token used, bump token_version."""
+    """
+    Set a new password using either:
+    - one-time link token (from email), or
+    - email + 6-digit verification code from the same email.
+    """
     ip = client_ip(request)
     check_rate_limit(f"reset-password:{ip}", limit=10, window_sec=300)
 
-    raw = (data.token or "").strip()
-    if not raw or len(raw) < 16:
-        raise HTTPException(400, "Invalid or expired reset link")
-
     _validate_password(data.password)
-    th = _hash_email_token(raw)
     now = datetime.utcnow()
+    user = None
+    row = None
 
-    row = (
-        db.query(models.EmailToken)
-        .filter_by(token_hash=th, purpose="reset")
-        .first()
-    )
-    if not row or row.used_at is not None or row.expires_at < now:
-        raise HTTPException(400, "Invalid or expired reset link")
+    raw = (data.token or "").strip()
+    code = (data.code or "").strip().replace(" ", "")
+    email = (data.email or "").strip().lower()
 
-    user = db.get(models.User, row.user_id)
+    if raw and len(raw) >= 16:
+        th = _hash_email_token(raw)
+        row = (
+            db.query(models.EmailToken)
+            .filter_by(token_hash=th, purpose="reset")
+            .first()
+        )
+        if not row or row.used_at is not None or row.expires_at < now:
+            raise HTTPException(400, "Invalid or expired reset link")
+        user = db.get(models.User, row.user_id)
+    elif code and email and "@" in email:
+        user = db.query(models.User).filter_by(email=email).first()
+        if not user or _is_deleted_user(user):
+            raise HTTPException(400, "Invalid or expired verification code")
+        if not _consume_otp(db, user, "reset_code", code):
+            raise HTTPException(400, "Invalid or expired verification code")
+        # Invalidate link tokens too
+        for other in (
+            db.query(models.EmailToken)
+            .filter_by(user_id=user.id, purpose="reset")
+            .filter(models.EmailToken.used_at.is_(None))
+            .all()
+        ):
+            other.used_at = now
+    else:
+        raise HTTPException(
+            400,
+            "Provide the reset link token, or your email plus the 6-digit code from the email.",
+        )
+
     if not user or _is_deleted_user(user):
         raise HTTPException(400, "Invalid or expired reset link")
 
     user.password_hash = hash_password(data.password)
+    user.email_verified = True  # proved inbox ownership via reset email
     _bump_token_version(user)
-    row.used_at = now
-    for other in (
-        db.query(models.EmailToken)
-        .filter_by(user_id=user.id, purpose="reset")
-        .filter(models.EmailToken.used_at.is_(None))
-        .filter(models.EmailToken.id != row.id)
-        .all()
-    ):
-        other.used_at = now
+    if row is not None:
+        row.used_at = now
+        for other in (
+            db.query(models.EmailToken)
+            .filter_by(user_id=user.id, purpose="reset")
+            .filter(models.EmailToken.used_at.is_(None))
+            .filter(models.EmailToken.id != row.id)
+            .all()
+        ):
+            other.used_at = now
+        for other in (
+            db.query(models.EmailToken)
+            .filter_by(user_id=user.id, purpose="reset_code")
+            .filter(models.EmailToken.used_at.is_(None))
+            .all()
+        ):
+            other.used_at = now
 
     db.commit()
     db.refresh(user)
 
+    api_key = _issue_session(db, user)
     return {
         "ok": True,
         "message": "Password updated. You can sign in with your new password.",
-        "token": _issue_session(user),
+        "token": api_key,
+        "api_key": api_key,
+        "auth_type": "api_key",
         "user": user_out(user),
     }
 
@@ -482,6 +808,276 @@ async def resend_verification(
         out["dev_verification_token"] = raw_token
         out["dev_verification_link"] = _verification_link(raw_token)
     return out
+
+
+# ── Email 2FA ───────────────────────────────────────────────────────────────
+
+
+@router.get("/2fa/status")
+def twofa_status(user: models.User = Depends(get_current_user)):
+    return {
+        "twofa_enabled": bool(getattr(user, "twofa_enabled", False)),
+        "twofa_method": "email" if getattr(user, "twofa_enabled", False) else None,
+        "email_hint": _email_hint(user.email),
+        "email_verified": bool(getattr(user, "email_verified", False)),
+    }
+
+
+@router.post("/2fa/enable/start")
+async def twofa_enable_start(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Send email OTP to enable 2FA on this account."""
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-enable:{ip}", limit=8, window_sec=900)
+    check_rate_limit(f"2fa-enable-user:{user.id}", limit=5, window_sec=3600)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if getattr(u, "twofa_enabled", False):
+        return {"ok": True, "already_enabled": True, "message": "2FA is already on"}
+    code = _issue_otp(db, u, purpose="2fa_enable", ttl=_OTP_TTL)
+    sent, detail = await _send_otp_email(
+        u,
+        code,
+        subject="Enable 2FA — AI Business Assistant",
+        reason="Confirm this code to turn on email two-factor authentication for your account.",
+    )
+    out = {
+        "ok": True,
+        "email_sent": sent,
+        "email_hint": _email_hint(u.email),
+        "message": "We sent a 6-digit code to your email. Enter it to enable 2FA.",
+        "expires_in_sec": int(_OTP_TTL.total_seconds()),
+    }
+    if not sent and not config.IS_PRODUCTION:
+        out["dev_otp_code"] = code
+        out["email_detail"] = detail
+    return out
+
+
+@router.post("/2fa/enable/confirm")
+def twofa_enable_confirm(
+    data: TwoFaCodeIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-enable-confirm:{ip}", limit=15, window_sec=300)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if not _consume_otp(db, u, "2fa_enable", data.code):
+        raise HTTPException(400, "Invalid or expired verification code")
+    u.twofa_enabled = True
+    u.email_verified = True
+    db.commit()
+    db.refresh(u)
+    return {
+        "ok": True,
+        "twofa_enabled": True,
+        "message": "Email 2FA is now enabled. You will need a code from your email when signing in.",
+        "user": user_out(u),
+    }
+
+
+@router.post("/2fa/disable/start")
+async def twofa_disable_start(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-disable:{user.id}", limit=5, window_sec=900)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if not getattr(u, "twofa_enabled", False):
+        return {"ok": True, "already_disabled": True, "message": "2FA is already off"}
+    code = _issue_otp(db, u, purpose="2fa_disable", ttl=_OTP_TTL)
+    sent, detail = await _send_otp_email(
+        u,
+        code,
+        subject="Disable 2FA — AI Business Assistant",
+        reason="Confirm this code to turn off email two-factor authentication.",
+    )
+    out = {
+        "ok": True,
+        "email_sent": sent,
+        "email_hint": _email_hint(u.email),
+        "message": "We sent a code to your email. Enter it to disable 2FA.",
+    }
+    if not sent and not config.IS_PRODUCTION:
+        out["dev_otp_code"] = code
+        out["email_detail"] = detail
+    return out
+
+
+@router.post("/2fa/disable/confirm")
+def twofa_disable_confirm(
+    data: TwoFaCodeIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-disable-confirm:{ip}", limit=15, window_sec=300)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if not _consume_otp(db, u, "2fa_disable", data.code):
+        raise HTTPException(400, "Invalid or expired verification code")
+    u.twofa_enabled = False
+    db.commit()
+    db.refresh(u)
+    return {
+        "ok": True,
+        "twofa_enabled": False,
+        "message": "Email 2FA has been turned off.",
+        "user": user_out(u),
+    }
+
+
+@router.post("/2fa/login/verify")
+def twofa_login_verify(
+    data: TwoFaLoginIn,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Complete login after password step when 2FA is enabled."""
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-login-verify:{ip}", limit=20, window_sec=300)
+    email = (data.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(400, "Email is required")
+    check_rate_limit(f"2fa-login-verify-email:{email}", limit=10, window_sec=300)
+    user = db.query(models.User).filter_by(email=email).first()
+    if not user or _is_deleted_user(user):
+        raise HTTPException(401, "Invalid verification code")
+    if not getattr(user, "twofa_enabled", False):
+        raise HTTPException(400, "2FA is not enabled for this account")
+    if not _consume_otp(db, user, "2fa_login", data.code):
+        raise HTTPException(401, "Invalid or expired verification code")
+    user.email_verified = True
+    db.commit()
+    api_key = _issue_session(db, user)
+    return {
+        "ok": True,
+        "token": api_key,
+        "api_key": api_key,
+        "auth_type": "api_key",
+        "requires_2fa": False,
+        "user": user_out(user),
+    }
+
+
+@router.post("/2fa/login/resend")
+async def twofa_login_resend(
+    data: ForgotPasswordIn,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Resend login OTP (rate limited). Does not confirm password again."""
+    ip = client_ip(request)
+    check_rate_limit(f"2fa-resend:{ip}", limit=5, window_sec=900)
+    email = (data.email or "").strip().lower()
+    ok = {
+        "ok": True,
+        "message": "If 2FA is pending for this account, a new code was sent.",
+    }
+    if not email or "@" not in email:
+        return ok
+    user = db.query(models.User).filter_by(email=email).first()
+    if not user or not getattr(user, "twofa_enabled", False):
+        return ok
+    check_rate_limit(f"2fa-resend-user:{user.id}", limit=3, window_sec=900)
+    code = _issue_otp(db, user, purpose="2fa_login", ttl=_OTP_TTL)
+    sent, detail = await _send_otp_email(
+        user,
+        code,
+        subject="Your sign-in code — AI Business Assistant",
+        reason="Here is a new sign-in verification code for your account.",
+    )
+    out = {**ok, "email_sent": sent, "email_hint": _email_hint(email)}
+    if not sent and not config.IS_PRODUCTION:
+        out["dev_otp_code"] = code
+        out["email_detail"] = detail
+    return out
+
+
+# ── Password change (authenticated, email-verified via OTP) ─────────────────
+
+
+@router.post("/password/change/start")
+async def password_change_start(
+    data: PasswordChangeStartIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Send email OTP before allowing password change."""
+    ip = client_ip(request)
+    check_rate_limit(f"pw-change-start:{user.id}", limit=5, window_sec=900)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if not verify_password(data.current_password or "", u.password_hash):
+        raise HTTPException(401, "Current password is incorrect")
+    code = _issue_otp(db, u, purpose="password_change", ttl=_OTP_TTL)
+    sent, detail = await _send_otp_email(
+        u,
+        code,
+        subject="Confirm password change — AI Business Assistant",
+        reason="Enter this code to confirm changing the password on your AI Business Assistant account.",
+    )
+    out = {
+        "ok": True,
+        "email_sent": sent,
+        "email_hint": _email_hint(u.email),
+        "message": "We sent a verification code to your email. Enter it with your new password.",
+        "expires_in_sec": int(_OTP_TTL.total_seconds()),
+    }
+    if not sent and not config.IS_PRODUCTION:
+        out["dev_otp_code"] = code
+        out["email_detail"] = detail
+    return out
+
+
+@router.post("/password/change")
+def password_change(
+    data: PasswordChangeIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Change password after email OTP verification."""
+    ip = client_ip(request)
+    check_rate_limit(f"pw-change:{ip}", limit=10, window_sec=300)
+    u = db.get(models.User, user.id)
+    if not u:
+        raise HTTPException(401, "Not authenticated")
+    if not verify_password(data.current_password or "", u.password_hash):
+        raise HTTPException(401, "Current password is incorrect")
+    _validate_password(data.password)
+    if not _consume_otp(db, u, "password_change", data.code):
+        raise HTTPException(400, "Invalid or expired verification code")
+    u.password_hash = hash_password(data.password)
+    u.email_verified = True
+    _bump_token_version(u)
+    db.commit()
+    db.refresh(u)
+    api_key = _issue_session(db, u)
+    return {
+        "ok": True,
+        "message": "Password updated. Other sessions were signed out.",
+        "token": api_key,
+        "api_key": api_key,
+        "auth_type": "api_key",
+        "user": user_out(u),
+    }
 
 
 @router.get("/export")

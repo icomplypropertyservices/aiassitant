@@ -1,0 +1,1000 @@
+{
+  "pack": "11_data",
+  "category": "data",
+  "label": "Data & analytics",
+  "skills": [
+    {
+      "id": "dat_metric_definition",
+      "name": "Metric definition",
+      "description": "Define a business metric with formula, grain, owner, and known caveats.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_kpi_tree",
+      "name": "KPI tree",
+      "description": "Map a North Star metric and supporting KPIs into a hierarchical tree.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_dashboard_spec",
+      "name": "Dashboard spec",
+      "description": "Specify dashboard layout, metrics, filters, and refresh cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_sql_query_help",
+      "name": "SQL query help",
+      "description": "Write or fix SQL for a stated analytics question with assumptions noted.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "data_dict",
+      "name": "Data dictionary",
+      "description": "Document tables, columns, types, owners, and business definitions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_lineage_note",
+      "name": "Data lineage note",
+      "description": "Trace source-to-consumption lineage for a dataset or metric.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_quality_rule",
+      "name": "Data quality rule",
+      "description": "Define validation rules, thresholds, and failure handling for data quality.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_anomaly_explain",
+      "name": "Anomaly explanation",
+      "description": "Diagnose a metric anomaly with likely causes and next investigative checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_cohort_analysis",
+      "name": "Cohort analysis",
+      "description": "Analyze retention or behavior by cohort with clear methodology and cuts.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_funnel_query",
+      "name": "Funnel analysis query",
+      "description": "Design funnel stages and queries to measure conversion drop-off.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_ab_analysis",
+      "name": "A/B test analysis",
+      "description": "Analyze A/B test results with lift, significance, and decision caveats.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_experiment_readout",
+      "name": "Experiment readout",
+      "description": "Produce an experiment readout with decision, impact, and follow-ups.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_forecast_data",
+      "name": "Forecast package",
+      "description": "Build a data-backed forecast with method, drivers, and uncertainty bands.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_segmentation",
+      "name": "Customer segmentation",
+      "description": "Segment users or customers with criteria, profiles, and recommended uses.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_rfm_model",
+      "name": "RFM model",
+      "description": "Score customers on recency, frequency, and monetary value with segment actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_ltv_model",
+      "name": "LTV model",
+      "description": "Model customer lifetime value with assumptions, formula, and segment outputs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_churn_model_note",
+      "name": "Churn model note",
+      "description": "Document churn model features, labels, performance, and known limitations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_attribution",
+      "name": "Attribution model",
+      "description": "Design multi-touch or last-touch attribution rules and reporting outputs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_mix_model_note",
+      "name": "Marketing mix model note",
+      "description": "Outline media mix model approach, inputs, and how to interpret results.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_geo_analysis",
+      "name": "Geographic analysis",
+      "description": "Analyze performance by geography with regional cuts and actionable insights.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_time_series_note",
+      "name": "Time series note",
+      "description": "Document time-series patterns, seasonality, and modeling approach.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_outlier_review",
+      "name": "Outlier review",
+      "description": "Review statistical outliers and recommend treat, investigate, or exclude.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_sampling_plan",
+      "name": "Sampling plan",
+      "description": "Design a statistically sound sampling plan for analysis or audit.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_survey_analysis",
+      "name": "Survey analysis",
+      "description": "Analyze survey results with segments, themes, and recommended actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_nps_analysis",
+      "name": "NPS analysis",
+      "description": "Calculate and interpret NPS with drivers, trends, and action priorities.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "data_contract",
+      "name": "Data contract",
+      "description": "Define producer-consumer contracts covering schema, SLAs, and quality bars.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_warehouse_model",
+      "name": "Warehouse model",
+      "description": "Design dimensional or warehouse models for priority analytics use cases.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_dbt_model_plan",
+      "name": "dbt model plan",
+      "description": "Plan dbt models, layers, tests, and ownership for a data domain.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_stream_design",
+      "name": "Streaming pipeline design",
+      "description": "Design event streaming topology, schemas, and processing SLAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_batch_sla",
+      "name": "Batch job SLA",
+      "description": "Define batch pipeline SLAs, freshness targets, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_pii_classification",
+      "name": "PII classification",
+      "description": "Classify fields for PII/sensitive data and recommend handling controls.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_retention_policy_data",
+      "name": "Data retention policy",
+      "description": "Draft retention and deletion rules by data class and system.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_access_request_data",
+      "name": "Data access request",
+      "description": "Prepare a data access request with purpose, scope, and controls.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_bi_tool_choice",
+      "name": "BI tool selection",
+      "description": "Compare BI tools against requirements and recommend a stack choice.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_viz_best_practice",
+      "name": "Visualization best practices",
+      "description": "Apply chart and dashboard best practices for a given audience and decision.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_executive_data_story",
+      "name": "Executive data story",
+      "description": "Craft an executive narrative from metrics with insight and clear asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_board_metrics",
+      "name": "Board metrics pack",
+      "description": "Curate board-ready metrics with definitions, trends, and commentary.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_okrs_data",
+      "name": "OKR metrics pack",
+      "description": "Align OKR key results to measurable data definitions and sources.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_self_serve_bi",
+      "name": "Self-serve BI playbook",
+      "description": "Design self-serve BI standards, semantic layer, and guardrails.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_training_data_team",
+      "name": "Data team training",
+      "description": "Build a training plan or curriculum for data literacy and tooling.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "data_incident",
+      "name": "Data incident response",
+      "description": "Run a data incident postmortem with impact, root cause, and fixes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_backfill_plan",
+      "name": "Backfill plan",
+      "description": "Plan historical data backfill with windows, validation, and rollback.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_schema_evolution",
+      "name": "Schema evolution plan",
+      "description": "Plan backward-compatible schema changes and consumer impact.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_cdc_plan",
+      "name": "CDC plan",
+      "description": "Design change data capture strategy for sources, tools, and lag targets.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_lakehouse_note",
+      "name": "Lakehouse architecture note",
+      "description": "Outline lakehouse architecture, table formats, and governance choices.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_feature_store_note",
+      "name": "Feature store note",
+      "description": "Document feature store design, freshness, and ML consumption patterns.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_ml_eval",
+      "name": "ML model evaluation",
+      "description": "Evaluate model metrics, slices, baselines, and go/no-go criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_bias_check",
+      "name": "Bias and fairness check",
+      "description": "Assess model or dataset bias across slices with mitigation options.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "data_weekly",
+      "name": "Weekly data report",
+      "description": "Produce a weekly data/analytics report with KPIs, incidents, and risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "dat_custom",
+      "name": "Custom data deliverable",
+      "description": "Produce a custom data or analytics deliverable for a stated goal.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "data",
+      "pack": "11_data",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

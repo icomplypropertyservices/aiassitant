@@ -1,0 +1,999 @@
+{
+  "pack": "09_product",
+  "category": "ops",
+  "label": "Product",
+  "skills": [
+    {
+      "id": "prd_write",
+      "name": "Write PRD",
+      "description": "Draft a product requirements document with problem, goals, scope, requirements, and success criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_user_story",
+      "name": "User story",
+      "description": "Write user stories in role–goal–benefit form with context and priority notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_acceptance_criteria",
+      "name": "Acceptance criteria",
+      "description": "Define testable acceptance criteria (Given/When/Then or checklist) for a feature or story.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_roadmap_theme",
+      "name": "Roadmap theme",
+      "description": "Define a roadmap theme with outcomes, initiatives, owners, and time horizon.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_prioritization_rice",
+      "name": "RICE prioritization",
+      "description": "Score and rank initiatives using Reach, Impact, Confidence, and Effort (RICE).",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_prioritization_ice",
+      "name": "ICE prioritization",
+      "description": "Score and rank ideas using Impact, Confidence, and Ease (ICE).",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_opportunity_solution_tree",
+      "name": "Opportunity solution tree",
+      "description": "Build an opportunity solution tree linking outcomes, opportunities, solutions, and experiments.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_jtbd",
+      "name": "Jobs to be done",
+      "description": "Capture Jobs to Be Done statements with situation, motivation, and expected outcome.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_persona_product",
+      "name": "Product persona",
+      "description": "Create a product persona with goals, pains, behaviors, and decision criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_problem_statement",
+      "name": "Problem statement",
+      "description": "Write a crisp problem statement covering who is affected, what fails, and why it matters.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_competitive_analysis_prd",
+      "name": "Competitive analysis",
+      "description": "Compare competitors on features, positioning, pricing signals, and gaps for product decisions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_feature_spec",
+      "name": "Feature spec",
+      "description": "Specify a feature with user flows, requirements, edge cases, and open questions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_api_spec_outline",
+      "name": "API spec outline",
+      "description": "Outline an API product spec with endpoints, resources, auth, and versioning notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_migration_plan_prd",
+      "name": "Migration plan",
+      "description": "Plan a product or platform migration with phases, risks, rollback, and customer impact.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_deprecation_plan",
+      "name": "Deprecation plan",
+      "description": "Plan feature or API deprecation with timeline, notices, alternatives, and sunset criteria.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_beta_plan",
+      "name": "Beta plan",
+      "description": "Design a beta program with cohort criteria, feedback loops, success gates, and exit criteria.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_ga_checklist",
+      "name": "GA checklist",
+      "description": "Build a general-availability launch checklist across product, eng, support, legal, and GTM.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_experiment_design",
+      "name": "Experiment design",
+      "description": "Design a product experiment with hypothesis, variants, metrics, sample size notes, and guardrails.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_success_metrics",
+      "name": "Success metrics",
+      "description": "Define leading and lagging success metrics, targets, and how they will be measured.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_north_star",
+      "name": "North star metric",
+      "description": "Propose a north star metric with supporting input metrics and rationale.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_funnel_analysis",
+      "name": "Funnel analysis",
+      "description": "Analyze a product funnel, highlight drop-offs, and recommend experiments or fixes.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_activation_metric",
+      "name": "Activation metric",
+      "description": "Define an activation metric and the aha-moment events that signal successful onboarding.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_retention_curve_note",
+      "name": "Retention curve note",
+      "description": "Interpret retention curves and note cohort patterns, risks, and improvement levers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_pricing_experiment",
+      "name": "Pricing experiment",
+      "description": "Design a pricing test with variants, segments, success metrics, and risk controls.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_packaging_options",
+      "name": "Packaging options",
+      "description": "Propose product packaging tiers with feature boundaries, value props, and trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_launch_readiness",
+      "name": "Launch readiness",
+      "description": "Assess launch readiness across product, GTM, support, and risk, with go/no-go notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_sales_enablement_prd",
+      "name": "Sales enablement brief",
+      "description": "Create a sales enablement brief with value props, demos, objections, and competitive talk tracks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_support_enablement",
+      "name": "Support enablement",
+      "description": "Prepare support enablement for a release: FAQs, known issues, macros, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_docs_outline",
+      "name": "Docs outline",
+      "description": "Outline product documentation structure, topics, audiences, and ownership.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_changelog_prd",
+      "name": "Changelog entry",
+      "description": "Draft customer-facing changelog entries for new features, fixes, and breaking changes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_stakeholder_update_prd",
+      "name": "Stakeholder update",
+      "description": "Write a product stakeholder update covering progress, risks, decisions, and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_exec_one_pager",
+      "name": "Exec one-pager",
+      "description": "Produce an executive one-pager on problem, opportunity, plan, investment, and expected impact.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_tech_debt_case",
+      "name": "Tech debt case",
+      "description": "Build a business case for tech debt work with cost of delay, risk, and proposed investment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_build_vs_buy_prd",
+      "name": "Build vs buy",
+      "description": "Compare build vs buy options with cost, speed, control, risk, and recommendation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_discovery_interview",
+      "name": "Discovery interview guide",
+      "description": "Create a customer discovery interview guide with goals, questions, and note-taking prompts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_synthesis_research",
+      "name": "Research synthesis",
+      "description": "Synthesize research findings into themes, insights, implications, and recommended next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_usability_test_plan",
+      "name": "Usability test plan",
+      "description": "Plan a usability study with tasks, recruits, success criteria, and analysis approach.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_prototype_brief",
+      "name": "Prototype brief",
+      "description": "Brief a prototype with goals, fidelity, flows to test, and evaluation criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_design_critique",
+      "name": "Design critique",
+      "description": "Structure a design critique with goals, principles, feedback prompts, and decision outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_accessibility_prd",
+      "name": "Accessibility requirements",
+      "description": "Define accessibility requirements, acceptance checks, and inclusive design considerations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_localization_plan",
+      "name": "Localization plan",
+      "description": "Plan localization coverage, markets, string/process needs, and rollout sequencing.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_platform_strategy",
+      "name": "Platform strategy",
+      "description": "Outline platform product strategy: shared capabilities, extension model, and investment themes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_integration_roadmap",
+      "name": "Integration roadmap",
+      "description": "Prioritize integrations with customer demand, effort, dependencies, and phased delivery.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_data_model_note",
+      "name": "Data model note",
+      "description": "Document product-facing data model concepts, entities, relationships, and lifecycle notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_analytics_events",
+      "name": "Analytics events",
+      "description": "Specify product analytics events, properties, naming conventions, and instrumentation notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_privacy_by_design",
+      "name": "Privacy by design",
+      "description": "Capture privacy-by-design requirements for data use, consent, retention, and user controls.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_security_requirements",
+      "name": "Security requirements",
+      "description": "Define product security requirements for auth, access, data protection, and threat considerations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_sla_product",
+      "name": "Product SLA",
+      "description": "Draft product SLA/SLO targets for availability, performance, support response, and remedies.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_product_weekly",
+      "name": "Product weekly update",
+      "description": "Write a weekly product update with shipped work, metrics, risks, and upcoming priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "prd_custom",
+      "name": "Custom product deliverable",
+      "description": "Produce a custom product management deliverable tailored to the stated goal and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "09_product",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

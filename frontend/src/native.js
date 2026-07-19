@@ -107,6 +107,75 @@ export function hapticMedium() {
   return impact('Medium')
 }
 
+// ─── Keep screen awake (voice / agent talking) ─────────────────────────────
+
+let _wakeLock = null
+let _wakeHolders = 0
+
+/**
+ * Prevent the phone from sleeping while the agent is talking or mic is open.
+ * Uses Screen Wake Lock API on web/PWA; Capacitor KeepAwake when available.
+ * Call releaseKeepAwake() when done (paired with each acquireKeepAwake).
+ */
+export async function acquireKeepAwake(reason = 'voice') {
+  _wakeHolders += 1
+  if (_wakeHolders > 1 && _wakeLock) return true
+  try {
+    // Optional Capacitor plugin — never static-import (may not be installed)
+    if (isNative()) {
+      try {
+        // eslint-disable-next-line no-new-func
+        const dynImport = new Function('m', 'return import(m)')
+        const mod = await dynImport('@capacitor-community/keep-awake').catch(() => null)
+        if (mod?.KeepAwake?.keepAwake) {
+          await mod.KeepAwake.keepAwake()
+          _wakeLock = { type: 'capacitor' }
+          return true
+        }
+      } catch { /* optional plugin */ }
+    }
+    if (typeof navigator !== 'undefined' && navigator.wakeLock?.request) {
+      try {
+        const lock = await navigator.wakeLock.request('screen')
+        _wakeLock = { type: 'wakelock', lock }
+        lock.addEventListener?.('release', () => {
+          if (_wakeLock?.lock === lock) _wakeLock = null
+        })
+        return true
+      } catch {
+        /* denied / unsupported */
+      }
+    }
+  } catch (e) {
+    console.warn('[native] keepAwake', reason, e)
+  }
+  return false
+}
+
+export async function releaseKeepAwake() {
+  _wakeHolders = Math.max(0, _wakeHolders - 1)
+  if (_wakeHolders > 0) return
+  const cur = _wakeLock
+  _wakeLock = null
+  if (!cur) return
+  try {
+    if (cur.type === 'capacitor') {
+      // eslint-disable-next-line no-new-func
+      const dynImport = new Function('m', 'return import(m)')
+      const mod = await dynImport('@capacitor-community/keep-awake').catch(() => null)
+      await mod?.KeepAwake?.allowSleep?.()
+    } else if (cur.type === 'wakelock' && cur.lock) {
+      await cur.lock.release?.()
+    }
+  } catch { /* ignore */ }
+}
+
+/** Force allow sleep (e.g. leave chat page). */
+export async function forceAllowSleep() {
+  _wakeHolders = 0
+  await releaseKeepAwake()
+}
+
 /** Heavy — destructive / important */
 export function hapticHeavy() {
   return impact('Heavy')
@@ -214,11 +283,24 @@ export async function registerPush() {
       await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
         hapticMedium()
         const data = action?.notification?.data || {}
-        const path = data.path || data.url || data.route
+        let path = data.path || data.url || data.link || data.route || data.click_action
         if (path && typeof path === 'string') {
-          // HashRouter
+          // Absolute URL → same-origin app path under /agents
+          try {
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+              const u = new URL(path)
+              path = u.pathname + (u.search || '') + (u.hash || '')
+            }
+          } catch { /* keep path */ }
+          // Strip /agents prefix for in-app router
+          if (path.startsWith('/agents/')) path = path.slice('/agents'.length) || '/'
+          else if (path === '/agents') path = '/'
           if (path.startsWith('#')) window.location.hash = path
-          else if (path.startsWith('/')) window.location.hash = `#${path}`
+          else if (path.startsWith('/')) {
+            // BrowserRouter base is /agents/
+            const base = (import.meta.env.BASE_URL || '/agents/').replace(/\/+$/, '') || '/agents'
+            window.location.href = `${base}${path.startsWith('/') ? path : `/${path}`}`
+          }
         }
       })
       _pushReady = true
@@ -251,6 +333,13 @@ export async function initNativeShell() {
     _platform = cap.getPlatform?.() || 'unknown'
     await loadPrefs()
 
+    // CSS hooks for safe-area / full-viewport mobile shell (store builds)
+    try {
+      document.documentElement.classList.add('capacitor-native', `plt-${_platform}`)
+      document.body.classList.add('capacitor-native', `plt-${_platform}`)
+      document.querySelector('.aba-shell')?.classList.add('capacitor-ready')
+    } catch { /* ignore */ }
+
     const [{ StatusBar, Style }, { SplashScreen }, { App }, { Keyboard }] = await Promise.all([
       import('@capacitor/status-bar'),
       import('@capacitor/splash-screen'),
@@ -262,6 +351,9 @@ export async function initNativeShell() {
       await StatusBar.setStyle({ style: Style.Dark })
       if (_platform === 'android') {
         await StatusBar.setBackgroundColor({ color: '#0b1f3a' })
+        try {
+          await StatusBar.setOverlaysWebView({ overlay: false })
+        } catch { /* older plugin */ }
       }
     } catch { /* simulator */ }
 

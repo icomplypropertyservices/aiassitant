@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models
 from ..auth_utils import get_current_user, ensure_credits
 from ..async_jobs import schedule as schedule_job
 from ..plans import plan_limits
-from ..task_status import normalize_status
+from ..task_status import normalize_status, initial_task_status
 from ..org_templates import (
     COMPANY_TEMPLATES,
     PROJECT_TEMPLATES,
@@ -33,16 +34,18 @@ def _require_active(user: models.User):
 
 
 def _company_owned(db, company_id: int, user) -> models.Company:
-    c = db.get(models.Company, company_id)
-    if not c or (c.owner_user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Company not found")
+    c = require_owned(
+        db, models.Company, company_id, user,
+        user_field='owner_user_id', not_found="Company not found",
+    )
     return c
 
 
 def _project_owned(db, project_id: int, user) -> models.Project:
-    p = db.get(models.Project, project_id)
-    if not p or (p.owner_user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Project not found")
+    p = require_owned(
+        db, models.Project, project_id, user,
+        user_field='owner_user_id', not_found="Project not found",
+    )
     return p
 
 
@@ -159,6 +162,8 @@ def task_out(t: models.Task):
         "description": t.description,
         "result": t.result or "",
         "status": t.status,
+        "parent_task_id": getattr(t, "parent_task_id", None),
+        "meeting_id": getattr(t, "meeting_id", None),
         "tokens_used": t.tokens_used or 0,
         "cost": t.cost or 0.0,
         "created_at": t.created_at,
@@ -344,6 +349,13 @@ def get_company_profile(company_id: int, db: Session = Depends(get_db), user=Dep
         .filter_by(owner_user_id=user.id, company_id=c.id)
         .count()
     )
+    products = 0
+    if hasattr(models, "Product"):
+        products = (
+            db.query(models.Product)
+            .filter_by(owner_user_id=user.id, company_id=c.id)
+            .count()
+        )
     # AI / token spend attributed to this company
     usage_rows = (
         db.query(models.TokenUsage)
@@ -402,6 +414,7 @@ def get_company_profile(company_id: int, db: Session = Depends(get_db), user=Dep
         ],
         "stats": {
             "customers": customers,
+            "products": products,
             "deals_open": sum(1 for d in deals if (d.status or "open") == "open"),
             "deals_won": sum(1 for d in deals if d.status == "won"),
             "pipeline_open_value": round(open_value, 2),
@@ -684,9 +697,10 @@ def list_tasks(project_id: int | None = None, db: Session = Depends(get_db), use
 def create_task(data: TaskIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     _require_active(user)
     p = _project_owned(db, data.project_id, user)
+    agent = None
     if data.agent_id:
-        a = db.get(models.Agent, data.agent_id)
-        if not a or a.user_id != user.id:
+        agent = db.get(models.Agent, data.agent_id)
+        if not agent or agent.user_id != user.id:
             raise HTTPException(400, "Invalid agent")
     title = (data.title or "").strip()
     description = (data.description or "").strip()
@@ -702,6 +716,8 @@ def create_task(data: TaskIn, db: Session = Depends(get_db), user=Depends(get_cu
         title = description[:60]
     if not description:
         description = title
+    # Active agent → queued so autonomy/runner picks it up; else todo
+    status = initial_task_status(agent=agent, assignee_type="agent", run_now=True)
     t = models.Task(
         project_id=p.id,
         company_id=p.company_id,
@@ -709,7 +725,7 @@ def create_task(data: TaskIn, db: Session = Depends(get_db), user=Depends(get_cu
         agent_id=data.agent_id,
         title=title,
         description=description,
-        status="todo",
+        status=status,
         assignee_type="agent",
     )
     db.add(t)
@@ -721,10 +737,13 @@ def create_task(data: TaskIn, db: Session = Depends(get_db), user=Depends(get_cu
 
 
 @router.patch("/tasks/{task_id}")
-def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    t = db.get(models.Task, task_id)
-    if not t or (t.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Task not found")
+async def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    t = require_owned(
+        db, models.Task, task_id, user,
+        user_field='user_id', not_found="Task not found",
+    )
+    prev_status = (t.status or "")
+    terminal_hit = None
     if data.title is not None:
         t.title = data.title.strip()
     if data.description is not None:
@@ -737,6 +756,8 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), u
         t.status = st
         if st == "completed":
             t.completed_at = datetime.utcnow()
+        if st in ("completed", "failed") and prev_status != st:
+            terminal_hit = st
     if data.agent_id is not None:
         if data.agent_id:
             a = db.get(models.Agent, data.agent_id)
@@ -747,6 +768,13 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), u
             t.agent_id = None
     if hasattr(t, "updated_at"):
         t.updated_at = datetime.utcnow()
+    # Manual complete/fail must advance auto-chain (queue next / parent rollup)
+    if terminal_hit:
+        try:
+            from ..task_chain import on_task_finished
+            await on_task_finished(db, t, final_status=terminal_hit, commit=False)
+        except Exception:
+            pass
     db.commit()
     return task_out(t)
 
@@ -761,10 +789,10 @@ async def run_org_task(
     """Execute an org task via the same agent run path as /agents/tasks/{id}/run."""
     from .agents import _run_task, log_activity
 
-    t = db.get(models.Task, task_id)
-    if not t or (t.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Task not found")
-
+    t = require_owned(
+        db, models.Task, task_id, user,
+        user_field='user_id', not_found="Task not found",
+    )
     body = data or TaskRunIn()
     agent_id = body.agent_id if body.agent_id is not None else t.agent_id
     if body.agent_id is not None:
@@ -796,9 +824,10 @@ async def run_org_task(
 
 @router.delete("/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    t = db.get(models.Task, task_id)
-    if not t or (t.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Task not found")
+    t = require_owned(
+        db, models.Task, task_id, user,
+        user_field='user_id', not_found="Task not found",
+    )
     db.delete(t)
     db.commit()
     return {"ok": True}

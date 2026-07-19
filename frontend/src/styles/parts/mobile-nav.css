@@ -1,0 +1,357 @@
+﻿/* part: mobile-nav.css — shell, bottom nav, hamburger sider, capacitor */
+/* part: mobile.css */
+/* ── Tablet shell (between mobile nav and desktop) ──────────────── */
+@media (max-width: 1100px) and (min-width: 769px) {
+  :root {
+    --aba-content-pad-x: 20px;
+    --aba-content-pad-y: 20px;
+    --aba-content-pad-bottom: 32px;
+    --aba-box-pad-x: 18px;
+    --aba-box-pad-y: 18px;
+    --aba-shell-stack-gap: 14px;
+  }
+
+  .aba-page-shell,
+  .aba-page,
+  .aba-page-shell-inner {
+    max-width: min(100%, var(--aba-page-max));
+  }
+
+  .aba-page-shell:has(> .aba-page-shell-inner.is-wide),
+  .aba-page-shell:has(> .is-wide) {
+    max-width: min(100%, var(--aba-page-wide));
+  }
+}
+
+/* ── Mobile shell (also default; reaffirms mobile-first stack) ── */
+@media (max-width: 768px) {
+  /*
+   * Full width + safe horizontal pad.
+   * Bottom pad clears fixed mobile bottom nav.
+   * UI order: header → alerts → page column (stacked cards) → bottom nav.
+   */
+  .aba-content {
+    padding-top: var(--aba-content-pad-y) !important;
+    padding-left: max(var(--aba-content-pad-x), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--aba-content-pad-x), env(safe-area-inset-right, 0px)) !important;
+    padding-bottom: calc(
+      var(--aba-mobile-nav-clearance) + env(safe-area-inset-bottom, 0px)
+    ) !important;
+    overflow-x: hidden !important;
+    max-width: 100%; /* never use 100vw (scrollbar overflow) */
+    width: 100%;
+    align-items: stretch;
+  }
+  .aba-content > * {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  /* Full-bleed column on mobile — still centered in the content rail */
+  .aba-page-shell,
+  .aba-page-center,
+  .aba-page,
+  .aba-page-shell-inner,
+  .aba-page-shell-inner.is-narrow,
+  .aba-page-shell-inner.is-wide {
+    max-width: 100%;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-inline: auto;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .aba-page-center {
+    overflow-x: clip;
+    align-self: stretch;
+    justify-content: center;
+    display: flex;
+  }
+  .aba-page-shell {
+    flex: 1 1 auto;
+  }
+  .aba-page-shell > *,
+  .aba-page-shell-inner > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* Wide shell expansion is off on mobile — full width of content pad */
+  .aba-page-shell:has(> .aba-page-shell-inner.is-wide),
+  .aba-page-shell:has(> .is-wide),
+  .aba-page-shell:has(> .aba-content-full),
+  .aba-page-shell:has(> .aba-agent-chat-host),
+  .aba-page-shell:has(> .agent-chat-shell),
+  .aba-page-center:has(> .aba-content-full),
+  .aba-page-center:has(> .aba-agent-chat-host),
+  .aba-page-center:has(> .agent-chat-shell) {
+    max-width: 100%;
+    width: 100%;
+  }
+  .aba-box,
+  .aba-box-lg {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .aba-box {
+    padding: var(--aba-box-pad-y) var(--aba-box-pad-x);
+    border-radius: var(--aba-radius-sm);
+    margin-bottom: var(--aba-box-gap);
+  }
+  .aba-box-lg {
+    padding: 16px 12px;
+    border-radius: var(--aba-radius);
+    margin-bottom: var(--aba-box-gap);
+  }
+  .aba-box > .ant-card,
+  .aba-box-lg > .ant-card {
+    border-radius: var(--aba-radius-sm) !important;
+  }
+  .ant-card {
+    border-radius: var(--aba-radius-sm) !important;
+    max-width: 100%;
+    width: 100%;
+  }
+  .ant-card-body {
+    padding: 14px 12px !important;
+  }
+  .ant-card-head {
+    padding-inline: 12px !important;
+    min-height: 44px !important;
+  }
+  .ant-card-head-title {
+    font-size: 14px !important;
+  }
+  .ant-card-extra {
+    font-size: 12px;
+  }
+  /* Prefer wrapping extra on narrow cards over overflow */
+  .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  /* Outer shell stack only — PageShell uses flex gap (see desktop rules) */
+  .aba-page-shell > .ant-card,
+  .aba-page-shell > .aba-box,
+  .aba-page-shell > .aba-box-lg {
+    margin-bottom: var(--aba-shell-stack-gap);
+  }
+  .aba-page-shell > .ant-card:last-child,
+  .aba-page-shell > .aba-box:last-child,
+  .aba-page-shell > .aba-box-lg:last-child {
+    margin-bottom: 0;
+  }
+  .aba-page-header {
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  /* Keep header margin off inside PageShell (flex gap handles rhythm) */
+  .aba-page-shell-inner > .aba-page-header {
+    margin-bottom: 0;
+  }
+  .aba-page-header h1,
+  .aba-page-header-title.ant-typography,
+  .aba-page-header .ant-typography.aba-page-header-title {
+    font-size: 18px !important;
+  }
+  .aba-page-header-subtitle,
+  .aba-page-header-subtitle.ant-typography,
+  .aba-page-header p {
+    font-size: 13px !important;
+    max-width: 100%;
+  }
+  /* Header actions wrap under title when the row is tight */
+  .aba-page-header-extra {
+    flex: 1 1 auto;
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .aba-user-chip .name {
+    display: none;
+  }
+  .aba-auth-shell {
+    padding:
+      max(20px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(40px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+  }
+  .aba-auth-stack {
+    max-width: 100%;
+  }
+  .aba-auth-form-wrap {
+    max-width: 100%;
+    margin-bottom: 24px;
+  }
+  .aba-auth-form-card {
+    max-width: 100%;
+    margin-bottom: 0 !important;
+  }
+  .aba-auth-form-card .ant-card-body {
+    padding: 18px 16px 16px !important;
+  }
+  .aba-auth-plans {
+    max-width: 100%;
+  }
+  .aba-auth-plans-card .ant-card-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .aba-auth-card {
+    margin-inline: auto;
+    width: 100%;
+  }
+  .aba-subscribe-company {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .aba-subscribe-company-row {
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100%;
+  }
+  .aba-subscribe-company-row .ant-typography {
+    text-align: center;
+  }
+  .aba-sider {
+    display: none !important;
+  }
+  /* Hamburger visible; desktop-only back sits in drawer pattern on phone */
+  .aba-hamburger-btn {
+    display: inline-flex !important;
+  }
+  .aba-header-back-desktop {
+    display: none !important;
+  }
+  .aba-header {
+    padding-inline: max(10px, env(safe-area-inset-left, 0px))
+      max(10px, env(safe-area-inset-right, 0px)) !important;
+    padding-top: max(6px, env(safe-area-inset-top, 0px)) !important;
+    gap: 6px !important;
+  }
+  /* Prevent horizontal page overflow from tables / selects / spaces */
+  .aba-admin-page,
+  .aba-admin-page .ant-card,
+  .aba-admin-page .ant-table-wrapper,
+  .aba-page-shell .ant-table-wrapper,
+  .aba-page-center .ant-space,
+  .aba-page-shell .ant-space {
+    max-width: 100%;
+  }
+  .aba-page-shell .ant-space {
+    flex-wrap: wrap;
+  }
+  .aba-admin-tabs .ant-tabs-nav {
+    margin-bottom: 8px;
+  }
+  .aba-admin-tabs .ant-tabs-nav-list {
+    flex-wrap: nowrap;
+  }
+  .aba-admin-alert.ant-alert {
+    flex-wrap: wrap;
+  }
+  .aba-admin-alert .ant-alert-action {
+    margin-inline-start: 0 !important;
+    margin-top: 8px;
+    width: 100%;
+  }
+  /* Header meter: drop progress bar on very narrow chips */
+  .aba-meter-chip .ant-progress,
+  .aba-meter-chip .aba-meter-progress {
+    display: none;
+  }
+  .aba-topup-body {
+    padding: 22px 16px 16px;
+  }
+  .aba-topup-amount-btn.ant-btn {
+    min-width: 64px;
+    flex: 1 1 auto;
+  }
+  .aba-topup-stats {
+    margin-bottom: 16px !important;
+  }
+  .aba-meter-stat {
+    padding: 10px 8px;
+  }
+
+  /* Touch-friendly primary controls inside the shell */
+  .aba-page-shell .ant-btn,
+  .aba-page-center .ant-btn {
+    min-height: 36px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  :root {
+    --aba-content-pad-x: 10px;
+    --aba-box-pad-x: 10px;
+  }
+
+  .aba-page-header h1,
+  .aba-page-header-title.ant-typography,
+  .aba-page-header .ant-typography.aba-page-header-title {
+    font-size: 17px !important;
+  }
+
+  .ant-card-body {
+    padding: 12px 10px !important;
+  }
+}
+
+/* Never let layout children force horizontal page scroll */
+.aba-shell,
+.aba-shell > .ant-layout {
+  max-width: 100%;
+  overflow-x: clip;
+  width: 100%;
+}
+
+/* Mobile bottom navigation — do not alter position/z-index from layout */
+.aba-mobile-nav {
+  display: none;
+}
+@media (max-width: 768px) {
+  .aba-mobile-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--aba-border);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
+  }
+  .aba-mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    border: none;
+    background: transparent;
+    color: var(--aba-muted);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 6px 2px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .aba-mobile-nav-item .anticon {
+    font-size: 20px;
+  }
+  .aba-mobile-nav-item.is-active {
+    color: var(--aba-primary);
+  }
+  .aba-mobile-nav-item {
+    min-height: 48px;
+    min-width: 56px;
+    touch-action: manipulation;
+  }
+}

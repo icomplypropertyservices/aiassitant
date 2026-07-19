@@ -154,6 +154,8 @@ try:
                     "stripe": bay_cfg.stripe_enabled(),
                 }
 
+            # Cold-start critical path: migrate is cheap when columns exist;
+            # seed() fast-returns when catalogue already present (see seed.py).
             try:
                 _bay_init_db()
                 _bay_migrate()
@@ -217,7 +219,19 @@ try:
         return candidate if candidate.is_file() else None
 
     def _file_response(path: Path):
-        return FileResponse(str(path))
+        # Cache hashed assets aggressively; HTML briefly so deploys pick up quickly.
+        ext = path.suffix.lower()
+        name = path.name.lower()
+        headers: dict[str, str] = {}
+        if ext in {".js", ".css", ".woff", ".woff2", ".ttf", ".map"}:
+            headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".webp"}:
+            headers["Cache-Control"] = "public, max-age=86400"
+        elif name.endswith(".webmanifest") or ext == ".webmanifest":
+            headers["Cache-Control"] = "public, max-age=300"
+        elif ext in {".html", ""} or name == "index.html":
+            headers["Cache-Control"] = "public, max-age=60, s-maxage=60, stale-while-revalidate=300"
+        return FileResponse(str(path), headers=headers)
 
     def _resolve_request_path(request: Request) -> str:
         path = request.scope.get("path") or "/"
@@ -284,6 +298,26 @@ try:
                 or path.startswith("/bay/api/")
             ):
                 return await call_next(request)
+
+            # Root-level PWA / browser assets (browsers and older manifests request these
+            # at domain root; product files live under /agents/)
+            _root_aliases = {
+                "/favicon.ico": "favicon.ico",
+                "/favicon.png": "favicon.png",
+                "/favicon-16.png": "favicon-16.png",
+                "/favicon-32.png": "favicon-32.png",
+                "/manifest.webmanifest": "manifest.webmanifest",
+                "/logo.png": "logo.png",
+                "/logo-256.png": "logo-256.png",
+            }
+            if path in _root_aliases:
+                f = _safe_file(_agents_dir, _root_aliases[path])
+                if f is not None:
+                    return _file_response(f)
+            if path.startswith("/icons/"):
+                f = _safe_file(_agents_dir, path.lstrip("/"))
+                if f is not None:
+                    return _file_response(f)
 
             # Product SPA: /agents and /agents/*
             if path == "/agents" or path.startswith("/agents/"):

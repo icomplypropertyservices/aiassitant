@@ -6,6 +6,8 @@ import {
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api'
+import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
 
 const { Text, Paragraph, Title } = Typography
 const { TextArea } = Input
@@ -41,12 +43,16 @@ export default function Admin() {
   const load = useCallback(() => {
     if (user?.role !== 'admin') return
     api('/admin/stats').then(setStats).catch(() => {})
-    api('/admin/users').then(setUsers).catch(() => {})
-    api('/admin/agents').then(setAgents).catch(() => {})
+    api('/admin/users')
+      .then((list) => setUsers(Array.isArray(list) ? list : []))
+      .catch(() => setUsers([]))
+    api('/admin/agents')
+      .then((list) => setAgents(Array.isArray(list) ? list : []))
+      .catch(() => setAgents([]))
     api('/admin/fleet/status').then((f) => {
       setFleet(f)
-      setMapEdits(f.model_map || {})
-      const c = f.connection || {}
+      setMapEdits(f?.model_map || {})
+      const c = f?.connection || {}
       setConnForm((prev) => ({
         ollama_url: c.ollama_url || '',
         webui_url: c.webui_url || '',
@@ -57,8 +63,12 @@ export default function Admin() {
       }))
     }).catch(() => {})
     api('/admin/ops-team').then(setOpsTeam).catch(() => {})
-    api('/admin/usage/by-model').then(setUsageByModel).catch(() => {})
-    api('/admin/usage/recent?limit=50').then(setRecentUsage).catch(() => {})
+    api('/admin/usage/by-model')
+      .then((list) => setUsageByModel(Array.isArray(list) ? list : []))
+      .catch(() => setUsageByModel([]))
+    api('/admin/usage/recent?limit=50')
+      .then((list) => setRecentUsage(Array.isArray(list) ? list : []))
+      .catch(() => setRecentUsage([]))
   }, [user?.role])
 
   useEffect(() => { load() }, [load])
@@ -69,12 +79,16 @@ export default function Admin() {
 
   if (user?.role !== 'admin') {
     return (
-      <Result
-        status="403"
-        title="Access denied"
-        subTitle="Staff admin is only available to users with the admin role."
-        extra={<Button type="primary" onClick={() => nav('/')}>Back to dashboard</Button>}
-      />
+      <PageShell className="aba-admin-page">
+        <Card className="aba-soft-card">
+          <Result
+            status="403"
+            title="Access denied"
+            subTitle="Staff admin is only available to users with the admin role."
+            extra={<Button type="primary" onClick={() => nav('/')}>Back to dashboard</Button>}
+          />
+        </Card>
+      </PageShell>
     )
   }
 
@@ -238,33 +252,61 @@ export default function Admin() {
   }
 
   return (
-    <div className="aba-admin-page" style={{ maxWidth: '100%', minWidth: 0, overflowX: 'hidden' }}>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={12} md={6}><Card size="small"><Statistic title="Users" value={stats?.users ?? 0} /></Card></Col>
-        <Col xs={12} sm={12} md={6}><Card size="small"><Statistic title="Agents" value={stats?.agents ?? 0} /></Card></Col>
-        <Col xs={12} sm={12} md={6}><Card size="small"><Statistic title="Total tokens" value={stats?.total_tokens ?? 0} /></Card></Col>
-        <Col xs={12} sm={12} md={6}><Card size="small"><Statistic title="Revenue" prefix="$" precision={4} value={stats?.total_revenue ?? 0} /></Card></Col>
-      </Row>
+    <PageShell className="aba-admin-page">
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Card className="aba-soft-card" styles={{ body: { paddingBlock: 16 } }}>
+          <PageHeader
+            title="Staff Admin"
+            subtitle="Fleet, billing ops, model routing, and platform oversight — staff only."
+            extra={<Button onClick={load}>Refresh</Button>}
+            style={{ marginBottom: 0 }}
+          />
+        </Card>
 
-      <Alert
-        type={probeOk ? 'success' : 'warning'}
-        showIcon
-        style={{ marginBottom: 16 }}
-        message={probeOk ? 'Managed LLM fleet is reachable' : 'Managed LLM fleet offline or not configured'}
-        description={
-          probeOk
-            ? `${fleet?.probe?.count ?? 0} models · ${fleet?.probe?.latency_ms ?? '?'} ms · customers only see Fast / Quality / Reasoning / Large`
-            : 'Open the Connection tab, paste your RunPod Ollama proxy URL, Save, then pull models.'
-        }
-        action={<Button size="small" onClick={load}>Refresh</Button>}
-        className="aba-admin-alert"
-      />
+        <Row gutter={[12, 12]}>
+          <Col xs={12} sm={12} md={6}>
+            <Card size="small" className="aba-soft-card aba-stat-card">
+              <Statistic title="Users" value={stats?.users ?? 0} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card size="small" className="aba-soft-card aba-stat-card">
+              <Statistic title="Agents" value={stats?.agents ?? 0} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card size="small" className="aba-soft-card aba-stat-card">
+              <Statistic title="Total tokens" value={stats?.total_tokens ?? 0} />
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card size="small" className="aba-soft-card aba-stat-card">
+              <Statistic title="Revenue" prefix="$" precision={4} value={stats?.total_revenue ?? 0} />
+            </Card>
+          </Col>
+        </Row>
 
-      <Card styles={{ body: { paddingInline: 12, overflow: 'hidden' } }}>
-        <Tabs
-          tabBarStyle={{ marginBottom: 12 }}
-          className="aba-admin-tabs"
-          items={[
+        <Card className="aba-soft-card" size="small">
+          <Alert
+            type={probeOk ? 'success' : 'warning'}
+            showIcon
+            message={probeOk ? 'Managed LLM fleet is reachable' : 'Managed LLM fleet offline or not configured'}
+            description={
+              probeOk
+                ? `${fleet?.probe?.count ?? 0} models · ${fleet?.probe?.latency_ms ?? '?'} ms · customers only see Fast / Quality / Reasoning / Large`
+                : 'Open the Connection tab, paste your RunPod Ollama proxy URL, Save, then pull models.'
+            }
+            action={<Button size="small" onClick={load}>Refresh</Button>}
+            className="aba-admin-alert"
+            style={{ marginBottom: 0 }}
+          />
+        </Card>
+
+        <Card className="aba-soft-card" styles={{ body: { paddingInline: 12, overflow: 'hidden' } }}>
+          <Tabs
+            tabBarStyle={{ marginBottom: 12 }}
+            className="aba-admin-tabs"
+            items={[
           {
             key: 'ops-team',
             label: 'Admin Ops Team',
@@ -516,7 +558,7 @@ export default function Admin() {
                         size="small"
                         rowKey={(r) => r.ts + r.action}
                         pagination={false}
-                        dataSource={fleet.ops_log}
+                        dataSource={Array.isArray(fleet?.ops_log) ? fleet.ops_log : []}
                         columns={[
                           { title: 'When', dataIndex: 'ts', width: 180, ellipsis: true },
                           {
@@ -796,8 +838,9 @@ export default function Admin() {
             ),
           },
         ]}
-        />
-      </Card>
-    </div>
+          />
+        </Card>
+      </Space>
+    </PageShell>
   )
 }

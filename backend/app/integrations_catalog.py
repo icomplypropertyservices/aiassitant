@@ -39,10 +39,19 @@ INTEGRATION_APPS = {
             "token_url": "https://{shop}/admin/oauth/access_token",
             "client_id_env": "SHOPIFY_CLIENT_ID",
             "client_secret_env": "SHOPIFY_CLIENT_SECRET",
-            "scopes": "read_products,read_orders,read_customers,write_orders",
+            "scopes": (
+                "read_products,write_products,read_orders,write_orders,"
+                "read_customers,write_customers,read_fulfillments,write_fulfillments"
+            ),
             "needs_shop": True,
         },
-        "agent_capabilities": ["List products", "Summarise orders", "Draft customer replies from order context"],
+        "agent_capabilities": [
+            "List products & customers with tags",
+            "Sync Shopify catalogue into Business CRM (company-linked)",
+            "Update product/customer tags",
+            "Summarise orders",
+            "Fulfill orders",
+        ],
     },
     "google": {
         "id": "google",
@@ -89,12 +98,25 @@ INTEGRATION_APPS = {
             "token_url": "https://oauth2.googleapis.com/token",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly",
+            # gmail.modify covers send + read + draft + reply + archive/labels
+            "scopes": (
+                "openid email profile "
+                "https://www.googleapis.com/auth/gmail.modify "
+                "https://www.googleapis.com/auth/gmail.send "
+                "https://www.googleapis.com/auth/gmail.readonly "
+                "https://www.googleapis.com/auth/gmail.compose"
+            ),
             "needs_shop": False,
             "access_type": "offline",
             "prompt": "consent",
         },
-        "agent_capabilities": ["Draft emails", "Send via connected Gmail", "Summarise inbox threads"],
+        "agent_capabilities": [
+            "Send email (To / Cc / Bcc)",
+            "Read inbox and search",
+            "Reply to threads",
+            "Create drafts",
+            "Archive messages",
+        ],
     },
     "google_sheets": {
         "id": "google_sheets",
@@ -428,7 +450,8 @@ INTEGRATION_APPS = {
             "token_url": "https://oauth2.googleapis.com/token",
             "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
             "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
-            "scopes": "openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload",
+            # youtube.upload is restricted — start with readonly so connect works for all clients
+            "scopes": "openid email profile https://www.googleapis.com/auth/youtube.readonly",
             "needs_shop": False,
             "access_type": "offline",
             "prompt": "consent",

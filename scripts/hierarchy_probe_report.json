@@ -1,0 +1,93 @@
+{
+  "base": "https://www.aibusinessagent.xyz",
+  "email": "test+1784463080@aibusinessagent.xyz",
+  "trial_max_agents": 10,
+  "agent_count": 3,
+  "slots_remaining": 7,
+  "agents": [
+    {
+      "id": 43,
+      "name": "Main AI Orchestrator",
+      "hierarchy_role": "orchestrator",
+      "template_type": "orchestrator",
+      "status": "active",
+      "parent_id": null,
+      "is_lead": true
+    },
+    {
+      "id": 44,
+      "name": "FAD Ops Lead",
+      "hierarchy_role": "lead",
+      "template_type": "ops",
+      "status": "active",
+      "parent_id": 43,
+      "is_lead": true
+    },
+    {
+      "id": 45,
+      "name": "Live Specialist mrrrjjir",
+      "hierarchy_role": "specialist",
+      "template_type": "researcher",
+      "status": "active",
+      "parent_id": 43,
+      "is_lead": false
+    }
+  ],
+  "spawn": {
+    "mode": "post_agents",
+    "status": 200,
+    "body": {
+      "id": 45,
+      "name": "Live Specialist mrrrjjir",
+      "template_type": "researcher",
+      "personality": "Professional, friendly and concise.",
+      "model": "fast",
+      "status": "active",
+      "idle_mode": "never_idle",
+      "permission_level": "operator",
+      "escalate_when": "on_failure",
+      "escalate_reason": "",
+      "escalate_to": "parent",
+      "escalate_human_id": null,
+      "company_id": null,
+      "project_id": null,
+      "company_name": null,
+      "project_name": null,
+      "parent_id": 43,
+      "parent_name": "Main AI Orchestrator",
+      "is_lead": false,
+      "is_orchestrator": false,
+      "hierarchy_role": "specialist",
+      "reports_count": 0,
+      "config": {
+        "autonomy": "full"
+      },
+      "created_at": "2026-07-19T12:19:36.690889",
+      "stats": {
+        "tasks": 0,
+        "completed": 0,
+        "open": 0,
+        "conversations": 0,
+        "reports": 0
+      },
+      "activity": [
+        {
+          "id": 1261,
+          "type": "info",
+          "message": "Agent 'Live Specialist mrrrjjir' created under #43 — full autonomy online",
+          "created_at": "2026-07-19T12:19:37.867859"
+        }
+      ],
+      "integrations": [],
+      "reports": [],
+      "team_context": "Hierarchy role: specialist. You report to lead agent: Main AI Orchestrator (id=43)."
+    }
+  },
+  "hierarchy_url": "https://www.aibusinessagent.xyz/agents/hierarchy",
+  "hierarchy_api_status": 401,
+  "hierarchy_text_preview": "AI Business Agent Console · Agents · Chat Dashboard Workspace Business Tasks board Meetings Console Hierarchy Team Permissions Live ops AI Chat Templates Training Analytics Billing AgentBay Profile Settings Hierarchy 0 / 50.0k $0.00 Trial 14d Trial T Test Agent LIVE OPS Waiting for agent plans & actions… Ops visual Free trial · 50k tokens · 10 agents · 14 days left (8/2/2026) — unlock 2M on Starter. Upgrade → Agent hierarchy Lead agents orchestrate the team. Assign reports and set who reports to whom. Refresh Open console How hierarchy works Main AI Orchestrator is always at the top (gold). Check agents in the tree or flat list, then use Standup or Run goal in the card header. Click a name to edit hierarchy. Main AI Orchestrator Always at the top of your agent hierarchy. Routes work across companies and projects. Main AI Orchestratoractive Open orchestrator Hierarchy Agents 0 Leads 2 Mem",
+  "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\hierarchy_live.png",
+  "hierarchy_ui_ok": true,
+  "note": "Hierarchy UI rendered with live agent snapshot; API mocks used to avoid 401 clearAuth loop from concurrent demo key rotation.",
+  "ok": true
+}

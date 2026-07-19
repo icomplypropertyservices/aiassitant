@@ -75,6 +75,15 @@ STRIPE_SECRET_KEY = (os.getenv("STRIPE_SECRET_KEY") or "").strip()
 STRIPE_WEBHOOK_SECRET = (os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
 STRIPE_CURRENCY = (os.getenv("STRIPE_CURRENCY") or "usd").lower()
 
+# Platform fee on marketplace sales (percent of order total withheld before seller payout)
+PLATFORM_FEE_PERCENT = float(os.getenv("AGENTBAY_PLATFORM_FEE_PERCENT") or os.getenv("PLATFORM_FEE_PERCENT") or "10")
+
+# Platform crypto receive addresses (buyer pays into these; seller later paid net of fee)
+CRYPTO_ETH_ADDRESS = (os.getenv("CRYPTO_ETH_ADDRESS") or "").strip()
+CRYPTO_SOL_ADDRESS = (os.getenv("CRYPTO_SOL_ADDRESS") or "").strip()
+CRYPTO_BTC_ADDRESS = (os.getenv("CRYPTO_BTC_ADDRESS") or "").strip()
+CRYPTO_XRP_ADDRESS = (os.getenv("CRYPTO_XRP_ADDRESS") or "").strip()
+
 # Bridge secret for ABA → AgentBay (must be set for bridge)
 BRIDGE_SECRET = (os.getenv("BRIDGE_SECRET") or "").strip()
 _WEAK_BRIDGE = {"", "dev-bridge-secret-change-me", "change-me", "changeme"}

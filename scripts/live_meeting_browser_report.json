@@ -1,0 +1,51 @@
+{
+  "meeting_id": 28,
+  "steps": [
+    {
+      "step": "browser_login",
+      "ok": true,
+      "detail": "{\"ok\":true,\"key\":\"aba_yUtnBI5g0Z_yW04xq4VdsRkwxL4FyJZKd4YpuADq2g0\",\"me\":200,\"user_id\":37}"
+    },
+    {
+      "step": "app_home",
+      "ok": false,
+      "detail": "https://www.aibusinessagent.xyz/agents/login"
+    },
+    {
+      "step": "form_retry",
+      "ok": true,
+      "detail": "https://www.aibusinessagent.xyz/agents"
+    },
+    {
+      "step": "open_room_ui",
+      "ok": true,
+      "detail": "https://www.aibusinessagent.xyz/agents/meetings/28"
+    },
+    {
+      "step": "ui_send",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "step": "screenshot",
+      "ok": true,
+      "detail": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\live_meeting_room.png"
+    }
+  ],
+  "at": "2026-07-19T12:12:57.045Z",
+  "room_url": "https://www.aibusinessagent.xyz/agents/meetings/28",
+  "final_url": "https://www.aibusinessagent.xyz/agents/meetings/28",
+  "page_text_snip": "AI Business Agent\nConsole · Agents · Chat\nDashboard\nWorkspace\nBusiness\nTasks board\nMeetings\nConsole\nHierarchy\nTeam\nPermissions\nLive ops\nAI Chat\nTemplates\nTraining\nAnalytics\nBilling\nAgentBay\nProfile\nSettings\nMeetings\n2.3k / 500.0k\n$50.00\nTrial 14d\nTrial\nE\nE2E B\nLIVE OPS\n12 active\n [1/6] Clarify goal & success criteria — → Main AI Orchestrator\n Auto-chain: Reply in one short sentence confirming you are online for the full browser loop test.\n Main AI Orchestrator thinking\n Auto-chain: Reply to me (the human owner) in one sentence confirming you received this. Then create_task for yourself: t\n Main AI Orchestrator → Create task\nOps visual\nFree trial · 50k tokens · 10 agents · 14 days left (8/2/2026) — unlock 2M on Starter. Upgrade →\nFinal live room 1784463072890\nfinal probe\nactive\nstandup\nRun ",
+  "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\live_meeting_room.png",
+  "api": {
+    "meeting_id": 28,
+    "message_id": 72,
+    "prior_meetings": [
+      26,
+      27,
+      28
+    ]
+  },
+  "base": "https://www.aibusinessagent.xyz",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz"
+}

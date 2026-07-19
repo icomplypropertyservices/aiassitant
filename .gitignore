@@ -5,6 +5,19 @@
 !.env.*.example
 *.pem
 *.key
+scripts/.demo_token
+scripts/.demo_*
+scripts/_login_body.json
+.cron_secret_tmp
+
+# Root node_modules (monorepo may install playwright at root)
+/node_modules/
+
+# Local smoke artifacts
+scripts/live-screenshots/
+backend/scripts/*_report.json
+backend/app/skills/*.bak
+backend/app/skills/handlers_all.py.bak
 
 # Python
 __pycache__/

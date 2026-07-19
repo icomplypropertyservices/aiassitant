@@ -1,0 +1,504 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AppShell v2 — MOBILE-FIRST
+   Base styles = phone. Enhance with min-width queries.
+   Do not reverse this: no "desktop then hide on mobile" for chrome.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --aba-v2-header-h: 52px;
+  --aba-v2-bottom-h: 56px;
+  --aba-v2-bottom-clearance: calc(
+    var(--aba-v2-bottom-h) + env(safe-area-inset-bottom, 0px) + 8px
+  );
+  --aba-v2-touch: 44px;
+  --aba-v2-radius-sheet: 16px;
+}
+
+/* ── Shell root ─────────────────────────────────────────────────── */
+.aba-v2-shell {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--aba-bg);
+}
+
+.aba-v2-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--aba-bg);
+}
+
+/* ── Header (phone default) ─────────────────────────────────────── */
+.aba-v2-header.ant-layout-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: auto !important;
+  min-height: var(--aba-v2-header-h);
+  line-height: 1.2 !important;
+  padding: max(6px, env(safe-area-inset-top, 0px))
+    max(10px, env(safe-area-inset-right, 0px))
+    8px
+    max(8px, env(safe-area-inset-left, 0px)) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: saturate(1.2) blur(12px);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
+  border-bottom: 1px solid var(--aba-border);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.aba-v2-header__left,
+.aba-v2-header__right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.aba-v2-header__left {
+  flex: 1 1 auto;
+}
+
+.aba-v2-header__right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.aba-v2-header__title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--aba-ink) !important;
+  margin: 0 !important;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.25 !important;
+}
+
+.aba-v2-header__menu-btn.ant-btn,
+.aba-v2-header__icon-btn.ant-btn {
+  width: var(--aba-v2-touch);
+  height: var(--aba-v2-touch);
+  min-width: var(--aba-v2-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.aba-v2-header__user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aba-v2-header__user .name {
+  display: none; /* phone: avatar only */
+}
+
+.aba-v2-header__plan {
+  display: none;
+  margin: 0 !important;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+/* ── Content (phone) ────────────────────────────────────────────── */
+.aba-v2-content.aba-content {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px
+    max(12px, env(safe-area-inset-right, 0px))
+    16px
+    max(12px, env(safe-area-inset-left, 0px)) !important;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.aba-v2-content.has-bottom-nav {
+  padding-bottom: var(--aba-v2-bottom-clearance) !important;
+}
+
+.aba-v2-shell .aba-page-center,
+.aba-v2-shell .aba-page-shell,
+.aba-v2-shell .aba-page-shell-inner {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ── Bottom nav (phone / tablet default; hidden on desktop) ───── */
+.aba-v2-bottom-nav {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  height: calc(var(--aba-v2-bottom-h) + env(safe-area-inset-bottom, 0px));
+  padding: 4px 2px env(safe-area-inset-bottom, 0px);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--aba-border);
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.06);
+  justify-content: space-around;
+  align-items: stretch;
+}
+
+.aba-v2-bottom-nav__item {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--aba-v2-touch);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--aba-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 4px 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 10px;
+}
+
+.aba-v2-bottom-nav__icon {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+}
+
+.aba-v2-bottom-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aba-v2-bottom-nav__item.is-active {
+  color: var(--aba-primary);
+}
+
+.aba-v2-bottom-nav__item.is-active .aba-v2-bottom-nav__icon {
+  transform: translateY(-1px);
+}
+
+/* ── Bottom sheet menu (phone) ──────────────────────────────────── */
+.aba-v2-nav-drawer .ant-drawer-content {
+  border-radius: var(--aba-v2-radius-sheet) var(--aba-v2-radius-sheet) 0 0;
+  overflow: hidden;
+}
+
+.aba-v2-nav-drawer__sheet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #0b1f3a;
+  color: #e2e8f0;
+}
+
+.aba-v2-nav-drawer__handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.28);
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+.aba-v2-nav-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.aba-v2-nav-drawer__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.aba-v2-nav-drawer__brand strong {
+  color: #fff;
+  font-size: 15px;
+}
+
+.aba-v2-nav-drawer__brand img {
+  border-radius: 8px;
+  background: #fff;
+}
+
+.aba-v2-nav-drawer__head .ant-btn {
+  color: #e2e8f0 !important;
+}
+
+.aba-v2-nav-drawer__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: calc(100% - 24px);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aba-v2-nav-drawer__user-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aba-v2-nav-drawer__user-text strong {
+  color: #fff;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aba-v2-nav-drawer__user-text .plan {
+  font-size: 11px;
+  text-transform: capitalize;
+  color: #93c5fd;
+}
+
+.aba-v2-nav-drawer__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+.aba-v2-nav-drawer__menu.ant-menu-dark {
+  background: transparent !important;
+  border: none !important;
+}
+
+.aba-v2-nav-drawer__menu .ant-menu-item-group-title {
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 20px 4px !important;
+}
+
+.aba-v2-nav-drawer__menu .ant-menu-item {
+  height: 44px !important;
+  line-height: 44px !important;
+  margin-inline: 8px !important;
+  width: calc(100% - 16px) !important;
+  border-radius: 10px !important;
+}
+
+.aba-v2-nav-drawer__foot {
+  flex-shrink: 0;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.aba-v2-nav-drawer__foot .ant-btn-default {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Hide legacy bottom nav when v2 is active (avoid double bars) */
+.aba-v2-shell .aba-mobile-nav {
+  display: none !important;
+}
+
+/* Banners flush */
+.aba-v2-banner.ant-alert {
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+
+/* Touch targets in shell pages */
+.aba-v2-shell .aba-page-shell .ant-btn {
+  min-height: 40px;
+}
+
+.aba-v2-shell .ant-card-body {
+  padding: 14px 12px;
+}
+
+/* ── Tablet enhancement ─────────────────────────────────────────── */
+@media (min-width: 768px) {
+  :root {
+    --aba-v2-header-h: 56px;
+  }
+
+  .aba-v2-content.aba-content {
+    padding: 20px 20px 24px !important;
+  }
+
+  .aba-v2-content.has-bottom-nav {
+    padding-bottom: var(--aba-v2-bottom-clearance) !important;
+  }
+
+  .aba-v2-header__title {
+    font-size: 17px !important;
+  }
+}
+
+/* ── Desktop enhancement (sider mounted) ────────────────────────── */
+/* Hide desktop-only header extras on phone (PageHeader extra buttons) */
+.aba-v2-header-extra-desktop {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .aba-v2-header-extra-desktop {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --aba-v2-header-h: 60px;
+    --aba-page-max: 1120px;
+    --aba-page-wide: 1480px;
+    --aba-page-narrow: 720px;
+  }
+
+  .aba-v2-shell.is-desktop-shell {
+    flex-direction: row;
+  }
+
+  .aba-v2-bottom-nav {
+    display: none !important;
+  }
+
+  .aba-v2-content.has-bottom-nav,
+  .aba-v2-content.aba-content {
+    padding: 24px 28px 32px !important;
+  }
+
+  .aba-v2-header__user .name {
+    display: inline;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--aba-ink);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .aba-v2-header__plan {
+    display: inline-flex;
+  }
+
+  .aba-v2-shell .aba-page-shell,
+  .aba-v2-shell .aba-page-shell-inner:not(.is-wide):not(.is-narrow) {
+    max-width: var(--aba-page-max);
+  }
+
+  .aba-v2-shell .aba-page-shell:has(> .aba-page-shell-inner.is-wide),
+  .aba-v2-shell .aba-page-shell-inner.is-wide {
+    max-width: var(--aba-page-wide);
+  }
+
+  .aba-v2-shell .aba-page-shell-inner.is-narrow {
+    max-width: var(--aba-page-narrow);
+  }
+
+  .aba-v2-shell .ant-card-body {
+    padding: 20px;
+  }
+}
+
+/* Full-screen chat host */
+.aba-v2-chat-host {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ── Dashboard quick-action strip (mobile-first polish) ─────────── */
+.aba-v2-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.aba-v2-quick-actions__btn {
+  min-height: 72px !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 6px;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  text-align: left !important;
+  white-space: normal !important;
+}
+
+.aba-v2-quick-actions__btn .anticon {
+  font-size: 18px;
+}
+
+.aba-v2-quick-actions__label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@media (min-width: 480px) {
+  .aba-v2-quick-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .aba-v2-quick-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+}

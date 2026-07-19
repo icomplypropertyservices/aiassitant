@@ -63,11 +63,16 @@ def build_hierarchy_payload(db: Session, user_id: int) -> dict:
 
 
 def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
-    """Return existing or newly created Main AI Orchestrator for user."""
+    """Return existing or newly created Main AI Orchestrator for user.
+
+    Always applies the full orchestrator skill pack (create_task, execute_goal,
+    message_agent, open_meeting, spawn_*, …) via ensure_agent_skills.
+    """
+    from .agent_scaffold import ensure_agent_skills, repair_agent
+
     existing = find_orchestrator(db, user.id)
     if existing:
         promote_orchestrator(db, existing)
-        # Light touch only: keep root identity. Full skill/model repair is POST /ops/scaffold.
         existing.hierarchy_role = "orchestrator"
         existing.is_lead = True
         existing.parent_id = None
@@ -75,6 +80,9 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
             existing.permission_level = "admin"
         if not existing.idle_mode:
             existing.idle_mode = "never_idle"
+        # Role pack ON even when orchestrator already existed (empty AgentSkillState
+        # previously relied on runtime defaults only — persist full pack now).
+        ensure_agent_skills(db, existing)
         db.commit()
         db.refresh(existing)
         return existing
@@ -103,7 +111,6 @@ def ensure_main_orchestrator(db: Session, user: models.User) -> models.Agent:
     db.flush()
     promote_orchestrator(db, a)
     attach_orphan_leads_under(db, a)
-    from .agent_scaffold import repair_agent
     repair_agent(db, a, force_never_idle=True, expand_skills=True)
     db.commit()
     db.refresh(a)
@@ -124,6 +131,8 @@ def find_designer(db: Session, user_id: int) -> models.Agent | None:
 
 def ensure_master_designer(db: Session, user: models.User) -> models.Agent:
     """UI polish guardian agent — one per workspace."""
+    from .agent_scaffold import ensure_agent_skills, repair_agent
+
     existing = find_designer(db, user.id)
     if existing:
         existing.name = existing.name or "Master Designer"
@@ -131,6 +140,7 @@ def ensure_master_designer(db: Session, user: models.User) -> models.Agent:
             existing.hierarchy_role = "specialist"
         existing.permission_level = getattr(existing, "permission_level", None) or "lead"
         existing.idle_mode = "never_idle"
+        ensure_agent_skills(db, existing)
         db.commit()
         db.refresh(existing)
         return existing
@@ -170,7 +180,6 @@ def ensure_master_designer(db: Session, user: models.User) -> models.Agent:
     )
     db.add(a)
     db.flush()
-    from .agent_scaffold import repair_agent
     repair_agent(db, a, force_never_idle=True, expand_skills=True)
     db.commit()
     db.refresh(a)

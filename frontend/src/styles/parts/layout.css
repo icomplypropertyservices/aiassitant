@@ -1,0 +1,398 @@
+/* part: layout.css */
+/* ── Page container system ────────────────────────────────────────── */
+/*
+ * AppLayout:
+ *   .aba-content > .aba-page-center > .aba-page-shell > <Outlet />
+ * PageShell:
+ *   .aba-page-shell-inner[.is-wide|.is-narrow] > [.aba-box] > children
+ *
+ * Default column is centered max-width var(--aba-page-max) (1120px).
+ * Pages render Ant Design Cards/containers inside that shell for a
+ * consistent boxed UI. Mobile: full-bleed width, safe-area padding,
+ * bottom clearance for fixed nav — never change .aba-mobile-nav layout.
+ */
+
+/* Full-width centering rail (does not constrain max-width itself) */
+.aba-page-center {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  text-align: start;
+  /* Contain wide children without horizontal page scroll */
+  overflow-x: clip;
+  position: relative;
+}
+
+/* Primary page column — max 1120px, horizontally centered */
+.aba-page-shell,
+.aba-page {
+  width: 100%;
+  max-width: var(--aba-page-max); /* 1120px */
+  margin-left: auto;
+  margin-right: auto;
+  margin-inline: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.aba-page-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  /* Grow with content; stay centered inside .aba-page-center */
+  flex: 1 1 auto;
+  position: relative;
+}
+
+/* Default children fill the column; full-bleed / wide opt-outs reassert below */
+.aba-page-shell > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Inner shell used by <PageShell /> (Ant Design Flex.vertical + width variants) */
+.aba-page-shell-inner {
+  width: 100%;
+  max-width: var(--aba-page-max); /* 1120px — centered with outer shell */
+  margin-left: auto;
+  margin-right: auto;
+  margin-inline: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  /* Single vertical rhythm: header → sections → cards (no double margins) */
+  gap: var(--aba-shell-stack-gap);
+  position: relative;
+}
+
+/* Header spacing comes from shell-inner flex gap, not margin */
+.aba-page-shell-inner > .aba-page-header {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+/* Direct children use flex gap — zero out stack margins to avoid double gaps */
+.aba-page-shell-inner > .ant-card,
+.aba-page-shell-inner > .aba-box,
+.aba-page-shell-inner > .aba-box-lg {
+  margin-bottom: 0;
+}
+
+/* Page body stacks (Space / Flex) fill the column */
+.aba-page-shell-inner > .ant-space,
+.aba-page-shell-inner > .ant-flex,
+.aba-page-shell > .ant-space,
+.aba-page-shell > .ant-flex {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Wide tools (e.g. tasks board): fill shell; shell expands via :has below */
+.aba-page-shell-inner.is-wide {
+  max-width: 100%;
+}
+
+/* Forms / profile: narrower centered column inside the shell */
+.aba-page-shell-inner.is-narrow {
+  max-width: var(--aba-page-narrow);
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-inline: auto;
+}
+
+/*
+ * Expand outer shell when the page opts into wide / full-bleed layout.
+ * Without this, is-wide only reaches 1120 (the parent cap).
+ */
+.aba-page-shell:has(> .aba-page-shell-inner.is-wide),
+.aba-page-shell:has(> .is-wide),
+.aba-page-shell:has(> .aba-content-full),
+.aba-page-shell:has(> .aba-agent-chat-host),
+.aba-page-shell:has(> .agent-chat-shell) {
+  max-width: min(var(--aba-page-wide), 100%);
+}
+
+/* True full-bleed (chat-style) drops the wide cap as well */
+.aba-page-shell:has(> .aba-content-full),
+.aba-page-shell:has(> .aba-agent-chat-host),
+.aba-page-shell:has(> .agent-chat-shell),
+.aba-page-center:has(> .aba-content-full),
+.aba-page-center:has(> .aba-agent-chat-host),
+.aba-page-center:has(> .agent-chat-shell) {
+  max-width: none;
+  width: 100%;
+}
+
+/* Soft surface boxes for section grouping */
+.aba-box,
+.aba-box-lg {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--aba-surface);
+  border: 1px solid var(--aba-border);
+  border-radius: var(--aba-radius);
+  box-shadow: var(--aba-shadow);
+  min-width: 0;
+  margin-bottom: var(--aba-box-gap);
+  overflow: hidden; /* clip children to radius */
+  position: relative;
+  /* Soft surface polish — slight top highlight without fighting ant-card */
+  background-image: linear-gradient(180deg, #ffffff 0%, var(--aba-surface) 48px);
+  background-color: var(--aba-surface);
+}
+
+.aba-box {
+  padding: var(--aba-box-pad-y) var(--aba-box-pad-x);
+}
+
+.aba-box:last-child,
+.aba-box-lg:last-child {
+  margin-bottom: 0;
+}
+
+.aba-box-lg {
+  padding: 24px 28px;
+  border-radius: 16px;
+}
+
+/* Nested cards inside a box: avoid double elevation / double border stack */
+.aba-box > .ant-card,
+.aba-box-lg > .ant-card {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  margin-bottom: 12px;
+  border-radius: var(--aba-radius-sm) !important;
+  background: var(--aba-surface) !important;
+  background-image: none;
+}
+
+.aba-box > .ant-card:last-child,
+.aba-box-lg > .ant-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Horizontal scroll surfaces (e.g. kanban) — allow box-level overflow */
+.aba-box.tasks-board-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  /* Touch-friendly scroll without trapping vertical page scroll */
+  touch-action: pan-x pan-y;
+  background-image: none; /* kanban: flat surface, no gradient wash */
+}
+
+/* Tables / pre blocks inside boxes & cards: scroll locally, never page-wide */
+.aba-box .ant-table-wrapper,
+.aba-box-lg .ant-table-wrapper,
+.aba-page-shell .ant-table-wrapper,
+.aba-page-center .ant-table-wrapper,
+.aba-page-shell-inner .ant-table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.aba-box img,
+.aba-box-lg img,
+.aba-page-shell img,
+.aba-page-center img,
+.aba-page-shell-inner img {
+  max-width: 100%;
+  height: auto;
+}
+
+.aba-box pre,
+.aba-box-lg pre,
+.aba-page-shell pre,
+.aba-page-shell-inner pre {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Cards on pages share the boxed surface look */
+.aba-page-shell .ant-card,
+.aba-page-center .ant-card,
+.aba-page-shell-inner .ant-card,
+.aba-content .ant-card {
+  background: var(--aba-surface) !important;
+  border: 1px solid var(--aba-border) !important;
+  border-radius: var(--aba-radius) !important;
+  box-shadow: var(--aba-shadow);
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/*
+ * Stacked direct-child cards on the OUTER shell only (pages without PageShell).
+ * PageShell (.aba-page-shell-inner) uses flex gap — do not add margin-bottom there
+ * or sections get double spacing with header/body stacks.
+ */
+.aba-page-shell > .ant-card,
+.aba-page-shell > .aba-box,
+.aba-page-shell > .aba-box-lg {
+  margin-bottom: var(--aba-shell-stack-gap);
+}
+
+.aba-page-shell > .ant-card:last-child,
+.aba-page-shell > .aba-box:last-child,
+.aba-page-shell > .aba-box-lg:last-child {
+  margin-bottom: 0;
+}
+
+/* Adjacent pairs: no extra margin-top (gap / margin-bottom already space them) */
+.aba-page-shell > .ant-card + .ant-card,
+.aba-page-shell-inner > .ant-card + .ant-card,
+.aba-page-shell > .aba-box + .aba-box,
+.aba-page-shell-inner > .aba-box + .aba-box {
+  margin-top: 0;
+}
+
+/* Ant Row gutters should not overflow the centered column */
+.aba-page-shell .ant-row,
+.aba-page-center .ant-row,
+.aba-page-shell-inner .ant-row {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Cols stay flexible inside the 1120px column */
+.aba-page-shell .ant-col,
+.aba-page-center .ant-col,
+.aba-page-shell-inner .ant-col {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ── Page chrome ─────────────────────────────────────────────────── */
+
+.aba-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 4px 0 2px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.aba-page-header-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.aba-page-header-title.ant-typography,
+.aba-page-header .ant-typography.aba-page-header-title {
+  margin: 0 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em;
+  color: var(--aba-ink) !important;
+  line-height: 1.25 !important;
+}
+
+.aba-page-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--aba-ink);
+  line-height: 1.25;
+}
+
+.aba-page-header-subtitle,
+.aba-page-header-subtitle.ant-typography,
+.aba-page-header p {
+  display: block !important;
+  margin: 6px 0 0 !important;
+  color: var(--aba-muted) !important;
+  font-size: 13.5px !important;
+  max-width: 640px;
+  line-height: 1.45 !important;
+}
+
+.aba-page-header-extra {
+  flex: 0 1 auto;
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.aba-stat-card .ant-statistic-title {
+  color: var(--aba-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 500;
+}
+
+.aba-stat-card .ant-statistic-content {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.aba-soft-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.aba-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 28px 24px;
+  color: #fff;
+  background:
+    radial-gradient(600px 240px at 90% 10%, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(135deg, #0b1f3a 0%, #1668dc 58%, #38bdf8 130%);
+  box-shadow: var(--aba-shadow-md);
+  margin-bottom: 22px;
+}
+
+.aba-hero h1,
+.aba-hero .ant-typography {
+  color: #fff !important;
+}
+
+.aba-hero p {
+  color: rgba(255, 255, 255, 0.88);
+  margin-bottom: 0;
+  max-width: 520px;
+}
+
+.aba-feature-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+  font-weight: 500;
+}

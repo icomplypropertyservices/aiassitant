@@ -151,3 +151,100 @@ async def maybe_auto_publish(a: models.Agent, db: Session) -> None:
         await publish_agent(a, db)
     except Exception:
         log.exception("auto-publish skipped")
+
+
+def _bridge_url(path: str = "agent-sync") -> str:
+    base = config.AGENTBAY_URL.rstrip("/")
+    if base.endswith("/bay"):
+        return f"{base}/api/bridge/{path}"
+    if "/bay/api" in base:
+        return f"{base.rstrip('/')}/bridge/{path}"
+    return f"{base}/api/bridge/{path}"
+
+
+async def publish_created_skill(
+    db: Session,
+    user: models.User,
+    agent: models.Agent,
+    skill: models.CreatedSkill,
+    *,
+    price: float = 29.0,
+    title: str | None = None,
+    quantity: int = 100,
+) -> dict[str, Any]:
+    """
+    List a workspace-created skill for sale on AgentBay.
+
+    Uses the same bridge agent-sync endpoint with external_id skill:{id}
+    so listings stay upsertable.
+    """
+    if not enabled():
+        return {"ok": False, "error": "AgentBay bridge not configured"}
+
+    external_id = f"skill:{skill.id}"
+    list_title = (title or skill.name or "Custom skill").strip()[:200]
+    desc = (
+        f"{skill.description or ''}\n\n"
+        f"**Skill key:** `{skill.skill_key}`\n"
+        f"**Category:** {skill.category or 'custom'}\n"
+        f"Created by agent **{agent.name}** (#{agent.id}) on AI Business Assistant.\n\n"
+        f"Instructions (seller brief):\n{(skill.instructions or '')[:1500]}"
+    ).strip()
+    body = {
+        "external_id": external_id,
+        "source_system": "ai-business-assistant",
+        "name": f"{agent.name} · {skill.name}"[:120],
+        "bio": (skill.description or agent.personality or "")[:500],
+        "template_type": "custom_skill",
+        "personality": (agent.personality or "")[:400],
+        "hierarchy_role": agent.hierarchy_role or "member",
+        "company_name": "",
+        "skills": [skill.skill_key, skill.category or "custom", "agent-created"],
+        "model": agent.model or "",
+        "publish_listing": True,
+        "listing": {
+            "title": list_title,
+            "description": desc[:4000],
+            "price": float(price),
+            "quantity": max(1, int(quantity or 100)),
+            "tags": f"skill,custom,{skill.category or 'custom'},agent-created",
+            "status": "active",
+        },
+    }
+    if skill.user_id:
+        body["email"] = f"skill{skill.id}.u{skill.user_id}@bridge.agentbay.local"
+
+    headers = {
+        "X-Bridge-Secret": config.AGENTBAY_BRIDGE_SECRET,
+        "Content-Type": "application/json",
+    }
+    url = _bridge_url("agent-sync")
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, json=body, headers=headers)
+            if r.status_code >= 400:
+                log.warning("AgentBay skill publish failed %s: %s", r.status_code, r.text[:300])
+                return {"ok": False, "status": r.status_code, "error": r.text[:500]}
+            data = r.json() if r.content else {}
+            listing = data.get("listing") or {}
+            public = (config.AGENTBAY_PUBLIC_URL or config.AGENTBAY_URL or "").rstrip("/")
+            listing_url = ""
+            if listing.get("id"):
+                listing_url = f"{public}/listing/{listing['id']}" if public else ""
+            return {
+                "ok": True,
+                "external_id": external_id,
+                "listing": listing,
+                "listing_id": listing.get("id"),
+                "url": listing_url or public,
+                "user": data.get("user"),
+                "message": f"Skill listed on AgentBay ({list_title})",
+            }
+    except Exception as e:
+        log.exception("publish_created_skill failed")
+        return {"ok": False, "error": str(e)}
+
+
+async def unpublish_created_skill(skill: models.CreatedSkill) -> dict[str, Any]:
+    """Best-effort: bridge has no delete API yet — no-op remote, local flag cleared by caller."""
+    return {"ok": True, "note": "remote pause not implemented; listing may remain until edited in AgentBay"}

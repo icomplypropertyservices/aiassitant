@@ -1,0 +1,1000 @@
+{
+  "pack": "12_content",
+  "category": "content",
+  "label": "Content writing",
+  "skills": [
+    {
+      "id": "cnt_longform_article",
+      "name": "Longform article",
+      "description": "Write a longform article with narrative arc, evidence, and a clear takeaway for the target audience.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_thought_leadership",
+      "name": "Thought leadership piece",
+      "description": "Draft a thought-leadership piece that stakes a distinctive POV and backs it with insight.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_ghostwrite_post",
+      "name": "Ghostwrite post",
+      "description": "Ghostwrite a post in a named executive or brand voice while preserving their credibility and tone.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_speech_draft",
+      "name": "Speech draft",
+      "description": "Draft a speech with opening hook, key points, stories, and a memorable close for delivery.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_whitepaper_outline",
+      "name": "Whitepaper outline",
+      "description": "Outline a whitepaper with thesis, sections, evidence plan, and recommended calls to action.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_ebook_chapter",
+      "name": "Ebook chapter",
+      "description": "Write an ebook chapter with learning goals, scannable structure, and chapter-level takeaways.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_newsletter_long",
+      "name": "Long-form newsletter",
+      "description": "Write a long-form newsletter issue with narrative flow, value sections, and a clear CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_script_explainer",
+      "name": "Explainer video script",
+      "description": "Script an explainer video with scene beats, voiceover, and on-screen text cues.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_how_to_guide",
+      "name": "How-to guide",
+      "description": "Produce a step-by-step how-to guide with prerequisites, actions, and success checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_comparison_post",
+      "name": "Comparison post",
+      "description": "Write a fair comparison post that contrasts options on criteria readers care about.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_listicle",
+      "name": "Listicle",
+      "description": "Create a listicle with punchy entries, useful detail, and a strong intro and close.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_opinion_piece",
+      "name": "Opinion piece",
+      "description": "Write an opinion piece with a clear stance, supporting arguments, and constructive close.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_interview_questions_cnt",
+      "name": "Interview questions",
+      "description": "Prepare interview questions that elicit stories, expertise, and quotable insights for content.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_transcript_clean",
+      "name": "Clean transcript",
+      "description": "Clean a raw transcript for readability while preserving meaning and speaker intent.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_summary_exec",
+      "name": "Executive summary",
+      "description": "Condense source material into an executive summary with decisions, risks, and next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_rewrite_clarity",
+      "name": "Clarity rewrite",
+      "description": "Rewrite copy for clarity—simpler structure, plain language, and stronger logical flow.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_tone_shift",
+      "name": "Tone shift rewrite",
+      "description": "Rewrite content to a different tone (e.g. formal, friendly, urgent) without losing the message.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_shorten_copy",
+      "name": "Shorten copy",
+      "description": "Tighten copy to a target length while keeping the core message and CTA intact.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_expand_copy",
+      "name": "Expand copy",
+      "description": "Expand thin copy with examples, proof, and context that add value—not filler.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_headline_options",
+      "name": "Headline options",
+      "description": "Generate headline options optimized for clarity, curiosity, and the channel’s constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_subhead_options",
+      "name": "Subhead options",
+      "description": "Produce subhead options that support the main headline and set up the body copy.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_cta_variants",
+      "name": "CTA variants",
+      "description": "Create call-to-action variants with different urgency, value framing, and length.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_product_description",
+      "name": "Product description",
+      "description": "Write a product description highlighting benefits, key features, and purchase motivation.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_category_copy",
+      "name": "Category page copy",
+      "description": "Write category-page copy that orients shoppers and guides them toward the right products.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_microcopy_ui",
+      "name": "UI microcopy",
+      "description": "Write concise UI microcopy for labels, buttons, tooltips, and helper text.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_error_message_copy",
+      "name": "Error message copy",
+      "description": "Craft error messages that explain what went wrong and how the user can recover.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_empty_state_copy",
+      "name": "Empty state copy",
+      "description": "Write empty-state copy that explains the blank view and prompts a useful first action.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_onboarding_copy",
+      "name": "Onboarding copy",
+      "description": "Write onboarding copy that orients new users and drives activation milestones.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_in_app_message",
+      "name": "In-app message",
+      "description": "Draft in-app messages for announcements, tips, or prompts with clear next actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_push_copy",
+      "name": "Push notification copy",
+      "description": "Write push notification copy that fits length limits and earns the open.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_sms_copy_cnt",
+      "name": "SMS copy",
+      "description": "Write SMS copy that is short, compliant, and clear about the action requested.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_chatbot_script",
+      "name": "Chatbot script",
+      "description": "Script chatbot turns with intents, replies, fallbacks, and escalation paths.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_faq_long",
+      "name": "Extended FAQ",
+      "description": "Build an extended FAQ covering common questions with accurate, scannable answers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_glossary_entry",
+      "name": "Glossary entry",
+      "description": "Write a glossary entry that defines a term clearly for the intended audience.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_style_guide_cnt",
+      "name": "Content style guide",
+      "description": "Produce a content style guide covering voice, grammar, formatting, and brand rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_edit_pass",
+      "name": "Editorial edit pass",
+      "description": "Run an editorial edit pass for structure, clarity, consistency, and brand fit.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_fact_check_list",
+      "name": "Fact-check checklist",
+      "description": "Build a fact-check checklist of claims to verify with suggested sources and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_source_list",
+      "name": "Source list",
+      "description": "Compile a source list with citations, credibility notes, and usage guidance for the piece.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_citation_format",
+      "name": "Citation formatting",
+      "description": "Format citations and references consistently for the chosen style (APA, MLA, Chicago, etc.).",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_translation_brief",
+      "name": "Translation brief",
+      "description": "Create a translation brief with audience, tone, do-not-translate terms, and quality criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_localization_adapt",
+      "name": "Localization adaptation",
+      "description": "Adapt content for a locale—idioms, examples, and cultural fit beyond literal translation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_accessibility_alt_text",
+      "name": "Accessibility alt text",
+      "description": "Write accessibility-focused alt text that describes images meaningfully for screen readers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_caption_write",
+      "name": "Media captions",
+      "description": "Write captions for images, video, or social posts that add context and engagement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_transcript_chapters",
+      "name": "Transcript chapters",
+      "description": "Segment a transcript into titled chapters with timestamps for navigation and SEO.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_content_repurpose",
+      "name": "Content repurposing plan",
+      "description": "Repurpose a source asset into channel-ready formats with angle and length guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_series_plan",
+      "name": "Content series plan",
+      "description": "Plan a multi-part content series with themes, sequence, owners, and publishing cadence.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_editorial_calendar_cnt",
+      "name": "Editorial calendar",
+      "description": "Build an editorial calendar with topics, channels, deadlines, and owners for the period.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_content_audit",
+      "name": "Content audit",
+      "description": "Audit existing content for quality, gaps, duplication, and refresh or retire recommendations.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_content_weekly",
+      "name": "Weekly content brief",
+      "description": "Produce a weekly content brief covering priorities, drafts in flight, and publishing plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "cnt_custom",
+      "name": "Custom content deliverable",
+      "description": "Produce a custom content deliverable when no standard skill fits—define structure from the goal.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "12_content",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 """Bootstrap categories, rooms, and public iComply service listings."""
 from __future__ import annotations
 
+import os
+
 from .database import SessionLocal, init_db
 from . import models
 from .auth_utils import hash_password
@@ -225,10 +227,31 @@ def _seed_icomply_listings(db, seller: models.User) -> int:
     return created
 
 
-def seed():
+def seed(*, force: bool | None = None):
+    """Idempotent marketplace bootstrap.
+
+    Fast path: if catalogue already exists, return immediately (critical for
+    Vercel cold starts — previously re-touched seller + listings every boot).
+    Set BAY_FORCE_SEED=1 to force a full refresh.
+    """
+    if force is None:
+        force = os.getenv("BAY_FORCE_SEED", "").strip().lower() in ("1", "true", "yes")
+
     init_db()
     db = SessionLocal()
     try:
+        # Cheap existence checks — avoid multi-second seller/listing work on every cold start
+        try:
+            cat_n = db.query(models.Category).count()
+            listing_n = db.query(models.Listing).count()
+            room_n = db.query(models.ChatRoom).count()
+        except Exception:
+            cat_n = listing_n = room_n = 0
+
+        if not force and cat_n >= 5 and listing_n >= 1 and room_n >= 3:
+            # Already bootstrapped — no write path
+            return
+
         if not db.query(models.Category).first():
             for slug, name, desc, icon, order in CATEGORIES:
                 db.add(

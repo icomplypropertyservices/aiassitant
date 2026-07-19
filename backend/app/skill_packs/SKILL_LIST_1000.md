@@ -1,0 +1,1041 @@
+# Skill list (1000 skills)
+
+## 01_sales (50)
+- sales_qualify_lead — Lead Qualification Scorecard
+- sales_discovery_script — Discovery Call Script
+- sales_demo_agenda — Product Demo Agenda
+- sales_proposal_outline — Commercial Proposal Outline
+- sales_proposal_full — Full Sales Proposal Document
+- sales_roi_calculator — ROI Business Case Brief
+- sales_objection_handler — Objection Handling Playbook
+- sales_negotiation_plan — Deal Negotiation Plan
+- sales_close_plan — Multi-Step Close Plan
+- sales_pipeline_review — Pipeline Health Review
+- sales_forecast_notes — Sales Forecast Commentary
+- sales_account_map — Account Stakeholder Map
+- sales_territory_plan — Territory Coverage Plan
+- sales_quota_breakdown — Quota-to-Activity Breakdown
+- sales_cold_email — Cold Email Sequence
+- sales_cold_call_script — Cold Call Talk Track
+- sales_linkedin_outreach — LinkedIn Outreach Sequence
+- sales_follow_up_email — Post-Meeting Follow-Up Email
+- sales_renewal_play — Renewal & Expansion Playbook
+- sales_upsell_plan — Account Upsell Plan
+- sales_cross_sell_plan — Cross-Sell Opportunity Plan
+- sales_win_loss — Win/Loss Analysis Report
+- sales_competitor_battlecard — Competitor Battlecard
+- sales_pricing_options — Good-Better-Best Pricing Options
+- sales_discount_request — Discount Approval Brief
+- sales_mutual_action_plan — Mutual Action Plan (MAP)
+- sales_rfp_response — RFP Response Draft
+- sales_security_questionnaire — Security Questionnaire Responses
+- sales_case_study_brief — Customer Case Study Brief
+- sales_testimonial_request — Customer Testimonial Request
+- sales_referral_ask — Customer Referral Request
+- sales_event_followup — Event/Trade-Show Follow-Up Pack
+- sales_handoff_csm — Sales-to-CSM Handoff Package
+- sales_call_summary — Sales Call Summary & Actions
+- sales_stage_criteria — Pipeline Stage Exit Criteria
+- sales_playbook_snippet — Sales Motion Playbook Section
+- sales_abm_target_list — ABM Target Account Brief
+- sales_multi_thread_plan — Multi-Threading Contact Plan
+- sales_champion_enablement — Champion Enablement Kit
+- sales_economic_buyer_brief — Economic Buyer One-Pager
+- sales_tech_buyer_brief — Technical Buyer Evaluation Brief
+- sales_legal_review_prep — Legal Review Prep Notes
+- sales_qbr_deck_outline — Commercial QBR Deck Outline
+- sales_channel_partner_brief — Channel Partner Co-Sell Brief
+- sales_inbound_triage — Inbound Lead Triage List
+- sales_outbound_cadence — Multi-Channel Outbound Cadence
+- sales_meeting_prep — Sales Meeting Prep Pack
+- sales_slack_deal_update — Slack Deal Status Update
+- sales_commission_explain — Deal Commission Impact Note
+- sales_weekly_plan — AE Weekly Activity Plan
+
+## 02_marketing (50)
+- mkt_positioning — Positioning statement
+- mkt_messaging_matrix — Messaging matrix
+- mkt_campaign_brief — Campaign brief
+- mkt_content_calendar — Content calendar
+- mkt_blog_outline — Blog post outline
+- mkt_blog_draft — Blog post draft
+- mkt_landing_page — Landing page copy
+- mkt_ad_copy — Paid ad copy set
+- mkt_seo_keyword_map — SEO keyword map
+- mkt_seo_meta — SEO meta tags
+- mkt_email_newsletter — Newsletter draft
+- mkt_nurture_sequence — Nurture email sequence
+- mkt_webinar_plan — Webinar plan
+- mkt_press_release — Press release
+- mkt_brand_voice — Brand voice guide
+- mkt_competitor_content — Competitor content audit
+- mkt_persona_card — Buyer persona card
+- mkt_journey_map — Customer journey map
+- mkt_ab_test_plan — A/B test plan
+- mkt_utm_plan — UTM tagging plan
+- mkt_launch_checklist — Product launch checklist
+- mkt_pricing_page — Pricing page copy
+- mkt_case_study — Customer case study
+- mkt_infographic_brief — Infographic creative brief
+- mkt_video_script — Marketing video script
+- mkt_podcast_outline — Podcast episode outline
+- mkt_community_plan — Community engagement plan
+- mkt_influencer_brief — Influencer partnership brief
+- mkt_event_booth — Event booth plan
+- mkt_lead_magnet — Lead magnet outline
+- mkt_gated_content — Gated content outline
+- mkt_retargeting_ads — Retargeting ad set
+- mkt_brand_guidelines_snip — Brand guidelines section
+- mkt_tagline_options — Tagline options
+- mkt_slogan_campaign — Campaign slogan set
+- mkt_pr_pitch — PR pitch email
+- mkt_analyst_brief — Analyst briefing pack
+- mkt_partner_co_marketing — Partner co-marketing plan
+- mkt_referral_program — Referral program design
+- mkt_churn_winback — Win-back campaign
+- mkt_lifecycle_emails — Lifecycle email map
+- mkt_onboarding_emails — Onboarding email series
+- mkt_feature_announce — Feature announcement pack
+- mkt_changelog — Changelog entry
+- mkt_social_proof — Social proof pack
+- mkt_budget_plan — Marketing budget plan
+- mkt_kpi_dashboard — Marketing KPI brief
+- mkt_weekly_report — Marketing weekly report
+- mkt_creative_brief — Creative brief
+- mkt_brand_audit — Brand audit summary
+
+## 03_customer_success (50)
+- cs_health_score — Account health score
+- cs_qbr_prep — QBR preparation pack
+- cs_onboarding_plan — Customer onboarding plan
+- cs_adoption_plan — Product adoption plan
+- cs_churn_risk — Churn risk assessment
+- cs_expansion_signal — Expansion signal analysis
+- csm_call_agenda — CSM call agenda
+- cs_success_plan — Customer success plan
+- cs_milestone_map — Milestone map
+- cs_nps_followup — NPS follow-up plan
+- csat_response — CSAT response playbook
+- cs_escalation_path — Escalation path
+- cs_renewal_forecast — Renewal forecast
+- cs_usage_review — Usage review
+- cs_training_plan — Customer training plan
+- cs_value_realization — Value realization review
+- cs_stakeholder_map — Stakeholder map
+- cs_executive_sponsor — Executive sponsor briefing
+- cs_playbook_at_risk — At-risk account playbook
+- cs_winback_cs — Customer win-back plan
+- cs_feature_request_log — Feature request log
+- cs_roadmap_sync — Roadmap sync brief
+- cs_handoff_intake — Sales-to-CS handoff intake
+- cs_kickoff_agenda — Kickoff agenda
+- cs_go_live_checklist — Go-live checklist
+- cs_support_trend — Support trend analysis
+- cs_time_to_value — Time-to-value plan
+- cs_segment_play — Segment success play
+- cs_lifecycle_stage — Lifecycle stage model
+- cs_reference_ask — Reference customer ask
+- cs_case_study_cs — Case study brief (CS)
+- cs_community_invite — Community invite
+- cs_office_hours — Office hours plan
+- cs_webinar_cs — Customer webinar plan
+- cs_email_checkin — Check-in email
+- cs_slack_update_cs — Customer Slack update
+- cs_risk_mitigation — Risk mitigation plan
+- cs_multi_product — Multi-product adoption plan
+- cs_partner_cs — Partner CS playbook
+- cs_implementation_gap — Implementation gap analysis
+- cs_data_migration_cs — Data migration CS plan
+- cs_integration_help — Integration help guide
+- cs_security_review_cs — Security review (CS)
+- cs_compliance_check — Compliance readiness check
+- cs_sla_review — SLA performance review
+- cs_capacity_plan_cs — CS capacity plan
+- cs_territory_cs — CS territory design
+- cs_portfolio_review — Portfolio review
+- cs_weekly_cs_report — Weekly CS report
+- cs_play_custom — Custom CS play
+
+## 04_support (50)
+- sup_ticket_triage — Ticket triage
+- sup_reply_draft — Customer reply draft
+- sup_macro_write — Support macro
+- sup_escalation_note — Escalation note
+- sup_bug_repro — Bug reproduction steps
+- sup_rca_summary — RCA summary
+- sup_kb_article — Knowledge base article
+- sup_faq_update — FAQ update
+- sup_deflection_script — Self-serve deflection script
+- sup_chat_handoff — Chat handoff summary
+- sup_phone_script_sup — Support phone script
+- sup_refund_policy_explain — Refund policy explanation
+- sup_status_page_update — Status page update
+- sup_outage_comms — Outage communications
+- sup_vip_play — VIP support playbook
+- sup_sla_breach_plan — SLA breach recovery plan
+- sup_queue_prioritize — Queue prioritization
+- sup_tag_taxonomy — Ticket tag taxonomy
+- sup_csat_recover — CSAT recovery plan
+- sup_angry_customer — Angry customer response
+- sup_billing_dispute — Billing dispute response
+- sup_login_help — Login troubleshooting guide
+- sup_api_error_help — API error help
+- sup_integration_troubleshoot — Integration troubleshooting
+- sup_data_export_help — Data export help
+- sup_privacy_request_help — Privacy request handling
+- sup_feature_how_to — Feature how-to guide
+- sup_workaround — Temporary workaround
+- sup_release_notes_sup — Support-facing release notes
+- sup_known_issue — Known issue notice
+- sup_shift_handoff — Shift handoff brief
+- sup_team_huddle — Team huddle agenda
+- sup_quality_review — Ticket quality review
+- sup_coaching_note — Agent coaching note
+- sup_training_new_hire — New-hire support training
+- sup_channel_policy — Support channel policy
+- sup_social_support — Social support reply
+- sup_email_template_sup — Support email template
+- sup_internal_note — Internal ticket note
+- sup_public_reply — Public-facing reply
+- sup_severity_map — Severity mapping guide
+- sup_language_localize — Support content localization
+- sup_accessibility_help — Accessibility support help
+- sup_enterprise_support — Enterprise support plan
+- sup_partner_ticket — Partner ticket handling
+- sup_security_incident_sup — Security incident support play
+- sup_compliance_ticket — Compliance ticket workflow
+- sup_multi_account — Multi-account support case
+- sup_bulk_action_help — Bulk action help
+- sup_report — Support metrics report
+
+## 05_finance (50)
+- fin_invoice_narrative — Invoice narrative
+- fin_expense_policy — Expense policy
+- fin_budget_vs_actual — Budget vs actual analysis
+- fin_cashflow_note — Cash flow note
+- fin_ar_followup — AR follow-up plan
+- fin_ap_prioritize — AP payment prioritization
+- fin_payroll_summary — Payroll summary
+- fin_tax_checklist — Tax checklist
+- fin_audit_prep — Audit preparation pack
+- fin_board_pack_fin — Finance board pack
+- fin_fp_a_commentary — FP&A commentary
+- fin_unit_economics — Unit economics model
+- fin_pricing_model — Pricing model
+- fin_discount_policy — Discount policy
+- fin_credit_memo_note — Credit memo note
+- fin_collection_script — Collections script
+- fin_vendor_payment_plan — Vendor payment plan
+- fin_capex_request — CapEx request
+- fin_opex_review — OpEx review
+- fin_forecast_model — Forecast model
+- fin_scenario_plan — Scenario plan
+- fin_sensitivity — Sensitivity analysis
+- fin_break_even — Break-even analysis
+- fin_margin_analysis — Margin analysis
+- fin_cohort_revenue — Cohort revenue analysis
+- fin_saas_metrics — SaaS metrics pack
+- fin_arr_bridge — ARR bridge
+- fin_deferred_revenue — Deferred revenue schedule
+- fin_rev_rec_note — Revenue recognition note
+- fin_close_checklist — Month-end close checklist
+- fin_reconciliation_note — Reconciliation note
+- fin_bank_match_help — Bank match helper
+- fin_fx_summary — FX exposure summary
+- fin_treasury_note — Treasury note
+- fin_debt_schedule — Debt schedule
+- fin_investor_update_fin — Investor finance update
+- fin_grant_report — Grant financial report
+- fin_nonprofit_fin — Nonprofit finance pack
+- fin_cost_center — Cost center report
+- fin_allocation_key — Allocation key design
+- fin_transfer_pricing — Transfer pricing memo
+- fin_intercompany — Intercompany accounting note
+- fin_lease_accounting_note — Lease accounting note
+- fin_inventory_value — Inventory valuation
+- fin_cogs_analysis — COGS analysis
+- fin_procurement_fin — Procurement finance review
+- fin_contract_value — Contract value analysis
+- fin_milestone_billing — Milestone billing plan
+- fin_dunning_email — Dunning email
+- fin_weekly — Weekly finance digest
+
+## 06_legal (50)
+- leg_nda_checklist — NDA checklist
+- leg_msa_redline_notes — MSA redline notes
+- leg_dpa_checklist — DPA checklist
+- leg_tos_summary — Terms of service summary
+- leg_privacy_policy_snip — Privacy policy snippet
+- leg_cookie_notice — Cookie notice
+- leg_gdpr_dsar — GDPR DSAR response
+- leg_ccpa_request — CCPA/CPRA request
+- leg_vendor_risk — Vendor risk assessment
+- leg_contract_summary — Contract summary
+- leg_clause_compare — Clause comparison
+- leg_liability_note — Liability note
+- leg_ip_assignment_check — IP assignment check
+- leg_employment_clause — Employment clause draft
+- leg_offer_letter_notes — Offer letter notes
+- leg_termination_checklist — Termination checklist
+- leg_dispute_timeline — Dispute timeline
+- leg_litigation_hold — Litigation hold notice
+- leg_regulatory_scan — Regulatory scan
+- leg_license_review — License review
+- leg_open_source_policy — Open source policy
+- leg_export_control — Export control brief
+- leg_sanctions_screen — Sanctions screening brief
+- leg_marketing_claim_legal — Marketing claim legal review
+- leg_promo_terms — Promotion terms
+- leg_sweepstakes_rules — Sweepstakes rules
+- leg_affiliate_terms — Affiliate program terms
+- leg_partner_agreement — Partner agreement outline
+- leg_sla_legal — SLA legal review
+- leg_data_processing — Data processing map
+- leg_subprocessor_list — Subprocessor list
+- leg_security_addendum — Security addendum
+- leg_insurance_req — Insurance requirements
+- leg_board_resolution — Board resolution draft
+- leg_cap_table_note — Cap table note
+- leg_fundraising_docs — Fundraising docs checklist
+- leg_option_grant_note — Option grant note
+- leg_trademark_search_brief — Trademark search brief
+- leg_copyright_notice — Copyright notice
+- leg_dmca_response — DMCA response
+- leg_whistleblower_policy — Whistleblower policy
+- leg_code_of_conduct — Code of conduct
+- leg_anti_bribery — Anti-bribery policy
+- leg_conflict_interest — Conflict of interest policy
+- leg_records_retention — Records retention schedule
+- leg_incident_legal — Incident legal playbook
+- leg_breach_notify — Breach notification plan
+- leg_law_enforcement_req — Law enforcement request guide
+- legal_faq — Legal FAQ
+- leg_weekly — Legal weekly digest
+
+## 07_hr (50)
+- hr_job_description — Job description
+- hr_job_scorecard — Hiring scorecard
+- hr_interview_plan — Interview plan
+- hr_interview_questions — Interview questions
+- hr_scorecard_rubric — Interview scoring rubric
+- hr_offer_comp_range — Offer compensation range
+- hr_offer_email — Offer email
+- hr_reject_email — Candidate rejection email
+- hr_onboarding_30_60_90 — 30-60-90 onboarding plan
+- hr_orientation_agenda — New-hire orientation agenda
+- hr_performance_review — Performance review write-up
+- hr_pip_draft — Performance improvement plan
+- hr_promotion_case — Promotion business case
+- hr_comp_review_note — Compensation review note
+- hr_equity_explain — Equity grant explainer
+- hr_benefits_summary — Benefits summary
+- hr_policy_update — HR policy update
+- hr_handbook_section — Employee handbook section
+- hr_leave_policy_explain — Leave policy explainer
+- hr_remote_policy — Remote work policy
+- hr_dei_initiative — DEI initiative plan
+- hr_engagement_survey — Engagement survey design
+- hr_pulse_analysis — Pulse survey analysis
+- hr_exit_interview — Exit interview guide
+- hr_retention_plan — Retention plan
+- hr_org_design_note — Org design note
+- hr_headcount_plan — Headcount plan
+- hr_hiring_forecast — Hiring forecast
+- hr_agency_brief — Recruiting agency brief
+- hr_internal_mobility — Internal mobility plan
+- hr_learning_path — Learning path
+- hr_manager_coaching — Manager coaching guide
+- hr_1on1_agenda — 1:1 meeting agenda
+- hr_team_offsite — Team offsite plan
+- hr_culture_values — Culture and values framework
+- hr_recognition_program — Employee recognition program
+- hr_referral_program_hr — Employee referral program
+- hr_background_check_note — Background check process note
+- hr_visa_checklist — Work visa checklist
+- hr_relocate_package — Relocation package outline
+- hr_contractor_vs_employee — Contractor vs employee guide
+- hr_workforce_plan — Workforce plan
+- hr_succession_plan — Succession plan
+- hr_critical_role — Critical role profile
+- hr_skills_matrix — Skills matrix
+- hris_change — HRIS change request
+- hr_payroll_issue_note — Payroll issue note
+- hr_harassment_report_path — Harassment reporting path
+- hr_investigation_plan — Workplace investigation plan
+- hr_weekly — HR weekly update
+
+## 08_operations (50)
+- ops_sop_write — SOP writer
+- ops_process_map — Process map
+- ops_raci_matrix — RACI matrix
+- ops_sla_ops — SLA definition
+- ops_capacity_plan — Capacity plan
+- ops_shift_roster — Shift roster
+- ops_incident_runbook — Incident runbook
+- ops_postmortem — Postmortem report
+- ops_change_request — Change request
+- ops_vendor_ops_score — Vendor ops scorecard
+- ops_inventory_count — Inventory count plan
+- ops_reorder_point — Reorder point model
+- ops_warehouse_layout — Warehouse layout
+- ops_quality_checklist — Quality checklist
+- ops_safety_brief — Safety brief
+- ops_facility_plan — Facility plan
+- ops_office_move — Office move plan
+- ops_travel_policy_ops — Travel policy (ops)
+- ops_expense_ops — Expense ops workflow
+- ops_tooling_stack — Ops tooling stack
+- ops_automation_opportunity — Automation opportunity map
+- ops_kpi_ops — Ops KPI framework
+- ops_daily_standup_ops — Daily ops standup
+- ops_war_room_agenda — War room agenda
+- ops_continuity_plan — Business continuity plan
+- ops_disaster_recovery — Disaster recovery plan
+- ops_backup_verify — Backup verification plan
+- ops_access_review_ops — Access review (ops)
+- ops_asset_inventory — Asset inventory
+- ops_procurement_ops — Procurement ops playbook
+- ops_contract_ops — Contract ops checklist
+- ops_sla_breach_ops — SLA breach response
+- ops_customer_ops_escalation — Customer ops escalation
+- ops_field_service_plan — Field service plan
+- ops_route_plan — Route plan
+- ops_maintenance_schedule — Maintenance schedule
+- ops_equipment_checklist — Equipment checklist
+- ops_supplier_scorecard — Supplier scorecard
+- ops_make_vs_buy — Make-vs-buy analysis
+- ops_cost_to_serve — Cost-to-serve analysis
+- ops_process_mining_note — Process mining notes
+- ops_bottleneck_analysis — Bottleneck analysis
+- ops_throughput_plan — Throughput plan
+- ops_queue_theory_note — Queue theory note
+- ops_lean_waste — Lean waste audit
+- ops_kaizen_event — Kaizen event plan
+- ops_5s_checklist — 5S checklist
+- ops_dashboard — Ops dashboard spec
+- ops_weekly — Weekly ops report
+- ops_play_custom — Custom ops playbook
+
+## 09_product (50)
+- prd_write — Write PRD
+- prd_user_story — User story
+- prd_acceptance_criteria — Acceptance criteria
+- prd_roadmap_theme — Roadmap theme
+- prd_prioritization_rice — RICE prioritization
+- prd_prioritization_ice — ICE prioritization
+- prd_opportunity_solution_tree — Opportunity solution tree
+- prd_jtbd — Jobs to be done
+- prd_persona_product — Product persona
+- prd_problem_statement — Problem statement
+- prd_competitive_analysis_prd — Competitive analysis
+- prd_feature_spec — Feature spec
+- prd_api_spec_outline — API spec outline
+- prd_migration_plan_prd — Migration plan
+- prd_deprecation_plan — Deprecation plan
+- prd_beta_plan — Beta plan
+- prd_ga_checklist — GA checklist
+- prd_experiment_design — Experiment design
+- prd_success_metrics — Success metrics
+- prd_north_star — North star metric
+- prd_funnel_analysis — Funnel analysis
+- prd_activation_metric — Activation metric
+- prd_retention_curve_note — Retention curve note
+- prd_pricing_experiment — Pricing experiment
+- prd_packaging_options — Packaging options
+- prd_launch_readiness — Launch readiness
+- prd_sales_enablement_prd — Sales enablement brief
+- prd_support_enablement — Support enablement
+- prd_docs_outline — Docs outline
+- prd_changelog_prd — Changelog entry
+- prd_stakeholder_update_prd — Stakeholder update
+- prd_exec_one_pager — Exec one-pager
+- prd_tech_debt_case — Tech debt case
+- prd_build_vs_buy_prd — Build vs buy
+- prd_discovery_interview — Discovery interview guide
+- prd_synthesis_research — Research synthesis
+- prd_usability_test_plan — Usability test plan
+- prd_prototype_brief — Prototype brief
+- prd_design_critique — Design critique
+- prd_accessibility_prd — Accessibility requirements
+- prd_localization_plan — Localization plan
+- prd_platform_strategy — Platform strategy
+- prd_integration_roadmap — Integration roadmap
+- prd_data_model_note — Data model note
+- prd_analytics_events — Analytics events
+- prd_privacy_by_design — Privacy by design
+- prd_security_requirements — Security requirements
+- prd_sla_product — Product SLA
+- prd_product_weekly — Product weekly update
+- prd_custom — Custom product deliverable
+
+## 10_engineering (50)
+- eng_tech_design — Technical design doc
+- eng_adr_write — Architecture decision record
+- eng_api_design — API design
+- eng_schema_design — Schema design
+- eng_threat_model — Threat model
+- eng_load_test_plan — Load test plan
+- eng_perf_budget — Performance budget
+- eng_code_review_checklist — Code review checklist
+- eng_refactor_plan — Refactor plan
+- eng_migration_eng — Migration plan
+- eng_rollback_plan — Rollback plan
+- eng_feature_flag_plan — Feature flag plan
+- eng_ci_cd_pipeline — CI/CD pipeline design
+- eng_observability_plan — Observability plan
+- eng_slo_sli — SLO and SLI definition
+- eng_oncall_runbook — On-call runbook
+- eng_incident_command — Incident command guide
+- eng_debug_playbook — Debug playbook
+- eng_root_cause — Root cause analysis
+- eng_hotfix_plan — Hotfix plan
+- eng_dependency_upgrade — Dependency upgrade plan
+- eng_security_patch — Security patch plan
+- eng_secret_rotation — Secret rotation plan
+- eng_iac_plan — Infrastructure as code plan
+- eng_k8s_topology — Kubernetes topology
+- eng_cost_optimization_eng — Engineering cost optimization
+- eng_data_pipeline — Data pipeline design
+- eng_etl_design — ETL design
+- eng_ml_serving_note — ML serving design note
+- eng_sdk_design — SDK design
+- eng_client_sdk_changelog — Client SDK changelog
+- eng_backward_compat — Backward compatibility plan
+- eng_versioning_policy — Versioning policy
+- eng_error_budget — Error budget policy
+- eng_capacity_eng — Capacity plan
+- eng_chaos_experiment — Chaos experiment plan
+- eng_dr_drill — Disaster recovery drill
+- eng_backup_restore_test — Backup restore test
+- eng_multi_region — Multi-region architecture
+- eng_edge_strategy — Edge strategy
+- eng_mobile_release — Mobile release plan
+- eng_web_perf — Web performance plan
+- eng_accessibility_eng — Accessibility engineering plan
+- eng_i18n_eng — Internationalization plan
+- eng_test_strategy — Test strategy
+- eng_e2e_plan — E2E test plan
+- eng_contract_test — Contract testing plan
+- eng_docs_eng — Engineering documentation
+- eng_weekly — Engineering weekly update
+- eng_custom — Custom engineering deliverable
+
+## 11_data (50)
+- dat_metric_definition — Metric definition
+- dat_kpi_tree — KPI tree
+- dat_dashboard_spec — Dashboard spec
+- dat_sql_query_help — SQL query help
+- data_dict — Data dictionary
+- dat_lineage_note — Data lineage note
+- dat_quality_rule — Data quality rule
+- dat_anomaly_explain — Anomaly explanation
+- dat_cohort_analysis — Cohort analysis
+- dat_funnel_query — Funnel analysis query
+- dat_ab_analysis — A/B test analysis
+- dat_experiment_readout — Experiment readout
+- dat_forecast_data — Forecast package
+- dat_segmentation — Customer segmentation
+- dat_rfm_model — RFM model
+- dat_ltv_model — LTV model
+- dat_churn_model_note — Churn model note
+- dat_attribution — Attribution model
+- dat_mix_model_note — Marketing mix model note
+- dat_geo_analysis — Geographic analysis
+- dat_time_series_note — Time series note
+- dat_outlier_review — Outlier review
+- dat_sampling_plan — Sampling plan
+- dat_survey_analysis — Survey analysis
+- dat_nps_analysis — NPS analysis
+- data_contract — Data contract
+- dat_warehouse_model — Warehouse model
+- dat_dbt_model_plan — dbt model plan
+- dat_stream_design — Streaming pipeline design
+- dat_batch_sla — Batch job SLA
+- dat_pii_classification — PII classification
+- dat_retention_policy_data — Data retention policy
+- dat_access_request_data — Data access request
+- dat_bi_tool_choice — BI tool selection
+- dat_viz_best_practice — Visualization best practices
+- dat_executive_data_story — Executive data story
+- dat_board_metrics — Board metrics pack
+- dat_okrs_data — OKR metrics pack
+- dat_self_serve_bi — Self-serve BI playbook
+- dat_training_data_team — Data team training
+- data_incident — Data incident response
+- dat_backfill_plan — Backfill plan
+- dat_schema_evolution — Schema evolution plan
+- dat_cdc_plan — CDC plan
+- dat_lakehouse_note — Lakehouse architecture note
+- dat_feature_store_note — Feature store note
+- dat_ml_eval — ML model evaluation
+- dat_bias_check — Bias and fairness check
+- data_weekly — Weekly data report
+- dat_custom — Custom data deliverable
+
+## 12_content (50)
+- cnt_longform_article — Longform article
+- cnt_thought_leadership — Thought leadership piece
+- cnt_ghostwrite_post — Ghostwrite post
+- cnt_speech_draft — Speech draft
+- cnt_whitepaper_outline — Whitepaper outline
+- cnt_ebook_chapter — Ebook chapter
+- cnt_newsletter_long — Long-form newsletter
+- cnt_script_explainer — Explainer video script
+- cnt_how_to_guide — How-to guide
+- cnt_comparison_post — Comparison post
+- cnt_listicle — Listicle
+- cnt_opinion_piece — Opinion piece
+- cnt_interview_questions_cnt — Interview questions
+- cnt_transcript_clean — Clean transcript
+- cnt_summary_exec — Executive summary
+- cnt_rewrite_clarity — Clarity rewrite
+- cnt_tone_shift — Tone shift rewrite
+- cnt_shorten_copy — Shorten copy
+- cnt_expand_copy — Expand copy
+- cnt_headline_options — Headline options
+- cnt_subhead_options — Subhead options
+- cnt_cta_variants — CTA variants
+- cnt_product_description — Product description
+- cnt_category_copy — Category page copy
+- cnt_microcopy_ui — UI microcopy
+- cnt_error_message_copy — Error message copy
+- cnt_empty_state_copy — Empty state copy
+- cnt_onboarding_copy — Onboarding copy
+- cnt_in_app_message — In-app message
+- cnt_push_copy — Push notification copy
+- cnt_sms_copy_cnt — SMS copy
+- cnt_chatbot_script — Chatbot script
+- cnt_faq_long — Extended FAQ
+- cnt_glossary_entry — Glossary entry
+- cnt_style_guide_cnt — Content style guide
+- cnt_edit_pass — Editorial edit pass
+- cnt_fact_check_list — Fact-check checklist
+- cnt_source_list — Source list
+- cnt_citation_format — Citation formatting
+- cnt_translation_brief — Translation brief
+- cnt_localization_adapt — Localization adaptation
+- cnt_accessibility_alt_text — Accessibility alt text
+- cnt_caption_write — Media captions
+- cnt_transcript_chapters — Transcript chapters
+- cnt_content_repurpose — Content repurposing plan
+- cnt_series_plan — Content series plan
+- cnt_editorial_calendar_cnt — Editorial calendar
+- cnt_content_audit — Content audit
+- cnt_content_weekly — Weekly content brief
+- cnt_custom — Custom content deliverable
+
+## 13_social (50)
+- social_calendar — Social content calendar
+- soc_tweet_thread — X/Twitter thread
+- soc_linkedin_post_soc — LinkedIn post
+- soc_instagram_caption — Instagram caption
+- soc_tiktok_script — TikTok script
+- soc_youtube_title — YouTube title options
+- soc_youtube_desc — YouTube description
+- soc_shorts_script — YouTube Shorts script
+- soc_reel_hook — Reels hook lines
+- soc_story_sequence — Stories sequence
+- soc_carousel_copy — Carousel copy
+- soc_hashtag_set — Hashtag set
+- soc_community_reply — Community reply
+- soc_crisis_social — Social crisis response
+- soc_influencer_list — Influencer shortlist
+- soc_ugc_brief — UGC brief
+- soc_contest_rules_soc — Social contest rules
+- soc_live_stream_plan — Live stream plan
+- social_listening — Social listening brief
+- soc_sentiment_summary — Sentiment summary
+- soc_competitor_social — Competitor social audit
+- soc_brand_mention_reply — Brand mention reply
+- soc_employee_advocacy — Employee advocacy kit
+- social_proof_post — Social proof post
+- soc_launch_social — Product launch social plan
+- soc_meme_brief — Meme creative brief
+- soc_gif_caption — GIF caption
+- soc_poll_ideas — Social poll ideas
+- soc_ama_prep — AMA prep pack
+- soc_twitter_spaces_plan — X Spaces plan
+- soc_linkedin_newsletter — LinkedIn newsletter issue
+- soc_pin_description — Pinterest pin description
+- soc_reddit_post — Reddit post
+- soc_discord_announce — Discord announcement
+- soc_slack_community — Slack community update
+- social_report — Social performance report
+- soc_engagement_boost — Engagement boost plan
+- soc_dark_post_copy — Dark post ad copy
+- soc_boost_budget_note — Boost budget note
+- soc_creator_contract_note — Creator contract note
+- soc_rights_management — Content rights checklist
+- soc_takedown_request — Takedown request
+- soc_platform_policy_check — Platform policy check
+- soc_geo_social — Geo-targeted social plan
+- soc_language_social — Multilingual social copy
+- soc_event_social — Event social playbook
+- soc_hiring_social — Hiring social posts
+- soc_csr_social — CSR social campaign
+- social_weekly — Weekly social digest
+- soc_custom — Custom social deliverable
+
+## 14_project (50)
+- pm_project_charter — Project charter
+- pm_scope_statement — Scope statement
+- pm_wbs — Work breakdown structure
+- pm_gantt_outline — Gantt outline
+- pm_milestone_plan — Milestone plan
+- pm_risk_register — Risk register
+- pm_issue_log — Issue log
+- pm_raid_log — RAID log
+- pm_status_report_pm — Project status report
+- pm_steering_pack — Steering committee pack
+- pm_kickoff_deck — Kickoff deck outline
+- pm_raci_pm — RACI matrix
+- pm_resource_plan — Resource plan
+- pm_budget_pm — Project budget
+- pm_change_control — Change control process
+- pm_dependency_map — Dependency map
+- pm_critical_path_note — Critical path analysis
+- pm_sprint_plan — Sprint plan
+- pm_retro_facilitate — Retrospective facilitation
+- pm_standup_notes — Standup notes
+- pm_backlog_groom — Backlog grooming
+- pm_estimation_note — Estimation note
+- pm_velocity_note — Velocity analysis
+- pm_release_train — Release train plan
+- pm_cutover_plan — Cutover plan
+- pm_comms_plan_pm — Project communications plan
+- pm_stakeholder_map_pm — Stakeholder map
+- pm_rasci — RASCI matrix
+- pm_decision_log — Decision log
+- pm_action_tracker — Action tracker
+- pm_lessons_learned — Lessons learned
+- pm_closure_report — Project closure report
+- pm_vendor_pm — Vendor project management
+- pm_statement_of_work — Statement of work
+- pm_acceptance_signoff — Acceptance sign-off
+- pm_quality_gate — Quality gate checklist
+- pm_test_entry_exit — Test entry and exit criteria
+- pm_uat_plan — UAT plan
+- pm_training_plan_pm — Project training plan
+- pm_hypercare — Hypercare plan
+- pm_war_room_pm — War room runbook
+- pm_escalation_pm — Escalation path
+- pm_portfolio_view — Portfolio view
+- pm_program_sync — Program sync agenda
+- pm_okr_align_pm — OKR alignment
+- pm_capacity_pm — Capacity plan
+- pm_holiday_plan — Holiday coverage plan
+- pm_template — PM artifact template
+- pm_weekly — Weekly PM update
+- pm_custom — Custom PM deliverable
+
+## 15_procurement (50)
+- prc_rfp_write — RFP draft
+- prc_rfi_write — RFI draft
+- prc_rfq_write — RFQ draft
+- prc_vendor_scorecard — Vendor scorecard
+- prc_bid_analysis — Bid analysis
+- prc_negotiation_prc — Negotiation plan
+- prc_contract_prc — Procurement contract brief
+- prc_sla_prc — Supplier SLA
+- prc_msa_prc — Master service agreement brief
+- prc_sow_prc — Statement of work
+- prc_po_narrative — Purchase order narrative
+- prc_three_way_match_note — Three-way match note
+- prc_supplier_onboard — Supplier onboarding plan
+- prc_supplier_exit — Supplier exit plan
+- prc_dual_source — Dual-sourcing strategy
+- prc_make_buy_prc — Make-vs-buy analysis
+- prc_tco_model — Total cost of ownership model
+- prc_should_cost — Should-cost model
+- prc_price_benchmark — Price benchmark
+- prc_index_clause — Price index clause
+- prc_volume_commitment — Volume commitment terms
+- prc_rebate_structure — Rebate structure
+- prc_payment_terms_prc — Payment terms proposal
+- prc_incoterms_note — Incoterms note
+- prc_import_export — Import/export brief
+- prc_customs_checklist — Customs checklist
+- prc_quality_agreement — Quality agreement
+- prc_audit_supplier — Supplier audit plan
+- prc_csr_supplier — Supplier CSR requirements
+- prc_conflict_minerals — Conflict minerals policy
+- prc_sustainability_prc — Sustainable procurement plan
+- prc_diversity_spend — Supplier diversity spend plan
+- prc_preferred_vendor — Preferred vendor list
+- prc_catalog_manage — Catalog management plan
+- prc_tail_spend — Tail spend strategy
+- prc_maverick_spend — Maverick spend reduction
+- prc_p2p_process — Procure-to-pay process
+- prc_approval_matrix — Approval matrix
+- prc_budget_check_prc — Budget availability check
+- prc_savings_track — Savings tracker
+- prc_risk_supplier — Supplier risk assessment
+- prc_geo_risk — Geographic supply risk
+- prc_force_majeure_note — Force majeure note
+- prc_inventory_prc — Procurement inventory plan
+- prc_consignment — Consignment stock plan
+- prc_vmi_plan — VMI plan
+- prc_edi_note — EDI integration note
+- prc_weekly — Procurement weekly update
+- prc_playbook — Procurement playbook
+- prc_custom — Custom procurement deliverable
+
+## 16_logistics (50)
+- log_ship_plan — Shipment Plan
+- log_route_optimize — Route Optimization
+- log_carrier_select — Carrier Selection
+- log_sla_log — Logistics SLA Framework
+- log_eta_comms — ETA Customer Update
+- log_delay_comms — Delay Notification
+- log_damage_claim — Damage Claim Package
+- log_returns_process — Returns Process Design
+- log_warehouse_slotting — Warehouse Slotting Plan
+- log_pick_pack — Pick-and-Pack Standards
+- log_cycle_count — Cycle Count Program
+- log_cold_chain — Cold Chain Protocol
+- log_hazmat_note — Hazmat Handling Note
+- log_last_mile — Last-Mile Delivery Plan
+- log_cross_dock — Cross-Dock Design
+- log_milk_run — Milk-Run Route Plan
+- log_network_design — Logistics Network Design
+- log_dc_location — DC Location Analysis
+- log_inventory_position — Inventory Positioning
+- log_safety_stock — Safety Stock Policy
+- log_abc_analysis — ABC Inventory Analysis
+- log_demand_plan_log — Logistics Demand Plan
+- log_s_and_op — S&OP Logistics Input
+- log_capacity_log — Logistics Capacity Plan
+- log_peak_plan — Peak Season Plan
+- log_port_congestion — Port Congestion Response
+- log_customs_log — Customs & Clearance Guide
+- log_bol_checklist — Bill of Lading Checklist
+- log_pod_process — Proof-of-Delivery Process
+- log_track_trace — Track-and-Trace Design
+- log_iot_fleet — IoT Fleet Telemetry Plan
+- log_fuel_surcharge — Fuel Surcharge Policy
+- log_rate_card — Carrier Rate Card
+- log_tender_log — Freight Tender Package
+- log_3pl_scorecard — 3PL Scorecard
+- log_4pl_note — 4PL Engagement Brief
+- log_reverse_logistics — Reverse Logistics Program
+- log_sustainability_log — Logistics Sustainability Plan
+- log_carbon_estimate — Shipment Carbon Estimate
+- log_packaging_opt — Packaging Optimization
+- log_label_compliance — Label Compliance Checklist
+- log_temp_excursion — Temperature Excursion Response
+- log_security_cargo — Cargo Security Protocol
+- log_insurance_log — Cargo Insurance Guide
+- log_claim_timeline — Freight Claim Timeline
+- log_kpi_log — Logistics KPI Dashboard Spec
+- log_control_tower — Logistics Control Tower Design
+- log_weekly — Weekly Logistics Ops Review
+- log_playbook — Logistics Exception Playbook
+- log_custom — Custom Logistics Deliverable
+
+## 17_real_estate (50)
+- re_listing_description — Listing description
+- re_cma_brief — CMA brief
+- re_offer_strategy — Offer strategy
+- re_negotiation_re — Negotiation playbook
+- re_showing_script — Showing script
+- re_open_house_plan — Open house plan
+- re_buyer_persona_re — Buyer persona
+- re_seller_prep — Seller prep guide
+- re_staging_checklist — Staging checklist
+- re_photo_brief_re — Photo shoot brief
+- re_virtual_tour_script — Virtual tour script
+- re_lease_abstract — Lease abstract
+- rent_roll_note — Rent roll commentary
+- re_noi_commentary — NOI commentary
+- re_cap_rate_note — Cap rate note
+- re_proforma — Investment pro forma
+- re_investment_memo_re — Investment memo
+- re_dd_checklist_re — Due diligence checklist
+- re_title_issues — Title issues brief
+- re_inspection_response — Inspection response
+- repair_request — Repair request
+- re_closing_checklist — Closing checklist
+- re_move_in_letter — Move-in letter
+- re_tenant_screening — Tenant screening criteria
+- re_eviction_process_note — Eviction process note
+- re_cam_reconcile — CAM reconciliation note
+- re_lease_renewal — Lease renewal package
+- rent_increase — Rent increase notice
+- re_amenity_plan — Amenity plan
+- re_property_ops — Property ops plan
+- re_maintenance_re — Maintenance plan
+- re_vendor_re — Vendor scorecard
+- re_insurance_re — Insurance coverage brief
+- re_tax_appeal_note — Tax appeal note
+- re_zoning_note — Zoning note
+- re_entitlement_plan — Entitlement plan
+- re_construction_draw — Construction draw package
+- re_punch_list — Punch list
+- re_hoa_rules_summary — HOA rules summary
+- re_neighborhood_report — Neighborhood report
+- re_school_district_note — School district note
+- re_commute_analysis — Commute analysis
+- re_market_update_re — Market update
+- re_flyer_copy — Flyer copy
+- re_email_drip_re — Email drip sequence
+- referral_re — Referral ask
+- re_agent_bio — Agent bio
+- re_weekly — Weekly pipeline brief
+- re_playbook — Real estate playbook
+- re_custom — Custom RE deliverable
+
+## 18_healthcare (50)
+- hc_patient_comms — Patient communications
+- hc_appointment_remind — Appointment reminders
+- hc_no_show_reduce — No-show reduction plan
+- hc_intake_form_help — Patient intake forms
+- hc_referral_process — Referral process design
+- hc_care_pathway — Care pathway design
+- hc_discharge_summary_help — Discharge summary helper
+- hc_medication_reconcile_note — Medication reconciliation note
+- hc_prior_auth_packet — Prior authorization packet
+- hc_appeal_letter — Insurance appeal letter
+- hc_coding_query — Clinical coding query
+- hc_denial_management — Denial management plan
+- hc_billing_explain — Patient billing explanation
+- hc_eligibility_check_note — Eligibility verification note
+- hc_hipaa_checklist — HIPAA compliance checklist
+- hc_privacy_incident_hc — Privacy incident response
+- hc_quality_measure — Quality measure plan
+- hcahps_improve — HCAHPS improvement plan
+- hc_staffing_hc — Clinical staffing plan
+- hc_credentialing_note — Provider credentialing note
+- hc_provider_onboard — Provider onboarding plan
+- hc_clinic_schedule — Clinic schedule design
+- hc_or_block_time — OR block time plan
+- hc_supply_clinical — Clinical supply plan
+- hc_formulary_note — Formulary decision note
+- hc_telehealth_script — Telehealth visit script
+- hc_triage_protocol — Triage protocol
+- hc_escalation_clinical — Clinical escalation pathway
+- hc_infection_control_note — Infection control note
+- hc_emergency_plan_hc — Healthcare emergency plan
+- hc_emr_workflow — EMR workflow design
+- hc_interop_note — Interoperability brief
+- hc_patient_portal_copy — Patient portal copy
+- hc_education_material — Patient education material
+- hc_consent_plain_language — Plain-language consent
+- hc_research_recruit — Research recruitment plan
+- hc_irb_checklist — IRB submission checklist
+- hc_clinical_trial_note — Clinical trial operations note
+- hc_population_health — Population health plan
+- hc_risk_stratify — Patient risk stratification
+- hc_value_based_care — Value-based care plan
+- hc_aco_report_note — ACO performance report note
+- hc_payer_contract_note — Payer contract note
+- hc_medical_policy_summary — Medical policy summary
+- hc_guideline_digest — Clinical guideline digest
+- hc_cme_plan — CME education plan
+- hc_weekly — Healthcare weekly ops brief
+- hc_playbook — Healthcare ops playbook
+- hc_compliance — Healthcare compliance review
+- hc_custom — Custom healthcare deliverable
+
+## 19_education (50)
+- edu_curriculum_outline — Curriculum outline
+- edu_lesson_plan — Lesson plan
+- edu_learning_objectives — Learning objectives
+- edu_quiz_bank — Quiz bank
+- edu_rubric_edu — Assessment rubric
+- edu_syllabus — Course syllabus
+- edu_workshop_agenda — Workshop agenda
+- edu_bootcamp_plan — Bootcamp plan
+- edu_onboarding_edu — Learner onboarding plan
+- edu_microlearning — Microlearning modules
+- edu_video_lesson_script — Video lesson script
+- edu_slide_outline_edu — Training slide outline
+- edu_handout — Learner handout
+- edu_case_method — Case method materials
+- edu_discussion_prompt — Discussion prompts
+- edu_facilitator_guide — Facilitator guide
+- edu_student_feedback — Student feedback
+- edu_grade_explain — Grade explanation
+- edu_accommodation_plan — Accommodation plan
+- edu_accessibility_edu — Accessibility plan
+- edu_lms_structure — LMS course structure
+- edu_badge_design — Badge design brief
+- edu_certification_path — Certification path
+- edu_assessment_blueprint — Assessment blueprint
+- edu_item_analysis — Item analysis
+- edu_cohort_plan — Cohort plan
+- edu_mentorship_program — Mentorship program
+- edu_office_hours_edu — Office hours plan
+- edu_parent_comms — Parent communications
+- edu_student_success — Student success plan
+- edu_at_risk_student — At-risk student plan
+- edu_tutoring_plan — Tutoring plan
+- edu_lab_safety — Lab safety brief
+- edu_field_trip_plan — Field trip plan
+- edu_guest_speaker — Guest speaker brief
+- edu_research_proposal_edu — Research proposal
+- edu_thesis_outline — Thesis outline
+- edu_citation_help — Citation guide
+- edu_plagiarism_policy — Plagiarism policy
+- edu_ai_use_policy_edu — AI use policy
+- edu_faculty_dev — Faculty development plan
+- edu_peer_review_edu — Peer review guide
+- edu_program_review — Program review
+- edu_accreditation_note — Accreditation note
+- edu_catalog_entry — Course catalog entry
+- edu_marketing_program — Program marketing brief
+- edu_alumni_comms — Alumni communications
+- edu_weekly — Education weekly update
+- edu_playbook — Education playbook
+- edu_custom — Custom education deliverable
+
+## 20_executive (50)
+- exec_strategy_memo — Strategy memo
+- exec_okr_set — OKR set
+- exec_okr_review — OKR review
+- exec_board_deck_outline — Board deck outline
+- exec_board_minutes_help — Board minutes helper
+- exec_investor_update — Investor update
+- exec_fundraising_narrative — Fundraising narrative
+- exec_pitch_deck_outline — Pitch deck outline
+- exec_market_sizing — Market sizing
+- exec_tam_sam_som — TAM / SAM / SOM
+- exec_competitive_strategy — Competitive strategy
+- exec_porter_five — Porter's Five Forces
+- exec_swot — SWOT analysis
+- exec_pestle — PESTLE analysis
+- exec_scenario_strategy — Scenario strategy
+- exec_m_and_a_thesis — M&A thesis
+- exec_diligence_list — Due diligence checklist
+- exec_integration_plan_exec — Integration plan (exec)
+- exec_org_redesign — Org redesign
+- exec_operating_cadence — Operating cadence
+- exec_comms — Executive communications
+- exec_all_hands_script — All-hands script
+- exec_crisis_comms_exec — Crisis communications (exec)
+- exec_media_statement — Media statement
+- exec_policy_position — Policy position
+- exec_government_affairs — Government affairs brief
+- exec_partnership_strategy — Partnership strategy
+- exec_pricing_strategy_exec — Pricing strategy (exec)
+- exec_geo_expansion — Geographic expansion
+- exec_product_portfolio — Product portfolio strategy
+- exec_capital_allocation — Capital allocation
+- exec_budget_guidance — Budget guidance
+- exec_hiring_plan_exec — Hiring plan (exec)
+- exec_culture_memo — Culture memo
+- exec_values_refresh — Values refresh
+- exec_risk_appetite — Risk appetite statement
+- exec_enterprise_risk — Enterprise risk overview
+- exec_audit_committee_note — Audit committee note
+- exec_esg_report_outline — ESG report outline
+- exec_sustainability_strategy — Sustainability strategy
+- exec_customer_advisory — Customer advisory board
+- exec_analyst_day — Analyst day plan
+- exec_ipo_readiness — IPO readiness
+- exec_exit_strategy — Exit strategy
+- exec_succession_exec — Succession planning (exec)
+- exec_ceo_letter — CEO letter
+- exec_weekly_ceo_note — Weekly CEO note
+- exec_dashboard — Executive dashboard
+- exec_weekly — Executive weekly brief
+- exec_custom — Custom executive deliverable

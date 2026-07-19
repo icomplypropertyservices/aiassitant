@@ -1,0 +1,997 @@
+{
+  "pack": "06_legal",
+  "category": "legal",
+  "label": "Legal & compliance",
+  "skills": [
+    {
+      "id": "leg_nda_checklist",
+      "name": "NDA checklist",
+      "description": "Build a mutual or one-way NDA review checklist covering scope, term, residuals, and carve-outs.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_msa_redline_notes",
+      "name": "MSA redline notes",
+      "description": "Produce redline guidance and negotiation notes for a master services agreement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_dpa_checklist",
+      "name": "DPA checklist",
+      "description": "Create a data processing agreement checklist for controllers, processors, and subprocessors.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_tos_summary",
+      "name": "Terms of service summary",
+      "description": "Summarize terms of service into plain-language risks, obligations, and key clauses.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_privacy_policy_snip",
+      "name": "Privacy policy snippet",
+      "description": "Draft a privacy policy section or snippet for a product, feature, or data use case.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_cookie_notice",
+      "name": "Cookie notice",
+      "description": "Write a cookie banner and notice covering categories, consent, and preference links.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_gdpr_dsar",
+      "name": "GDPR DSAR response",
+      "description": "Plan intake, identity checks, and response steps for a GDPR data subject access request.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_ccpa_request",
+      "name": "CCPA/CPRA request",
+      "description": "Handle a CCPA/CPRA consumer request for access, delete, or opt-out of sale/share.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_vendor_risk",
+      "name": "Vendor risk assessment",
+      "description": "Assess legal and compliance risk for a vendor, including data, security, and contract gaps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_contract_summary",
+      "name": "Contract summary",
+      "description": "Summarize a contract into parties, term, payment, liability, termination, and open issues.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_clause_compare",
+      "name": "Clause comparison",
+      "description": "Compare two versions of a clause and flag material differences and preferred language.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_liability_note",
+      "name": "Liability note",
+      "description": "Analyze liability caps, indemnities, and exclusion language with negotiation recommendations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_ip_assignment_check",
+      "name": "IP assignment check",
+      "description": "Review IP ownership and assignment language for employees, contractors, or partners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_employment_clause",
+      "name": "Employment clause draft",
+      "description": "Draft or review employment agreement clauses such as confidentiality, IP, and non-solicit.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_offer_letter_notes",
+      "name": "Offer letter notes",
+      "description": "Add legal notes and risk flags for an employment or contractor offer letter.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_termination_checklist",
+      "name": "Termination checklist",
+      "description": "Build an employment or contract termination checklist covering notices, access, and docs.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_dispute_timeline",
+      "name": "Dispute timeline",
+      "description": "Construct a chronological dispute timeline with facts, documents, and decision points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_litigation_hold",
+      "name": "Litigation hold notice",
+      "description": "Draft a litigation hold notice and preservation plan for relevant systems and custodians.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_regulatory_scan",
+      "name": "Regulatory scan",
+      "description": "Scan applicable regulations for a product, market, or launch and list compliance actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_license_review",
+      "name": "License review",
+      "description": "Review software, content, or commercial license terms for risk, scope, and compliance.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_open_source_policy",
+      "name": "Open source policy",
+      "description": "Draft an open source usage policy covering allowed licenses, review, and contribution rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_export_control",
+      "name": "Export control brief",
+      "description": "Summarize export control considerations for products, data, or destinations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_sanctions_screen",
+      "name": "Sanctions screening brief",
+      "description": "Outline sanctions screening steps for counterparties, geographies, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_marketing_claim_legal",
+      "name": "Marketing claim legal review",
+      "description": "Review marketing claims for substantiation, disclosures, and regulatory risk.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_promo_terms",
+      "name": "Promotion terms",
+      "description": "Draft official terms and conditions for a promotion, discount, or limited-time offer.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_sweepstakes_rules",
+      "name": "Sweepstakes rules",
+      "description": "Draft official rules for a sweepstakes or contest, including eligibility and prizes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_affiliate_terms",
+      "name": "Affiliate program terms",
+      "description": "Draft affiliate or referral program terms covering commission, branding, and termination.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_partner_agreement",
+      "name": "Partner agreement outline",
+      "description": "Outline a partnership or channel agreement with roles, economics, IP, and exit terms.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_sla_legal",
+      "name": "SLA legal review",
+      "description": "Review service level agreement terms for uptime, credits, exclusions, and remedies.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_data_processing",
+      "name": "Data processing map",
+      "description": "Map data processing activities, purposes, legal bases, and cross-border transfers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_subprocessor_list",
+      "name": "Subprocessor list",
+      "description": "Prepare a customer-facing subprocessor list with roles, locations, and change process.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_security_addendum",
+      "name": "Security addendum",
+      "description": "Draft a security schedule or addendum covering controls, audits, and incident duties.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_insurance_req",
+      "name": "Insurance requirements",
+      "description": "Define insurance requirements for contracts, including coverages, limits, and certificates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_board_resolution",
+      "name": "Board resolution draft",
+      "description": "Draft a board resolution for approvals, appointments, financing, or corporate actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_cap_table_note",
+      "name": "Cap table note",
+      "description": "Prepare a plain-language cap table note on ownership, dilution, and outstanding rights.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_fundraising_docs",
+      "name": "Fundraising docs checklist",
+      "description": "List and summarize key fundraising documents and diligence items for a financing round.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_option_grant_note",
+      "name": "Option grant note",
+      "description": "Explain an equity option grant, vesting, exercise, and tax notes for the recipient.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_trademark_search_brief",
+      "name": "Trademark search brief",
+      "description": "Brief a trademark clearance search with marks, classes, geographies, and risk notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_copyright_notice",
+      "name": "Copyright notice",
+      "description": "Draft copyright notices and ownership language for products, sites, and content.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_dmca_response",
+      "name": "DMCA response",
+      "description": "Draft a DMCA takedown or counter-notice response with process steps and timelines.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_whistleblower_policy",
+      "name": "Whistleblower policy",
+      "description": "Draft a whistleblower and speak-up policy with reporting channels and non-retaliation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_code_of_conduct",
+      "name": "Code of conduct",
+      "description": "Draft or refresh a company code of conduct covering ethics, workplace, and reporting.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_anti_bribery",
+      "name": "Anti-bribery policy",
+      "description": "Draft an anti-bribery and corruption policy with gifts, third parties, and escalation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_conflict_interest",
+      "name": "Conflict of interest policy",
+      "description": "Draft a conflict of interest policy with disclosure rules and approval workflows.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_records_retention",
+      "name": "Records retention schedule",
+      "description": "Build a records retention schedule by record type, retention period, and disposal rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_incident_legal",
+      "name": "Incident legal playbook",
+      "description": "Create a legal response playbook for security, product, or operational incidents.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_breach_notify",
+      "name": "Breach notification plan",
+      "description": "Plan breach notification timelines, recipients, content, and regulator/customer notices.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_law_enforcement_req",
+      "name": "Law enforcement request guide",
+      "description": "Guide handling of law enforcement data requests, including validation and escalation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "legal_faq",
+      "name": "Legal FAQ",
+      "description": "Compile a practical legal FAQ for common business, product, and compliance questions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "leg_weekly",
+      "name": "Legal weekly digest",
+      "description": "Produce a weekly legal and compliance digest of open matters, risks, and next actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "legal",
+      "pack": "06_legal",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

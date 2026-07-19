@@ -13,18 +13,32 @@ from ..database import get_db
 from .. import models
 from ..auth_utils import get_current_user
 from ..live_ops import emit_ops
+from ..tags_util import normalize_tags, tags_list
+from ..company_scope import resolve_company_id, user_default_company_id
+from ..ownership import require_owned
+from .. import crm_service
+from ..crm_service import (
+    DEFAULT_STAGES,
+    ensure_default_pipeline as _ensure_default_pipeline,
+    customer_out as _customer_out,
+    deal_out as _deal_out,
+    activity_out as _activity_out,
+    list_customers as crm_list_customers,
+    update_customer_fields as crm_update_customer_fields,
+    log_customer_activity as crm_log_customer_activity,
+    create_deal_for_customer as crm_create_deal_for_customer,
+    parse_dt as _parse_dt,
+)
+
+
+def _owned_customer(db: Session, customer_id: int, user) -> models.Customer:
+    return crm_service.get_owned_customer(db, user, customer_id)
+
+
+def _owned_pipeline(db: Session, pipeline_id: int, user) -> models.Pipeline:
+    return crm_service.get_owned_pipeline(db, user, pipeline_id)
 
 router = APIRouter(prefix="/business", tags=["business"])
-
-DEFAULT_STAGES = [
-    ("New lead", "open", "#8c8c8c", 0, 10),
-    ("Contacted", "open", "#1668dc", 1, 25),
-    ("Qualified", "open", "#13c2c2", 2, 50),
-    ("Proposal", "open", "#722ed1", 3, 70),
-    ("Negotiation", "open", "#fa8c16", 4, 85),
-    ("Won", "won", "#52c41a", 5, 100),
-    ("Lost", "lost", "#ff4d4f", 6, 0),
-]
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────
@@ -58,7 +72,8 @@ class CustomerIn(BaseModel):
     country: str = ""
     status: str = "active"
     source: str = ""
-    tags: str = ""
+    # comma string or list of tags from Select mode="tags"
+    tags: str | list[str] = ""
     company_id: int | None = None
     owner_human_id: int | None = None
     owner_agent_id: int | None = None
@@ -79,12 +94,14 @@ class CustomerUpdate(BaseModel):
     country: str | None = None
     status: str | None = None
     source: str | None = None
-    tags: str | None = None
+    tags: str | list[str] | None = None
     company_id: int | None = None
     owner_human_id: int | None = None
     owner_agent_id: int | None = None
     annual_value: float | None = None
     notes: str | None = None
+
+
 
 
 class DealIn(BaseModel):
@@ -118,50 +135,26 @@ class ActivityIn(BaseModel):
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
-def _parse_dt(s: str | None):
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(s.replace("Z", ""))
-    except Exception:
-        return None
+CUSTOMER_TAG_PRESETS = [
+    "vip", "enterprise", "smb", "startup", "lead", "partner",
+    "churn-risk", "renewing", "trial", "warm", "cold", "referral",
+]
+PRODUCT_TAG_PRESETS = [
+    "core", "addon", "featured", "service", "digital", "physical",
+    "subscription", "bundle", "new", "sale", "b2b", "b2c",
+]
 
 
-def _ensure_default_pipeline(db: Session, user: models.User) -> models.Pipeline:
-    p = (
-        db.query(models.Pipeline)
-        .filter_by(owner_user_id=user.id, is_default=True)
-        .first()
-    )
-    if p:
-        return p
-    p = (
-        db.query(models.Pipeline)
-        .filter_by(owner_user_id=user.id)
-        .order_by(models.Pipeline.id)
-        .first()
-    )
-    if p:
-        p.is_default = True
-        db.commit()
-        return p
-    p = models.Pipeline(
-        owner_user_id=user.id,
-        name="Sales pipeline",
-        description="Default sales pipeline",
-        kind="sales",
-        is_default=True,
-    )
-    db.add(p)
-    db.flush()
-    for name, st, color, pos, prob in DEFAULT_STAGES:
-        db.add(models.PipelineStage(
-            pipeline_id=p.id, name=name, stage_type=st,
-            color=color, position=pos, probability=prob,
-        ))
-    db.commit()
-    db.refresh(p)
-    return p
+def _normalize_tags(tags):
+    return normalize_tags(tags)
+
+
+def _tags_list(raw):
+    return tags_list(raw)
+
+
+def _resolve_company_id(db, user, company_id, *, required=False):
+    return resolve_company_id(db, user, company_id, required=required, resource="customers")
 
 
 def _stage_out(s: models.PipelineStage) -> dict:
@@ -221,120 +214,6 @@ def _pipeline_out(p: models.Pipeline, db: Session, *, with_deals: bool = False) 
         ]
     return out
 
-
-def _customer_out(c: models.Customer, db: Session, *, light: bool = False) -> dict:
-    human = db.get(models.Human, c.owner_human_id) if c.owner_human_id else None
-    agent = db.get(models.Agent, c.owner_agent_id) if c.owner_agent_id else None
-    co = db.get(models.Company, c.company_id) if c.company_id else None
-    open_deals = (
-        db.query(models.Deal)
-        .filter_by(customer_id=c.id, status="open")
-        .count()
-    )
-    total_value = (
-        db.query(func.coalesce(func.sum(models.Deal.value), 0.0))
-        .filter_by(customer_id=c.id)
-        .scalar()
-    )
-    base = {
-        "id": c.id,
-        "name": c.name,
-        "email": c.email or "",
-        "phone": c.phone or "",
-        "job_title": c.job_title or "",
-        "account_name": c.account_name or "",
-        "website": c.website or "",
-        "industry": c.industry or "",
-        "city": c.city or "",
-        "country": c.country or "",
-        "status": c.status or "active",
-        "source": c.source or "",
-        "tags": [t.strip() for t in (c.tags or "").split(",") if t.strip()],
-        "tags_raw": c.tags or "",
-        "company_id": c.company_id,
-        "company_name": co.name if co else None,
-        "owner_human_id": c.owner_human_id,
-        "owner_human_name": human.name if human else None,
-        "owner_agent_id": c.owner_agent_id,
-        "owner_agent_name": agent.name if agent else None,
-        "annual_value": c.annual_value or 0.0,
-        "open_deals": open_deals,
-        "pipeline_value": float(total_value or 0),
-        "last_contacted_at": c.last_contacted_at,
-        "created_at": c.created_at,
-        "updated_at": c.updated_at,
-    }
-    if light:
-        return base
-    base.update({
-        "address": c.address or "",
-        "notes": c.notes or "",
-    })
-    return base
-
-
-def _deal_out(d: models.Deal, db: Session) -> dict:
-    cust = db.get(models.Customer, d.customer_id)
-    stage = db.get(models.PipelineStage, d.stage_id)
-    human = db.get(models.Human, d.owner_human_id) if d.owner_human_id else None
-    agent = db.get(models.Agent, d.owner_agent_id) if d.owner_agent_id else None
-    return {
-        "id": d.id,
-        "title": d.title,
-        "value": d.value or 0.0,
-        "currency": d.currency or "USD",
-        "status": d.status,
-        "priority": d.priority or "medium",
-        "pipeline_id": d.pipeline_id,
-        "stage_id": d.stage_id,
-        "stage_name": stage.name if stage else None,
-        "stage_color": stage.color if stage else None,
-        "customer_id": d.customer_id,
-        "customer_name": cust.name if cust else None,
-        "account_name": cust.account_name if cust else None,
-        "company_id": d.company_id,
-        "expected_close": d.expected_close,
-        "owner_human_id": d.owner_human_id,
-        "owner_human_name": human.name if human else None,
-        "owner_agent_id": d.owner_agent_id,
-        "owner_agent_name": agent.name if agent else None,
-        "position": d.position or 0,
-        "description": d.description or "",
-        "lost_reason": d.lost_reason or "",
-        "created_at": d.created_at,
-        "updated_at": d.updated_at,
-        "closed_at": d.closed_at,
-    }
-
-
-def _activity_out(a: models.CustomerActivity) -> dict:
-    return {
-        "id": a.id,
-        "customer_id": a.customer_id,
-        "kind": a.kind,
-        "title": a.title or "",
-        "body": a.body or "",
-        "deal_id": a.deal_id,
-        "agent_id": a.agent_id,
-        "human_id": a.human_id,
-        "created_at": a.created_at,
-    }
-
-
-def _owned_customer(db: Session, customer_id: int, user) -> models.Customer:
-    c = db.get(models.Customer, customer_id)
-    if not c or c.owner_user_id != user.id:
-        raise HTTPException(404, "Customer not found")
-    return c
-
-
-def _owned_pipeline(db: Session, pipeline_id: int, user) -> models.Pipeline:
-    p = db.get(models.Pipeline, pipeline_id)
-    if not p or p.owner_user_id != user.id:
-        raise HTTPException(404, "Pipeline not found")
-    return p
-
-
 # ── Overview ─────────────────────────────────────────────────────────────
 
 @router.get("/overview")
@@ -344,6 +223,8 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
     active = db.query(models.Customer).filter_by(owner_user_id=user.id, status="active").count()
     deals_open = db.query(models.Deal).filter_by(owner_user_id=user.id, status="open").count()
     deals_won = db.query(models.Deal).filter_by(owner_user_id=user.id, status="won").count()
+    products = db.query(models.Product).filter_by(owner_user_id=user.id).count()
+    products_active = db.query(models.Product).filter_by(owner_user_id=user.id, status="active").count()
     pipeline_value = (
         db.query(func.coalesce(func.sum(models.Deal.value), 0.0))
         .filter_by(owner_user_id=user.id, status="open")
@@ -373,19 +254,33 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
         .filter((models.DiaryEntry.start_at >= datetime.utcnow()) | (models.DiaryEntry.start_at.is_(None)))
         .count()
     )
+    companies = (
+        db.query(models.Company)
+        .filter_by(owner_user_id=user.id)
+        .order_by(models.Company.id)
+        .all()
+    )
     return {
         "counts": {
             "customers": customers,
             "customers_active": active,
             "deals_open": deals_open,
             "deals_won": deals_won,
+            "products": products,
+            "products_active": products_active,
             "pipeline_value": float(pipeline_value or 0),
             "won_value": float(won_value or 0),
             "pipelines": len(pipelines),
             "diary_upcoming": diary_upcoming,
+            "companies": len(companies),
         },
         "recent_customers": [_customer_out(c, db, light=True) for c in recent],
         "pipelines": [_pipeline_out(p, db) for p in pipelines],
+        "companies": [{"id": c.id, "name": c.name, "industry": c.industry or ""} for c in companies],
+        "tag_presets": {
+            "customer": CUSTOMER_TAG_PRESETS,
+            "product": PRODUCT_TAG_PRESETS,
+        },
     }
 
 
@@ -512,28 +407,9 @@ def list_customers(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    query = db.query(models.Customer).filter_by(owner_user_id=user.id)
-    if status:
-        query = query.filter_by(status=status)
-    if company_id is not None:
-        query = query.filter_by(company_id=company_id)
-    if q:
-        like = f"%{q.strip()}%"
-        query = query.filter(or_(
-            models.Customer.name.ilike(like),
-            models.Customer.email.ilike(like),
-            models.Customer.account_name.ilike(like),
-            models.Customer.phone.ilike(like),
-            models.Customer.tags.ilike(like),
-        ))
-    if tag:
-        query = query.filter(models.Customer.tags.ilike(f"%{tag.strip()}%"))
-    total = query.count()
-    rows = (
-        query.order_by(models.Customer.updated_at.desc(), models.Customer.id.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
+    rows, total = crm_list_customers(
+        db, user, q=q, status=status, tag=tag, company_id=company_id,
+        limit=limit, offset=offset,
     )
     return {
         "customers": [_customer_out(c, db, light=True) for c in rows],
@@ -548,9 +424,10 @@ async def create_customer(data: CustomerIn, db: Session = Depends(get_db), user=
     name = (data.name or "").strip()
     if not name:
         raise HTTPException(400, "name required")
+    company_id = _resolve_company_id(db, user, data.company_id, required=False)
     c = models.Customer(
         owner_user_id=user.id,
-        company_id=data.company_id,
+        company_id=company_id,
         name=name,
         email=(data.email or "").strip(),
         phone=(data.phone or "").strip(),
@@ -563,7 +440,7 @@ async def create_customer(data: CustomerIn, db: Session = Depends(get_db), user=
         country=(data.country or "").strip(),
         status=data.status or "active",
         source=(data.source or "").strip(),
-        tags=(data.tags or "").strip(),
+        tags=_normalize_tags(data.tags),
         owner_human_id=data.owner_human_id,
         owner_agent_id=data.owner_agent_id,
         annual_value=float(data.annual_value or 0),
@@ -649,25 +526,13 @@ def update_customer(
     user=Depends(get_current_user),
 ):
     c = _owned_customer(db, customer_id, user)
-    fields = (
-        "name", "email", "phone", "job_title", "account_name", "website",
-        "industry", "address", "city", "country", "status", "source", "tags", "notes",
-    )
-    for f in fields:
-        val = getattr(data, f)
-        if val is not None:
-            setattr(c, f, val.strip() if isinstance(val, str) else val)
-    if data.company_id is not None:
-        c.company_id = data.company_id or None
-    if data.owner_human_id is not None:
-        c.owner_human_id = data.owner_human_id or None
-    if data.owner_agent_id is not None:
-        c.owner_agent_id = data.owner_agent_id or None
-    if data.annual_value is not None:
-        c.annual_value = float(data.annual_value)
-    c.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(c)
+    payload = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
+    company_kw = {}
+    if "company_id" in payload:
+        company_kw["company_id"] = _resolve_company_id(
+            db, user, payload.pop("company_id") or None, required=False,
+        )
+    c = crm_update_customer_fields(db, user, c, payload, **company_kw)
     return _customer_out(c, db)
 
 
@@ -690,19 +555,13 @@ async def add_activity(
     user=Depends(get_current_user),
 ):
     c = _owned_customer(db, customer_id, user)
-    a = models.CustomerActivity(
-        customer_id=c.id,
-        owner_user_id=user.id,
-        kind=(data.kind or "note").strip(),
-        title=(data.title or "").strip() or (data.kind or "note").title(),
-        body=(data.body or "").strip(),
+    a = crm_log_customer_activity(
+        db, user, c,
+        kind=data.kind or "note",
+        title=data.title or "",
+        body=data.body or "",
         deal_id=data.deal_id,
     )
-    db.add(a)
-    c.last_contacted_at = datetime.utcnow()
-    c.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(a)
     await emit_ops(
         user.id, kind="action", status="info",
         title=f"{c.name}: {a.title}",
@@ -736,58 +595,28 @@ def list_deals(
 @router.post("/deals")
 async def create_deal(data: DealIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     cust = _owned_customer(db, data.customer_id, user)
-    if data.pipeline_id:
-        pipe = _owned_pipeline(db, data.pipeline_id, user)
-    else:
-        pipe = _ensure_default_pipeline(db, user)
-    stage = None
-    if data.stage_id:
-        stage = db.get(models.PipelineStage, data.stage_id)
-        if not stage or stage.pipeline_id != pipe.id:
-            raise HTTPException(400, "Invalid stage for pipeline")
-    else:
-        stage = (
-            db.query(models.PipelineStage)
-            .filter_by(pipeline_id=pipe.id)
-            .order_by(models.PipelineStage.position)
-            .first()
-        )
-    if not stage:
-        raise HTTPException(400, "Pipeline has no stages")
-    title = (data.title or "").strip() or f"Deal · {cust.name}"
-    d = models.Deal(
-        owner_user_id=user.id,
-        pipeline_id=pipe.id,
-        stage_id=stage.id,
-        customer_id=cust.id,
-        company_id=data.company_id or cust.company_id,
-        title=title,
+    deal_company = _resolve_company_id(
+        db, user, data.company_id or cust.company_id, required=False,
+    )
+    d = crm_create_deal_for_customer(
+        db, user, cust,
+        title=data.title,
         value=float(data.value or 0),
-        currency=(data.currency or "USD").strip(),
-        status="open",
+        currency=data.currency or "USD",
         priority=data.priority or "medium",
-        expected_close=_parse_dt(data.expected_close),
+        description=data.description or "",
+        expected_close=data.expected_close,
+        pipeline_id=data.pipeline_id,
+        stage_id=data.stage_id,
+        company_id=deal_company,
         owner_human_id=data.owner_human_id or cust.owner_human_id,
         owner_agent_id=data.owner_agent_id or cust.owner_agent_id,
-        description=(data.description or "").strip(),
     )
-    db.add(d)
-    db.flush()
-    db.add(models.CustomerActivity(
-        customer_id=cust.id,
-        owner_user_id=user.id,
-        kind="deal",
-        title=f"Deal created: {title}",
-        body=f"Stage: {stage.name} · Value: {d.value} {d.currency}",
-        deal_id=d.id,
-    ))
-    cust.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(d)
+    stage = db.get(models.PipelineStage, d.stage_id)
     await emit_ops(
         user.id, kind="action", status="info",
-        title=f"Deal: {title}",
-        detail=f"{cust.name} · {stage.name}",
+        title=f"Deal: {d.title}",
+        detail=f"{cust.name} · {stage.name if stage else ''}",
         db=db,
     )
     return _deal_out(d, db)
@@ -800,9 +629,10 @@ async def move_deal(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    d = db.get(models.Deal, deal_id)
-    if not d or d.owner_user_id != user.id:
-        raise HTTPException(404, "Deal not found")
+    d = require_owned(
+        db, models.Deal, deal_id, user,
+        user_field='owner_user_id', not_found="Deal not found",
+    )
     stage = db.get(models.PipelineStage, data.stage_id)
     if not stage or stage.pipeline_id != d.pipeline_id:
         raise HTTPException(400, "Stage not in this pipeline")
@@ -850,9 +680,10 @@ def update_deal(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    d = db.get(models.Deal, deal_id)
-    if not d or d.owner_user_id != user.id:
-        raise HTTPException(404, "Deal not found")
+    d = require_owned(
+        db, models.Deal, deal_id, user,
+        user_field='owner_user_id', not_found="Deal not found",
+    )
     if data.title:
         d.title = data.title.strip()
     d.value = float(data.value if data.value is not None else d.value)
@@ -872,9 +703,10 @@ def update_deal(
 
 @router.delete("/deals/{deal_id}")
 def delete_deal(deal_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    d = db.get(models.Deal, deal_id)
-    if not d or d.owner_user_id != user.id:
-        raise HTTPException(404, "Deal not found")
+    d = require_owned(
+        db, models.Deal, deal_id, user,
+        user_field='owner_user_id', not_found="Deal not found",
+    )
     db.query(models.CustomerActivity).filter_by(deal_id=d.id).delete()
     db.delete(d)
     db.commit()
@@ -997,9 +829,10 @@ async def create_diary(data: DiaryIn, db: Session = Depends(get_db), user=Depend
 
 @router.put("/diary/{diary_id}")
 def update_diary(diary_id: int, data: DiaryUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    d = db.get(models.DiaryEntry, diary_id)
-    if not d or d.owner_user_id != user.id:
-        raise HTTPException(404, "Diary entry not found")
+    d = require_owned(
+        db, models.DiaryEntry, diary_id, user,
+        user_field='owner_user_id', not_found="Diary entry not found",
+    )
     if data.title is not None:
         d.title = data.title.strip()
     if data.start_at is not None:
@@ -1028,9 +861,10 @@ def update_diary(diary_id: int, data: DiaryUpdate, db: Session = Depends(get_db)
 
 @router.delete("/diary/{diary_id}")
 def delete_diary(diary_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    d = db.get(models.DiaryEntry, diary_id)
-    if not d or d.owner_user_id != user.id:
-        raise HTTPException(404, "Diary entry not found")
+    d = require_owned(
+        db, models.DiaryEntry, diary_id, user,
+        user_field='owner_user_id', not_found="Diary entry not found",
+    )
     db.delete(d)
     db.commit()
     return {"ok": True}

@@ -1,0 +1,1000 @@
+{
+  "pack": "20_executive",
+  "category": "ops",
+  "label": "Executive & strategy",
+  "skills": [
+    {
+      "id": "exec_strategy_memo",
+      "name": "Strategy memo",
+      "description": "Write an executive strategy memo with context, options, recommendation, and next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_okr_set",
+      "name": "OKR set",
+      "description": "Define company or team OKRs with measurable key results and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_okr_review",
+      "name": "OKR review",
+      "description": "Review OKR progress, score results, call out risks, and recommend course corrections.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_board_deck_outline",
+      "name": "Board deck outline",
+      "description": "Outline a board presentation with narrative flow, key metrics, and decision asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_board_minutes_help",
+      "name": "Board minutes helper",
+      "description": "Draft structured board meeting minutes with resolutions, actions, and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_investor_update",
+      "name": "Investor update",
+      "description": "Write a periodic investor update covering traction, metrics, risks, and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_fundraising_narrative",
+      "name": "Fundraising narrative",
+      "description": "Craft a fundraising story: problem, solution, market, traction, team, and use of funds.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_pitch_deck_outline",
+      "name": "Pitch deck outline",
+      "description": "Outline an investor pitch deck with slide-by-slide talking points and flow.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_market_sizing",
+      "name": "Market sizing",
+      "description": "Estimate market size with top-down and bottom-up methods and clear assumptions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_tam_sam_som",
+      "name": "TAM / SAM / SOM",
+      "description": "Break down total, serviceable, and obtainable market with methodology and sources.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_competitive_strategy",
+      "name": "Competitive strategy",
+      "description": "Define competitive positioning, differentiation, and response plays against rivals.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_porter_five",
+      "name": "Porter's Five Forces",
+      "description": "Analyze industry structure with Porter's Five Forces and strategic implications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_swot",
+      "name": "SWOT analysis",
+      "description": "Produce a SWOT with prioritized insights and recommended strategic actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_pestle",
+      "name": "PESTLE analysis",
+      "description": "Map political, economic, social, tech, legal, and environmental factors and impacts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_scenario_strategy",
+      "name": "Scenario strategy",
+      "description": "Build strategic scenarios with triggers, implications, and contingent plays.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_m_and_a_thesis",
+      "name": "M&A thesis",
+      "description": "Articulate an M&A thesis: strategic rationale, target profile, and value creation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_diligence_list",
+      "name": "Due diligence checklist",
+      "description": "Build a due diligence checklist covering commercial, financial, legal, and ops areas.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_integration_plan_exec",
+      "name": "Integration plan (exec)",
+      "description": "Plan post-merger integration priorities, workstreams, owners, and Day-1/100 milestones.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_org_redesign",
+      "name": "Org redesign",
+      "description": "Propose an org design with structure options, roles, RACI, and change implications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_operating_cadence",
+      "name": "Operating cadence",
+      "description": "Design leadership operating rhythm: meetings, reviews, metrics, and decision rights.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_comms",
+      "name": "Executive communications",
+      "description": "Draft high-stakes executive communications with clear message, tone, and call to action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_all_hands_script",
+      "name": "All-hands script",
+      "description": "Write an all-hands script covering updates, narrative, Q&A prompts, and calls to action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_crisis_comms_exec",
+      "name": "Crisis communications (exec)",
+      "description": "Prepare executive crisis messaging for internal and external stakeholders.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_media_statement",
+      "name": "Media statement",
+      "description": "Draft a public media or press statement with approved talking points and Q&A.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_policy_position",
+      "name": "Policy position",
+      "description": "Articulate a company policy position with rationale, stakeholders, and talking points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_government_affairs",
+      "name": "Government affairs brief",
+      "description": "Brief on regulatory or government affairs priorities, risks, and engagement plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_partnership_strategy",
+      "name": "Partnership strategy",
+      "description": "Define partnership strategy: targets, value exchange, models, and prioritization.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_pricing_strategy_exec",
+      "name": "Pricing strategy (exec)",
+      "description": "Set executive pricing strategy: positioning, packaging options, and margin guardrails.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_geo_expansion",
+      "name": "Geographic expansion",
+      "description": "Plan geo expansion with market selection, entry model, risks, and phased roadmap.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_product_portfolio",
+      "name": "Product portfolio strategy",
+      "description": "Assess product portfolio mix, investment priorities, and sunset or growth bets.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_capital_allocation",
+      "name": "Capital allocation",
+      "description": "Recommend capital allocation across growth, ops, M&A, and reserves with trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_budget_guidance",
+      "name": "Budget guidance",
+      "description": "Issue executive budget guidance: priorities, envelopes, targets, and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_hiring_plan_exec",
+      "name": "Hiring plan (exec)",
+      "description": "Build an executive hiring plan by function, headcount, timing, and cost impact.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_culture_memo",
+      "name": "Culture memo",
+      "description": "Write a culture memo that reinforces norms, behaviors, and leadership expectations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_values_refresh",
+      "name": "Values refresh",
+      "description": "Refresh company values with clear definitions, examples, and rollout plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_risk_appetite",
+      "name": "Risk appetite statement",
+      "description": "Define risk appetite by category with thresholds, escalations, and board alignment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_enterprise_risk",
+      "name": "Enterprise risk overview",
+      "description": "Summarize top enterprise risks, owners, mitigations, and residual exposure.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_audit_committee_note",
+      "name": "Audit committee note",
+      "description": "Prepare an audit committee briefing on controls, findings, and management response.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_esg_report_outline",
+      "name": "ESG report outline",
+      "description": "Outline an ESG report with material topics, metrics, narrative sections, and owners.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_sustainability_strategy",
+      "name": "Sustainability strategy",
+      "description": "Define sustainability strategy with goals, initiatives, KPIs, and investment needs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_customer_advisory",
+      "name": "Customer advisory board",
+      "description": "Plan a customer advisory board agenda, invite list, questions, and follow-ups.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_analyst_day",
+      "name": "Analyst day plan",
+      "description": "Plan analyst day narrative, agenda, metrics story, and speaker roles.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_ipo_readiness",
+      "name": "IPO readiness",
+      "description": "Assess IPO readiness across finance, governance, controls, narrative, and gaps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_exit_strategy",
+      "name": "Exit strategy",
+      "description": "Outline exit options (sale, IPO, secondary) with timing, readiness, and trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_succession_exec",
+      "name": "Succession planning (exec)",
+      "description": "Map executive succession: critical roles, successors, gaps, and development plans.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_ceo_letter",
+      "name": "CEO letter",
+      "description": "Draft a CEO letter for annual report, investors, or company with clear narrative arc.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_weekly_ceo_note",
+      "name": "Weekly CEO note",
+      "description": "Write a concise weekly CEO note highlighting wins, priorities, and asks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_dashboard",
+      "name": "Executive dashboard",
+      "description": "Define an executive dashboard: KPIs, definitions, targets, owners, and refresh cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_weekly",
+      "name": "Executive weekly brief",
+      "description": "Produce a weekly exec brief covering metrics, decisions needed, risks, and wins.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "exec_custom",
+      "name": "Custom executive deliverable",
+      "description": "Create a custom executive or strategy deliverable tailored to goal, audience, and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "20_executive",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

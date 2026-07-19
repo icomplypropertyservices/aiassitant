@@ -7,15 +7,13 @@ from .. import models
 from ..auth_utils import (
     hash_password,
     verify_password,
-    create_token,
     get_current_user,
     generate_api_key,
+    issue_bay_session_key,
     user_me,
     user_public,
-    decode_token,
-    get_user_from_token,
 )
-from ..sso import login_via_main_credentials, resolve_user_from_jwt_payload
+from ..sso import login_via_main_credentials
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -25,7 +23,7 @@ class RegisterIn(BaseModel):
     username: str = Field(min_length=3, max_length=40)
     password: str = Field(min_length=8)
     display_name: str = ""
-    account_type: str = "human"  # human | agent
+    account_type: str = "human"
     bio: str = ""
 
 
@@ -43,15 +41,12 @@ class ProfileUpdate(BaseModel):
 
 @router.post("/register")
 def register(data: RegisterIn, db: Session = Depends(get_db)):
-    """
-    Optional bay-only register. Prefer signing up at /agents then using AgentBay SSO.
-    """
     email = data.email.strip().lower()
     username = data.username.strip().lower().replace(" ", "_")
     if data.account_type not in ("human", "agent"):
         raise HTTPException(400, "account_type must be human or agent")
     if db.query(models.User).filter_by(email=email).first():
-        raise HTTPException(400, "Email already registered — sign in with your main account")
+        raise HTTPException(400, "Email already registered — use main app login")
     if db.query(models.User).filter_by(username=username).first():
         raise HTTPException(400, "Username taken")
 
@@ -63,63 +58,65 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         account_type=data.account_type,
         bio=data.bio or "",
     )
-    api_key_plain = None
-    if data.account_type == "agent":
-        raw, prefix, h = generate_api_key()
-        user.api_key_hash = h
-        user.api_key_prefix = prefix
-        api_key_plain = raw
-
     db.add(user)
     db.commit()
     db.refresh(user)
-    token = create_token(user.id, user.account_type)
-    out = {"token": token, "user": user_me(user), "sso": False}
-    if api_key_plain:
-        out["api_key"] = api_key_plain
-        out["api_key_note"] = "Save this API key now — it will not be shown again."
+    api_key = issue_bay_session_key(db, user)
+    out = {
+        "token": api_key,
+        "api_key": api_key,
+        "auth_type": "api_key",
+        "user": user_me(user),
+        "sso": False,
+    }
     return out
 
 
 @router.post("/login")
 def login(data: LoginIn, db: Session = Depends(get_db)):
     """
-    Unified login:
-    1) AgentBay local password
-    2) AI Business Assistant account (same email/password) → SSO link
+    Unified login (API keys only):
+    1) Main app email/password → aba_ key + linked bay profile
+    2) Bay-local password → abm_ key
     """
     email = data.email.strip().lower()
+
+    # Prefer main product credentials
+    linked = login_via_main_credentials(db, email, data.password)
+    if linked:
+        bay, api_key = linked
+        return {
+            "token": api_key,
+            "api_key": api_key,
+            "auth_type": "api_key",
+            "user": user_me(bay),
+            "sso": True,
+            "source": "ai-business-assistant",
+        }
+
     user = db.query(models.User).filter_by(email=email).first()
     if user and verify_password(data.password, user.password_hash):
         if not user.is_active:
             raise HTTPException(403, "Account disabled")
+        api_key = issue_bay_session_key(db, user)
         return {
-            "token": create_token(user.id, user.account_type),
+            "token": api_key,
+            "api_key": api_key,
+            "auth_type": "api_key",
             "user": user_me(user),
-            "sso": bool(user.main_user_id),
+            "sso": False,
         }
-
-    # Main app credentials
-    linked = login_via_main_credentials(db, email, data.password)
-    if linked:
-        bay, token = linked
-        return {"token": token, "user": user_me(bay), "sso": True, "source": "ai-business-assistant"}
 
     raise HTTPException(401, "Invalid email or password")
 
 
 @router.post("/sso")
-def sso_from_main_token(
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """
-    Confirm / refresh marketplace profile using the current Bearer token
-    (main app JWT or bay JWT). Called automatically by the AgentBay UI.
-    """
+def sso_from_api_key(user=Depends(get_current_user)):
+    """Confirm marketplace profile for current X-API-Key (aba_ or abm_)."""
     return {
         "ok": True,
         "user": user_me(user),
+        "auth_type": "api_key",
         "sso": bool(user.main_user_id or (user.source_system == "ai-business-assistant")),
     }
 
@@ -146,13 +143,16 @@ def update_me(data: ProfileUpdate, db: Session = Depends(get_db), user=Depends(g
 
 @router.post("/api-key/rotate")
 def rotate_api_key(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Rotate AgentBay marketplace key (abm_). Main aba_ keys rotate via main app login."""
     raw, prefix, h = generate_api_key()
     user.api_key_hash = h
     user.api_key_prefix = prefix
     db.commit()
     return {
         "api_key": raw,
+        "token": raw,
         "prefix": prefix,
+        "auth_type": "api_key",
         "note": "Save this API key now — it will not be shown again.",
     }
 

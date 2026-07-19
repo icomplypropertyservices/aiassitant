@@ -35,15 +35,29 @@ def mode_for_template(template_type: str | None) -> str:
 
 
 async def log_activity(agent_id: int, user_id: int, kind: str, detail: str):
+    """Persist agent activity. Model columns are type/message (not kind/detail)."""
     db = SessionLocal()
     try:
         db.add(models.ActivityLog(
             agent_id=agent_id,
-            user_id=user_id,
-            kind=kind,
-            detail=(detail or "")[:2000],
+            type=kind or "info",
+            message=(detail or "")[:2000],
         ))
         db.commit()
+        try:
+            await manager.broadcast(
+                f"agents:{user_id}",
+                {
+                    "event": "activity",
+                    "agent_id": agent_id,
+                    "entry": {
+                        "type": kind or "info",
+                        "message": (detail or "")[:500],
+                    },
+                },
+            )
+        except Exception:
+            pass
     except Exception as e:
         log.warning("log_activity failed: %s", e)
         db.rollback()
@@ -76,6 +90,13 @@ async def run_agent_task(
         if not a:
             t.status = "failed"
             t.result = "Agent missing"
+            t.completed_at = datetime.utcnow()
+            # Keep auto-chain rollup/skip consistent even on early hard fails
+            try:
+                from .task_chain import on_task_finished
+                await on_task_finished(db, t, final_status="failed", commit=False)
+            except Exception as chain_err:
+                log.warning("task_chain on agent-missing fail: %s", chain_err)
             db.commit()
             return
         # Hot path: no full-team rewrite — only ensure this agent can execute
@@ -170,6 +191,16 @@ async def run_agent_task(
                 t.status = "completed"
                 t.result = output
                 t.completed_at = datetime.utcnow()
+                # Auto-chain: roll up parent goal, queue next sibling.
+                # commit=False — we own one transaction for billing + task + chain.
+                try:
+                    from .task_chain import on_task_finished
+                    await on_task_finished(
+                        db, t, final_status="completed", commit=False,
+                    )
+                except Exception as chain_err:
+                    log.warning("task_chain on complete failed: %s", chain_err)
+            # Single commit: task terminal state, usage, parent rollup, next sibling
             db.commit()
             cost = charged["cost"]
             tokens = charged["tokens"]
@@ -216,6 +247,14 @@ async def run_agent_task(
                 t.status = "failed"
                 t.result = str(e)[:500]
                 t.completed_at = datetime.utcnow()
+                # commit=False — single commit below for fail + chain rollup
+                try:
+                    from .task_chain import on_task_finished
+                    await on_task_finished(
+                        db, t, final_status="failed", commit=False,
+                    )
+                except Exception as chain_err:
+                    log.warning("task_chain on fail failed: %s", chain_err)
                 db.commit()
         finally:
             db.close()

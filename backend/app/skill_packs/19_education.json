@@ -1,0 +1,1000 @@
+{
+  "pack": "19_education",
+  "category": "hr",
+  "label": "Education & training",
+  "skills": [
+    {
+      "id": "edu_curriculum_outline",
+      "name": "Curriculum outline",
+      "description": "Design a multi-unit curriculum outline with scope, sequence, outcomes, and milestones.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_lesson_plan",
+      "name": "Lesson plan",
+      "description": "Create a session lesson plan with objectives, activities, timing, materials, and assessment.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_learning_objectives",
+      "name": "Learning objectives",
+      "description": "Write measurable learning objectives aligned to outcomes and cognitive levels.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_quiz_bank",
+      "name": "Quiz bank",
+      "description": "Build a quiz item bank with answer keys, difficulty tags, and objective mapping.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_rubric_edu",
+      "name": "Assessment rubric",
+      "description": "Create a scoring rubric with criteria, performance levels, and clear descriptors.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_syllabus",
+      "name": "Course syllabus",
+      "description": "Draft a course syllabus covering schedule, policies, outcomes, and grading.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_workshop_agenda",
+      "name": "Workshop agenda",
+      "description": "Plan a workshop agenda with timed blocks, facilitation notes, and materials list.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_bootcamp_plan",
+      "name": "Bootcamp plan",
+      "description": "Design an intensive bootcamp plan with daily schedule, modules, and success metrics.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_onboarding_edu",
+      "name": "Learner onboarding plan",
+      "description": "Create a learner education onboarding plan with milestones, resources, and check-ins.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_microlearning",
+      "name": "Microlearning modules",
+      "description": "Design bite-sized microlearning modules with objectives, content, and knowledge checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_video_lesson_script",
+      "name": "Video lesson script",
+      "description": "Write a video lesson script with hooks, segments, visual cues, and closing CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_slide_outline_edu",
+      "name": "Training slide outline",
+      "description": "Outline training slides with titles, bullets, visuals, and speaker notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_handout",
+      "name": "Learner handout",
+      "description": "Produce a learner handout summarizing key points, exercises, and takeaways.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_case_method",
+      "name": "Case method materials",
+      "description": "Build case-method materials including case brief, discussion plan, and teaching notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_discussion_prompt",
+      "name": "Discussion prompts",
+      "description": "Write discussion prompts that drive critical thinking and inclusive participation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_facilitator_guide",
+      "name": "Facilitator guide",
+      "description": "Create a facilitator guide with timing, scripts, activities, and troubleshooting tips.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_student_feedback",
+      "name": "Student feedback",
+      "description": "Draft constructive student feedback with strengths, gaps, and clear next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_grade_explain",
+      "name": "Grade explanation",
+      "description": "Explain a grade with rubric alignment, evidence from work, and improvement guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_accommodation_plan",
+      "name": "Accommodation plan",
+      "description": "Design a learner accommodation plan with supports, responsibilities, and review dates.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_accessibility_edu",
+      "name": "Accessibility plan",
+      "description": "Produce an accessibility plan for course materials, delivery formats, and inclusive design.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_lms_structure",
+      "name": "LMS course structure",
+      "description": "Map LMS course structure with modules, content, assignments, and navigation flow.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_badge_design",
+      "name": "Badge design brief",
+      "description": "Design digital badge criteria, evidence requirements, and issuance rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_certification_path",
+      "name": "Certification path",
+      "description": "Map a certification path with prerequisites, assessments, and renewal requirements.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_assessment_blueprint",
+      "name": "Assessment blueprint",
+      "description": "Create an assessment blueprint linking objectives, item types, weights, and coverage.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_item_analysis",
+      "name": "Item analysis",
+      "description": "Analyze assessment items for difficulty, discrimination, and revision recommendations.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_cohort_plan",
+      "name": "Cohort plan",
+      "description": "Plan a cohort learning program with calendar, milestones, and engagement tactics.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_mentorship_program",
+      "name": "Mentorship program",
+      "description": "Design a mentorship program with pairing, cadence, goals, and evaluation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_office_hours_edu",
+      "name": "Office hours plan",
+      "description": "Structure office hours with format, intake process, and common Q&A prep.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_parent_comms",
+      "name": "Parent communications",
+      "description": "Draft parent/guardian communications with clear updates, tone, and call to action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_student_success",
+      "name": "Student success plan",
+      "description": "Build a student success plan with goals, supports, metrics, and check-ins.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_at_risk_student",
+      "name": "At-risk student plan",
+      "description": "Create an intervention plan for at-risk learners with signals, actions, and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_tutoring_plan",
+      "name": "Tutoring plan",
+      "description": "Design a tutoring plan with focus areas, session structure, and progress tracking.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_lab_safety",
+      "name": "Lab safety brief",
+      "description": "Produce lab safety guidance covering hazards, PPE, procedures, and incident response.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_field_trip_plan",
+      "name": "Field trip plan",
+      "description": "Plan a field trip with logistics, learning goals, risk controls, and permissions.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_guest_speaker",
+      "name": "Guest speaker brief",
+      "description": "Prepare a guest speaker brief with audience context, topics, and run-of-show.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_research_proposal_edu",
+      "name": "Research proposal",
+      "description": "Draft an education research proposal with question, methods, timeline, and ethics notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_thesis_outline",
+      "name": "Thesis outline",
+      "description": "Structure a thesis or dissertation outline with chapters, arguments, and sources plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_citation_help",
+      "name": "Citation guide",
+      "description": "Provide citation help with style examples, formatting rules, and common error fixes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_plagiarism_policy",
+      "name": "Plagiarism policy",
+      "description": "Draft an academic integrity and plagiarism policy with definitions and consequences.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_ai_use_policy_edu",
+      "name": "AI use policy",
+      "description": "Write an AI use policy for learning contexts with allowed uses and disclosure rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_faculty_dev",
+      "name": "Faculty development plan",
+      "description": "Design a faculty development plan with topics, formats, cadence, and outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_peer_review_edu",
+      "name": "Peer review guide",
+      "description": "Create a peer review process and rubric for student or faculty work.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_program_review",
+      "name": "Program review",
+      "description": "Produce a program review with outcomes data, strengths, gaps, and recommendations.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_accreditation_note",
+      "name": "Accreditation note",
+      "description": "Draft an accreditation evidence note mapping standards, artifacts, and narratives.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_catalog_entry",
+      "name": "Course catalog entry",
+      "description": "Write a course catalog entry with description, credits, prerequisites, and outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_marketing_program",
+      "name": "Program marketing brief",
+      "description": "Create a program marketing brief with audience, value props, and channel messaging.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_alumni_comms",
+      "name": "Alumni communications",
+      "description": "Draft alumni communications with updates, engagement asks, and a clear CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_weekly",
+      "name": "Education weekly update",
+      "description": "Compile a weekly education and training update with priorities, metrics, and risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_playbook",
+      "name": "Education playbook",
+      "description": "Document an education and training playbook with processes, templates, and RACI.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "edu_custom",
+      "name": "Custom education deliverable",
+      "description": "Produce a custom education or training deliverable tailored to the stated goal.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "hr",
+      "pack": "19_education",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

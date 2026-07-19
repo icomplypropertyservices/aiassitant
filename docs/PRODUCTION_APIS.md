@@ -91,11 +91,13 @@ Also acceptable for platform LLM: `ANTHROPIC_API_KEY` (and/or managed RunPod/Oll
 |----------|---------|
 | `CRON_SECRET` | Shared secret for scheduled ops endpoints |
 
-- Vercel Cron (root `vercel.json`): daily `0 6 * * *` → `POST /api/ops/autonomy/tick-all`.
-- Auth accepted:
+- Vercel Cron (root `vercel.json`): daily `0 6 * * *` → **`GET /api/ops/autonomy/tick-all`** (Vercel always uses GET).
+- Endpoint also accepts **POST** (admin tools / curl). Handler: `backend/app/routers/ops.py` → `autonomy_tick_all`.
+- Tick drains **queued** agent tasks (and on a full cycle: stuck/failed + idle feeds). Cooldown still drains the queue.
+- Auth accepted (required; never open):
   - Header `X-Cron-Secret: <CRON_SECRET>`
-  - or `Authorization: Bearer <CRON_SECRET>` (common for Vercel Cron)
-  - or admin JWT
+  - or `Authorization: Bearer <CRON_SECRET>` (Vercel injects this when `CRON_SECRET` is set in the project env)
+  - or admin API key
 - In production, if `CRON_SECRET` is **empty**, non-admin callers get **503**.
 - Generate: `openssl rand -hex 32` — set the same value in Vercel Production env.
 
@@ -247,17 +249,34 @@ Only needed for **one-click OAuth** (otherwise connect with tokens in the UI):
 | App | Env vars | Docs |
 |-----|----------|------|
 | Shopify | `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` | https://shopify.dev |
-| Google (Gmail/Sheets/Business) | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | https://console.cloud.google.com |
+| Google (Workspace/Gmail/Sheets/Business/YouTube) | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `API_PUBLIC_URL` or `OAUTH_REDIRECT_URI` | https://console.cloud.google.com — see **Google OAuth** below |
 | Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | https://api.slack.com/apps |
 | HubSpot | `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET` | https://developers.hubspot.com |
 | Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | https://developers.notion.com |
 | Dropbox | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` | https://www.dropbox.com/developers |
 
-OAuth redirect (if used):
+### Google OAuth (required for 1-click Connect)
 
 | Variable | Example |
 |----------|---------|
-| `OAUTH_REDIRECT_URI` or `API_PUBLIC_URL` | `https://aibusinessagent.xyz/api/integrations/oauth/callback` |
+| `GOOGLE_OAUTH_CLIENT_ID` | `….apps.googleusercontent.com` |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | `GOCSPX-…` |
+| `API_PUBLIC_URL` | `https://aibusinessagent.xyz/api` |
+| `OAUTH_REDIRECT_URI` (optional override) | `https://aibusinessagent.xyz/api/integrations/oauth/callback` |
+
+**Google Cloud Console checklist**
+
+1. Create **OAuth client type = Web application** (not Desktop / iOS).
+2. **Authorized redirect URIs** — add **exactly**:
+   ```text
+   https://aibusinessagent.xyz/api/integrations/oauth/callback
+   ```
+   Do **not** use `/agents/api/...` — that path is wrong and causes Google **“request is invalid”**.
+3. **Authorized JavaScript origins** — e.g. `https://aibusinessagent.xyz`
+4. OAuth consent screen: External or Internal; if **Testing**, add every tester email.
+5. Enable APIs as needed: Gmail, Sheets, Calendar, Drive, YouTube Data, Business Profile.
+
+After deploy, Settings → Connected apps shows the live `redirect_uri` to copy. Token exchange reuses the same URI stored in OAuth `state`.
 
 ---
 
@@ -406,8 +425,8 @@ Run after every production deploy that changes env or routing. Prefer the custom
 | # | Check | Pass criteria |
 |---|--------|----------------|
 | 15 | Chat/LLM | Agent chat returns real model text (not permanent mock) with `XAI_API_KEY` and/or Anthropic/RunPod |
-| 16 | Cron secret | `POST /api/ops/autonomy/tick-all` without secret → 403/503; with `X-Cron-Secret` or `Authorization: Bearer <CRON_SECRET>` → 200 |
-| 17 | Cron schedule | Vercel → Cron Jobs shows daily job for `/api/ops/autonomy/tick-all`; recent run OK after secret set |
+| 16 | Cron secret | `GET` or `POST /api/ops/autonomy/tick-all` without secret → 403/503; with `X-Cron-Secret` or `Authorization: Bearer <CRON_SECRET>` → 200 |
+| 17 | Cron schedule | Vercel → Cron Jobs shows daily **GET** job for `/api/ops/autonomy/tick-all`; recent run OK after secret set |
 | 18 | Health flags | If health/status exposes them: `cron_secret_configured`, email/resend, etc. match env |
 
 ### 5. Email (Resend)

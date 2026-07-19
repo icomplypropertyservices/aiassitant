@@ -30,20 +30,28 @@ def files_for_agent(
         return q.order_by(models.KnowledgeFile.updated_at.desc()).limit(max_files).all()
 
     access = db.query(models.AgentKnowledgeAccess).filter_by(agent_id=agent.id).all()
+    # Default: agents can read the whole training library unless explicitly restricted.
+    # (Empty access rowset = open; only "none" permission or partial grants restrict.)
     if not access:
-        return []
+        return q.order_by(models.KnowledgeFile.updated_at.desc()).limit(max_files).all()
 
     file_ids: set[int] = set()
     folder_ids: set[int] = set()
+    has_explicit_grant = False
     for a in access:
         if a.permission == "none":
             continue
+        has_explicit_grant = True
         if a.resource_type == "all":
             return q.order_by(models.KnowledgeFile.updated_at.desc()).limit(max_files).all()
         if a.resource_type == "file" and a.resource_id:
             file_ids.add(int(a.resource_id))
         if a.resource_type == "folder" and a.resource_id:
             folder_ids.add(int(a.resource_id))
+
+    # Only "none" rows (or empty grants) → still allow full library
+    if not has_explicit_grant and not file_ids and not folder_ids:
+        return q.order_by(models.KnowledgeFile.updated_at.desc()).limit(max_files).all()
 
     rows = []
     if file_ids:
@@ -94,8 +102,8 @@ def knowledge_context_for_agent(db: Session, agent_id: int, *, max_chars: int | 
     files = files_for_agent(db, agent, max_chars=cap)
     if not files:
         parts.append(
-            "Training library: no files allocated. "
-            "Owner can assign files in Training → Agent access."
+            "Training library: no ready files yet. "
+            "You may still use list/search skills; owner can upload in Training."
         )
     else:
         chunks = []

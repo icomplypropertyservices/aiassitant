@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import {
-  Button, Input, Space, Typography, Spin, Tag, Dropdown, Switch, message, Tooltip, Drawer, List,
+  Button, Card, Input, Space, Typography, Spin, Tag, Dropdown, Switch, message, Tooltip, Drawer, List, Alert,
 } from 'antd'
 import {
   ArrowLeftOutlined, SendOutlined, MoreOutlined, SettingOutlined, AppstoreOutlined,
-  ThunderboltOutlined, AudioOutlined, RobotOutlined, PlusOutlined, MenuOutlined,
-  CheckCircleOutlined, PauseCircleOutlined, PlayCircleOutlined,
+  ThunderboltOutlined, RobotOutlined, MenuOutlined,
+  PauseCircleOutlined, PlayCircleOutlined, NodeIndexOutlined,
+  ClusterOutlined, CheckSquareOutlined, CommentOutlined, TeamOutlined,
+  ApartmentOutlined, HomeOutlined, CreditCardOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, connectAuthedWs } from '../api'
-import { hapticMedium } from '../native'
+import { hapticMedium, acquireKeepAwake, releaseKeepAwake, forceAllowSleep } from '../native'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
 
@@ -23,8 +25,128 @@ const STARTERS = [
   'Run a quick plan for today',
 ]
 
+/** Pull ```questions blocks out of assistant text for UI chips under the bubble. */
+function splitAssistantContent(raw) {
+  const text = String(raw || '')
+  const questions = []
+  // ```questions ... ```
+  let display = text.replace(/```questions\s*([\s\S]*?)```/gi, (_, body) => {
+    String(body || '')
+      .split('\n')
+      .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+      .filter((l) => l.length > 2 && l.length < 200)
+      .forEach((q) => {
+        if (!questions.includes(q)) questions.push(q.endsWith('?') ? q : `${q}?`)
+      })
+    return ''
+  })
+  // Hide skill / code dumps from the spoken bubble (still ran server-side)
+  display = display
+    .replace(/```skill\s*[\s\S]*?```/gi, '')
+    .replace(/```json\s*[\s\S]*?```/gi, '')
+    .replace(/```[a-z0-9_-]*\s*[\s\S]*?```/gi, (block) => {
+      // Keep short non-code fences; strip long code-looking blocks
+      if (block.length > 280 || /[{;}=<>]|function |const |import /.test(block)) return ''
+      return block
+    })
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  // Fallback: trailing lines that look like bare questions when model forgot the fence
+  if (!questions.length) {
+    const lines = display.split('\n').map((l) => l.trim()).filter(Boolean)
+    const tail = []
+    for (let i = lines.length - 1; i >= 0 && tail.length < 4; i--) {
+      const l = lines[i].replace(/^[-*•\d.)\s]+/, '')
+      if (l.endsWith('?') && l.length < 160) tail.unshift(l)
+      else break
+    }
+    if (tail.length >= 1 && tail.length <= 4 && lines.length > tail.length) {
+      questions.push(...tail)
+      display = lines.slice(0, lines.length - tail.length).join('\n').trim()
+    }
+  }
+  return { display: display || text.trim(), questions: questions.slice(0, 6) }
+}
+
+/** Normalize optional API `goal_chain` payload — never throw on shape. */
+function parseGoalChain(gc) {
+  if (!gc || typeof gc !== 'object') return null
+  try {
+    const parentRaw = gc.parent_task_id ?? gc.parent_id ?? null
+    const parentId = parentRaw != null && parentRaw !== '' ? parentRaw : null
+    let stepCount = null
+    if (gc.steps != null && gc.steps !== '' && Number.isFinite(Number(gc.steps))) {
+      stepCount = Number(gc.steps)
+    } else if (Array.isArray(gc.children)) {
+      stepCount = gc.children.length
+    }
+    const apiMessage = typeof gc.message === 'string' && gc.message.trim()
+      ? gc.message.trim()
+      : null
+    return {
+      parent_task_id: parentId,
+      steps: stepCount,
+      deduped: !!gc.deduped,
+      ok: gc.ok !== false,
+      message: apiMessage,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Compact Alert under an assistant bubble when auto-chain / execute_goal fired. */
+function GoalChainAlert({ chain, onOpenTasks }) {
+  if (!chain || typeof chain !== 'object') return null
+  const failed = chain.ok === false
+  const type = failed ? 'warning' : (chain.deduped ? 'info' : 'success')
+  const title = failed
+    ? 'Goal chain issue'
+    : (chain.deduped ? 'Goal chain already running' : 'Goal chain started')
+  const meta = []
+  if (chain.parent_task_id != null) meta.push(`task #${chain.parent_task_id}`)
+  if (chain.steps != null && Number.isFinite(Number(chain.steps))) {
+    const n = Number(chain.steps)
+    meta.push(`${n} step${n === 1 ? '' : 's'}`)
+  }
+  const description = chain.message
+    || 'Auto-chain: prompt → task → delegate → monitor → complete'
+
+  return (
+    <Card
+      size="small"
+      bordered
+      className="agent-chat-goal-chain-card"
+      styles={{ body: { padding: 0 } }}
+    >
+      <Alert
+        type={type}
+        showIcon
+        icon={failed ? undefined : <NodeIndexOutlined />}
+        className="agent-chat-goal-chain"
+        banner
+        message={(
+          <span className="agent-chat-goal-chain-title">
+            {title}
+            {meta.length ? ` · ${meta.join(' · ')}` : ''}
+          </span>
+        )}
+        description={(
+          <span className="agent-chat-goal-chain-desc">{description}</span>
+        )}
+        action={onOpenTasks ? (
+          <Button size="small" type="link" onClick={onOpenTasks}>
+            Tasks
+          </Button>
+        ) : null}
+      />
+    </Card>
+  )
+}
+
 /**
  * ChatGPT-style one-agent page — full focus conversation on mobile & desktop.
+ * Messages + composer sit in bordered Cards; goal_chain from chat API shows as Alert.
  */
 export default function AgentChat() {
   const { id } = useParams()
@@ -44,7 +166,6 @@ export default function AgentChat() {
   const bottomRef = useRef(null)
   const listRef = useRef(null)
   const wsRef = useRef(null)
-  const taRef = useRef(null)
   const speakRef = useRef(speakReplies)
   speakRef.current = speakReplies
 
@@ -59,7 +180,7 @@ export default function AgentChat() {
     api(`/agents/${id}`)
       .then((a) => {
         setAgent(a)
-        if (a.chat?.messages?.length) {
+        if (Array.isArray(a.chat?.messages) && a.chat.messages.length) {
           setMessages(a.chat.messages.map((m) => ({ role: m.role, content: m.content })))
         } else {
           setMessages([])
@@ -119,8 +240,17 @@ export default function AgentChat() {
                 },
               }))
             } catch { /* ignore */ }
+            const goalChainMeta = parseGoalChain(m.goal_chain)
             setMessages((prev) => {
               const next = prev.map((x) => ({ ...x, streaming: false }))
+              if (goalChainMeta) {
+                for (let i = next.length - 1; i >= 0; i -= 1) {
+                  if (next[i].role === 'assistant') {
+                    next[i] = { ...next[i], goal_chain: goalChainMeta }
+                    break
+                  }
+                }
+              }
               if (speakRef.current) {
                 const last = [...next].reverse().find((x) => x.role === 'assistant' && x.content)
                 if (last?.content) speakText(last.content)
@@ -145,16 +275,35 @@ export default function AgentChat() {
 
   useEffect(() => { scrollBottom() }, [messages.length, scrollBottom])
 
+  const abortRef = useRef(null)
+
+  // Leave page mid-reply without hanging the request forever in the UI
+  useEffect(() => () => {
+    try { abortRef.current?.abort() } catch { /* ignore */ }
+    stopSpeaking()
+    forceAllowSleep().catch(() => {})
+  }, [])
+
+  // Keep phone awake while the agent is generating a reply or speaking
+  useEffect(() => {
+    if (busy) {
+      acquireKeepAwake('agent-busy').catch(() => {})
+      return () => { releaseKeepAwake().catch(() => {}) }
+    }
+    return undefined
+  }, [busy])
+
   const send = async (text) => {
     hapticMedium()
     const msg = (text ?? input).trim()
     if (!msg || busy) return
+    // Stop any ongoing TTS before sending a new message
+    try { stopSpeaking() } catch { /* ignore */ }
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
     setInput('')
     setBusy(true)
     // Show thinking bubble immediately so mobile users don't only see a spinner
     setMessages((prev) => [...prev, { role: 'assistant', content: '', streaming: true, pending: true }])
-    if (taRef.current) taRef.current.style.height = 'auto'
     scrollBottom()
 
     // Prefer REST always in production; WS only if fully open (local)
@@ -165,8 +314,11 @@ export default function AgentChat() {
       return
     }
 
+    try { abortRef.current?.abort() } catch { /* ignore */ }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
-    const timeoutMs = 120000
+    abortRef.current = controller
+    // Chat should return in ~10–40s; 90s hard cap so UI never feels stuck forever
+    const timeoutMs = 90000
     const timer = controller
       ? setTimeout(() => controller.abort(), timeoutMs)
       : null
@@ -179,14 +331,21 @@ export default function AgentChat() {
       })
       const replyText = (r?.reply || r?.message || r?.content || '').toString().trim()
         || 'No reply text returned. Try again — if it keeps failing, refresh and re-send.'
+      // Optional goal_chain from auto-chain / execute_goal — never crash on shape
+      const goalChainMeta = parseGoalChain(r?.goal_chain)
       setMessages((prev) => {
         const next = [...prev]
         // Replace pending thinking bubble
         const pi = next.findIndex((m) => m.pending || (m.streaming && m.role === 'assistant' && !m.content))
+        const assistantMsg = {
+          role: 'assistant',
+          content: replyText,
+          ...(goalChainMeta ? { goal_chain: goalChainMeta } : {}),
+        }
         if (pi >= 0) {
-          next[pi] = { role: 'assistant', content: replyText }
+          next[pi] = assistantMsg
         } else {
-          next.push({ role: 'assistant', content: replyText })
+          next.push(assistantMsg)
         }
         return next
       })
@@ -201,11 +360,15 @@ export default function AgentChat() {
           },
         }))
       } catch { /* ignore */ }
-      if (speakRef.current && replyText) speakText(replyText)
+      if (speakRef.current && replyText) {
+        // Speak the human-facing text only (no skill/questions fences)
+        const spoken = splitAssistantContent(replyText).display || replyText
+        speakText(spoken)
+      }
     } catch (e) {
       const aborted = e?.name === 'AbortError' || /abort/i.test(String(e?.message || ''))
       const err = aborted
-        ? 'Reply timed out (over 2 minutes). Check connection and try a shorter message.'
+        ? 'Reply timed out. Try a shorter message, or wait a moment and send again (cold start can take ~30s once).'
         : (e.message || 'Chat failed')
       message.error(err)
       setMessages((prev) => {
@@ -215,6 +378,7 @@ export default function AgentChat() {
       })
     } finally {
       if (timer) clearTimeout(timer)
+      if (abortRef.current === controller) abortRef.current = null
       setBusy(false)
     }
   }
@@ -226,17 +390,12 @@ export default function AgentChat() {
     }
   }
 
-  const autoGrow = (e) => {
-    const el = e?.target
-    if (!el || !el.style) {
-      setInput(e?.target?.value ?? '')
-      return
-    }
-    try {
-      el.style.height = 'auto'
-      el.style.height = `${Math.min(el.scrollHeight || 40, 160)}px`
-    } catch { /* ignore measure errors */ }
-    setInput(el.value)
+  const onInputChange = (e) => {
+    // Ant Design TextArea + autoSize: only update controlled value.
+    // Never set style.height / scrollHeight on the DOM node or textareaRef
+    // (Ant Design owns height; manual writes crash / fight the ref wrapper).
+    const v = e?.target?.value
+    setInput(typeof v === 'string' ? v : String(v ?? ''))
   }
 
   const togglePause = async () => {
@@ -267,7 +426,11 @@ export default function AgentChat() {
           type="text"
           className="agent-chat-icon-btn"
           icon={<ArrowLeftOutlined />}
-          onClick={() => nav('/console')}
+          onClick={() => {
+            // Always allow leaving even while a reply is in flight
+            try { abortRef.current?.abort() } catch { /* ignore */ }
+            nav('/console')
+          }}
           aria-label="Back to agents"
         />
         <button type="button" className="agent-chat-identity" onClick={() => setMenuOpen(true)}>
@@ -317,103 +480,164 @@ export default function AgentChat() {
         </Space>
       </header>
 
-      {/* Messages */}
-      <main className="agent-chat-messages" ref={listRef}>
-        {isEmpty ? (
-          <div className="agent-chat-empty">
-            <div className="agent-chat-empty-avatar">
-              <RobotOutlined />
-            </div>
-            <h1>{agent.name}</h1>
-            <p>
-              {agent.personality
-                ? String(agent.personality).slice(0, 160)
-                : 'Your AI teammate — ask anything or tap a starter below.'}
-            </p>
-            <div className="agent-chat-starters">
-              {STARTERS.map((s) => (
-                <button key={s} type="button" className="agent-chat-starter" onClick={() => send(s)} disabled={busy}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="agent-chat-thread">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`agent-chat-row ${m.role === 'user' ? 'is-user' : 'is-assistant'}`}
-              >
-                {m.role !== 'user' && (
-                  <div className="agent-chat-msg-avatar">
-                    <RobotOutlined />
-                  </div>
-                )}
-                <div className={`agent-chat-bubble ${m.streaming ? 'is-streaming' : ''}`}>
-                  {m.content || (m.streaming ? (
-                    <span className="agent-chat-dots"><i /><i /><i /></span>
-                  ) : '')}
-                </div>
+      {/* Messages — bordered panel, full remaining height */}
+      <Card
+        className="agent-chat-messages-card"
+        bordered
+        size="small"
+        styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } }}
+      >
+        <main className="agent-chat-messages" ref={listRef}>
+          {isEmpty ? (
+            <div className="agent-chat-empty">
+              <div className="agent-chat-empty-avatar">
+                <RobotOutlined />
               </div>
-            ))}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </main>
+              <h1>{agent.name}</h1>
+              <p>
+                {agent.personality
+                  ? String(agent.personality).slice(0, 160)
+                  : 'Your AI teammate — ask anything or tap a starter below.'}
+              </p>
+              <div className="agent-chat-starters">
+                {STARTERS.map((s) => (
+                  <button key={s} type="button" className="agent-chat-starter" onClick={() => send(s)} disabled={busy}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="agent-chat-thread">
+              {messages.map((m, i) => {
+                const isUser = m.role === 'user'
+                const split = !isUser && m.content && !m.streaming
+                  ? splitAssistantContent(m.content)
+                  : { display: m.content, questions: [] }
+                return (
+                <div
+                  key={i}
+                  className={`agent-chat-row ${isUser ? 'is-user' : 'is-assistant'}`}
+                >
+                  {!isUser && (
+                    <div className="agent-chat-msg-avatar">
+                      <RobotOutlined />
+                    </div>
+                  )}
+                  <div className="agent-chat-msg-stack">
+                    <div className={`agent-chat-bubble ${m.streaming ? 'is-streaming' : ''}`}>
+                      {split.display || (m.streaming ? (
+                        <span className="agent-chat-dots"><i /><i /><i /></span>
+                      ) : '')}
+                    </div>
+                    {!isUser && !m.streaming && split.questions?.length > 0 && (
+                      <div className="agent-chat-questions" role="group" aria-label="Questions from agent">
+                        <Text type="secondary" className="agent-chat-questions-label">
+                          Quick answers — tap a question to reply
+                        </Text>
+                        <div className="agent-chat-questions-list">
+                          {split.questions.map((q) => (
+                            <button
+                              key={q}
+                              type="button"
+                              className="agent-chat-question-chip"
+                              disabled={busy}
+                              onClick={() => {
+                                setInput((prev) => {
+                                  const base = (prev || '').trim()
+                                  // Prefill an answer template so user can type under the question
+                                  return base
+                                    ? `${base}\n\nRe: ${q}\n`
+                                    : `${q}\n\nMy answer: `
+                                })
+                                // Focus composer — soft scroll
+                                try {
+                                  document.querySelector('.agent-chat-textarea')?.focus?.()
+                                } catch { /* ignore */ }
+                              }}
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {m.goal_chain && typeof m.goal_chain === 'object' && (
+                      <GoalChainAlert
+                        chain={m.goal_chain}
+                        onOpenTasks={() => nav('/tasks')}
+                      />
+                    )}
+                  </div>
+                </div>
+                )
+              })}
+              <div ref={bottomRef} />
+            </div>
+          )}
+        </main>
+      </Card>
 
-      {/* Composer */}
-      <footer className="agent-chat-composer">
-        <div className="agent-chat-composer-inner">
-          <div className="agent-chat-tools">
-            <VoiceControls
-              disabled={busy}
-              onTranscript={(text) => send(text)}
-              onPartial={(t) => setInput(t)}
-              speakReplies={speakReplies}
-              onSpeakRepliesChange={(v) => {
-                setSpeakReplies(v)
-                localStorage.setItem('voice_speak_replies', v ? '1' : '0')
-              }}
-            />
-            <MediaActions disabled={busy} />
-            <Tooltip title="Agent workspace">
-              <Button
-                type="text"
-                size="small"
-                icon={<AppstoreOutlined />}
-                onClick={() => nav(`/agents/${id}/manage`)}
+      {/* Composer — bordered panel */}
+      <Card
+        className="agent-chat-composer-card"
+        bordered
+        size="small"
+        styles={{ body: { padding: '10px 12px 8px' } }}
+      >
+        <footer className="agent-chat-composer">
+          <div className="agent-chat-composer-inner">
+            <div className="agent-chat-tools">
+              <VoiceControls
+                disabled={busy}
+                onTranscript={(text) => send(text)}
+                onPartial={(t) => setInput(t)}
+                speakReplies={speakReplies}
+                onSpeakRepliesChange={(v) => {
+                  setSpeakReplies(v)
+                  localStorage.setItem('voice_speak_replies', v ? '1' : '0')
+                }}
               />
-            </Tooltip>
+              <MediaActions disabled={busy} compact />
+              <Tooltip title="Agent workspace">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<AppstoreOutlined />}
+                  onClick={() => nav(`/agents/${id}/manage`)}
+                />
+              </Tooltip>
+            </div>
+            <div className="agent-chat-input-wrap">
+              <TextArea
+                value={input}
+                onChange={onInputChange}
+                onKeyDown={onKeyDown}
+                placeholder={`Message ${agent.name}… or tap mic to talk`}
+                autoSize={{ minRows: 1, maxRows: 6 }}
+                disabled={false}
+                className="agent-chat-textarea"
+                bordered={false}
+              />
+              <Button
+                type="primary"
+                size="large"
+                icon={<SendOutlined />}
+                loading={busy}
+                disabled={!input.trim() && !busy}
+                onClick={() => send()}
+                className="agent-chat-send"
+                aria-label="Send message"
+              >
+                <span className="agent-chat-send-label">Send</span>
+              </Button>
+            </div>
+            <Text type="secondary" className="agent-chat-hint">
+              Tap <strong>Send</strong> to message the agent · Mic to talk · Screen stays on while agent speaks
+            </Text>
           </div>
-          <div className="agent-chat-input-wrap">
-            <TextArea
-              ref={taRef}
-              value={input}
-              onChange={autoGrow}
-              onKeyDown={onKeyDown}
-              placeholder={`Message ${agent.name}…`}
-              autoSize={{ minRows: 1, maxRows: 6 }}
-              disabled={busy && false}
-              className="agent-chat-textarea"
-              bordered={false}
-            />
-            <Button
-              type="primary"
-              shape="circle"
-              size="large"
-              icon={<SendOutlined />}
-              loading={busy}
-              disabled={!input.trim() && !busy}
-              onClick={() => send()}
-              className="agent-chat-send"
-            />
-          </div>
-          <Text type="secondary" className="agent-chat-hint">
-            Enter to send · Shift+Enter for new line · Mic for voice
-          </Text>
-        </div>
-      </footer>
+        </footer>
+      </Card>
 
       <Drawer
         title={agent.name}
@@ -425,13 +649,22 @@ export default function AgentChat() {
       >
         <List
           dataSource={[
-            { label: 'Open full workspace', icon: <SettingOutlined />, go: () => nav(`/agents/${id}/manage`) },
-            { label: 'Console', icon: <MenuOutlined />, go: () => nav('/console') },
+            { label: 'Agent workspace (skills, spawn)', icon: <SettingOutlined />, go: () => nav(`/console/${id}/manage`) },
+            { label: 'Agent Console', icon: <MenuOutlined />, go: () => nav('/console') },
+            { label: 'Hierarchy', icon: <ClusterOutlined />, go: () => nav('/hierarchy') },
+            { label: 'Tasks board', icon: <CheckSquareOutlined />, go: () => nav('/tasks') },
+            { label: 'Meetings', icon: <CommentOutlined />, go: () => nav('/meetings') },
             { label: 'Business CRM', icon: <AppstoreOutlined />, go: () => nav('/business') },
             { label: 'Live ops', icon: <ThunderboltOutlined />, go: () => nav('/ops') },
+            { label: 'Team / Humans', icon: <TeamOutlined />, go: () => nav('/humans') },
+            { label: 'Workspace', icon: <ApartmentOutlined />, go: () => nav('/workspace') },
+            { label: 'Dashboard', icon: <HomeOutlined />, go: () => nav('/') },
+            { label: 'Billing', icon: <CreditCardOutlined />, go: () => nav('/billing') },
+            { label: 'Settings', icon: <SettingOutlined />, go: () => nav('/settings') },
           ]}
           renderItem={(item) => (
             <List.Item
+              className="aba-click-row"
               onClick={() => { setMenuOpen(false); item.go() }}
               style={{ cursor: 'pointer' }}
             >

@@ -23,6 +23,30 @@
       "destination": "/api/__bay__/health"
     },
     {
+      "source": "/icons/(.*)",
+      "destination": "/agents/icons/$1"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/agents/favicon.ico"
+    },
+    {
+      "source": "/favicon.png",
+      "destination": "/agents/favicon.png"
+    },
+    {
+      "source": "/favicon-32.png",
+      "destination": "/agents/favicon-32.png"
+    },
+    {
+      "source": "/favicon-16.png",
+      "destination": "/agents/favicon-16.png"
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "/agents/manifest.webmanifest"
+    },
+    {
       "source": "/agents",
       "destination": "/agents/index.html"
     },
@@ -66,6 +90,24 @@
       ]
     },
     {
+      "source": "/agents/icons/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/agents/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60, s-maxage=60, stale-while-revalidate=300"
+        }
+      ]
+    },
+    {
       "source": "/bay/assets/(.*)",
       "headers": [
         {
@@ -80,7 +122,7 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), interest-cohort=()" },
+        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=(self), interest-cohort=()" },
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     }
@@ -92,3 +134,4 @@
     }
   ]
 }
+

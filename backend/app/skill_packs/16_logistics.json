@@ -1,0 +1,999 @@
+{
+  "pack": "16_logistics",
+  "category": "ops",
+  "label": "Logistics",
+  "skills": [
+    {
+      "id": "log_ship_plan",
+      "name": "Shipment Plan",
+      "description": "Build a period shipment plan with volumes, modes, lanes, owners, constraints, and phased milestones so freight moves on time and on cost.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_route_optimize",
+      "name": "Route Optimization",
+      "description": "Optimize multi-stop or multi-lane routes for cost, transit time, capacity, and service constraints, with ranked alternatives and trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_carrier_select",
+      "name": "Carrier Selection",
+      "description": "Compare and recommend carriers by lane, mode, service level, cost, capacity, and performance so selection decisions are defensible and repeatable.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_sla_log",
+      "name": "Logistics SLA Framework",
+      "description": "Define logistics service-level agreements covering OTIF, transit, claims, response times, remedies, and measurement methods for carriers and 3PLs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_eta_comms",
+      "name": "ETA Customer Update",
+      "description": "Draft clear ETA and shipment-status communications for customers or stakeholders with key milestones, tone, and a concrete call to action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_delay_comms",
+      "name": "Delay Notification",
+      "description": "Write delay notifications that explain impact, revised ETAs, recovery options, and next steps while protecting trust and service reputation.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_damage_claim",
+      "name": "Damage Claim Package",
+      "description": "Assemble a freight damage claim package with evidence checklist, liability notes, cost breakdown, carrier contacts, and follow-up timeline.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_returns_process",
+      "name": "Returns Process Design",
+      "description": "Design end-to-end product returns flows covering authorization, labels, inspection, disposition, refunds, and warehouse handoffs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_warehouse_slotting",
+      "name": "Warehouse Slotting Plan",
+      "description": "Produce a warehouse slotting plan that places SKUs by velocity, cube, affinity, and pick path to cut travel time and raise pick accuracy.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_pick_pack",
+      "name": "Pick-and-Pack Standards",
+      "description": "Define pick-and-pack methods, batching rules, quality checks, packing standards, and labor guidance for accurate, efficient order fulfillment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_cycle_count",
+      "name": "Cycle Count Program",
+      "description": "Design a cycle-count program with ABC frequency, count methods, variance thresholds, root-cause steps, and inventory accuracy targets.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_cold_chain",
+      "name": "Cold Chain Protocol",
+      "description": "Specify cold-chain handling, packaging, monitoring, handoff rules, and excursion response so temperature-sensitive goods stay in range.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_hazmat_note",
+      "name": "Hazmat Handling Note",
+      "description": "Document hazmat classification, packaging, labeling, segregation, documentation, and carrier requirements for safe, compliant shipments.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_last_mile",
+      "name": "Last-Mile Delivery Plan",
+      "description": "Plan last-mile delivery options, density zones, service windows, cost-to-serve, and exception handling for reliable final-mile performance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_cross_dock",
+      "name": "Cross-Dock Design",
+      "description": "Design cross-dock flows for inbound-to-outbound transfer with dock scheduling, staging logic, dwell targets, and exception paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_milk_run",
+      "name": "Milk-Run Route Plan",
+      "description": "Create milk-run pickup and delivery loops with stop sequences, frequencies, windows, and load balances to reduce empty miles and cost.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_network_design",
+      "name": "Logistics Network Design",
+      "description": "Evaluate facility, mode, and flow network options with cost, service, risk, and capacity trade-offs to recommend a target network design.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_dc_location",
+      "name": "DC Location Analysis",
+      "description": "Analyze distribution-center location candidates using demand gravity, transit times, labor, cost, and risk to support site selection.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_inventory_position",
+      "name": "Inventory Positioning",
+      "description": "Recommend where to position inventory across nodes to balance availability, working capital, transfer cost, and fulfillment speed.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_safety_stock",
+      "name": "Safety Stock Policy",
+      "description": "Set safety-stock policies by SKU or class using demand variability, lead time, service targets, and review cadence with clear formulas and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_abc_analysis",
+      "name": "ABC Inventory Analysis",
+      "description": "Run ABC (and optional XYZ) inventory classification by value, volume, or criticality to prioritize controls, counting, and service policies.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_demand_plan_log",
+      "name": "Logistics Demand Plan",
+      "description": "Translate demand forecasts into logistics capacity, inventory, and freight plans for a defined period with owners and constraint flags.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_s_and_op",
+      "name": "S&OP Logistics Input",
+      "description": "Prepare logistics inputs for S&OP: capacity, lead times, network constraints, cost outlook, and risks that shape the consensus plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_capacity_log",
+      "name": "Logistics Capacity Plan",
+      "description": "Assess warehouse, fleet, labor, and carrier capacity versus demand, highlighting bottlenecks, surge options, and investment priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_peak_plan",
+      "name": "Peak Season Plan",
+      "description": "Build a peak-season logistics plan covering volume ramps, labor, space, carriers, cutoffs, and contingency playbooks for high-demand periods.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_port_congestion",
+      "name": "Port Congestion Response",
+      "description": "Outline port and terminal congestion response: alternate ports, mode shifts, demurrage control, inventory buffers, and stakeholder updates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_customs_log",
+      "name": "Customs & Clearance Guide",
+      "description": "Document customs clearance steps, required docs, HS classification notes, brokers, duties risk, and timelines for cross-border shipments.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_bol_checklist",
+      "name": "Bill of Lading Checklist",
+      "description": "Provide a bill-of-lading accuracy checklist covering shipper/consignee data, freight terms, counts, seals, special instructions, and system owners.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_pod_process",
+      "name": "Proof-of-Delivery Process",
+      "description": "Define proof-of-delivery capture, validation, dispute handling, and archiving so delivery confirmation supports billing and claims.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_track_trace",
+      "name": "Track-and-Trace Design",
+      "description": "Design track-and-trace visibility across carriers and nodes with event standards, exception alerts, customer views, and integration notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_iot_fleet",
+      "name": "IoT Fleet Telemetry Plan",
+      "description": "Plan IoT and telematics for fleet or assets: sensors, data use cases, alerts, privacy, and operating cadence for utilization and safety.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_fuel_surcharge",
+      "name": "Fuel Surcharge Policy",
+      "description": "Define fuel surcharge formulas, index sources, update cadence, and customer/carrier communication so fuel cost recovery stays transparent.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_rate_card",
+      "name": "Carrier Rate Card",
+      "description": "Build or refresh a carrier rate card by lane, mode, accessorials, minimums, and validity windows for quoting and cost control.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_tender_log",
+      "name": "Freight Tender Package",
+      "description": "Prepare a freight tender package with volumes, lanes, service requirements, bid templates, evaluation criteria, and award process.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_3pl_scorecard",
+      "name": "3PL Scorecard",
+      "description": "Create a 3PL performance scorecard with weighted KPIs, data sources, review cadence, and improvement actions for partner governance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_4pl_note",
+      "name": "4PL Engagement Brief",
+      "description": "Outline when and how to engage a 4PL/LLP: scope, orchestration model, data needs, commercial structure, and success metrics.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_reverse_logistics",
+      "name": "Reverse Logistics Program",
+      "description": "Design reverse logistics for returns, recalls, repair, and recycling with network paths, cost recovery, and disposition rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_sustainability_log",
+      "name": "Logistics Sustainability Plan",
+      "description": "Propose logistics sustainability actions across modes, packaging, network design, and suppliers with measurable targets and trade-offs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_carbon_estimate",
+      "name": "Shipment Carbon Estimate",
+      "description": "Estimate shipment or network carbon impact by mode and lane, with method notes, data gaps, and reduction levers for reporting.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_packaging_opt",
+      "name": "Packaging Optimization",
+      "description": "Optimize packaging for product protection, cube efficiency, material cost, and sustainability without harming damage rates or customer experience.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_label_compliance",
+      "name": "Label Compliance Checklist",
+      "description": "Ensure shipping and product labels meet carrier, regulatory, and customer requirements with field standards, samples, and audit steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_temp_excursion",
+      "name": "Temperature Excursion Response",
+      "description": "Define temperature excursion detection, risk assessment, product disposition, root-cause analysis, and CAPA for cold-chain failures.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_security_cargo",
+      "name": "Cargo Security Protocol",
+      "description": "Specify cargo security controls for high-value or high-risk freight: seals, routing, facilities, chain of custody, and incident response.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_insurance_log",
+      "name": "Cargo Insurance Guide",
+      "description": "Clarify cargo insurance coverage, declared value, exclusions, claim triggers, and when to buy additional cover versus carrier liability.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_claim_timeline",
+      "name": "Freight Claim Timeline",
+      "description": "Map freight claim timelines with filing deadlines, evidence stages, escalation paths, and owner actions from discovery through settlement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_kpi_log",
+      "name": "Logistics KPI Dashboard Spec",
+      "description": "Specify logistics KPIs (OTIF, cost/unit, dwell, claims, inventory accuracy) with definitions, targets, owners, and reporting cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_control_tower",
+      "name": "Logistics Control Tower Design",
+      "description": "Design a logistics control tower: visibility scope, exception playbooks, escalation, roles, tooling, and decision rights for end-to-end control.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_weekly",
+      "name": "Weekly Logistics Ops Review",
+      "description": "Produce a weekly logistics operations review covering volume, service, cost, exceptions, carrier performance, and prioritized actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_playbook",
+      "name": "Logistics Exception Playbook",
+      "description": "Write a logistics exception playbook for delays, shortages, damages, capacity crunches, and weather with roles, steps, and communications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "log_custom",
+      "name": "Custom Logistics Deliverable",
+      "description": "Create a custom logistics deliverable tailored to the stated goal, audience, and constraints when no standard skill fully fits the need.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "16_logistics",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

@@ -66,8 +66,20 @@ async def escalate_task(
     reason_text: str,
     from_agent: models.Agent | None = None,
     from_human: models.Human | None = None,
+    requeue: bool = True,
+    commit: bool = True,
 ) -> models.EscalationLog | None:
-    """Create escalation and re-route task when possible."""
+    """Create escalation and optionally re-route task.
+
+    requeue=True (default): reassign to parent/orchestrator/human and set
+    queued/todo so work continues (stuck recovery, autonomy).
+    requeue=False: log escalation + mark labels only — keep current status
+    (used by task_chain on terminal failed steps so we do not un-fail them).
+
+    commit=True (default): persist here.
+    commit=False: flush only so the caller owns the transaction (task_runner /
+    on_task_finished single-writer path).
+    """
     user_id = task.user_id
     to_agent_id = None
     to_human_id = None
@@ -122,33 +134,47 @@ async def escalate_task(
     )
     db.add(log)
 
-    # Reassign open work
-    if to_agent_id:
-        task.agent_id = to_agent_id
-        task.assignee_type = "agent"
-        task.status = "queued" if task.status in ("failed", "in_progress", "todo") else task.status
-        task.labels = ((task.labels or "") + ",escalated").strip(",")
-    elif to_human_id:
-        task.human_id = to_human_id
-        task.assignee_type = "human"
-        task.status = "todo"
-        task.labels = ((task.labels or "") + ",escalated").strip(",")
+    # Always stamp escalated so autonomy failed-scan does not re-fire forever
+    labels = task.labels or ""
+    if "escalated" not in labels:
+        task.labels = (labels + ",escalated").strip(",") if labels else "escalated"
 
-    db.commit()
-    db.refresh(log)
+    # Reassign open work only when requeue is requested
+    if requeue:
+        if to_agent_id:
+            task.agent_id = to_agent_id
+            task.assignee_type = "agent"
+            task.status = "queued" if task.status in ("failed", "in_progress", "todo") else task.status
+        elif to_human_id:
+            task.human_id = to_human_id
+            task.assignee_type = "human"
+            task.status = "todo"
 
-    await emit_ops(
-        user_id,
-        kind="system",
-        status="failed" if reason_code in ("failure", "on_failure") else "info",
-        title=f"Escalated: {(task.title or task.description or '')[:80]}",
-        detail=f"{reason_code}: {reason_text[:200]}",
-        agent_id=to_agent_id or (agent.id if agent else None),
-        human_id=to_human_id,
-        task_id=task.id,
-        payload={"escalation_id": log.id, "reason_code": reason_code},
-        db=db,
-    )
+    if commit:
+        db.commit()
+        db.refresh(log)
+    else:
+        db.flush()
+
+    try:
+        await emit_ops(
+            user_id,
+            kind="system",
+            status="failed" if reason_code in ("failure", "on_failure") else "info",
+            title=f"Escalated: {(task.title or task.description or '')[:80]}",
+            detail=f"{reason_code}: {reason_text[:200]}",
+            agent_id=to_agent_id or (agent.id if agent else None),
+            human_id=to_human_id,
+            task_id=task.id,
+            payload={"escalation_id": log.id, "reason_code": reason_code, "requeue": requeue},
+            # Private session when caller owns the transaction — emit_ops always commits.
+            db=None if not commit else db,
+        )
+    except Exception as e:
+        # Never fail the escalation itself because of ops/banner side effects
+        # (e.g. SQLite lock while caller still holds an open write txn).
+        log_mod = __import__("logging").getLogger("app.autonomy")
+        log_mod.warning("emit_ops on escalate failed: %s", e)
     return log
 
 
@@ -182,7 +208,7 @@ async def _run_queued_tasks(db: Session, user: models.User, summary: dict) -> No
 
     from . import config as app_config
 
-    max_tasks = int(getattr(app_config, "AUTONOMY_MAX_TASKS_PER_TICK", 1) or 1)
+    max_tasks = int(getattr(app_config, "AUTONOMY_MAX_TASKS_PER_TICK", 3) or 3)
     queued = (
         db.query(models.Task)
         .filter(
@@ -262,9 +288,10 @@ async def _check_stuck_and_failed(db: Session, user: models.User, settings: mode
         .all()
     )
     for t in failed:
-        # Only escalate once (label marker)
+        # Only escalate once (label marker). chain-skipped = intentional abort
+        # after a prior auto-chain step failed — never re-queue those.
         labels = (t.labels or "")
-        if "escalated" in labels:
+        if "escalated" in labels or "chain-skipped" in labels:
             continue
         agent = db.get(models.Agent, t.agent_id) if t.agent_id else None
         when = getattr(agent, "escalate_when", None) if agent else "on_failure"
@@ -290,7 +317,12 @@ async def _check_stuck_and_failed(db: Session, user: models.User, settings: mode
         .all()
     )
     for t in hot:
-        if "escalated" in (t.labels or ""):
+        labels = t.labels or ""
+        if "escalated" in labels or "chain-skipped" in labels:
+            continue
+        # Sequential auto-chain steps stay todo until on_task_finished unlocks
+        # them. Escalating with requeue=True would force parallel runs.
+        if "auto-chain" in labels and (t.status or "") == "todo":
             continue
         agent = db.get(models.Agent, t.agent_id) if t.agent_id else None
         when = getattr(agent, "escalate_when", None) if agent else "high_priority"
@@ -399,19 +431,40 @@ async def run_user_cycle(db: Session, user: models.User) -> dict[str, Any]:
         return summary
 
     # Respect min interval so rapid UI ticks / cron overlaps do not flood the GPU
+    # with proactive idle feeds. Queued work is still drained (production cron
+    # must process backlog even if a recent manual tick advanced last_run).
     min_iv = int(getattr(app_config, "AUTONOMY_MIN_INTERVAL_SEC", 300) or 300)
     user_iv = max(min_iv, int(settings.autonomy_interval_sec or min_iv))
     last = settings.last_autonomy_run
-    if last and (datetime.utcnow() - last) < timedelta(seconds=user_iv):
-        summary["skipped"] = True
-        summary["reason"] = f"cooldown_{user_iv}s"
-        return summary
+    on_cooldown = bool(last and (datetime.utcnow() - last) < timedelta(seconds=user_iv))
 
     # Ensure orchestrator exists only — do NOT rewrite every agent each tick
     try:
         ensure_main_orchestrator(db, user)
     except Exception as e:
         summary["reason"] = f"orchestrator_error:{e}"
+
+    if on_cooldown:
+        await _run_queued_tasks(db, user, summary)
+        summary["reason"] = f"cooldown_drain_{user_iv}s"
+        if summary["tasks_started"] == 0:
+            summary["skipped"] = True
+        else:
+            settings.last_autonomy_summary = (
+                f"drain started={summary['tasks_started']} "
+                f"(cooldown {user_iv}s — idle feed skipped)"
+            )
+            settings.updated_at = datetime.utcnow()
+            db.commit()
+            await emit_ops(
+                user.id,
+                kind="system",
+                status="done",
+                title="Autonomy drain (cooldown)",
+                detail=settings.last_autonomy_summary,
+                db=db,
+            )
+        return summary
 
     await _check_stuck_and_failed(db, user, settings, summary)
     await _feed_never_idle(db, user, summary)

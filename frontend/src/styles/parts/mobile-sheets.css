@@ -1,0 +1,593 @@
+/* part: mobile-sheets.css — drawers, modals, meetings UI */
+
+@media (max-width: 768px) {
+  /* Modal / drawer above mobile nav; full usable height */
+  .ant-modal-wrap,
+  .ant-drawer-wrap,
+  .ant-drawer,
+  .ant-modal-root {
+    z-index: 1100 !important;
+  }
+  .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px auto !important;
+    top: 24px !important;
+    padding-bottom: 24px;
+  }
+  .ant-modal-body {
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+  }
+  .aba-info-drawer.ant-drawer-bottom .ant-drawer-content-wrapper {
+    border-radius: 16px 16px 0 0;
+    max-height: 90dvh;
+  }
+  .aba-info-drawer-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+  }
+  .aba-info-drawer-title.ant-typography {
+    margin: 0 !important;
+    font-size: 18px !important;
+  }
+  .aba-info-drawer-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: stretch;
+  }
+  .aba-info-drawer-footer .ant-btn {
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+  .aba-info-empty {
+    text-align: center;
+    padding: 28px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Space / Flex / Row always wrap */
+  .aba-page-shell .ant-row,
+  .aba-page-shell-inner .ant-row {
+    margin-inline: 0 !important;
+  }
+  .aba-page-shell .ant-space,
+  .aba-page-shell-inner .ant-space {
+    max-width: 100%;
+    justify-content: center;
+  }
+  .aba-page-shell .ant-space-item,
+  .aba-page-shell-inner .ant-space-item {
+    max-width: 100%;
+  }
+
+  /* Forms: labels and controls full width, centered stack */
+  .aba-page-shell .ant-form-item,
+  .aba-auth-shell .ant-form-item {
+    width: 100%;
+  }
+  .aba-page-shell .ant-form-item-label,
+  .aba-auth-shell .ant-form-item-label {
+    text-align: left;
+  }
+
+  /* Alerts full width, readable */
+  .ant-alert {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Prevent text overflow breaking layout */
+  .aba-page-shell,
+  .aba-page-shell-inner,
+  .aba-content {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* Tag / badge wrap */
+  .ant-space,
+  .ant-card-extra {
+    flex-wrap: wrap;
+  }
+
+  /* Dropdowns / selects popup above nav */
+  .ant-select-dropdown,
+  .ant-dropdown,
+  .ant-picker-dropdown,
+  .ant-tooltip {
+    z-index: 1200 !important;
+  }
+
+  /* Meter chips wrap in header */
+  .aba-header {
+    flex-wrap: wrap !important;
+    row-gap: 8px;
+  }
+  .aba-meter-chip {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+
+/* Info drawer head (desktop + mobile) */
+.aba-info-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.aba-info-drawer-titles {
+  min-width: 0;
+  flex: 1;
+}
+.aba-info-drawer-title.ant-typography {
+  margin: 0 !important;
+}
+.aba-info-drawer-sub {
+  display: block;
+  margin-top: 4px;
+}
+.aba-info-empty {
+  text-align: center;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.aba-card-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.aba-card-clickable:hover {
+  border-color: rgba(22, 104, 220, 0.35) !important;
+}
+
+/* ── Meetings UI ─────────────────────────────────────────────────── */
+
+.meeting-shell {
+  display: grid;
+  grid-template-columns: 1fr minmax(240px, 300px);
+  gap: 0;
+  height: 100%;
+  min-height: 420px;
+  max-height: min(100dvh, 900px);
+  background: var(--aba-surface);
+  border: 1px solid var(--aba-border);
+  border-radius: var(--aba-radius);
+  box-shadow: var(--aba-shadow);
+  overflow: hidden;
+  color: var(--aba-ink);
+}
+
+.meeting-shell > .meeting-thread {
+  min-width: 0;
+  min-height: 0;
+}
+
+.meeting-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 20px 18px 16px;
+  background: linear-gradient(180deg, var(--aba-bg-warm) 0%, var(--aba-bg) 100%);
+}
+
+.meeting-msg-user,
+.meeting-msg-agent {
+  max-width: min(100%, 640px);
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: meeting-msg-in 0.22s ease-out;
+}
+
+.meeting-msg-user {
+  align-self: flex-end;
+  margin-left: auto;
+  background: var(--aba-primary);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 1px 2px rgba(22, 104, 220, 0.25);
+}
+
+.meeting-msg-agent {
+  align-self: flex-start;
+  margin-right: auto;
+  background: var(--aba-surface);
+  color: var(--aba-ink);
+  border: 1px solid var(--aba-border);
+  border-bottom-left-radius: 6px;
+  box-shadow: var(--aba-shadow);
+}
+
+.meeting-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 14px;
+  background: var(--aba-surface);
+  border-left: 1px solid var(--aba-border);
+  color: var(--aba-ink);
+}
+
+.meeting-sidebar h3,
+.meeting-sidebar h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--aba-ink);
+}
+
+.meeting-sidebar p,
+.meeting-sidebar .muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aba-muted);
+}
+
+@keyframes meeting-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .meeting-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    max-height: none;
+    min-height: 360px;
+  }
+
+  .meeting-sidebar {
+    border-left: none;
+    border-top: 1px solid var(--aba-border);
+    max-height: 220px;
+  }
+
+  .meeting-thread {
+    padding: 14px 12px 12px;
+  }
+
+  .meeting-msg-user,
+  .meeting-msg-agent {
+    max-width: 92%;
+    font-size: 14px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UNIVERSAL MOBILE-FIRST UI SORT (every page)
+   Phone: single stacked column, full-width cards, readable order.
+   Desktop keeps multi-col grids via min-width: 769 overrides elsewhere.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Force Ant Design grid into one column (UI sort: top → bottom) */
+  .aba-content .ant-row,
+  .aba-page-shell .ant-row,
+  .aba-page-shell-inner .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    row-gap: var(--aba-shell-stack-gap, 12px) !important;
+  }
+  .aba-content .ant-col,
+  .aba-page-shell .ant-col,
+  .aba-page-shell-inner .ant-col {
+    display: block !important;
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Shell blocks / cards always full bleed of content pad */
+  .aba-shell-block,
+  .aba-page-shell-inner > .ant-space,
+  .aba-page-shell-inner > .ant-flex {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Agent list: actions row stays tappable; delete not clipped */
+  .aba-agent-card .ant-card-body {
+    overflow: visible;
+  }
+  .aba-agent-card .ant-btn-icon-only,
+  .aba-delete-agent-btn.ant-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  /* Popconfirm OK stays easy to hit */
+  .ant-popconfirm .ant-btn {
+    min-height: 40px;
+  }
+
+  /* Dashboard / billing stat rows already column; tighten gap */
+  .aba-content .ant-statistic {
+    width: 100%;
+  }
+
+  /* Horizontal action bars wrap and fill */
+  .aba-page-shell-inner > .ant-card .ant-card-extra,
+  .aba-page-shell .ant-card-extra {
+    margin-inline-start: 0 !important;
+    width: 100%;
+    margin-top: 8px;
+  }
+  .aba-page-shell .ant-card-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .aba-page-shell .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  /* Auth / login pages share same stack */
+  .aba-auth-shell,
+  .aba-auth-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: auto;
+  }
+
+  /* Spawn is always reachable and tappable */
+  .aba-spawn-agent-btn.ant-btn {
+    min-height: 44px !important;
+    font-weight: 600;
+  }
+  .aba-spawn-modal .ant-modal-footer .ant-btn-primary {
+    min-height: 44px;
+    min-width: 140px;
+  }
+}
+
+/* Desktop: keep spawn CTA visible in headers */
+.aba-spawn-agent-btn.ant-btn-primary {
+  box-shadow: 0 2px 8px rgba(22, 104, 220, 0.25);
+}
+
+/* Core Team cards */
+.aba-core-team-card {
+  height: 100%;
+  border-radius: 12px !important;
+}
+.aba-core-team-card.is-human {
+  border-color: rgba(22, 163, 74, 0.35) !important;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 48%);
+}
+
+/* System explore map cards */
+.aba-system-nav-card {
+  height: 100%;
+  min-height: 88px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.aba-system-nav-card:hover {
+  border-color: rgba(22, 104, 220, 0.35) !important;
+}
+.aba-system-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--aba-primary-soft, #e8f1fc);
+  color: var(--aba-primary, #1668dc);
+  font-size: 15px;
+}
+.aba-explore-drawer .ant-drawer-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.aba-meter-chip.aba-clickable:hover,
+.aba-meter-chip.aba-clickable:focus-visible {
+  outline: 2px solid rgba(22, 104, 220, 0.35);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.aba-brand.aba-card-clickable:hover {
+  opacity: 0.92;
+}
+
+/* ── Mobile side menu (hamburger) — mirrors desktop sider ───────── */
+.aba-hamburger-btn.ant-btn {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  font-size: 18px;
+}
+
+.aba-mobile-sider-drawer .ant-drawer-body {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.aba-mobile-sider {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  background: #001529;
+  color: #fff;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+.aba-mobile-sider-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  padding-right: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.aba-mobile-sider-top .aba-brand {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 12px 12px;
+}
+
+.aba-mobile-sider-close.ant-btn {
+  color: rgba(255, 255, 255, 0.85) !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  margin-top: 8px;
+}
+
+.aba-mobile-sider-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aba-mobile-sider-user:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.aba-mobile-sider-user-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aba-mobile-sider-user-text strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aba-mobile-sider-user-text .plan {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: capitalize;
+}
+
+.aba-mobile-sider-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.aba-mobile-sider-menu.ant-menu {
+  border-inline-end: none !important;
+  background: transparent !important;
+  padding-bottom: 12px;
+}
+
+.aba-mobile-sider-menu .ant-menu-item {
+  height: 48px !important;
+  line-height: 48px !important;
+  margin-inline: 8px !important;
+  width: calc(100% - 16px) !important;
+  border-radius: 10px !important;
+  font-size: 15px;
+}
+
+.aba-mobile-sider-menu .ant-menu-item .anticon {
+  font-size: 18px;
+}
+
+.aba-mobile-sider-footer {
+  flex: 0 0 auto;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #001529;
+}
+
+.aba-mobile-sider-footer .ant-btn {
+  min-height: 44px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.aba-mobile-sider-footer .ant-btn-default {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* iOS / Android Capacitor: full viewport + safe areas */
+html.capacitor-native,
+body.capacitor-native,
+html.plt-ios,
+html.plt-android {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.capacitor-native #root,
+html.plt-ios #root,
+html.plt-android #root {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.aba-shell.capacitor-ready,
+body.capacitor-native .aba-shell {
+  min-height: 100dvh;
+  height: 100%;
+}
+
+/* Prevent iOS rubber-band horizontal scroll in app shell */
+.aba-shell,
+.aba-main-layout,
+.aba-content {
+  overscroll-behavior-x: none;
+}
+
+@media (max-width: 991px) {
+  .aba-mobile-nav {
+    /* Always show primary tab bar on phone/tablet */
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+}

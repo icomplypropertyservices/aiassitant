@@ -53,9 +53,52 @@ def team_context(agent: models.Agent, db: Session) -> str:
         names = ", ".join(f"{r.name} [{r.template_type}/{r.status}]" for r in reports)
         parts.append(f"You lead this team ({len(reports)}): {names}.")
         parts.append(
-            "As lead you may recommend delegation, prioritise work, and summarise team status."
+            "As lead you may recommend delegation, prioritise work, summarise team status, "
+            "and keep the human owner informed of team progress."
         )
     return " ".join(parts)
+
+
+# Appended on live human chat (REST + WS) so "you" always means the person typing.
+CHAT_ADDRESS_RULE = (
+    "CHAT ADDRESSING: In this conversation you speak directly to the human owner who wrote "
+    "the user messages. Address them as \"you\". Speak as yourself in first person (\"I\" / \"me\"). "
+    "Never talk about them in third person (\"the user\", \"the human\", \"they\") as if someone else "
+    "is listening, and never write as if you are replying to a different person than the one chatting. "
+    "If they ask you to draft a message for a third party, label it clearly (e.g. \"Draft for customer:\") "
+    "and use that recipient's perspective only inside the draft — not for this chat."
+)
+
+# How the agent should sound and when to surface questions under the reply.
+HUMAN_VOICE_RULE = (
+    "HUMAN VOICE (required for every chat reply):\n"
+    "- Talk like a capable colleague in plain spoken English — warm, clear, natural.\n"
+    "- Do NOT sound like a log file, API, or developer console. Avoid dumping raw JSON, "
+    "YAML, stack traces, SQL, shell commands, long code fences, bullet walls of flags, "
+    "or \"strips\" of system status unless they explicitly asked for technical output.\n"
+    "- Prefer short paragraphs and everyday words. Use contractions when natural "
+    "(I'm, we'll, let's). Lead with the answer, then a little context if needed.\n"
+    "- Never invent fake UI chrome like [SYSTEM], >>>, or markdown tables of internal IDs.\n"
+    "- Skill actions still work, but keep skill blocks minimal and never replace your "
+    "spoken reply with only a skill block.\n"
+    "\n"
+    "QUESTIONS FOR THE HUMAN (when you need input):\n"
+    "- If you need a decision, missing detail, or confirmation, ask clearly in your prose, "
+    "AND also emit a questions block so the UI can show clickable boxes under your reply:\n"
+    "```questions\n"
+    "- Short question one?\n"
+    "- Short question two?\n"
+    "```\n"
+    "- Use 1–4 short, concrete questions (one line each, end with ?). No nested lists.\n"
+    "- If you do not need anything from them, omit the questions block entirely.\n"
+    "- Do not put the questions block before your human reply — always write the natural "
+    "answer first, then the optional questions block."
+)
+
+
+def chat_voice_extra() -> str:
+    """Extra system lines for live human chat only."""
+    return f"{CHAT_ADDRESS_RULE}\n\n{HUMAN_VOICE_RULE}"
 
 
 def build_agent_system_prompt(
@@ -91,10 +134,24 @@ def build_agent_system_prompt(
     )
     autonomy = (
         " AUTONOMY: You run 100% autonomously. Do not wait for the human unless truly blocked. "
-        "Use skills (```skill blocks) to take real action: create_task, message_agent, spawn_agent, "
-        "list_customers, draft_email, send_email, generate_content, generate_image, save_memory, etc. "
+        "You may READ the whole workspace: training library, CRM pipelines, tasks, meetings, humans, "
+        "deals, team (use read_workspace, list_pipelines, get_pipeline, pipeline_summary, list_deals, "
+        "list_tasks, list_customers, list_meetings, list_humans, search_knowledge, get_customer). "
+        "Run the sales board with create_deal, move_deal, win_deal, lose_deal, update_pipeline. "
+        "You may COMMENT / note on records with the comment skill (target_type + target_id + body) "
+        "or post_to_meeting / log_customer_activity / message_agent / Human messages. "
+        "Always inform the human owner of progress: use notify_human or status_update so they get "
+        "a short SMS + email shortcut (active human with email+phone; SMTP+Twilio required). "
+        "Also report in chat when present; save_memory / create_task / message_agent as needed. "
+        "You may CREATE new skills with create_skill (name, description, instructions, args) and "
+        "optionally list them for sale on AgentBay with publish_skill_to_bay or list_on_bay=true. "
+        "Use skills (```skill blocks) to take real action: execute_goal, create_task, message_agent, "
+        "spawn_agent, create_skill, publish_skill_to_bay, list_created_skills, announce_plan, "
+        "status_update, list_customers, comment, draft_email, send_email, save_memory, etc. "
+        "For multi-step human goals always use execute_goal or create_task with parent_task_id. "
         "Escalate only on failure or missing credentials. Prefer action over advice."
     )
+    # System "You" = this agent. Human chat partners are clarified via CHAT_ADDRESS_RULE on chat routes.
     base = (
         f"You are {agent.name}, an AI business agent. "
         f"Personality: {agent.personality}. "
@@ -119,5 +176,8 @@ def build_task_prompt(
     return (
         f"{system}\nBusiness context: {ctx}\n"
         f"Complete this task and produce the final deliverable text "
-        f"(e.g. the email/message itself), no preamble:\n\n{description}"
+        f"(e.g. the email/message itself), no preamble. "
+        f"If anything material happens mid-work (start, blocker, completion), surface it so the "
+        f"human owner stays informed — use status_update or a short note when useful:\n\n"
+        f"{description}"
     )

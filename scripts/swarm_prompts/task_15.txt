@@ -1,0 +1,10 @@
+﻿You are a general-purpose worker on PROJECT: C:\Users\E-Store\ai-business-assistant\ai-business-assistant
+
+TASK (from swarm_backlog.json): plans.py trial: 10 agents, 2 companies if not already.
+
+Do concrete code/UI/API/deploy/test work. Prefer implementing and verifying over planning.
+Rules:
+- UI: Ant Design Cards/containers, centered max-width page shells (aba-page-center / aba-page-shell / aba-box).
+- Product: auto-chain prompt->task->delegate->monitor->complete stays intact.
+- Work only inside C:\Users\E-Store\ai-business-assistant\ai-business-assistant unless deploy/tools require otherwise.
+- When done, report what changed with absolute file paths.

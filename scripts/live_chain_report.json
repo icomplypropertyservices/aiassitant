@@ -1,0 +1,779 @@
+{
+  "generated_at": "2026-07-19T11:54:12.857515+00:00",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "email": "test+live1784460867@aibusinessagent.xyz",
+  "user_id": 19,
+  "agent_id": 9,
+  "api_key_mask": "aba_EGw2mh...s_hY",
+  "steps": {
+    "ensure_orchestrator": {
+      "http": 200,
+      "ok": true,
+      "id": 9,
+      "name": "Main AI Orchestrator",
+      "is_orchestrator": true,
+      "hierarchy_role": "orchestrator",
+      "reports_count": 4,
+      "status": "active"
+    },
+    "skills_catalog": {
+      "http": 200,
+      "skill_count": 254,
+      "has_execute_goal": true,
+      "has_create_task": true,
+      "has_announce_plan": true,
+      "related": [
+        "create_task",
+        "announce_plan",
+        "execute_goal",
+        "extract_meeting_tasks",
+        "onboarding_plan",
+        "close_plan",
+        "success_plan",
+        "sourcing_plan",
+        "load_test_plan",
+        "feature_flag_plan"
+      ]
+    },
+    "execute_goal_skill": {
+      "http": 200,
+      "ok": true,
+      "error": null,
+      "detail": null,
+      "message": "Goal chain started with 4 delegated steps",
+      "parent_task_id": 171,
+      "children": [
+        {
+          "task_id": 172,
+          "title": "[1/4] Clarify goal & success criteria",
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "status": "queued"
+        },
+        {
+          "task_id": 173,
+          "title": "[2/4] Set company/project targets",
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead",
+          "status": "todo"
+        },
+        {
+          "task_id": 174,
+          "title": "[3/4] Break work into owned workstreams",
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead",
+          "status": "todo"
+        },
+        {
+          "task_id": 175,
+          "title": "[4/4] Execute primary deliverable",
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4",
+          "status": "todo"
+        }
+      ],
+      "steps": 4,
+      "body_keys": [
+        "ok",
+        "message",
+        "parent_task_id",
+        "owner_agent_id",
+        "company_id",
+        "project_id",
+        "children",
+        "steps"
+      ]
+    },
+    "chat_goal": {
+      "http": 200,
+      "seconds": 56.49,
+      "ok": true,
+      "reply_preview": "Launching the Fire Alarms Dublin SME campaign: plan, competitor research, outreach email, follow-up checklist, and team coordination in parallel.\n\n\u2014 Skills: research: None; draft_email: None; generate_content: None; list_team: None; create_task: Task created; create_task: Task created; create_task: Task created; save_memory: Saved to agent data vault\n\n\u2014 Auto-chain started: goal task #200 with 6 delegated steps (hierarchy). Autonomy will run/monitor them.",
+      "response_keys": [
+        "reply",
+        "tokens",
+        "cost",
+        "tokens_used_period",
+        "credits",
+        "bill_source",
+        "conversation_id",
+        "skills",
+        "provider_hint",
+        "ok",
+        "goal_chain"
+      ],
+      "skills": [
+        {
+          "skill": "research",
+          "ok": true,
+          "request": {
+            "query": "Fire alarm service competitors Dublin Ireland SMEs: companies offering fire alarm installation testing maintenance certification Dublin",
+            "depth": "standard",
+            "focus": "Top 3 competitors - positioning, services, pricing signals, strengths/weaknesses, differentiators for Fire Alarms Dublin"
+          }
+        },
+        {
+          "skill": "draft_email",
+          "ok": true,
+          "draft": true,
+          "to": "Dublin SME facilities/office manager",
+          "subject": "Fire alarm compliance for your Dublin premises \u2014 quick check",
+          "body": "Outreach email from Fire Alarms Dublin to Dublin SMEs. Goal: book a fire alarm service/compliance assessment. Pain points: insurance, HSA/fire cert compliance, downtime, unclear service history. Offer: straightforward inspection/testing/maintenance, clear report, fixed-scope options for small premises. CTA: 15-min call or on-site assessment this week. Keep concise, credible, no hype.",
+          "tone": "professional",
+          "note": "This is a draft. Call send_email (premium) to actually deliver it."
+        },
+        {
+          "skill": "generate_content",
+          "ok": true,
+          "request": {
+            "type": "checklist",
+            "topic": "Customer follow-up checklist after fire alarm outreach and assessment booking for Dublin SMEs",
+            "audience": "Fire Alarms Dublin sales and ops team",
+            "tone": "professional",
+            "length": "medium",
+            "keywords": "follow-up, compliance, assessment, quote, scheduling, objections, referral"
+          }
+        },
+        {
+          "skill": "list_team",
+          "ok": true,
+          "count": 5,
+          "team": [
+            {
+              "id": 9,
+              "name": "Main AI Orchestrator",
+              "role": "orchestrator",
+              "status": "active",
+              "idle": "never_idle",
+              "skills": null
+            },
+            {
+              "id": 15,
+              "name": "E2E Specialist mrrq1di4",
+              "role": "member",
+              "status": "active",
+              "idle": "never_idle",
+              "skills": null
+            },
+            {
+              "id": 17,
+              "name": "E2E Specialist mrrq3p58",
+              "role": "member",
+              "status": "active",
+              "idle": "never_idle",
+              "skills": null
+            },
+            {
+              "id": 25,
+              "name": "FAD Ops Lead",
+              "role": "lead",
+              "status": "active",
+              "idle": "never_idle",
+              "skills": null
+            },
+            {
+              "id": 39,
+              "name": "E2E Specialist mrrqm9ul",
+              "role": "member",
+              "status": "active",
+              "idle": "never_idle",
+              "skills": null
+            }
+          ]
+        },
+        {
+          "skill": "create_task",
+          "ok": true,
+          "message": "Task created",
+          "task_id": 197,
+          "status": "queued",
+          "assignee_type": "agent"
+        },
+        {
+          "skill": "create_task",
+          "ok": true,
+          "message": "Task created",
+          "task_id": 198,
+          "status": "queued",
+          "assignee_type": "agent"
+        },
+        {
+          "skill": "create_task",
+          "ok": true,
+          "message": "Task created",
+          "task_id": 199,
+          "status": "queued",
+          "assignee_type": "agent"
+        },
+        {
+          "skill": "save_memory",
+          "ok": true,
+          "message": "Saved to agent data vault",
+          "memory_id": 13
+        }
+      ],
+      "full_has_auto_chain": true,
+      "error": null
+    },
+    "create_task_fallback": {
+      "attempted": false,
+      "reason": null
+    },
+    "list_tasks": {
+      "board_http": 200,
+      "agent_tasks_http": 200,
+      "board_task_count": 50,
+      "agent_task_count": 41,
+      "parent_task_detail": {
+        "id": 171,
+        "title": "Goal: Dublin SME fire alarm launch campaign",
+        "description": "Plan and execute a multi-step campaign to launch a fire alarm service package for Dublin SMEs: research competitors, draft outreach email, create a task checklist, and assign follow-ups across the team.",
+        "status": "in_progress",
+        "priority": "high",
+        "labels": "goal,auto-chain,monitor",
+        "result": "",
+        "agent_id": 9,
+        "agent_name": "Main AI Orchestrator",
+        "human_id": null,
+        "human_name": null,
+        "assignee_type": "agent",
+        "project_id": null,
+        "project_name": null,
+        "company_id": 32,
+        "parent_task_id": null,
+        "meeting_id": null,
+        "tokens_used": 0,
+        "cost": 0.0,
+        "created_at": "2026-07-19T11:54:15.908448",
+        "completed_at": null,
+        "updated_at": "2026-07-19T11:54:15.908453"
+      },
+      "goal_like_tasks": [
+        {
+          "id": 201,
+          "title": "[1/6] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:55:07.911345"
+        },
+        {
+          "id": 200,
+          "title": "Goal: Build and launch a multi-step fire alarm service campaign for Dublin SMEs: research three competitors, draft a professional outreach email, create a customer fo",
+          "status": "in_progress",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:55:07.779140"
+        },
+        {
+          "id": 199,
+          "title": "SME campaign \u2014 assessment slots and fulfilment readiness",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:55:02.730537"
+        },
+        {
+          "id": 198,
+          "title": "SME campaign \u2014 pipeline follow-up and second-touch",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:54:59.698203"
+        },
+        {
+          "id": 197,
+          "title": "SME campaign \u2014 run outreach from approved email",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:54:56.597635"
+        },
+        {
+          "id": 172,
+          "title": "[1/4] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 171,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:54:16.081272"
+        },
+        {
+          "id": 171,
+          "title": "Goal: Dublin SME fire alarm launch campaign",
+          "status": "in_progress",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:54:15.908448"
+        },
+        {
+          "id": 77,
+          "title": "[1/6] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:44:15.681642"
+        },
+        {
+          "id": 76,
+          "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+          "status": "in_progress",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:44:15.561514"
+        },
+        {
+          "id": 59,
+          "title": "SME outreach batch 1 \u2014 Fire Alarms Dublin",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:42:54.371536"
+        },
+        {
+          "id": 53,
+          "title": "Step 1: Research 3 Dublin fire alarm competitors",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:42:36.221771"
+        },
+        {
+          "id": 52,
+          "title": "Plan: Fire Alarms Dublin \u2014 SME Campaign (This Week)",
+          "status": "todo",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator",
+          "created_at": "2026-07-19T11:42:36.108560"
+        }
+      ],
+      "children_with_parent_task_id": [
+        {
+          "id": 206,
+          "title": "[6/6] Monitor completion & escalate blockers",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 205,
+          "title": "[5/6] QA / review & pack result",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 204,
+          "title": "[4/6] Execute primary deliverable",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4"
+        },
+        {
+          "id": 203,
+          "title": "[3/6] Break work into owned workstreams",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead"
+        },
+        {
+          "id": 202,
+          "title": "[2/6] Set company/project targets",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead"
+        },
+        {
+          "id": 175,
+          "title": "[4/4] Execute primary deliverable",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4"
+        },
+        {
+          "id": 174,
+          "title": "[3/4] Break work into owned workstreams",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead"
+        },
+        {
+          "id": 173,
+          "title": "[2/4] Set company/project targets",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 25,
+          "agent_name": "FAD Ops Lead"
+        },
+        {
+          "id": 201,
+          "title": "[1/6] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 172,
+          "title": "[1/4] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 171,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 82,
+          "title": "[6/6] Monitor completion & escalate blockers",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 81,
+          "title": "[5/6] QA / review & pack result",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 80,
+          "title": "[4/6] Execute primary deliverable",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4"
+        },
+        {
+          "id": 79,
+          "title": "[3/6] Break work into owned workstreams",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4"
+        },
+        {
+          "id": 78,
+          "title": "[2/6] Set company/project targets",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 15,
+          "agent_name": "E2E Specialist mrrq1di4"
+        },
+        {
+          "id": 77,
+          "title": "[1/6] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 76,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 73,
+          "title": "Step 5: Report progress baseline to owner",
+          "status": "queued",
+          "parent_task_id": 68,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 72,
+          "title": "Step 4: Delegate execution to sales specialists",
+          "status": "queued",
+          "parent_task_id": 68,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 71,
+          "title": "Step 3: Set weekly sales targets and pipeline metrics",
+          "status": "queued",
+          "parent_task_id": 68,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 70,
+          "title": "Step 2: Write 5-email outreach sequence",
+          "status": "queued",
+          "parent_task_id": 68,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 69,
+          "title": "Step 1: Research ICP (who buys live AI orchestration demos)",
+          "status": "queued",
+          "parent_task_id": 68,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 57,
+          "title": "Step 5: Execute outreach and track replies this week",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 56,
+          "title": "Step 4: Brief sales specialists and assign owners",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 55,
+          "title": "Step 3: Build customer follow-up checklist",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 54,
+          "title": "Step 2: Draft professional SME outreach email",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        },
+        {
+          "id": 53,
+          "title": "Step 1: Research 3 Dublin fire alarm competitors",
+          "status": "queued",
+          "parent_task_id": 52,
+          "agent_id": 9,
+          "agent_name": "Main AI Orchestrator"
+        }
+      ],
+      "linked_to_created_parent": [
+        {
+          "id": 175,
+          "title": "[4/4] Execute primary deliverable",
+          "status": "todo",
+          "parent_task_id": 171
+        },
+        {
+          "id": 174,
+          "title": "[3/4] Break work into owned workstreams",
+          "status": "todo",
+          "parent_task_id": 171
+        },
+        {
+          "id": 173,
+          "title": "[2/4] Set company/project targets",
+          "status": "todo",
+          "parent_task_id": 171
+        },
+        {
+          "id": 172,
+          "title": "[1/4] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 171
+        }
+      ],
+      "recent_tasks": [
+        {
+          "id": 206,
+          "title": "[6/6] Monitor completion & escalate blockers",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:55:08.553637"
+        },
+        {
+          "id": 205,
+          "title": "[5/6] QA / review & pack result",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:55:08.424490"
+        },
+        {
+          "id": 204,
+          "title": "[4/6] Execute primary deliverable",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 15,
+          "created_at": "2026-07-19T11:55:08.296217"
+        },
+        {
+          "id": 203,
+          "title": "[3/6] Break work into owned workstreams",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 25,
+          "created_at": "2026-07-19T11:55:08.167636"
+        },
+        {
+          "id": 202,
+          "title": "[2/6] Set company/project targets",
+          "status": "todo",
+          "parent_task_id": 200,
+          "agent_id": 25,
+          "created_at": "2026-07-19T11:55:08.039469"
+        },
+        {
+          "id": 201,
+          "title": "[1/6] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 200,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:55:07.911345"
+        },
+        {
+          "id": 200,
+          "title": "Goal: Build and launch a multi-step fire alarm service campaign for Dublin SMEs: research three competitors, draft a professional outreach email, create a customer fo",
+          "status": "in_progress",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:55:07.779140"
+        },
+        {
+          "id": 199,
+          "title": "SME campaign \u2014 assessment slots and fulfilment readiness",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:55:02.730537"
+        },
+        {
+          "id": 198,
+          "title": "SME campaign \u2014 pipeline follow-up and second-touch",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:54:59.698203"
+        },
+        {
+          "id": 197,
+          "title": "SME campaign \u2014 run outreach from approved email",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:54:56.597635"
+        },
+        {
+          "id": 175,
+          "title": "[4/4] Execute primary deliverable",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 15,
+          "created_at": "2026-07-19T11:54:16.428368"
+        },
+        {
+          "id": 174,
+          "title": "[3/4] Break work into owned workstreams",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 25,
+          "created_at": "2026-07-19T11:54:16.312684"
+        },
+        {
+          "id": 173,
+          "title": "[2/4] Set company/project targets",
+          "status": "todo",
+          "parent_task_id": 171,
+          "agent_id": 25,
+          "created_at": "2026-07-19T11:54:16.197515"
+        },
+        {
+          "id": 172,
+          "title": "[1/4] Clarify goal & success criteria",
+          "status": "queued",
+          "parent_task_id": 171,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:54:16.081272"
+        },
+        {
+          "id": 171,
+          "title": "Goal: Dublin SME fire alarm launch campaign",
+          "status": "in_progress",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:54:15.908448"
+        },
+        {
+          "id": 105,
+          "title": "E2E task probe",
+          "status": "completed",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:50:40.260939"
+        },
+        {
+          "id": 92,
+          "title": "Prepare system design notes",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:49:24.687191"
+        },
+        {
+          "id": 91,
+          "title": "Qualify new install leads",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:49:24.687183"
+        },
+        {
+          "id": 90,
+          "title": "Draft quote follow-up emails",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:49:24.490282"
+        },
+        {
+          "id": 89,
+          "title": "Chase overdue certificates",
+          "status": "queued",
+          "parent_task_id": null,
+          "agent_id": 9,
+          "created_at": "2026-07-19T11:49:24.490278"
+        }
+      ]
+    }
+  },
+  "auth_logins": 1,
+  "summary": {
+    "orchestrator_ok": true,
+    "orchestrator_id": 9,
+    "execute_goal_deployed": true,
+    "execute_goal_ok": true,
+    "execute_goal_error": null,
+    "chat_ok": true,
+    "chat_auto_chain_detected": true,
+    "parent_goal_task_id": 171,
+    "parent_goal_found": true,
+    "children_with_parent_link": 26,
+    "linked_children_to_parent": 4,
+    "fallback_create_task_attempted": false,
+    "fallback_children_created": null,
+    "auth_logins_during_run": 1,
+    "deploy_note": "execute_goal present on production"
+  }
+}

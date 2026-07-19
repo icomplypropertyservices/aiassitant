@@ -1,0 +1,925 @@
+{
+  "pack": "02_marketing",
+  "category": "content",
+  "label": "Marketing",
+  "skills": [
+    {
+      "id": "mkt_positioning",
+      "name": "Positioning statement",
+      "description": "Craft a clear product positioning statement and supporting messaging pillars for target buyers.",
+      "args": [
+        "product",
+        "audience",
+        "competitors"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_messaging_matrix",
+      "name": "Messaging matrix",
+      "description": "Build a message matrix mapping value props and proof points by persona and funnel stage.",
+      "args": [
+        "personas",
+        "product"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_campaign_brief",
+      "name": "Campaign brief",
+      "description": "Write a full campaign brief covering goals, audience, channels, budget, and success metrics.",
+      "args": [
+        "goal",
+        "audience",
+        "channels",
+        "budget"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_content_calendar",
+      "name": "Content calendar",
+      "description": "Plan a multi-channel content calendar with themes, formats, owners, and publish dates.",
+      "args": [
+        "themes",
+        "channels",
+        "weeks"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_blog_outline",
+      "name": "Blog post outline",
+      "description": "Outline a blog post with H2/H3 structure, SEO angles, and supporting evidence.",
+      "args": [
+        "topic",
+        "keywords",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_blog_draft",
+      "name": "Blog post draft",
+      "description": "Draft a full blog article with intro, body sections, CTAs, and keyword placement.",
+      "args": [
+        "topic",
+        "keywords",
+        "tone",
+        "length"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_landing_page",
+      "name": "Landing page copy",
+      "description": "Write landing page hero, benefit sections, social proof, and primary CTA copy.",
+      "args": [
+        "offer",
+        "audience",
+        "proof"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_ad_copy",
+      "name": "Paid ad copy set",
+      "description": "Write multiple ad copy variants for paid channels including headlines, body, and CTAs.",
+      "args": [
+        "offer",
+        "channel",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_seo_keyword_map",
+      "name": "SEO keyword map",
+      "description": "Map seed and related keywords to pages by search intent and content opportunity.",
+      "args": [
+        "seed",
+        "site"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_seo_meta",
+      "name": "SEO meta tags",
+      "description": "Write optimized title tags and meta descriptions for target pages and keywords.",
+      "args": [
+        "pages",
+        "keywords"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_email_newsletter",
+      "name": "Newsletter draft",
+      "description": "Draft an email newsletter issue with subject lines, sections, and a clear CTA.",
+      "args": [
+        "topics",
+        "audience",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_nurture_sequence",
+      "name": "Nurture email sequence",
+      "description": "Design a multi-email nurture sequence with goals, copy, and timing per step.",
+      "args": [
+        "persona",
+        "offer",
+        "steps"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_webinar_plan",
+      "name": "Webinar plan",
+      "description": "Plan webinar agenda, promo timeline, registration copy, and post-event follow-up.",
+      "args": [
+        "topic",
+        "date",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_press_release",
+      "name": "Press release",
+      "description": "Draft a press release with headline, lead, quotes, boilerplate, and media contacts.",
+      "args": [
+        "announcement",
+        "quotes",
+        "boilerplate"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_brand_voice",
+      "name": "Brand voice guide",
+      "description": "Document brand voice attributes with tone guidance and do/don't copy examples.",
+      "args": [
+        "brand",
+        "samples"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_competitor_content",
+      "name": "Competitor content audit",
+      "description": "Audit competitor content themes, formats, and gaps to surface content opportunities.",
+      "args": [
+        "competitors",
+        "topics"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_persona_card",
+      "name": "Buyer persona card",
+      "description": "Create a detailed buyer persona card with goals, pains, triggers, and messaging cues.",
+      "args": [
+        "role",
+        "data",
+        "pain"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_journey_map",
+      "name": "Customer journey map",
+      "description": "Map journey stages, moments of truth, emotions, and content needs by persona.",
+      "args": [
+        "persona",
+        "stages"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_ab_test_plan",
+      "name": "A/B test plan",
+      "description": "Design an A/B test with hypothesis, variants, primary metric, and success criteria.",
+      "args": [
+        "asset",
+        "variants",
+        "metric"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_utm_plan",
+      "name": "UTM tagging plan",
+      "description": "Define a consistent UTM naming structure for campaigns, sources, mediums, and content.",
+      "args": [
+        "campaigns",
+        "channels"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_launch_checklist",
+      "name": "Product launch checklist",
+      "description": "Build a product marketing launch checklist across channels, assets, owners, and dates.",
+      "args": [
+        "product",
+        "date",
+        "channels"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_pricing_page",
+      "name": "Pricing page copy",
+      "description": "Write pricing page plan names, feature comparisons, objection FAQs, and CTAs.",
+      "args": [
+        "plans",
+        "objections"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_case_study",
+      "name": "Customer case study",
+      "description": "Write a full case study with challenge, solution, results, and customer quote.",
+      "args": [
+        "customer",
+        "results",
+        "quote"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_infographic_brief",
+      "name": "Infographic creative brief",
+      "description": "Brief designers on infographic narrative, stats hierarchy, sections, and visual direction.",
+      "args": [
+        "topic",
+        "stats",
+        "sections"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_video_script",
+      "name": "Marketing video script",
+      "description": "Script a short marketing video with hook, scenes, voiceover, and closing CTA.",
+      "args": [
+        "goal",
+        "duration",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_podcast_outline",
+      "name": "Podcast episode outline",
+      "description": "Outline a podcast episode with cold open, segments, guest prompts, and takeaways.",
+      "args": [
+        "topic",
+        "guests",
+        "segments"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_community_plan",
+      "name": "Community engagement plan",
+      "description": "Plan community engagement cadence, content pillars, and growth goals by platform.",
+      "args": [
+        "platform",
+        "audience",
+        "goals"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_influencer_brief",
+      "name": "Influencer partnership brief",
+      "description": "Write a creator or influencer brief with offer, talking points, and deliverables.",
+      "args": [
+        "creator",
+        "offer",
+        "deliverables"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_event_booth",
+      "name": "Event booth plan",
+      "description": "Plan booth messaging, demo flow, giveaways, and lead-capture process for an event.",
+      "args": [
+        "event",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_lead_magnet",
+      "name": "Lead magnet outline",
+      "description": "Create a lead magnet outline with value proposition, structure, and landing CTA.",
+      "args": [
+        "topic",
+        "format",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_gated_content",
+      "name": "Gated content outline",
+      "description": "Outline a gated content asset, promise of value, and recommended form fields.",
+      "args": [
+        "topic",
+        "value"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_retargeting_ads",
+      "name": "Retargeting ad set",
+      "description": "Write retargeting ad copy and offers segmented by funnel stage and audience intent.",
+      "args": [
+        "stages",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_brand_guidelines_snip",
+      "name": "Brand guidelines section",
+      "description": "Write a focused brand guidelines section with rules, examples, and usage notes.",
+      "args": [
+        "section",
+        "examples"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_tagline_options",
+      "name": "Tagline options",
+      "description": "Generate tagline options with positioning rationale and recommended shortlist.",
+      "args": [
+        "product",
+        "tone",
+        "count"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_slogan_campaign",
+      "name": "Campaign slogan set",
+      "description": "Create campaign slogans and supporting lines aligned to theme and audience.",
+      "args": [
+        "campaign",
+        "theme"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_pr_pitch",
+      "name": "PR pitch email",
+      "description": "Write a media pitch email for journalists or podcasts with hook, story, and assets.",
+      "args": [
+        "story",
+        "outlet"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_analyst_brief",
+      "name": "Analyst briefing pack",
+      "description": "Prepare an industry analyst brief with product narrative, differentiators, and metrics.",
+      "args": [
+        "product",
+        "metrics"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_partner_co_marketing",
+      "name": "Partner co-marketing plan",
+      "description": "Plan co-marketing activities, shared assets, timeline, and lead-sharing with a partner.",
+      "args": [
+        "partner",
+        "assets"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_referral_program",
+      "name": "Referral program design",
+      "description": "Design referral incentives, eligibility rules, and customer-facing messaging.",
+      "args": [
+        "audience",
+        "reward"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_churn_winback",
+      "name": "Win-back campaign",
+      "description": "Build win-back email and ad campaigns for churned or inactive segments with offers.",
+      "args": [
+        "segments",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_lifecycle_emails",
+      "name": "Lifecycle email map",
+      "description": "Map lifecycle emails by user state with triggers, goals, and message themes.",
+      "args": [
+        "states",
+        "product"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_onboarding_emails",
+      "name": "Onboarding email series",
+      "description": "Write a product onboarding email series keyed to activation milestones and CTAs.",
+      "args": [
+        "product",
+        "milestones"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_feature_announce",
+      "name": "Feature announcement pack",
+      "description": "Create multi-channel feature announcement copy for email, in-app, blog, and social.",
+      "args": [
+        "feature",
+        "audience",
+        "channels"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_changelog",
+      "name": "Changelog entry",
+      "description": "Write a clear, user-facing changelog entry for a release or version update.",
+      "args": [
+        "changes",
+        "version"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_social_proof",
+      "name": "Social proof pack",
+      "description": "Compile quotes, logos, stats, and claim language into a reusable social proof pack.",
+      "args": [
+        "assets",
+        "claims"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_budget_plan",
+      "name": "Marketing budget plan",
+      "description": "Allocate marketing budget by channel with goals, expected outcomes, and contingencies.",
+      "args": [
+        "budget",
+        "goals",
+        "channels"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_kpi_dashboard",
+      "name": "Marketing KPI brief",
+      "description": "Define marketing KPIs, targets, data sources, and reporting cadence for a period.",
+      "args": [
+        "goals",
+        "period"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_weekly_report",
+      "name": "Marketing weekly report",
+      "description": "Write a weekly marketing performance report with metrics, highlights, and next actions.",
+      "args": [
+        "metrics",
+        "highlights"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_creative_brief",
+      "name": "Creative brief",
+      "description": "Write a creative brief for design or ads with objective, audience, message, and mandatories.",
+      "args": [
+        "goal",
+        "audience",
+        "mandatories"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "mkt_brand_audit",
+      "name": "Brand audit summary",
+      "description": "Summarize brand consistency issues across samples and recommend prioritized fixes.",
+      "args": [
+        "samples",
+        "guidelines"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "content",
+      "pack": "02_marketing",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

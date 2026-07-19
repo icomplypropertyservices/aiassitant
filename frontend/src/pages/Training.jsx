@@ -1,19 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Typography, Tabs, Button, Space, Tag, List, Empty, Spin, Modal, Form, Input,
-  Select, Upload, message, Popconfirm, Alert, Row, Col, Switch, Divider, Badge,
+  Select, Upload, message, Popconfirm, Alert, Row, Col, Switch, Divider, Badge, Progress,
 } from 'antd'
 import {
   BookOutlined, FolderOutlined, FileTextOutlined, CloudUploadOutlined,
   RobotOutlined, DeleteOutlined, ReloadOutlined, CloudOutlined, LinkOutlined,
-  ExperimentOutlined, PlusOutlined, InboxOutlined,
+  ExperimentOutlined, PlusOutlined, InboxOutlined, CloudServerOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, API, getToken } from '../api'
+import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 const { TextArea } = Input
 const { Dragger } = Upload
+
 
 export default function Training() {
   const nav = useNavigate()
@@ -278,9 +281,10 @@ export default function Training() {
 
   const libraryTab = (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <Card
+            className="aba-soft-card"
             size="small"
             title={<Space><FolderOutlined /> Folders</Space>}
             extra={<Button size="small" icon={<PlusOutlined />} onClick={() => setFolderOpen(true)}>New</Button>}
@@ -315,6 +319,7 @@ export default function Training() {
         </Col>
         <Col xs={24} md={16}>
           <Card
+            className="aba-soft-card"
             size="small"
             title="Training files"
             extra={
@@ -381,9 +386,9 @@ export default function Training() {
   )
 
   const uploadTab = (
-    <Row gutter={16}>
+    <Row gutter={[16, 16]}>
       <Col xs={24} lg={12}>
-        <Card title={<Space><FileTextOutlined /> Training note</Space>}>
+        <Card className="aba-soft-card" title={<Space><FileTextOutlined /> Training note</Space>}>
           <Alert
             type="info"
             showIcon
@@ -412,7 +417,7 @@ export default function Training() {
         </Card>
       </Col>
       <Col xs={24} lg={12}>
-        <Card title={<Space><CloudUploadOutlined /> Upload file</Space>}>
+        <Card className="aba-soft-card" title={<Space><CloudUploadOutlined /> Upload file</Space>}>
           <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }} size="middle">
             <div>
               <Text type="secondary">Storage backend</Text>
@@ -457,6 +462,7 @@ export default function Training() {
 
   const cloudTab = (
     <Card
+      className="aba-soft-card"
       title={<Space><CloudOutlined /> Cloud browser</Space>}
       extra={
         <Space wrap>
@@ -521,7 +527,7 @@ export default function Training() {
 
   const programTab = (
     <div>
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card className="aba-soft-card" size="small" style={{ marginBottom: 16 }}>
         <Space wrap style={{ width: '100%' }}>
           <Text strong>Program agent:</Text>
           <Select
@@ -539,13 +545,17 @@ export default function Training() {
       </Card>
 
       {!progAgent ? (
-        <Empty description="Pick an agent to set instructions, files, and app access" />
+        <Card className="aba-soft-card">
+          <Empty description="Pick an agent to set instructions, files, and app access" />
+        </Card>
       ) : progLoading ? (
-        <Spin />
+        <Card className="aba-soft-card">
+          <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        </Card>
       ) : (
-        <Row gutter={16}>
+        <Row gutter={[16, 16]}>
           <Col xs={24} lg={14}>
-            <Card title={<Space><RobotOutlined /> {prog?.agent_name || 'Agent'} program</Space>}>
+            <Card className="aba-soft-card" title={<Space><RobotOutlined /> {prog?.agent_name || 'Agent'} program</Space>}>
               <Form form={progForm} layout="vertical" onFinish={saveProgram}>
                 <Form.Item
                   name="instructions"
@@ -613,7 +623,7 @@ export default function Training() {
             </Card>
           </Col>
           <Col xs={24} lg={10}>
-            <Card title="Context preview" size="small">
+            <Card className="aba-soft-card" title="Context preview" size="small">
               <Paragraph type="secondary" style={{ fontSize: 12 }}>
                 What this agent will receive (truncated).
               </Paragraph>
@@ -631,14 +641,14 @@ export default function Training() {
               <Divider />
               <Text strong>Resolved files: </Text>
               <Space wrap>
-                {(prog?.resolved_files || []).length === 0
+                {!Array.isArray(prog?.resolved_files) || prog.resolved_files.length === 0
                   ? <Text type="secondary">none</Text>
                   : prog.resolved_files.map((f) => <Tag key={f.id}>{f.name}</Tag>)}
               </Space>
               <div style={{ marginTop: 8 }}>
                 <Text strong>Apps: </Text>
                 <Space wrap>
-                  {(prog?.apps || []).length === 0
+                  {!Array.isArray(prog?.apps) || prog.apps.length === 0
                     ? <Text type="secondary">none</Text>
                     : prog.apps.map((a) => <Tag key={a.connection_id} color="blue">{a.display_name}</Tag>)}
                 </Space>
@@ -651,37 +661,86 @@ export default function Training() {
   )
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          <BookOutlined /> Training
-        </Title>
-        <Text type="secondary">
-          Upload knowledge, store on local / GCS / Dropbox, and program which agents may use which files and apps.
-        </Text>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={(
+          <span>
+            <BookOutlined style={{ marginRight: 8 }} />
+            Training
+          </span>
+        )}
+        subtitle="Upload knowledge, store on local / GCS / Dropbox, and program which agents may use which files and apps."
+      />
 
       {overview && (
-        <Space wrap style={{ marginBottom: 16 }}>
-          <Tag color="blue">{overview.files} files</Tag>
-          <Tag color="blue">{overview.folders} folders</Tag>
-          <Tag color="green">{overview.ready} ready</Tag>
-          {Object.entries(overview.by_storage || {}).map(([k, v]) => (
-            <Tag key={k}>{k}: {v}</Tag>
-          ))}
-        </Space>
+        <Card className="aba-soft-card" size="small" style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Tag color="blue">{overview.files} files</Tag>
+            <Tag color="blue">{overview.folders} folders</Tag>
+            <Tag color="green">{overview.ready} ready</Tag>
+            {Object.entries(overview.by_storage || {}).map(([k, v]) => (
+              <Tag key={k}>{k}: {v}</Tag>
+            ))}
+          </Space>
+          {overview.quota && (
+            <div style={{ marginTop: 12 }}>
+              {(overview.quota.hard_block || overview.quota.warn) && (
+                <Alert
+                  type={overview.quota.hard_block ? 'error' : 'warning'}
+                  showIcon
+                  style={{ marginBottom: 10 }}
+                  message={
+                    overview.quota.hard_block
+                      ? 'Training storage is full'
+                      : 'Training storage running low'
+                  }
+                  description={
+                    <span>
+                      {overview.quota.used_human} of {overview.quota.limit_human} used.
+                      {' '}
+                      <a onClick={() => nav('/billing')}>Upgrade storage or plan →</a>
+                    </span>
+                  }
+                />
+              )}
+              <Space wrap align="center">
+                <CloudServerOutlined />
+                <Text type="secondary">
+                  Storage: <strong>{overview.quota.used_human}</strong>
+                  {' / '}
+                  <strong>{overview.quota.limit_human}</strong>
+                  {overview.quota.bonus_bytes > 0 ? ` (+${overview.quota.bonus_human} packs)` : ''}
+                </Text>
+                {!overview.quota.unlimited && (
+                  <Progress
+                    percent={Math.min(100, overview.quota.usage_percent || 0)}
+                    size="small"
+                    style={{ width: 160, margin: 0 }}
+                    status={overview.quota.hard_block ? 'exception' : overview.quota.warn ? 'active' : 'normal'}
+                    format={(p) => `${p}%`}
+                  />
+                )}
+                <Button size="small" type="link" onClick={() => nav('/billing')}>
+                  Get more storage
+                </Button>
+              </Space>
+            </div>
+          )}
+        </Card>
       )}
 
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        items={[
-          { key: 'library', label: <span><FolderOutlined /> Library</span>, children: libraryTab },
-          { key: 'upload', label: <span><CloudUploadOutlined /> Upload & notes</span>, children: uploadTab },
-          { key: 'cloud', label: <span><CloudOutlined /> Cloud</span>, children: cloudTab },
-          { key: 'program', label: <span><RobotOutlined /> Agent access</span>, children: programTab },
-        ]}
-      />
+      <Card className="aba-soft-card" styles={{ body: { paddingTop: 8 } }}>
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          items={[
+            { key: 'library', label: <span><FolderOutlined /> Library</span>, children: libraryTab },
+            { key: 'upload', label: <span><CloudUploadOutlined /> Upload & notes</span>, children: uploadTab },
+            { key: 'cloud', label: <span><CloudOutlined /> Cloud</span>, children: cloudTab },
+            { key: 'program', label: <span><RobotOutlined /> Agent access</span>, children: programTab },
+          ]}
+        />
+      </Card>
 
       <Modal
         title="New folder"
@@ -746,6 +805,6 @@ export default function Training() {
           options={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.template_type})` }))}
         />
       </Modal>
-    </div>
+    </PageShell>
   )
 }

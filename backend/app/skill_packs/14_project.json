@@ -1,0 +1,1000 @@
+{
+  "pack": "14_project",
+  "category": "ops",
+  "label": "Project management",
+  "skills": [
+    {
+      "id": "pm_project_charter",
+      "name": "Project charter",
+      "description": "Draft a project charter with purpose, objectives, scope boundaries, sponsors, and success criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_scope_statement",
+      "name": "Scope statement",
+      "description": "Write a clear scope statement with in-scope items, exclusions, deliverables, and acceptance boundaries.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_wbs",
+      "name": "Work breakdown structure",
+      "description": "Build a work breakdown structure (WBS) that decomposes deliverables into manageable work packages.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_gantt_outline",
+      "name": "Gantt outline",
+      "description": "Outline a Gantt-style schedule with phases, tasks, durations, and dependencies for planning.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_milestone_plan",
+      "name": "Milestone plan",
+      "description": "Create a milestone plan with target dates, owners, exit criteria, and dependencies.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_risk_register",
+      "name": "Risk register",
+      "description": "Produce a risk register with likelihood, impact, owners, mitigations, and contingency actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_issue_log",
+      "name": "Issue log",
+      "description": "Maintain an issue log with severity, owners, due dates, status, and resolution notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_raid_log",
+      "name": "RAID log",
+      "description": "Build a RAID log covering risks, assumptions, issues, and dependencies with owners and next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_status_report_pm",
+      "name": "Project status report",
+      "description": "Write a project status report with progress, RAG status, risks, blockers, and asks.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_steering_pack",
+      "name": "Steering committee pack",
+      "description": "Assemble a steering committee pack with decisions needed, options, risks, and recommendations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_kickoff_deck",
+      "name": "Kickoff deck outline",
+      "description": "Outline a project kickoff deck covering goals, scope, roles, timeline, and working norms.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_raci_pm",
+      "name": "RACI matrix",
+      "description": "Create a RACI matrix that clarifies who is responsible, accountable, consulted, and informed.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_resource_plan",
+      "name": "Resource plan",
+      "description": "Plan people, skills, and allocation across phases with capacity constraints and hiring gaps.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_budget_pm",
+      "name": "Project budget",
+      "description": "Build a project budget with cost categories, contingency, burn plan, and variance tracking notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_change_control",
+      "name": "Change control process",
+      "description": "Define a change control process with request intake, impact analysis, approval path, and logging.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_dependency_map",
+      "name": "Dependency map",
+      "description": "Map internal and external dependencies with owners, lead times, and risk if delayed.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_critical_path_note",
+      "name": "Critical path analysis",
+      "description": "Analyze the critical path, float, and schedule risks with recommendations to protect the end date.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_sprint_plan",
+      "name": "Sprint plan",
+      "description": "Plan a sprint with goals, committed backlog items, capacity, and definition of done.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_retro_facilitate",
+      "name": "Retrospective facilitation",
+      "description": "Facilitate a retrospective with prompts, themes, and prioritized improvement actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_standup_notes",
+      "name": "Standup notes",
+      "description": "Capture standup notes with yesterday/today/blockers, owners, and follow-ups.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_backlog_groom",
+      "name": "Backlog grooming",
+      "description": "Groom and prioritize the backlog with ready criteria, estimates, and sequencing notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_estimation_note",
+      "name": "Estimation note",
+      "description": "Produce effort estimates with assumptions, ranges, confidence, and risk buffers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_velocity_note",
+      "name": "Velocity analysis",
+      "description": "Analyze team velocity trends and forecast delivery capacity for upcoming sprints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_release_train",
+      "name": "Release train plan",
+      "description": "Plan a release train or PI cadence with increments, milestones, and cross-team sync points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_cutover_plan",
+      "name": "Cutover plan",
+      "description": "Create a go-live cutover plan with sequence, owners, freeze windows, and rollback steps.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_comms_plan_pm",
+      "name": "Project communications plan",
+      "description": "Design a stakeholder communications plan with audiences, channels, cadence, and owners.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_stakeholder_map_pm",
+      "name": "Stakeholder map",
+      "description": "Map stakeholders by influence and interest with engagement strategies and owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_rasci",
+      "name": "RASCI matrix",
+      "description": "Build a RASCI matrix adding support roles to RACI for complex multi-team delivery.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_decision_log",
+      "name": "Decision log",
+      "description": "Maintain a decision log with context, options considered, decision, date, and owner.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_action_tracker",
+      "name": "Action tracker",
+      "description": "Create an action tracker with owners, due dates, status, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_lessons_learned",
+      "name": "Lessons learned",
+      "description": "Capture lessons learned with what worked, what failed, and recommendations for next projects.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_closure_report",
+      "name": "Project closure report",
+      "description": "Write a project closure report with outcomes vs goals, variance, benefits, and handoffs.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_vendor_pm",
+      "name": "Vendor project management",
+      "description": "Coordinate vendor delivery with milestones, SLAs, risks, and performance checkpoints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_statement_of_work",
+      "name": "Statement of work",
+      "description": "Draft a statement of work with scope, deliverables, timeline, acceptance, and commercial terms placeholders.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_acceptance_signoff",
+      "name": "Acceptance sign-off",
+      "description": "Prepare acceptance criteria and a sign-off checklist for formal deliverable approval.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_quality_gate",
+      "name": "Quality gate checklist",
+      "description": "Define quality gates with entry/exit criteria, evidence required, and go/no-go decision rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_test_entry_exit",
+      "name": "Test entry and exit criteria",
+      "description": "Specify test entry and exit criteria with readiness checks, defect thresholds, and sign-off rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_uat_plan",
+      "name": "UAT plan",
+      "description": "Plan user acceptance testing with scenarios, participants, schedule, and defect handling.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_training_plan_pm",
+      "name": "Project training plan",
+      "description": "Build an end-user and ops training plan with audiences, materials, schedule, and readiness checks.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_hypercare",
+      "name": "Hypercare plan",
+      "description": "Define a post-go-live hypercare plan with coverage, SLAs, triage, and exit criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_war_room_pm",
+      "name": "War room runbook",
+      "description": "Set up a war room runbook with roles, comms channels, triage steps, and decision cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_escalation_pm",
+      "name": "Escalation path",
+      "description": "Define project escalation paths by severity with contacts, SLAs, and decision authority.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_portfolio_view",
+      "name": "Portfolio view",
+      "description": "Summarize a project portfolio with status, value, risk, and resource contention.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_program_sync",
+      "name": "Program sync agenda",
+      "description": "Prepare a multi-project program sync agenda covering dependencies, risks, and decisions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_okr_align_pm",
+      "name": "OKR alignment",
+      "description": "Align project outcomes and milestones to team or company OKRs with measurable linkage.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_capacity_pm",
+      "name": "Capacity plan",
+      "description": "Model team capacity vs demand with utilization, bottlenecks, and hiring or rebalancing options.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_holiday_plan",
+      "name": "Holiday coverage plan",
+      "description": "Plan delivery around holidays and PTO with coverage, freezes, and risk mitigation.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_template",
+      "name": "PM artifact template",
+      "description": "Generate a reusable project management template for a chosen artifact type and audience.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_weekly",
+      "name": "Weekly PM update",
+      "description": "Produce a concise weekly project update with wins, risks, metrics, and next-week focus.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "pm_custom",
+      "name": "Custom PM deliverable",
+      "description": "Produce a custom project management deliverable tailored to context, goal, and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "14_project",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

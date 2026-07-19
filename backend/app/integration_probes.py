@@ -189,6 +189,7 @@ PROBES: dict[str, ProbeFn] = {
     "gmail": _probe_google,
     "google_sheets": _probe_google,
     "google_business": _probe_google,
+    "youtube": _probe_google,
     "mailchimp": _probe_mailchimp,
     "zapier": _probe_zapier,
     "dropbox": _probe_dropbox,

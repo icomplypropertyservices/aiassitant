@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models
 from ..auth_utils import get_current_user
 from ..agent_serialize import agent_out
@@ -97,8 +98,8 @@ def cli_guidance(user=Depends(get_current_user)):
     return {
         "companies": DEFAULT_COMPANIES,
         "summary": (
-            "Main Orchestrator coordinates Fire Alarms Dublin, iComply Property Services, "
-            "and iComply Products. Connect GitHub repos and register your local machine via CLI."
+            "Main Orchestrator coordinates your private companies, projects, and agents. "
+            "Connect GitHub repos and register your local machine via CLI."
         ),
     }
 
@@ -147,9 +148,10 @@ def cli_wallets(db: Session = Depends(get_db), user=Depends(get_current_user)):
 
 @router.post("/wallets/ensure/{agent_id}")
 def cli_wallet_ensure(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     w = get_or_create_wallet(db, user, a)
     return wallet_out(w)
 
@@ -161,9 +163,10 @@ def cli_wallet_credit(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     # Move from user platform wallet if available
     bal = db.query(models.Balance).filter_by(user_id=user.id).first()
     if not bal or float(bal.credits or 0) < data.amount_usd:
@@ -202,9 +205,10 @@ def cli_wallet_link(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     w = get_or_create_wallet(db, user, a)
     try:
         w = link_address(db, w, data.chain, data.address)
@@ -222,9 +226,10 @@ def cli_wallet_export_keys(
 ):
     if confirm != "EXPORT":
         raise HTTPException(400, "Pass confirm=EXPORT to reveal encrypted key material")
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     w = get_or_create_wallet(db, user, a)
     keys = export_keys_once(db, w)
     return {"agent_id": agent_id, "wallet_id": w.id, "keys": keys, "warning": "Store offline. Never commit secrets."}
@@ -312,9 +317,10 @@ def cli_git_github_list(data: GitHubListIn, user=Depends(get_current_user)):
 
 @router.delete("/git/repos/{repo_id}")
 def cli_git_delete(repo_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    row = db.get(models.GitRepoConnection, repo_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Repo not found")
+    row = require_owned(
+        db, models.GitRepoConnection, repo_id, user,
+        user_field='user_id', not_found="Repo not found",
+    )
     db.delete(row)
     db.commit()
     return {"ok": True}
@@ -366,7 +372,8 @@ def cli_local_snapshot(user=Depends(get_current_user)):
 
 @router.get("/machines/{machine_id}")
 def cli_machine_get(machine_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    m = db.get(models.MachineNode, machine_id)
-    if not m or m.user_id != user.id:
-        raise HTTPException(404, "Machine not found")
+    m = require_owned(
+        db, models.MachineNode, machine_id, user,
+        user_field='user_id', not_found="Machine not found",
+    )
     return machine_out(m)

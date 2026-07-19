@@ -1,6 +1,10 @@
 # Domains — path layout (no subdomains)
 
-**Canonical host:** [https://aibusinessagent.xyz](https://aibusinessagent.xyz)
+**Canonical host:** [https://aibusinessagent.xyz](https://aibusinessagent.xyz)  
+**WWW:** [https://www.aibusinessagent.xyz](https://www.aibusinessagent.xyz) → **301 redirect to apex only** (not a second site).
+
+Group hub map (Riddle = `riddlewallet.com`, iComply, this AI cage):  
+`C:\Users\E-Store\icomply-group\DOMAINS.md`
 
 Full production env list: **[PRODUCTION_APIS.md](./PRODUCTION_APIS.md)**. Audit ops items: **[AUDIT_FIXES.md](./AUDIT_FIXES.md)**.
 
@@ -11,11 +15,15 @@ Full production env list: **[PRODUCTION_APIS.md](./PRODUCTION_APIS.md)**. Audit 
 | URL | Purpose | Built from |
 |-----|---------|------------|
 | **https://aibusinessagent.xyz/** | Marketing / landing | `website/` |
+| **https://aibusinessagent.xyz/demo.html** | Interactive product demo | `website/demo.html` |
+| **https://aibusinessagent.xyz/features.html** | Features | `website/` |
+| **https://aibusinessagent.xyz/pricing.html** | Pricing | `website/` |
 | **https://aibusinessagent.xyz/agents** | Product app (SPA) | `frontend/` (`base: /agents/`) |
 | **https://aibusinessagent.xyz/api/** | Product API (FastAPI) | `api/index.py` + `backend/` |
 | **https://aibusinessagent.xyz/bay** | AgentBay marketplace (SPA) | `agent-marketplace/frontend` (`base: /bay/`) or `bay-dist/` |
 | **https://aibusinessagent.xyz/bay/api/** | AgentBay API | AgentBay backend (separate project or proxy) |
-| **https://www.aibusinessagent.xyz** | Redirect → apex | DNS / Vercel |
+| **https://aibusinessagent.xyz/privacy.html** · **terms** · **support** | Legal / store | `website/` |
+| **https://www.aibusinessagent.xyz** | **Redirect → apex** | DNS / Vercel only |
 
 No `app.` or `bay.` subdomains — one domain, path prefixes only.
 
@@ -72,9 +80,10 @@ Cron (root `vercel.json`):
 ```text
 schedule: 0 6 * * *
 path:     /api/ops/autonomy/tick-all
+method:   GET (Vercel Cron always GETs; API also allows POST)
 ```
 
-Requires env **`CRON_SECRET`** (see below). Vercel may send `Authorization: Bearer <CRON_SECRET>` if configured; the API also accepts `X-Cron-Secret`.
+Requires env **`CRON_SECRET`** (see below). When set, Vercel sends `Authorization: Bearer <CRON_SECRET>` on the scheduled GET; the API also accepts `X-Cron-Secret`. Auth is never skipped.
 
 ### 2. Environment variables (app project) — launch set
 
@@ -119,7 +128,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 CRON_SECRET=<openssl rand -hex 32>
 ```
 
-- Protects `POST /api/ops/autonomy/tick-all`.
+- Protects `GET|POST /api/ops/autonomy/tick-all` (Vercel Cron uses GET).
 - Production without secret: non-admin → **503**.
 
 #### Rate limits (recommended / launch for multi-instance)

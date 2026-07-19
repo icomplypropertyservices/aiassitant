@@ -128,59 +128,110 @@ def put_autonomy(data: AutonomySettingsIn, db: Session = Depends(get_db), user=D
     return settings_out(row)
 
 
-@router.post("/autonomy/tick")
+@router.api_route("/autonomy/tick", methods=["GET", "POST"])
 async def autonomy_tick(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Run one self-driving cycle for this workspace (also called by background loop)."""
+    """Run one self-driving cycle for this workspace (background loop / manual).
+
+    GET and POST both allowed (same auth). Processes queued tasks via run_user_cycle.
+    """
     result = await run_user_cycle(db, user)
     return {"ok": True, "result": result}
 
 
 def _optional_user(
     creds: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     db: Session = Depends(get_db),
 ):
-    """Like get_current_user but returns None instead of 401 (for cron + optional JWT)."""
-    if not creds or not creds.credentials:
+    """Like get_current_user but returns None instead of 401 (API key session).
+
+    Cron callers often send ``Authorization: Bearer <CRON_SECRET>`` (not an ``aba_``
+    session key). That must not 401 — only session-shaped keys are resolved here.
+    """
+    from ..auth_utils import get_user_from_api_key, API_KEY_PREFIX
+
+    raw = (x_api_key or "").strip() or (creds.credentials if creds else "") or ""
+    if not raw:
         return None
-    from ..auth_utils import decode_token
-
-    payload = decode_token(creds.credentials)
-    if not payload:
+    # Skip non-session tokens (e.g. CRON_SECRET) so cron Bearer never hits DB as auth.
+    if not raw.startswith(API_KEY_PREFIX) and not (
+        raw.lower().startswith("bearer ") and raw[7:].strip().startswith(API_KEY_PREFIX)
+    ):
         return None
-    return db.get(models.User, int(payload["sub"]))
+    return get_user_from_api_key(raw, db)
 
 
-@router.post("/autonomy/tick-all")
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    """Return the token portion of Authorization, or the raw value if no scheme."""
+    if not authorization:
+        return None
+    auth = authorization.strip()
+    if not auth:
+        return None
+    if auth.lower().startswith("bearer "):
+        tok = auth[7:].strip()
+        return tok or None
+    return auth
+
+
+def _cron_secret_matches(
+    configured: str,
+    *,
+    x_cron_secret: str | None,
+    bearer_token: str | None,
+) -> bool:
+    """Constant-time compare of provided secret candidates against CRON_SECRET."""
+    import hmac
+
+    secret = (configured or "").strip()
+    if not secret:
+        return False
+    candidates = []
+    if x_cron_secret and str(x_cron_secret).strip():
+        candidates.append(str(x_cron_secret).strip())
+    if bearer_token and str(bearer_token).strip():
+        candidates.append(str(bearer_token).strip())
+    for cand in candidates:
+        try:
+            if hmac.compare_digest(cand, secret):
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+# Production cron path (Vercel): GET /api/ops/autonomy/tick-all  (see root vercel.json).
+# Vercel Cron always GETs; ops may also be POSTed by admin tools. Auth required either way.
+@router.api_route("/autonomy/tick-all", methods=["GET", "POST"])
 async def autonomy_tick_all(
     db: Session = Depends(get_db),
     user=Depends(_optional_user),
-    x_cron_secret: str | None = Header(default=None, alias="x-cron-secret"),
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
     authorization: str | None = Header(default=None),
 ):
-    """Admin or cron only.
+    """Admin or cron only — global autonomy tick (drains queued tasks for eligible users).
+
+    Methods: **GET** (Vercel Cron) and **POST** (manual/admin/curl).
+    Path: ``/api/ops/autonomy/tick-all`` (see root ``vercel.json`` crons).
 
     Access when any of:
-    - `X-Cron-Secret: <CRON_SECRET>` matches configured secret
-    - `Authorization: Bearer <CRON_SECRET>` (Vercel Cron often sends this)
-    - Authenticated JWT user with admin role (admin UI)
+    - ``X-Cron-Secret: <CRON_SECRET>`` matches configured secret
+    - ``Authorization: Bearer <CRON_SECRET>`` (Vercel injects this when CRON_SECRET is set)
+    - Authenticated admin API key (``aba_…`` session / X-API-Key)
     """
     from fastapi import HTTPException
     from ..config import CRON_SECRET, IS_PRODUCTION
 
-    bearer_token: str | None = None
-    if authorization and authorization.lower().startswith("bearer "):
-        bearer_token = authorization[7:].strip()
-
-    is_valid_cron = bool(
-        CRON_SECRET
-        and (
-            (x_cron_secret and x_cron_secret == CRON_SECRET)
-            or (bearer_token and bearer_token == CRON_SECRET)
-        )
+    secret = (CRON_SECRET or "").strip()
+    bearer_token = _extract_bearer_token(authorization)
+    is_valid_cron = _cron_secret_matches(
+        secret,
+        x_cron_secret=x_cron_secret,
+        bearer_token=bearer_token,
     )
     is_admin = bool(user is not None and getattr(user, "role", None) == "admin")
 
-    if not CRON_SECRET and IS_PRODUCTION and not is_admin:
+    if not secret and IS_PRODUCTION and not is_admin:
         raise HTTPException(503, "CRON_SECRET not configured")
 
     if not (is_valid_cron or is_admin):
@@ -195,6 +246,7 @@ async def autonomy_tick_all(
         "ok": True,
         "global": True,
         "via": "cron" if is_valid_cron else "admin",
+        "methods": ["GET", "POST"],
         "result": result,
     }
 

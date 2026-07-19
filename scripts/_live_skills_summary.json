@@ -1,0 +1,46 @@
+{
+  "agent_id": 27,
+  "role": "orchestrator",
+  "enabled_count": 254,
+  "summary": {
+    "total": 254,
+    "unique_catalog": 254,
+    "enabled": 254,
+    "free": 225,
+    "premium": 29,
+    "premium_examples": [
+      "Send email (premium)",
+      "Send SMS (premium)",
+      "Send WhatsApp (premium)",
+      "Make voice call (premium)",
+      "Send message (any channel)",
+      "Generate image (premium)",
+      "Generate video (premium)",
+      "Facebook post"
+    ]
+  },
+  "catalog_len": 254,
+  "skills_list_len": 254,
+  "needed": {
+    "create_task": {
+      "in_catalog": true,
+      "in_skills": true,
+      "enabled": true
+    },
+    "execute_goal": {
+      "in_catalog": true,
+      "in_skills": true,
+      "enabled": true
+    },
+    "message_agent": {
+      "in_catalog": true,
+      "in_skills": true,
+      "enabled": true
+    },
+    "status_update": {
+      "in_catalog": true,
+      "in_skills": true,
+      "enabled": true
+    }
+  }
+}

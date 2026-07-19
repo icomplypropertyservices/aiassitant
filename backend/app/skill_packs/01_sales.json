@@ -1,0 +1,915 @@
+{
+  "pack": "01_sales",
+  "category": "sales",
+  "label": "Sales",
+  "skills": [
+    {
+      "id": "sales_qualify_lead",
+      "name": "Lead Qualification Scorecard",
+      "description": "Produce a scored lead qualification brief against ICP and BANT/MEDDIC criteria with fit score, gaps, and recommended next step.",
+      "args": [
+        "lead",
+        "company",
+        "notes",
+        "score_model"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_discovery_script",
+      "name": "Discovery Call Script",
+      "description": "Produce a structured discovery call script with opening, discovery questions, talk tracks, and objection prompts tailored to persona and product.",
+      "args": [
+        "persona",
+        "product",
+        "objections"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_demo_agenda",
+      "name": "Product Demo Agenda",
+      "description": "Produce a timed product demo agenda customized to the prospect, including objectives, demo flow, proof points, and close ask.",
+      "args": [
+        "prospect",
+        "product",
+        "duration_min"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_proposal_outline",
+      "name": "Commercial Proposal Outline",
+      "description": "Produce a structured proposal outline covering value proposition, scope, pricing placeholders, timeline, and decision criteria.",
+      "args": [
+        "customer",
+        "scope",
+        "price"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_proposal_full",
+      "name": "Full Sales Proposal Document",
+      "description": "Produce a complete sales proposal ready for customer review, including executive summary, solution, scope, pricing, and commercial terms.",
+      "args": [
+        "customer",
+        "scope",
+        "price",
+        "terms"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_roi_calculator",
+      "name": "ROI Business Case Brief",
+      "description": "Produce ROI assumptions, calculation narrative, and a one-page value story comparing baseline costs to expected outcomes.",
+      "args": [
+        "inputs",
+        "baseline",
+        "target"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_objection_handler",
+      "name": "Objection Handling Playbook",
+      "description": "Produce ready-to-use rebuttals and talk tracks for common sales objections, mapped by persona and product context.",
+      "args": [
+        "objections",
+        "product",
+        "persona"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_negotiation_plan",
+      "name": "Deal Negotiation Plan",
+      "description": "Produce a negotiation plan with concession ladder, trade structure, walk-away thresholds, and approval checkpoints.",
+      "args": [
+        "deal",
+        "constraints",
+        "authority"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_close_plan",
+      "name": "Multi-Step Close Plan",
+      "description": "Produce a multi-step close plan with owners, dates, stakeholder actions, and risk mitigations through signature.",
+      "args": [
+        "deal",
+        "stakeholders",
+        "deadline"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_pipeline_review",
+      "name": "Pipeline Health Review",
+      "description": "Produce a pipeline health summary by stage with coverage, risk flags, stuck deals, and recommended manager actions.",
+      "args": [
+        "deals",
+        "period"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_forecast_notes",
+      "name": "Sales Forecast Commentary",
+      "description": "Produce forecast commentary from the deal list with confidence bands, upside/downside, and commit rationale for the period.",
+      "args": [
+        "deals",
+        "period",
+        "confidence"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_account_map",
+      "name": "Account Stakeholder Map",
+      "description": "Produce an account map of stakeholders, influence, buying roles, and process steps with access and multi-thread gaps.",
+      "args": [
+        "account",
+        "contacts"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_territory_plan",
+      "name": "Territory Coverage Plan",
+      "description": "Produce a territory plan with account prioritization, coverage model, activity focus, and path to quota for the region.",
+      "args": [
+        "region",
+        "accounts",
+        "quota"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_quota_breakdown",
+      "name": "Quota-to-Activity Breakdown",
+      "description": "Produce a quota breakdown into weekly activity and deal targets using average deal size and win-rate assumptions.",
+      "args": [
+        "quota",
+        "avg_deal",
+        "win_rate"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_cold_email",
+      "name": "Cold Email Sequence",
+      "description": "Produce a multi-touch cold email sequence with subject lines, body copy, and CTAs tailored to persona and offer.",
+      "args": [
+        "persona",
+        "offer",
+        "touches"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_cold_call_script",
+      "name": "Cold Call Talk Track",
+      "description": "Produce a cold call script with opener, value hook, discovery probes, objection responses, and meeting ask.",
+      "args": [
+        "persona",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_linkedin_outreach",
+      "name": "LinkedIn Outreach Sequence",
+      "description": "Produce LinkedIn connection request and follow-up messages personalized to persona, offer, and profile notes.",
+      "args": [
+        "persona",
+        "offer",
+        "profile_notes"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_follow_up_email",
+      "name": "Post-Meeting Follow-Up Email",
+      "description": "Produce a post-meeting follow-up email capturing decisions, value recap, and clear next steps with owners.",
+      "args": [
+        "meeting_notes",
+        "next_steps"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_renewal_play",
+      "name": "Renewal & Expansion Playbook",
+      "description": "Produce a renewal playbook covering risk assessment, outreach cadence, value reinforcement, and expansion motions for the account.",
+      "args": [
+        "account",
+        "arr",
+        "risks"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_upsell_plan",
+      "name": "Account Upsell Plan",
+      "description": "Produce an upsell plan with opportunity paths, usage-based triggers, messaging, and recommended package moves.",
+      "args": [
+        "account",
+        "products",
+        "usage"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_cross_sell_plan",
+      "name": "Cross-Sell Opportunity Plan",
+      "description": "Produce a cross-sell plan mapping portfolio products to account needs with priority order and talk tracks.",
+      "args": [
+        "account",
+        "portfolio"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_win_loss",
+      "name": "Win/Loss Analysis Report",
+      "description": "Produce a win/loss analysis summarizing decision drivers, competitor impact, process lessons, and recommendations for future deals.",
+      "args": [
+        "deal",
+        "notes",
+        "outcome"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_competitor_battlecard",
+      "name": "Competitor Battlecard",
+      "description": "Produce a sales battlecard versus a named competitor with differentiators, landmines, trap questions, and win themes.",
+      "args": [
+        "competitor",
+        "our_product",
+        "differentiators"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_pricing_options",
+      "name": "Good-Better-Best Pricing Options",
+      "description": "Produce good/better/best pricing packages with feature packaging, price anchors, and recommendation guidance for the deal.",
+      "args": [
+        "package",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_discount_request",
+      "name": "Discount Approval Brief",
+      "description": "Produce a discount request brief for leadership approval with deal economics, competitive context, and justification.",
+      "args": [
+        "deal",
+        "requested_discount",
+        "rationale"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_mutual_action_plan",
+      "name": "Mutual Action Plan (MAP)",
+      "description": "Produce a shared mutual action plan with buyer and seller tasks, milestones, owners, and target close date.",
+      "args": [
+        "deal",
+        "milestones"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_rfp_response",
+      "name": "RFP Response Draft",
+      "description": "Produce drafted answers to RFP questions aligned to product capabilities, company proof points, and compliance notes.",
+      "args": [
+        "questions",
+        "product",
+        "company"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_security_questionnaire",
+      "name": "Security Questionnaire Responses",
+      "description": "Produce draft responses to security questionnaire items using provided security notes and clear residual-risk callouts.",
+      "args": [
+        "questions",
+        "security_notes"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_case_study_brief",
+      "name": "Customer Case Study Brief",
+      "description": "Produce a sales-ready case study brief with customer context, challenge, solution, quantified results, and proof quotes.",
+      "args": [
+        "customer",
+        "results",
+        "industry"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_testimonial_request",
+      "name": "Customer Testimonial Request",
+      "description": "Produce a polite, specific testimonial request message with suggested prompts and preferred formats.",
+      "args": [
+        "customer",
+        "relationship"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_referral_ask",
+      "name": "Customer Referral Request",
+      "description": "Produce a referral request message for a satisfied customer with clear ask, ideal intro target, and easy response path.",
+      "args": [
+        "customer",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_event_followup",
+      "name": "Event/Trade-Show Follow-Up Pack",
+      "description": "Produce prioritized event follow-up messages for captured leads with personalization hooks and next-step CTAs.",
+      "args": [
+        "event",
+        "leads",
+        "offer"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_handoff_csm",
+      "name": "Sales-to-CSM Handoff Package",
+      "description": "Produce a structured handoff package for Customer Success covering account context, deal promises, stakeholders, and success criteria.",
+      "args": [
+        "account",
+        "deal",
+        "promises"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_call_summary",
+      "name": "Sales Call Summary & Actions",
+      "description": "Produce a structured sales call summary with key discussion points, decisions, risks, and assigned action items.",
+      "args": [
+        "notes",
+        "attendees"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_stage_criteria",
+      "name": "Pipeline Stage Exit Criteria",
+      "description": "Produce clear exit criteria for each pipeline stage so deals advance only with verified buyer evidence.",
+      "args": [
+        "stages",
+        "product"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_playbook_snippet",
+      "name": "Sales Motion Playbook Section",
+      "description": "Produce a playbook section for a named sales motion with steps, talk tracks, exit criteria, and owner roles.",
+      "args": [
+        "motion",
+        "steps"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_abm_target_list",
+      "name": "ABM Target Account Brief",
+      "description": "Produce a prioritized ABM target list with ICP fit reasons, tiering, and recommended engagement angles per account.",
+      "args": [
+        "accounts",
+        "icp"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_multi_thread_plan",
+      "name": "Multi-Threading Contact Plan",
+      "description": "Produce a multi-threading plan across buyer roles with outreach sequence, messaging, and coverage goals for the account.",
+      "args": [
+        "account",
+        "contacts"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_champion_enablement",
+      "name": "Champion Enablement Kit",
+      "description": "Produce champion enablement materials including internal talk track, one-pager, objection answers, and stakeholder map for internal selling.",
+      "args": [
+        "champion",
+        "internal_buyers",
+        "product"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_economic_buyer_brief",
+      "name": "Economic Buyer One-Pager",
+      "description": "Produce a concise one-pager for the economic buyer covering business case, ROI, risk reduction, and decision ask.",
+      "args": [
+        "buyer",
+        "business_case"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_tech_buyer_brief",
+      "name": "Technical Buyer Evaluation Brief",
+      "description": "Produce a technical evaluation brief for IT/security buyers covering architecture fit, requirements, integrations, and risk mitigations.",
+      "args": [
+        "stack",
+        "requirements"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_legal_review_prep",
+      "name": "Legal Review Prep Notes",
+      "description": "Produce legal review prep with priority contract points, preferred positions, fallback language, and risk notes for negotiation.",
+      "args": [
+        "contract_points",
+        "risks"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_qbr_deck_outline",
+      "name": "Commercial QBR Deck Outline",
+      "description": "Produce a customer QBR deck outline with value delivered, metrics, risks, roadmap, and expansion discussion points.",
+      "args": [
+        "account",
+        "metrics",
+        "period"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_channel_partner_brief",
+      "name": "Channel Partner Co-Sell Brief",
+      "description": "Produce a partner co-sell brief covering opportunity summary, roles, messaging, and joint next steps.",
+      "args": [
+        "partner",
+        "deal"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_inbound_triage",
+      "name": "Inbound Lead Triage List",
+      "description": "Produce a triaged inbound lead list with priority scores, routing recommendations, and first-touch guidance per lead.",
+      "args": [
+        "leads",
+        "rules"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_outbound_cadence",
+      "name": "Multi-Channel Outbound Cadence",
+      "description": "Produce a day-by-day multi-channel outbound cadence with email, call, and social steps for the target persona.",
+      "args": [
+        "persona",
+        "channels",
+        "days"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_meeting_prep",
+      "name": "Sales Meeting Prep Pack",
+      "description": "Produce a meeting prep pack with research snapshot, agenda, discovery goals, risk questions, and desired outcomes.",
+      "args": [
+        "prospect",
+        "goal"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_slack_deal_update",
+      "name": "Slack Deal Status Update",
+      "description": "Produce a concise Slack-ready deal status update with stage, next step, risks, and ask for the team.",
+      "args": [
+        "deal",
+        "stage",
+        "risks"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_commission_explain",
+      "name": "Deal Commission Impact Note",
+      "description": "Produce a clear explanation of commission impact under the proposed deal structure against the compensation plan.",
+      "args": [
+        "deal",
+        "plan"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sales_weekly_plan",
+      "name": "AE Weekly Activity Plan",
+      "description": "Produce a weekly AE plan balancing pipeline generation, active deals, and quota math against calendar capacity.",
+      "args": [
+        "pipeline",
+        "quota",
+        "calendar"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "sales",
+      "pack": "01_sales",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

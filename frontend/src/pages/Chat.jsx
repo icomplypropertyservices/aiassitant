@@ -5,10 +5,11 @@ import {
 } from 'antd'
 import { SendOutlined, ThunderboltOutlined, PlusOutlined, MessageOutlined } from '@ant-design/icons'
 import { useLocation } from 'react-router-dom'
-import { api, connectAuthedWs } from '../api'
+import { api, createRealtime } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
+import PageShell from '../components/PageShell'
 
 const TEMPLATES = ['Write a follow-up email', 'Summarise this for a customer', 'Draft a quote cover note', 'Reply to a bad review', 'Fix this Python bug', 'Write a FastAPI endpoint']
 
@@ -67,7 +68,7 @@ export default function Chat() {
     if (convRef.current) {
       loadConversation(convRef.current)
     }
-    const ws = connectAuthedWs('/ws/chat')
+    const ws = createRealtime({ path: '/ws/chat' })
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data)
       if (m.type === 'auth_ok') return
@@ -143,126 +144,138 @@ export default function Chat() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 160px)' }}>
-      <Card
-        size="small"
-        title="Conversations"
-        extra={
-          <Button type="link" size="small" icon={<PlusOutlined />} onClick={newChat}>
-            New chat
-          </Button>
-        }
-        style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
-        styles={{ body: { flex: 1, overflow: 'auto', padding: 0 } }}
+    <PageShell wide className="aba-chat-page">
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          height: 'calc(100vh - 160px)',
+          minHeight: 480,
+          width: '100%',
+        }}
       >
-        {convLoading ? (
-          <div style={{ textAlign: 'center', padding: 24 }}><Spin size="small" /></div>
-        ) : conversations.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No chats yet" style={{ padding: 16 }} />
-        ) : (
-          <List
-            size="small"
-            dataSource={conversations}
-            renderItem={(c) => {
-              const id = c.id
-              const selected = activeConv === id
-              return (
-                <List.Item
-                  style={{
-                    cursor: 'pointer',
-                    padding: '8px 12px',
-                    background: selected ? '#e6f4ff' : undefined,
-                    borderLeft: selected ? '3px solid #1668dc' : '3px solid transparent',
-                  }}
-                  onClick={() => loadConversation(id)}
-                >
-                  <List.Item.Meta
-                    avatar={<MessageOutlined style={{ color: selected ? '#1668dc' : undefined }} />}
-                    title={
-                      <Typography.Text ellipsis style={{ maxWidth: 180, fontWeight: selected ? 600 : 400 }}>
-                        {c.title || c.preview || 'Conversation'}
-                      </Typography.Text>
-                    }
-                    description={
-                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                        {c.updated_at || c.created_at
-                          ? new Date(c.updated_at || c.created_at).toLocaleString()
-                          : null}
-                      </Typography.Text>
-                    }
-                  />
-                </List.Item>
-              )
-            }}
-          />
-        )}
-      </Card>
-
-      <Card
-        style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
-        styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, height: '100%', overflow: 'hidden' } }}
-        title={
-          <Space wrap>
-            <ModelSelect value={model} onChange={setModel} style={{ width: 300 }} />
-            <Tabs activeKey={mode} onChange={setMode} items={[
-              { key: 'general', label: 'General' },
-              { key: 'sales', label: 'Sales Mode' },
-              { key: 'support', label: 'Customer Service' },
-              { key: 'coding', label: 'Coding' },
-            ]} tabBarStyle={{ margin: 0 }} />
-          </Space>
-        }
-        extra={
-          <Space wrap>
-            <VoiceControls
-              disabled={busy}
-              onTranscript={(text) => send(text)}
-              onPartial={(t) => setInput(t)}
-              speakReplies={speakReplies}
-              onSpeakRepliesChange={(v) => {
-                setSpeakReplies(v)
-                localStorage.setItem('voice_speak_replies', v ? '1' : '0')
+        <Card
+          size="small"
+          className="aba-soft-card"
+          title="Conversations"
+          extra={
+            <Button type="link" size="small" icon={<PlusOutlined />} onClick={newChat}>
+              New chat
+            </Button>
+          }
+          style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
+          styles={{ body: { flex: 1, overflow: 'auto', padding: 0 } }}
+        >
+          {convLoading ? (
+            <div style={{ textAlign: 'center', padding: 24 }}><Spin size="small" /></div>
+          ) : conversations.length === 0 ? (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No chats yet" style={{ padding: 16 }} />
+          ) : (
+            <List
+              size="small"
+              dataSource={conversations}
+              renderItem={(c) => {
+                const id = c.id
+                const selected = activeConv === id
+                return (
+                  <List.Item
+                    style={{
+                      cursor: 'pointer',
+                      padding: '8px 12px',
+                      background: selected ? '#e6f4ff' : undefined,
+                      borderLeft: selected ? '3px solid #1668dc' : '3px solid transparent',
+                    }}
+                    onClick={() => loadConversation(id)}
+                  >
+                    <List.Item.Meta
+                      avatar={<MessageOutlined style={{ color: selected ? '#1668dc' : undefined }} />}
+                      title={
+                        <Typography.Text ellipsis style={{ maxWidth: 180, fontWeight: selected ? 600 : 400 }}>
+                          {c.title || c.preview || 'Conversation'}
+                        </Typography.Text>
+                      }
+                      description={
+                        <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                          {c.updated_at || c.created_at
+                            ? new Date(c.updated_at || c.created_at).toLocaleString()
+                            : null}
+                        </Typography.Text>
+                      }
+                    />
+                  </List.Item>
+                )
               }}
             />
-            <MediaActions
-              disabled={busy}
-              onUsage={(u) => {
-                if (u?.tokens) setSessionTokens((n) => n + (u.tokens || 0))
-              }}
-            />
-            <Button size="small" icon={<PlusOutlined />} onClick={newChat}>New chat</Button>
-            <Tag icon={<ThunderboltOutlined />} color="processing">{sessionTokens.toLocaleString()} tokens this session</Tag>
-          </Space>
-        }
-      >
-        <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-          {messages.length === 0 && (
-            <div style={{ textAlign: 'center', marginTop: 48 }}>
-              <Typography.Text type="secondary">Ask anything, use the mic, or start from a template:</Typography.Text>
-              <div style={{ marginTop: 12 }}>
-                <Space wrap>{TEMPLATES.map(t => <Button key={t} size="small" onClick={() => send(t)}>{t}</Button>)}</Space>
-              </div>
-            </div>
           )}
-          {messages.map((m, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
-              <div style={{
-                maxWidth: '70%', padding: '8px 14px', borderRadius: 10, whiteSpace: 'pre-wrap',
-                background: m.role === 'user' ? '#1668dc' : '#fff',
-                color: m.role === 'user' ? '#fff' : '#000',
-                border: m.role === 'user' ? 'none' : '1px solid #e8e8e8',
-                fontFamily: mode === 'coding' && m.role === 'assistant' ? 'ui-monospace, monospace' : undefined,
-              }}>{m.content}</div>
-            </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
-        <Space.Compact style={{ width: '100%' }}>
-          <Input value={input} onChange={e => setInput(e.target.value)} onPressEnter={() => send()}
-                 placeholder="Type a message or click the mic to talk…" disabled={busy} />
-          <Button type="primary" icon={<SendOutlined />} onClick={() => send()} loading={busy}>Send</Button>
-        </Space.Compact>
-      </Card>
-    </div>
+        </Card>
+
+        <Card
+          className="aba-soft-card"
+          style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
+          styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, height: '100%', overflow: 'hidden' } }}
+          title={
+            <Space wrap>
+              <ModelSelect value={model} onChange={setModel} style={{ width: 300 }} />
+              <Tabs activeKey={mode} onChange={setMode} items={[
+                { key: 'general', label: 'General' },
+                { key: 'sales', label: 'Sales Mode' },
+                { key: 'support', label: 'Customer Service' },
+                { key: 'coding', label: 'Coding' },
+              ]} tabBarStyle={{ margin: 0 }} />
+            </Space>
+          }
+          extra={
+            <Space wrap>
+              <VoiceControls
+                disabled={busy}
+                onTranscript={(text) => send(text)}
+                onPartial={(t) => setInput(t)}
+                speakReplies={speakReplies}
+                onSpeakRepliesChange={(v) => {
+                  setSpeakReplies(v)
+                  localStorage.setItem('voice_speak_replies', v ? '1' : '0')
+                }}
+              />
+              <MediaActions
+                disabled={busy}
+                onUsage={(u) => {
+                  if (u?.tokens) setSessionTokens((n) => n + (u.tokens || 0))
+                }}
+              />
+              <Button size="small" icon={<PlusOutlined />} onClick={newChat}>New chat</Button>
+              <Tag icon={<ThunderboltOutlined />} color="processing">{sessionTokens.toLocaleString()} tokens this session</Tag>
+            </Space>
+          }
+        >
+          <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+            {messages.length === 0 && (
+              <div style={{ textAlign: 'center', marginTop: 48 }}>
+                <Typography.Text type="secondary">Ask anything, use the mic, or start from a template:</Typography.Text>
+                <div style={{ marginTop: 12 }}>
+                  <Space wrap>{TEMPLATES.map(t => <Button key={t} size="small" onClick={() => send(t)}>{t}</Button>)}</Space>
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
+                <div style={{
+                  maxWidth: '70%', padding: '8px 14px', borderRadius: 10, whiteSpace: 'pre-wrap',
+                  background: m.role === 'user' ? '#1668dc' : '#fff',
+                  color: m.role === 'user' ? '#fff' : '#000',
+                  border: m.role === 'user' ? 'none' : '1px solid #e8e8e8',
+                  fontFamily: mode === 'coding' && m.role === 'assistant' ? 'ui-monospace, monospace' : undefined,
+                }}>{m.content}</div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+          <Space.Compact style={{ width: '100%' }}>
+            <Input value={input} onChange={e => setInput(e.target.value)} onPressEnter={() => send()}
+                   placeholder="Type a message or click the mic to talk…" disabled={busy} />
+            <Button type="primary" icon={<SendOutlined />} onClick={() => send()} loading={busy}>Send</Button>
+          </Space.Compact>
+        </Card>
+      </div>
+    </PageShell>
   )
 }

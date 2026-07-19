@@ -1,0 +1,587 @@
+/* part: live-ops.css */
+/* ── Live Ops top ticker (scrolling, click-to-agent) ───────────────────── */
+.aba-live-ops-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  min-height: 48px;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, #0b1f3a 0%, #132f54 50%, #0b1f3a 100%);
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.aba-live-ops-label.ant-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: #fff !important;
+  height: auto !important;
+  padding: 4px 8px !important;
+  border-radius: 8px !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.aba-live-ops-label.ant-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+.aba-live-ops-label-text {
+  color: #fff !important;
+  font-size: 11px !important;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.aba-live-ops-active-tag {
+  margin: 0 !important;
+  line-height: 18px;
+}
+
+.aba-live-ops-track-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+.aba-live-ops-track-wrap::-webkit-scrollbar {
+  height: 4px;
+}
+.aba-live-ops-track-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+.aba-live-ops-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  padding: 2px 4px;
+}
+
+/* Continuous marquee — restarts when React remounts track (tickKey) */
+.aba-live-ops-track--scroll {
+  animation-name: aba-live-ops-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.aba-live-ops-track--scroll.is-paused,
+.aba-live-ops-track-wrap:hover .aba-live-ops-track--scroll {
+  animation-play-state: paused;
+}
+
+@keyframes aba-live-ops-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.aba-live-ops-empty.ant-btn {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-size: 13px;
+  padding: 4px 6px !important;
+  height: auto !important;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ant Design Tag chips inside ticker */
+.aba-live-ops-chip.ant-tag {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  max-width: min(360px, calc(100vw - 48px));
+  margin: 0 !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.aba-live-ops-chip.ant-tag:hover {
+  background: rgba(105, 177, 255, 0.28) !important;
+  border-color: rgba(105, 177, 255, 0.55) !important;
+}
+.aba-live-ops-chip.has-agent {
+  border-color: rgba(105, 177, 255, 0.4) !important;
+}
+.aba-live-ops-chip.status-running {
+  background: rgba(22, 119, 255, 0.32) !important;
+}
+.aba-live-ops-chip.status-failed {
+  background: rgba(220, 38, 38, 0.32) !important;
+}
+.aba-live-ops-chip.status-done {
+  background: rgba(22, 163, 74, 0.28) !important;
+}
+.aba-live-ops-chip-icon {
+  display: inline-flex;
+  font-size: 12px;
+  opacity: 0.95;
+  flex-shrink: 0;
+}
+.aba-live-ops-chip-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  color: #91caff;
+  flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aba-live-ops-chip-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aba-live-ops-chip-detail {
+  color: rgba(248, 250, 252, 0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.aba-live-ops-chip-go {
+  font-size: 10px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.aba-live-ops-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  max-width: 36%;
+}
+.aba-live-ops-run-tag {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .aba-live-ops-banner {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    min-height: 52px;
+  }
+  .aba-live-ops-track-wrap {
+    order: 3;
+    flex: 1 1 100%;
+    width: 100%;
+    mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent);
+  }
+  .aba-live-ops-actions {
+    margin-left: auto;
+    max-width: 55%;
+  }
+  .aba-live-ops-chip {
+    max-width: min(320px, 88vw);
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .aba-live-ops-chip-detail {
+    display: none;
+  }
+  .aba-live-ops-label-text {
+    font-size: 10px !important;
+  }
+}
+
+/* Desktop restores multi-column grids (Ant Col spans work again) */
+@media (min-width: 769px) {
+  .aba-content .ant-row,
+  .aba-page-shell .ant-row,
+  .aba-page-shell-inner .ant-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HARD CONTAINMENT — Ant Design + mobile-first
+   Nothing hangs outside cards / viewport. Text wraps or ellipsizes in-box.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html,
+body,
+#root,
+.aba-shell,
+.aba-shell > .ant-layout {
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+/* Every Ant surface stays inside the shell */
+.aba-page-shell,
+.aba-page-shell-inner,
+.aba-page-center,
+.aba-content,
+.aba-agent-chat-host,
+.agent-chat-shell {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.aba-page-shell .ant-card,
+.aba-page-shell-inner .ant-card,
+.aba-soft-card,
+.aba-stat-card,
+.aba-box,
+.aba-box-lg,
+.aba-system-nav-card {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow-x: clip;
+}
+
+/* Text never paints outside the box */
+.aba-page-shell .ant-card-body,
+.aba-page-shell-inner .ant-card-body,
+.aba-page-shell .ant-card-head-title,
+.aba-page-shell-inner .ant-card-head-title,
+.aba-page-shell .ant-list-item-meta-title,
+.aba-page-shell .ant-list-item-meta-description,
+.aba-page-shell .ant-typography,
+.aba-page-shell .ant-statistic-title,
+.aba-page-shell .ant-statistic-content,
+.aba-page-shell .ant-form-item-label > label,
+.aba-page-shell .ant-empty-description,
+.aba-page-shell .ant-alert-message,
+.aba-page-shell .ant-alert-description,
+.aba-page-shell .ant-descriptions-item-content,
+.aba-page-shell .ant-collapse-header,
+.agent-chat-shell,
+.aba-live-ops-chip-title,
+.aba-live-ops-chip-detail,
+.aba-live-ops-chip-agent {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.aba-page-shell .ant-card-head {
+  min-width: 0;
+}
+.aba-page-shell .ant-card-head-wrapper {
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.aba-page-shell .ant-card-extra {
+  margin-inline-start: 0;
+  max-width: 100%;
+}
+
+/* Tags / chips wrap inside cards instead of stretching the page */
+.aba-page-shell .ant-tag,
+.aba-page-shell-inner .ant-tag {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Inputs / selects always fit column */
+.aba-page-shell .ant-input,
+.aba-page-shell .ant-input-affix-wrapper,
+.aba-page-shell .ant-select,
+.aba-page-shell .ant-picker,
+.aba-page-shell .ant-input-number,
+.aba-page-shell textarea.ant-input {
+  max-width: 100% !important;
+}
+
+/* Tables scroll inside the card, not the page */
+.aba-page-shell .ant-table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Modals / drawers stay in viewport */
+.ant-modal {
+  max-width: calc(100vw - 24px) !important;
+  top: 12px;
+  padding-bottom: 12px;
+}
+.ant-modal-content {
+  max-width: 100%;
+  overflow: hidden;
+}
+.ant-modal-body {
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+}
+.ant-drawer-content-wrapper {
+  max-width: 100vw !important;
+}
+.ant-drawer-body {
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+
+/* Header + token meter: wrap, never push page wider */
+.aba-header {
+  padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+  overflow-x: clip;
+}
+.aba-header > div {
+  min-width: 0;
+  max-width: 100%;
+}
+.aba-meter-chip {
+  max-width: min(100%, 100vw - 120px);
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+.aba-meter-tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Live ops: never expand document width */
+.aba-live-ops-banner {
+  max-width: 100vw;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.aba-live-ops-track-wrap {
+  max-width: 100%;
+}
+.aba-live-ops-chip {
+  max-width: min(360px, calc(100vw - 48px));
+}
+
+@media (max-width: 768px) {
+  /* Single column is already forced; tighten card body padding so text fits */
+  .aba-page-shell .ant-card-body,
+  .aba-page-shell-inner .ant-card-body,
+  .aba-content .ant-card-body {
+    padding: 12px !important;
+    overflow-x: clip;
+  }
+  .aba-page-shell .ant-card-head,
+  .aba-page-shell-inner .ant-card-head {
+    padding-inline: 12px !important;
+    min-height: 44px;
+  }
+
+  /* List rows: meta + actions stack; no hang-off */
+  .aba-page-shell .ant-list-item,
+  .aba-page-shell-inner .ant-list-item {
+    flex-wrap: wrap !important;
+    gap: 8px;
+    padding-inline: 0 !important;
+    max-width: 100%;
+  }
+  .aba-page-shell .ant-list-item-meta,
+  .aba-page-shell .ant-list-item-action {
+    max-width: 100%;
+    margin-inline-start: 0 !important;
+  }
+  .aba-page-shell .ant-list-item-action {
+    flex-wrap: wrap;
+  }
+  .aba-page-shell .ant-list-item-action > li {
+    padding: 0 4px !important;
+  }
+
+  /* Descriptions / forms full width stack */
+  .aba-page-shell .ant-descriptions-item,
+  .aba-page-shell .ant-form-item {
+    max-width: 100%;
+  }
+  .aba-page-shell .ant-space {
+    max-width: 100%;
+  }
+  .aba-page-shell .ant-space-horizontal {
+    flex-wrap: wrap !important;
+  }
+
+  /* Header chips don't overflow */
+  .aba-header {
+    gap: 8px !important;
+    padding-block: 6px !important;
+  }
+  .aba-user-chip .name {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .aba-meter-chip .aba-meter-progress {
+    display: none; /* free space on phone */
+  }
+  .aba-live-ops-actions .aba-live-ops-run-tag {
+    display: none; /* ticker chips are enough on mobile */
+  }
+  .aba-live-ops-actions {
+    max-width: none;
+  }
+
+  /* Agent chat full viewport, no sideways bleed */
+  .aba-agent-chat-host,
+  .agent-chat-shell {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+  }
+  .agent-chat-msg,
+  .agent-chat-bubble,
+  .agent-chat-row {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Popconfirm / dropdowns stay on screen */
+  .ant-popover,
+  .ant-dropdown {
+    max-width: calc(100vw - 16px);
+  }
+  .ant-popover-inner-content,
+  .ant-dropdown-menu {
+    max-width: calc(100vw - 24px);
+    overflow-wrap: anywhere;
+  }
+
+  /* System nav cards — short blurb, no overflow */
+  .aba-system-nav-card .ant-typography {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ── Priority: every UI element fits the phone ───────────────── */
+  .aba-core-team .ant-card-extra,
+  .aba-page-shell .ant-card-extra {
+    width: 100%;
+    margin-inline-start: 0 !important;
+  }
+  .aba-core-team .ant-card-extra .ant-space,
+  .aba-page-shell .ant-card-extra .ant-space {
+    width: 100%;
+    flex-wrap: wrap !important;
+  }
+  .aba-core-team-card,
+  .aba-core-team-card .ant-card-body {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .aba-core-team-card .ant-btn {
+    min-height: 40px;
+  }
+
+  /* Segmented / filters don't spill */
+  .ant-segmented {
+    max-width: 100% !important;
+  }
+  .ant-space-item {
+    max-width: 100%;
+  }
+
+  /* Statistic numbers don't overflow cards */
+  .ant-statistic-content-value {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Drawer explore full width */
+  .aba-explore-drawer.ant-drawer-content-wrapper,
+  .aba-explore-drawer .ant-drawer-content {
+    max-width: 100vw !important;
+  }
+
+  /* Page header title never hangs off */
+  .aba-page-header-title,
+  .aba-page-header .ant-typography {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Buttons in tight rows wrap */
+  .aba-page-shell .ant-space-horizontal {
+    max-width: 100%;
+  }
+  .aba-page-shell .ant-btn {
+    max-width: 100%;
+  }
+
+  /* Images / media inside cards */
+  .aba-page-shell img,
+  .aba-page-shell video,
+  .aba-page-shell canvas,
+  .agent-chat-shell img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Pre/code blocks scroll inside, not page */
+  .aba-page-shell pre,
+  .agent-chat-shell pre,
+  .aba-page-shell code {
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+/* Touch-friendly primary actions site-wide (phone + tablet) */
+@media (max-width: 768px) {
+  .aba-content .ant-btn-primary,
+  .aba-page-shell .ant-btn-primary,
+  .aba-core-team .ant-btn-primary,
+  .aba-spawn-agent-btn {
+    min-height: 44px !important;
+  }
+  .aba-content .ant-input,
+  .aba-content .ant-select-selector,
+  .aba-page-shell .ant-input,
+  .aba-page-shell .ant-select-single .ant-select-selector {
+    min-height: 44px !important;
+  }
+}
+
+/* Desktop: hide hamburger (sider is visible) */
+@media (min-width: 992px) {
+  .aba-hamburger-btn {
+    display: none !important;
+  }
+  .aba-header-back-desktop {
+    display: inline-flex !important;
+  }
+}

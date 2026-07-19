@@ -24,6 +24,7 @@ const routerBasename = (() => {
   return raw && raw !== '/' ? raw : undefined
 })()
 
+// Mobile-first theme: denser touch targets by default; desktop keeps polish.
 const theme = {
   token: {
     colorPrimary: '#1668dc',
@@ -41,7 +42,10 @@ const theme = {
     fontFamily:
       '"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
     fontSize: 14,
-    controlHeight: 36,
+    // 40px controls read better on phone than 36
+    controlHeight: 40,
+    controlHeightSM: 32,
+    controlHeightLG: 44,
     boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04)',
     boxShadowSecondary: '0 4px 24px rgba(15, 23, 42, 0.08)',
   },
@@ -49,16 +53,19 @@ const theme = {
     Button: {
       primaryShadow: '0 1px 2px rgba(22, 104, 220, 0.25)',
       fontWeight: 500,
+      controlHeight: 40,
+      paddingInline: 16,
     },
     Card: {
       headerFontSize: 15,
-      paddingLG: 20,
+      paddingLG: 16,
     },
     Menu: {
       darkItemBg: 'transparent',
       darkSubMenuItemBg: 'transparent',
       darkItemSelectedBg: 'rgba(255,255,255,0.14)',
       itemBorderRadius: 8,
+      itemHeight: 44,
     },
     Layout: {
       headerBg: 'transparent',
@@ -71,6 +78,10 @@ const theme = {
     },
     Tabs: {
       titleFontSize: 14,
+      horizontalItemPadding: '10px 12px',
+    },
+    Drawer: {
+      paddingLG: 16,
     },
   },
 }

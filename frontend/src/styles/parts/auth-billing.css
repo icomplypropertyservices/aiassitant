@@ -1,0 +1,1020 @@
+/* part: auth-billing.css */
+/* ── Plan cards (centered Ant Design Card grid) ──────────────── */
+
+.aba-plans-section-head {
+  margin: 8px 0 18px;
+}
+.aba-plans-section-head.is-centered {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.aba-plans-section-head.is-centered .ant-typography {
+  text-align: center;
+}
+
+.aba-plans-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 4px 4px 8px;
+  box-sizing: border-box;
+}
+
+.aba-plans-wrap--compact {
+  padding: 0;
+}
+
+.aba-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 250px));
+  gap: 16px;
+  width: max-content;
+  max-width: 100%;
+  justify-content: center;
+  justify-items: stretch;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+/* Centered tier grid (default) — pin to content width so cards sit mid-shell */
+.aba-plans-grid.is-centered-cols {
+  width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aba-plans-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--aba-muted);
+}
+
+/* Subscribe: primary free-trial CTA (above centered plan Cards) */
+.aba-trial-cta-card.ant-card {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 16px;
+  border-radius: 16px !important;
+  border: 1px solid rgba(13, 148, 136, 0.35) !important;
+  box-shadow:
+    0 0 0 1px rgba(13, 148, 136, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.06);
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%) !important;
+}
+.aba-trial-cta-inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.aba-trial-cta-tag {
+  margin-bottom: 10px !important;
+}
+.aba-trial-cta-title {
+  margin: 0 0 6px !important;
+  letter-spacing: -0.02em;
+}
+.aba-trial-cta-icon {
+  margin-right: 8px;
+  color: #0d9488;
+}
+.aba-trial-cta-blurb {
+  margin: 0 auto 16px !important;
+  max-width: 480px;
+  text-align: center;
+}
+.aba-trial-cta-btn.ant-btn {
+  min-width: 240px;
+  height: 48px !important;
+  font-weight: 600;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.aba-trial-cta-foot {
+  margin: 12px 0 0 !important;
+  font-size: 12.5px !important;
+  text-align: center;
+}
+
+/* Billing: meter + plans in centered Ant Design Cards / aba-box */
+.aba-billing-plans-box {
+  width: 100%;
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 24px;
+  padding: 18px 16px 20px;
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+
+.aba-billing-plans-box > .aba-billing-plans-card.ant-card,
+.aba-billing-plans-box > .ant-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin-bottom: 0 !important;
+}
+
+.aba-billing-meter-card.ant-card,
+.aba-billing-plans-card.ant-card {
+  width: 100%;
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 16px !important;
+}
+
+.aba-billing-meter-card .ant-card-head-title {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.aba-billing-meter-body {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  width: 100%;
+}
+
+.aba-billing-meter-body .aba-meter-full {
+  text-align: center;
+}
+
+.aba-billing-meter-body .aba-meter-full-head,
+.aba-billing-meter-body .aba-meter-full-tags {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.aba-billing-meter-body .ant-space,
+.aba-billing-meter-body .ant-progress {
+  justify-content: center;
+}
+
+.aba-billing-meter-body .ant-statistic {
+  text-align: center;
+}
+
+.aba-billing-meter-blurb {
+  margin-top: 14px !important;
+  margin-bottom: 0 !important;
+  text-align: center;
+  max-width: 560px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.aba-billing-meter-progress {
+  margin-top: 12px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aba-billing-plans-card .aba-plans-section-head {
+  margin-top: 0;
+}
+
+.aba-billing-plans-inner {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.aba-billing-plans-inner .aba-plans-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Nested plan tier cards keep elevation inside the soft aba-box.
+   Neutral default only — highlight/trial/current must win (higher specificity). */
+.aba-billing-plans-box .aba-plan-card.ant-card {
+  box-shadow: var(--aba-shadow);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid var(--aba-border) !important;
+}
+
+.aba-billing-plans-box .aba-plan-card.is-highlight.ant-card:not(.is-free) {
+  border-color: #1668dc !important;
+  box-shadow: 0 0 0 1px rgba(22, 104, 220, 0.22), 0 12px 32px rgba(22, 104, 220, 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #eef5ff 100%) !important;
+}
+
+.aba-billing-plans-box .aba-plan-card.is-free.ant-card,
+.aba-billing-plans-box .aba-plan-card.is-free.is-highlight.ant-card {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.28), 0 14px 36px rgba(13, 148, 136, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%) !important;
+}
+
+.aba-billing-plans-box .aba-plan-card.is-current.ant-card {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.25), var(--aba-shadow);
+}
+
+/* Current plan on free trial: green "current" wins over teal free */
+.aba-billing-plans-box .aba-plan-card.is-free.is-current.ant-card,
+.aba-plan-card.is-free.is-current {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.25), var(--aba-shadow);
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%) !important;
+  transform: none;
+  z-index: 1;
+}
+
+/* Full TokenMeter (Billing / Profile) */
+.aba-meter-full {
+  width: 100%;
+}
+
+.aba-meter-full-head {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.aba-meter-full-tags {
+  justify-content: center;
+}
+
+.aba-meter-full-title {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.aba-meter-full-progress {
+  margin-bottom: 16px !important;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aba-meter-full-stats {
+  text-align: center;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aba-meter-full-stats .ant-statistic {
+  text-align: center;
+}
+
+.aba-meter-stat {
+  background: var(--aba-bg-warm, #f8fafc);
+  border: 1px solid var(--aba-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 10px;
+  height: 100%;
+}
+
+.aba-meter-stat .ant-statistic-title {
+  margin-bottom: 4px;
+}
+
+.aba-meter-stat .ant-statistic-content {
+  justify-content: center;
+}
+
+/* Each tier is an Ant Design Card */
+.aba-plan-card.ant-card,
+.aba-plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid var(--aba-border) !important;
+  box-shadow: var(--aba-shadow);
+  text-align: center;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  overflow: hidden;
+}
+
+.aba-plan-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 !important;
+}
+
+.aba-plan-card-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  padding: 22px 18px 18px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.aba-plan-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--aba-shadow-md);
+}
+
+.aba-plan-card.is-highlight {
+  border-color: #1668dc !important;
+  box-shadow: 0 0 0 1px rgba(22, 104, 220, 0.22), 0 12px 32px rgba(22, 104, 220, 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #eef5ff 100%) !important;
+  transform: scale(1.02);
+  z-index: 1;
+}
+
+.aba-plan-card.is-highlight:hover {
+  transform: scale(1.02) translateY(-4px);
+}
+
+.aba-plan-card.is-current {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.25), var(--aba-shadow);
+}
+
+.aba-plan-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(90deg, #1d4ed8, #1668dc, #38bdf8);
+  z-index: 2;
+}
+
+.aba-plan-card.is-highlight .aba-plan-ribbon {
+  background: linear-gradient(90deg, #1e40af, #1668dc, #0ea5e9);
+}
+
+/* Free trial — elevated teal highlight (wins over blue popular when both apply) */
+.aba-plan-card.is-free,
+.aba-plan-card.is-free.is-highlight {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.28), 0 14px 36px rgba(13, 148, 136, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 100%) !important;
+  transform: scale(1.03);
+  z-index: 2;
+}
+
+.aba-plan-card.is-free:hover,
+.aba-plan-card.is-free.is-highlight:hover {
+  transform: scale(1.03) translateY(-4px);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.34), 0 16px 40px rgba(13, 148, 136, 0.16);
+}
+
+.aba-plan-ribbon.is-free-ribbon,
+.aba-plan-card.is-free .aba-plan-ribbon {
+  background: linear-gradient(90deg, #0f766e, #14b8a6, #2dd4bf);
+}
+
+.aba-plan-card .aba-plan-ribbon + .aba-plan-head {
+  margin-top: 18px;
+}
+
+.aba-plan-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.aba-plan-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  color: var(--aba-ink);
+}
+
+.aba-plan-price-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 6px;
+  min-height: 42px;
+}
+
+.aba-price-was {
+  text-decoration: line-through;
+  opacity: 0.5;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--aba-muted);
+}
+
+.aba-price-now {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--aba-ink);
+  line-height: 1.1;
+}
+
+.aba-price-now.free {
+  color: var(--aba-success);
+}
+
+.aba-price-unit {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--aba-muted);
+}
+
+.aba-plan-you {
+  margin-top: 2px !important;
+}
+
+.aba-plan-blurb {
+  margin: 0 0 12px;
+  min-height: 2.6em;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--aba-muted);
+}
+
+.aba-plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.aba-plan-value {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--aba-success);
+}
+
+.aba-plan-features {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.aba-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #334155;
+}
+
+.aba-plan-check {
+  color: var(--aba-success) !important;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.aba-plan-teaser {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(22, 104, 220, 0.06);
+  border: 1px solid rgba(22, 104, 220, 0.12);
+  font-size: 12px;
+  color: #1e40af;
+  text-align: center;
+}
+
+.aba-plan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.aba-plan-cta.ant-btn {
+  border-radius: 10px !important;
+  font-weight: 600;
+  height: 42px !important;
+}
+
+.aba-plan-crypto.ant-btn {
+  border-radius: 10px !important;
+}
+
+.aba-plan-upgrade-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--aba-muted);
+  line-height: 1.4;
+}
+
+/* Compact plans (login — centered Ant Design Cards in container grid) */
+.aba-plans-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.aba-plan-compact.ant-card,
+.aba-plan-compact {
+  border-radius: 14px !important;
+  border: 1px solid var(--aba-border) !important;
+  background: #fff !important;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.aba-plan-compact:hover {
+  border-color: #93c5fd !important;
+  box-shadow: var(--aba-shadow);
+}
+
+.aba-plan-compact.is-highlight {
+  border-color: #1668dc !important;
+  background: linear-gradient(180deg, #fff 0%, #f0f7ff 100%) !important;
+  box-shadow: 0 0 0 1px rgba(22, 104, 220, 0.15);
+}
+
+.aba-plan-compact.is-free,
+.aba-plan-compact.is-free.is-highlight {
+  border-color: #0d9488 !important;
+  background: linear-gradient(180deg, #fff 0%, #f0fdfa 100%) !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.22), 0 8px 20px rgba(13, 148, 136, 0.1);
+}
+
+.aba-plan-compact.is-current {
+  border-color: #16a34a !important;
+}
+
+.aba-plan-compact-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.aba-plan-compact-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.aba-plan-compact-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.aba-plan-compact-price .aba-price-now {
+  font-size: 1.35rem;
+}
+
+.aba-plan-compact-blurb {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--aba-muted);
+  line-height: 1.4;
+}
+
+.aba-plan-compact-meta {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+@media (max-width: 1100px) {
+  .aba-plans-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    max-width: 640px;
+    gap: 14px;
+  }
+  .aba-plans-grid.is-centered-cols {
+    width: 100%;
+    max-width: 640px;
+  }
+  .aba-plan-card.is-highlight,
+  .aba-plan-card.is-free,
+  .aba-plan-card.is-free.is-highlight {
+    transform: none;
+  }
+  .aba-plan-card.is-highlight:hover,
+  .aba-plan-card.is-free:hover,
+  .aba-plan-card.is-free.is-highlight:hover {
+    transform: translateY(-3px);
+  }
+  .aba-billing-plans-box {
+    padding: 14px 12px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .aba-plans-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-width: 400px;
+    width: 100%;
+    margin-inline: auto;
+    gap: 14px;
+  }
+  .aba-plans-grid.is-centered-cols {
+    width: 100%;
+    max-width: 400px;
+  }
+  .aba-billing-plans-box {
+    padding: 12px 10px 14px;
+    margin-bottom: 16px;
+  }
+  .aba-plan-card {
+    border-radius: 16px !important;
+    text-align: center;
+    max-width: 100%;
+  }
+  .aba-plan-card-inner {
+    padding: 20px 16px 16px;
+  }
+  .aba-plan-card.is-highlight {
+    transform: none;
+    box-shadow: 0 0 0 2px rgba(22, 104, 220, 0.28), var(--aba-shadow-md);
+  }
+  .aba-plan-card.is-free,
+  .aba-plan-card.is-free.is-highlight {
+    transform: none;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.32), var(--aba-shadow-md);
+  }
+  .aba-plan-name {
+    font-size: 1.2rem;
+  }
+  .aba-price-now {
+    font-size: 2rem;
+  }
+  .aba-plan-blurb {
+    min-height: 0;
+  }
+  .aba-plan-features {
+    text-align: left;
+    margin-inline: auto;
+    max-width: 280px;
+  }
+  .aba-plan-cta.ant-btn,
+  .aba-plan-crypto.ant-btn {
+    height: 44px !important;
+    font-size: 15px;
+  }
+  .aba-plans-section-head.is-centered {
+    padding-inline: 8px;
+  }
+  .aba-trial-cta-card.ant-card {
+    max-width: 100%;
+  }
+  .aba-trial-cta-btn.ant-btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.aba-auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(900px 500px at 15% 0%, rgba(56, 189, 248, 0.22), transparent 55%),
+    radial-gradient(800px 480px at 90% 20%, rgba(22, 104, 220, 0.35), transparent 50%),
+    linear-gradient(165deg, #071525 0%, #0b1f3a 42%, #f1f5f9 42.1%, #f8fafc 100%);
+  padding: 36px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.aba-auth-shell > * {
+  width: 100%;
+  max-width: 1140px;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+/* Auth pages reuse AppLayout centering rail (aba-page-center → aba-page-shell) */
+.aba-auth-shell > .aba-page-center {
+  width: 100%;
+  max-width: 1140px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+/* Login / auth page vertical stack — centered full-page column */
+.aba-auth-stack {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* .aba-auth-logo styles live with brand shell above (full product logo) */
+
+.aba-auth-hero-alert {
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto 14px;
+  text-align: left;
+}
+
+/* Narrow shell wrap for the sign-in Card (overrides is-narrow 720 → form width) */
+.aba-auth-form-wrap {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto 32px;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Narrow centered form Card */
+.aba-auth-form-card {
+  width: 100% !important;
+  max-width: 420px;
+  margin: 0 auto !important;
+  border-radius: 16px !important;
+}
+
+.aba-auth-form-card .ant-card-body {
+  padding: 22px 24px 20px !important;
+}
+
+.aba-auth-form-card .ant-tabs {
+  margin-bottom: 4px;
+}
+
+.aba-auth-form-card .ant-form-item:last-of-type {
+  margin-bottom: 16px;
+}
+
+.aba-auth-form-title {
+  margin-top: 0 !important;
+  text-align: center;
+}
+
+.aba-auth-form-footer {
+  text-align: center;
+  margin-top: 12px;
+}
+
+.aba-auth-form-note {
+  margin-top: 16px !important;
+  margin-bottom: 0 !important;
+  font-size: 12px !important;
+  text-align: center;
+}
+
+/* Plans section boxed below the form */
+.aba-auth-plans {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.aba-auth-plans-card {
+  border-radius: 16px !important;
+  width: 100%;
+}
+
+.aba-auth-plans-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.aba-auth-plans-card-title {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--aba-ink, #0f172a);
+}
+
+.aba-auth-plans-sub {
+  font-size: 12px !important;
+  line-height: 1.35;
+}
+
+.aba-auth-plans-card .ant-card-head {
+  min-height: 56px;
+}
+
+.aba-auth-plans-card .ant-card-extra {
+  margin-inline-start: 12px;
+  white-space: nowrap;
+}
+
+.aba-auth-plans-foot {
+  text-align: center;
+  margin-top: 14px;
+}
+
+/* Subscribe / auth alerts — centered max-width cards */
+.aba-auth-alert.ant-alert {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  max-width: 720px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.aba-auth-alert--last.ant-alert {
+  margin-bottom: 24px;
+}
+
+/* Subscribe company name field under hero */
+.aba-subscribe-company-wrap {
+  margin-top: 16px;
+  width: 100%;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aba-subscribe-company-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.aba-subscribe-company.ant-input,
+.aba-subscribe-company {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 10px !important;
+}
+
+.aba-subscribe-rates-card.ant-card {
+  border-radius: 14px !important;
+  max-width: 720px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Billing section cards (auto top-up, rates) sit in the centered shell */
+.aba-billing-section-card.ant-card {
+  width: 100%;
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 16px !important;
+}
+
+.aba-auth-hero,
+.aba-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.aba-auth-hero .ant-typography,
+.aba-hero .ant-typography {
+  text-align: center;
+}
+
+.aba-auth-card {
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12) !important;
+}
+
+.aba-meter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--aba-border);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  max-width: 100%;
+  flex-wrap: wrap;
+  cursor: help;
+}
+
+.aba-meter-chip--empty {
+  cursor: default;
+}
+
+.aba-meter-chip:hover {
+  border-color: #c7d7f0;
+  box-shadow: 0 2px 8px rgba(22, 104, 220, 0.08);
+}
+
+.aba-meter-chip--warn {
+  border-color: #fcd34d;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.aba-meter-chip--hard {
+  border-color: #fca5a5;
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.aba-meter-chip .aba-meter-tag.ant-tag {
+  margin: 0;
+  line-height: 22px;
+  padding-inline: 7px;
+  font-weight: 500;
+  font-size: 12.5px;
+  background: transparent;
+}
+
+.aba-meter-chip .aba-meter-progress.ant-progress {
+  width: 56px;
+  margin: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.aba-meter-chip .aba-meter-progress .ant-progress-outer {
+  margin-inline-end: 0 !important;
+  padding-inline-end: 0 !important;
+}
+
+.aba-meter-tooltip {
+  max-width: 280px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.aba-meter-tooltip-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.aba-meter-tooltip-trial {
+  margin-top: 6px;
+}
+
+.aba-meter-tooltip-alert {
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.aba-meter-tooltip-alert.is-hard {
+  color: #ff4d4f;
+}
+
+.aba-meter-tooltip-alert.is-warn {
+  color: #fa8c16;
+}
+
+.aba-meter-tooltip-hint {
+  opacity: 0.8;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.aba-meter-full .ant-statistic-title {
+  color: var(--aba-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}

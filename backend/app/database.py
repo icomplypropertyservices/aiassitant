@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import NullPool
 from . import config
 
 url = config.DATABASE_URL
@@ -17,7 +18,15 @@ elif url.startswith("postgres") and "sslmode" not in url and "localhost" not in 
     sep = "&" if "?" in url else "?"
     url = f"{url}{sep}sslmode=require"
 
-engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+# Serverless: NullPool avoids holding stale connections across freezes and is
+# faster/safer on short-lived Vercel instances than a queue pool.
+_engine_kwargs: dict = {"connect_args": connect_args}
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    _engine_kwargs["poolclass"] = NullPool
+else:
+    _engine_kwargs["pool_pre_ping"] = True
+
+engine = create_engine(url, **_engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 Base = declarative_base()
 

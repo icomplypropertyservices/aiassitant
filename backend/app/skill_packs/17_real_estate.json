@@ -1,0 +1,997 @@
+{
+  "pack": "17_real_estate",
+  "category": "ops",
+  "label": "Real estate",
+  "skills": [
+    {
+      "id": "re_listing_description",
+      "name": "Listing description",
+      "description": "Write compelling MLS/listing copy highlighting features, lifestyle benefits, and a clear call-to-action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_cma_brief",
+      "name": "CMA brief",
+      "description": "Summarize comparable sales and recommend a list-price range with supporting comps narrative.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_offer_strategy",
+      "name": "Offer strategy",
+      "description": "Build a buyer or seller offer strategy covering price, terms, contingencies, and leverage points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_negotiation_re",
+      "name": "Negotiation playbook",
+      "description": "Draft negotiation tactics and counter-offer paths for a real estate transaction.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_showing_script",
+      "name": "Showing script",
+      "description": "Write a property showing talk track covering highlights, objections, and next steps.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_open_house_plan",
+      "name": "Open house plan",
+      "description": "Plan open-house logistics, marketing, staffing, and lead-capture steps.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_buyer_persona_re",
+      "name": "Buyer persona",
+      "description": "Define target buyer personas for a listing, neighborhood, or market segment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_seller_prep",
+      "name": "Seller prep guide",
+      "description": "Prepare sellers with pricing expectations, staging tips, disclosures, and listing timeline.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_staging_checklist",
+      "name": "Staging checklist",
+      "description": "Create a room-by-room staging checklist to maximize perceived value at showings.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_photo_brief_re",
+      "name": "Photo shoot brief",
+      "description": "Brief photographers on shot list, angles, lighting notes, and brand style for a listing.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_virtual_tour_script",
+      "name": "Virtual tour script",
+      "description": "Write narration and room-order script for a virtual property tour or video walkthrough.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_lease_abstract",
+      "name": "Lease abstract",
+      "description": "Abstract key lease terms, dates, options, rent, and obligations into a one-page summary.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "rent_roll_note",
+      "name": "Rent roll commentary",
+      "description": "Summarize rent-roll occupancy, unit mix, rollover risk, and income trends.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_noi_commentary",
+      "name": "NOI commentary",
+      "description": "Explain net operating income drivers, variances, and levers to improve NOI.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_cap_rate_note",
+      "name": "Cap rate note",
+      "description": "Analyze cap-rate positioning versus comps and market benchmarks with implications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_proforma",
+      "name": "Investment pro forma",
+      "description": "Build or narrate a property pro forma with assumptions, cash flows, and sensitivity notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_investment_memo_re",
+      "name": "Investment memo",
+      "description": "Draft a real estate investment memo covering thesis, returns, risks, and recommendation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_dd_checklist_re",
+      "name": "Due diligence checklist",
+      "description": "Produce a property due-diligence checklist organized by workstream, owner, and priority.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_title_issues",
+      "name": "Title issues brief",
+      "description": "Summarize title exceptions, liens, encumbrances, and recommended clearance steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_inspection_response",
+      "name": "Inspection response",
+      "description": "Draft repair requests or seller responses based on inspection findings and priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "repair_request",
+      "name": "Repair request",
+      "description": "Write a formal repair request listing items, priorities, credits, and response deadlines.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_closing_checklist",
+      "name": "Closing checklist",
+      "description": "Create a closing timeline checklist with parties, documents, funds, and critical dates.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_move_in_letter",
+      "name": "Move-in letter",
+      "description": "Draft a tenant or buyer move-in welcome letter with keys, rules, utilities, and contacts.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_tenant_screening",
+      "name": "Tenant screening criteria",
+      "description": "Define screening criteria, process steps, and fair-housing-safe applicant messaging.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_eviction_process_note",
+      "name": "Eviction process note",
+      "description": "Outline eviction process steps, notices, documentation, and compliance checkpoints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_cam_reconcile",
+      "name": "CAM reconciliation note",
+      "description": "Explain common-area maintenance reconciliation methodology and tenant statement narrative.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_lease_renewal",
+      "name": "Lease renewal package",
+      "description": "Draft lease renewal terms, outreach language, and options for landlord or tenant.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "rent_increase",
+      "name": "Rent increase notice",
+      "description": "Write a rent increase notice with rationale, effective date, and required disclosures.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_amenity_plan",
+      "name": "Amenity plan",
+      "description": "Plan amenity upgrades or programming to lift occupancy, retention, and achievable rents.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_property_ops",
+      "name": "Property ops plan",
+      "description": "Define property operations cadence, KPIs, escalations, and owner reporting rhythm.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_maintenance_re",
+      "name": "Maintenance plan",
+      "description": "Prioritize preventive and reactive maintenance work orders, vendors, and budget notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_vendor_re",
+      "name": "Vendor scorecard",
+      "description": "Evaluate or select property vendors with scope, scorecard criteria, and next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_insurance_re",
+      "name": "Insurance coverage brief",
+      "description": "Summarize property insurance needs, coverage gaps, deductibles, and renewal talking points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_tax_appeal_note",
+      "name": "Tax appeal note",
+      "description": "Outline property tax assessment appeal facts, comps, evidence, and filing steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_zoning_note",
+      "name": "Zoning note",
+      "description": "Summarize zoning designation, allowed uses, setbacks, and development constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_entitlement_plan",
+      "name": "Entitlement plan",
+      "description": "Map entitlement pathway, agencies, milestones, risks, and decision points for a project.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_construction_draw",
+      "name": "Construction draw package",
+      "description": "Prepare a construction draw request narrative with progress notes and lien-waiver checklist.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_punch_list",
+      "name": "Punch list",
+      "description": "Compile a construction punch list by trade with owners, priorities, and target dates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_hoa_rules_summary",
+      "name": "HOA rules summary",
+      "description": "Summarize HOA CC&Rs, fees, architectural rules, and buyer or resident implications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_neighborhood_report",
+      "name": "Neighborhood report",
+      "description": "Produce a neighborhood overview covering amenities, trends, demographics, and lifestyle fit.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_school_district_note",
+      "name": "School district note",
+      "description": "Summarize school district options and performance notes for buyer guidance (non-advisory).",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_commute_analysis",
+      "name": "Commute analysis",
+      "description": "Analyze commute times to key employment hubs for a property or search area.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_market_update_re",
+      "name": "Market update",
+      "description": "Write a local real estate market update for clients, investors, or sphere of influence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_flyer_copy",
+      "name": "Flyer copy",
+      "description": "Write property marketing flyer or one-sheet copy with headline, features, and CTA.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_email_drip_re",
+      "name": "Email drip sequence",
+      "description": "Create a multi-touch email drip for buyers, sellers, investors, or past clients.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "referral_re",
+      "name": "Referral ask",
+      "description": "Draft a referral request message for past clients, partners, and sphere contacts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_agent_bio",
+      "name": "Agent bio",
+      "description": "Write a professional agent bio for website, MLS, social profiles, or marketing materials.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_weekly",
+      "name": "Weekly pipeline brief",
+      "description": "Summarize weekly listings, showings, deals in progress, and priority next actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_playbook",
+      "name": "Real estate playbook",
+      "description": "Document a repeatable real estate workflow playbook for a team process or deal stage.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "re_custom",
+      "name": "Custom RE deliverable",
+      "description": "Produce a custom real estate deliverable from freeform context, goals, and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "17_real_estate",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

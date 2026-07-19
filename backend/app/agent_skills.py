@@ -17,7 +17,7 @@ from .agent_roles import is_orchestrator, normalize_role
 from .integrations_service import secrets_from_row, meta_from_row, integrations_context_for_agent
 from .live_ops import emit_ops
 from . import channels
-from .usage_billing import charge_usage, charge_event
+from .usage_billing import charge_usage, charge_event, bill_skill_execution, bill_llm_turn
 
 def _charge_premium(db, user, skill_meta, default_cost=0.02, text: str = "", *, already_billed: bool = False):
     """Bill premium skill once. Prefer execute_skill as the single charge site.
@@ -48,7 +48,8 @@ SKILL_CATALOG: list[dict] = [
         "name": "Spawn agent",
         "description": "Create a new team agent under you (or as orchestrator under any lead).",
         "args": ["name", "template_type", "personality", "hierarchy_role", "parent_id"],
-        "roles": ["orchestrator", "lead"],
+        # Members may spawn via UI/API; chat skill still prefers leads but is allowed for all operators
+        "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
         "id": "message_agent",
@@ -67,7 +68,10 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "assign_human",
         "name": "Assign work to human",
-        "description": "Allocate a task to a human teammate.",
+        "description": (
+            "Allocate a task to a human teammate. Omit human_id to assign to the account's "
+            "My Human (primary). Posts to their message box and notifies when active."
+        ),
         "args": ["human_id", "title", "description", "priority"],
         "roles": ["orchestrator", "lead", "member"],
     },
@@ -88,16 +92,31 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "create_task",
         "name": "Create task",
-        "description": "Create a task for an agent or human.",
-        "args": ["title", "description", "agent_id", "human_id", "priority"],
+        "description": "Create a task for an agent or human. Active agent tasks queue for autonomy unless run_now=false.",
+        "args": ["title", "description", "agent_id", "human_id", "priority", "run_now", "meeting_id", "parent_task_id"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
         "id": "announce_plan",
         "name": "Announce plan",
-        "description": "Publish a multi-step plan to the live ops banner.",
+        "description": (
+            "Publish a multi-step plan to live ops and create a parent task + child steps. "
+            "String steps stay on the announcer (backward compatible). "
+            "Dict steps may set agent_id / role (or role_hint / template_type) to assign via "
+            "task_chain.pick_assignee; active agents are queued for autonomy."
+        ),
         "args": ["title", "steps"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "execute_goal",
+        "name": "Execute goal (auto chain)",
+        "description": (
+            "From one prompt: create parent goal, break into steps, delegate down hierarchy, "
+            "set company/project targets, queue active agents, monitor completion."
+        ),
+        "args": ["goal", "title", "priority", "steps", "company_id", "project_id", "max_steps"],
+        "roles": ["orchestrator", "lead", "member"],
     },
     # ── CRM + Diary skills (run existing customers, arrange diaries) ─────
     {
@@ -132,7 +151,7 @@ SKILL_CATALOG: list[dict] = [
         "id": "create_deal",
         "name": "Create deal",
         "description": "Create a new opportunity/deal for an existing customer in a pipeline.",
-        "args": ["customer_id", "email", "title", "value", "priority", "expected_close"],
+        "args": ["customer_id", "email", "title", "value", "priority", "expected_close", "pipeline_id", "stage_id"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -148,6 +167,202 @@ SKILL_CATALOG: list[dict] = [
         "description": "List upcoming or customer-specific diary entries (appointments).",
         "args": ["customer_id", "email", "status", "upcoming"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    # ── CRM pipeline skills (full board control) ──────────────────
+    {
+        "id": "list_pipelines",
+        "name": "List pipelines",
+        "description": "List CRM pipelines (sales boards) with stage counts and open value.",
+        "args": ["limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "get_pipeline",
+        "name": "Get pipeline board",
+        "description": "Full pipeline board: stages + deals in each stage (kanban snapshot).",
+        "args": ["pipeline_id", "with_deals"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "list_pipeline_stages",
+        "name": "List pipeline stages",
+        "description": "List stages for a pipeline (name, type, probability, position).",
+        "args": ["pipeline_id"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "move_deal",
+        "name": "Move deal to stage",
+        "description": "Move a deal to another stage (by stage_id or stage name).",
+        "args": ["deal_id", "stage_id", "stage_name", "notes"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "win_deal",
+        "name": "Win deal",
+        "description": "Mark a deal as won and optionally set final value / notes.",
+        "args": ["deal_id", "value", "notes"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "lose_deal",
+        "name": "Lose deal",
+        "description": "Mark a deal as lost with a reason.",
+        "args": ["deal_id", "lost_reason", "notes"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "pipeline_summary",
+        "name": "Pipeline summary",
+        "description": "Totals by stage: deal counts, open value, win rate snapshot.",
+        "args": ["pipeline_id"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "ensure_sales_pipeline",
+        "name": "Ensure sales pipeline",
+        "description": "Create the default Sales pipeline + stages if the workspace has none.",
+        "args": [],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    # ── Workspace read + universal comment (every agent) ──────────
+    {
+        "id": "list_tasks",
+        "name": "List tasks",
+        "description": "List workspace tasks (board) by status, agent, or search text.",
+        "args": ["status", "agent_id", "q", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "get_task",
+        "name": "Get task",
+        "description": "Fetch one task with description, status, assignee, and result.",
+        "args": ["task_id"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "list_meetings",
+        "name": "List meeting rooms",
+        "description": "List brainstorm / war-room meeting rooms for this workspace.",
+        "args": ["status", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "list_humans",
+        "name": "List human teammates",
+        "description": "List human team members (My Human and others) with status and capacity.",
+        "args": ["q", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "list_deals",
+        "name": "List deals",
+        "description": "List CRM deals/opportunities (open pipeline items).",
+        "args": ["status", "q", "limit", "pipeline_id", "stage_id"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "read_workspace",
+        "name": "Read workspace snapshot",
+        "description": (
+            "One-shot overview: companies, projects, agent counts, open tasks, "
+            "recent meetings, humans — so you can act without asking the user."
+        ),
+        "args": [],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "comment",
+        "name": "Comment on record",
+        "description": (
+            "Leave a note/comment on a workspace record: customer, task, meeting, "
+            "human, deal, or agent memory. Use target_type + target_id + body."
+        ),
+        "args": ["target_type", "target_id", "body", "title"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    # ── Create skills + AgentBay sell/share ───────────────────────
+    {
+        "id": "create_skill",
+        "name": "Create skill",
+        "description": (
+            "Invent a new reusable skill for this workspace (name, description, "
+            "instructions, args). Optionally share with all teammates and/or list "
+            "it for sale on AgentBay marketplace."
+        ),
+        "args": [
+            "name", "description", "instructions", "args", "category",
+            "share", "list_on_bay", "price",
+        ],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "list_created_skills",
+        "name": "List created skills",
+        "description": "List skills this workspace (or you) invented, including AgentBay listing status.",
+        "args": ["mine_only", "listed_only", "limit"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "publish_skill_to_bay",
+        "name": "Sell skill on AgentBay",
+        "description": (
+            "Publish a created skill as a paid listing on AgentBay. "
+            "Set skill_key or skill_id and price. Buyers discover it at /bay."
+        ),
+        "args": ["skill_key", "skill_id", "price", "title", "quantity"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "unpublish_skill_from_bay",
+        "name": "Unpublish skill from AgentBay",
+        "description": "Pause/remove a created skill listing from AgentBay (keeps the local skill).",
+        "args": ["skill_key", "skill_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "share_skill",
+        "name": "Share skill in workspace",
+        "description": "Toggle whether a created skill is shared with all agents in this account.",
+        "args": ["skill_key", "skill_id", "shared"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+
+    # ── Meeting rooms (multi-agent brainstorm / war-room) ─────────
+    {
+        "id": "open_meeting",
+        "name": "Open meeting room",
+        "description": "Create a multi-agent meeting room (brainstorm / war-room) and invite agent participants.",
+        "args": ["title", "purpose", "room_type", "agent_ids", "task_id", "project_id", "company_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "post_to_meeting",
+        "name": "Post to meeting",
+        "description": "Post a message into a meeting room thread as this agent.",
+        "args": ["meeting_id", "content", "msg_type"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "run_meeting_round",
+        "name": "Run meeting round",
+        "description": "Have agent participants each contribute one turn in a meeting room.",
+        "args": ["meeting_id", "prompt", "max_agents", "chair_only"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "close_meeting",
+        "name": "Close meeting",
+        "description": "Close a meeting room and store a summary of the discussion.",
+        "args": ["meeting_id", "summary"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "extract_meeting_tasks",
+        "name": "Extract meeting tasks",
+        "description": "Create queued Task rows from meeting discussion (or explicit task list) linked to the meeting.",
+        "args": ["meeting_id", "tasks", "agent_id"],
+        "roles": ["orchestrator", "lead", "member"],
     },
 
     # ─────────────────────────────────────────────────────────────
@@ -180,8 +395,11 @@ SKILL_CATALOG: list[dict] = [
     },
     {
         "id": "send_sms",
-        "name": "Send SMS (premium)",
-        "description": "Send a real SMS via Twilio. Premium paid skill.",
+        "name": "Send SMS / text (Twilio)",
+        "description": (
+            "Initiate a real SMS text via Twilio. "
+            "to must be E.164 (+15551234567). Requires Twilio keys (platform or Settings)."
+        ),
         "args": ["to", "body"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
@@ -190,8 +408,8 @@ SKILL_CATALOG: list[dict] = [
     },
     {
         "id": "send_whatsapp",
-        "name": "Send WhatsApp (premium)",
-        "description": "Send a real WhatsApp message via Twilio. Premium paid skill.",
+        "name": "Send WhatsApp (Twilio)",
+        "description": "Initiate a real WhatsApp text via Twilio sandbox or approved number.",
         "args": ["to", "body"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
@@ -200,13 +418,36 @@ SKILL_CATALOG: list[dict] = [
     },
     {
         "id": "make_voice_call",
-        "name": "Make voice call (premium)",
-        "description": "Place a real phone call and speak a message via Twilio. Premium paid skill. Always meters tokens + credits.",
-        "args": ["to", "message"],
+        "name": "Make phone call + speech (Twilio)",
+        "description": (
+            "Initiate a real outbound phone call via Twilio. When answered, Twilio speaks "
+            "your message (TTS speech). Optional voice (alice/man/woman) and language (en-US)."
+        ),
+        "args": ["to", "message", "voice", "language", "loop"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
         "cost_credits": 0.08,
         "meter_kind": "voice_call",
+    },
+    {
+        "id": "initiate_call",
+        "name": "Initiate phone call",
+        "description": "Alias for make_voice_call — start a Twilio call and speak a script to the human.",
+        "args": ["to", "message", "voice", "language"],
+        "roles": ["orchestrator", "lead", "member"],
+        "premium": True,
+        "cost_credits": 0.08,
+        "meter_kind": "voice_call",
+    },
+    {
+        "id": "initiate_text",
+        "name": "Initiate text / SMS",
+        "description": "Alias for send_sms — start a Twilio SMS text to a phone number.",
+        "args": ["to", "body"],
+        "roles": ["orchestrator", "lead", "member"],
+        "premium": True,
+        "cost_credits": 0.015,
+        "meter_kind": "premium-comm",
     },
     {
         "id": "log_communication",
@@ -297,16 +538,29 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "update_pipeline",
         "name": "Update pipeline / deal",
-        "description": "Move deals, update values, change stages, or close opportunities.",
-        "args": ["deal_id", "stage_id", "status", "value", "notes"],
+        "description": "Move deals, update values, change stages, or close opportunities (alias of move_deal / win / lose).",
+        "args": ["deal_id", "stage_id", "stage_name", "status", "value", "notes", "lost_reason"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
         "id": "escalate_to_human",
         "name": "Escalate to human",
-        "description": "Hand off a task or customer issue to a specific human teammate with context.",
+        "description": (
+            "Hand off work to an active human and ALWAYS notify them with a short SMS + email "
+            "(SMTP/Resend + Twilio). Human must be active with email+phone set."
+        ),
         "args": ["human_id", "title", "details", "urgency", "customer_id"],
         "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "notify_human",
+        "name": "Notify human (email + SMS shortcut)",
+        "description": (
+            "Always send a short notification to an active human: SMS (Twilio) + email (SMTP/Resend) "
+            "with an app deep-link shortcut. Requires active human with email+phone and SMTP+Twilio setup."
+        ),
+        "args": ["human_id", "title", "message", "details", "urgency"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
     },
 
     # ── Memory & Knowledge (advanced) ────────────────────────────
@@ -823,7 +1077,7 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "bulk_enable_skills",
         "name": "Bulk enable skills",
-        "description": "Give the same powerful skill preset (full, sales, support, engineering, comms) to many agents at once.",
+        "description": "Give the same skill pack (full, sales, marketing, support, coding, research, lead, engineering, content, comms) to many agents at once. Always includes core free skills.",
         "args": ["agent_ids", "preset", "extra_skills"],
         "roles": ["orchestrator", "lead"],
     },
@@ -1416,8 +1670,11 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "status_update",
         "name": "Status update",
-        "description": "Create a crisp red/amber/green status report for stakeholders.",
-        "args": ["project", "period", "highlights"],
+        "description": (
+            "Create a crisp status report and notify the human owner (active account) "
+            "via short SMS + email shortcuts when notify=true (default)."
+        ),
+        "args": ["project", "period", "highlights", "status", "message", "human_id", "notify"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -1672,8 +1929,8 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "gmail_send",
         "name": "Gmail send",
-        "description": "Send a real email from the connected Gmail account.",
-        "args": ["to", "subject", "body", "cc", "bcc"],
+        "description": "Send a real email from connected Gmail (Google Cloud OAuth). Supports To, Cc, Bcc.",
+        "args": ["to", "subject", "body", "cc", "bcc", "html"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
         "cost_credits": 0.02,
@@ -1681,8 +1938,8 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "gmail_reply",
         "name": "Gmail reply",
-        "description": "Reply to a specific Gmail thread or message id.",
-        "args": ["thread_id", "message_id", "body", "to"],
+        "description": "Reply (or reply-all) to a Gmail thread/message with optional Cc/Bcc.",
+        "args": ["thread_id", "message_id", "body", "to", "cc", "bcc", "reply_all"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
         "cost_credits": 0.015,
@@ -1690,8 +1947,8 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "gmail_draft",
         "name": "Gmail draft",
-        "description": "Create a draft email in Gmail (not sent yet).",
-        "args": ["to", "subject", "body"],
+        "description": "Create a draft email in Gmail (not sent yet). Supports Cc/Bcc.",
+        "args": ["to", "subject", "body", "cc", "bcc"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
@@ -1862,7 +2119,14 @@ SKILL_CATALOG: list[dict] = [
         "id": "shopify_update_product",
         "name": "Update Shopify product",
         "description": "Update title, price, inventory or tags on a product.",
-        "args": ["product_id", "title", "price", "inventory", "tags"],
+        "args": ["product_id", "title", "price", "inventory", "tags", "add_tags"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+    },
+    {
+        "id": "shopify_get_products",
+        "name": "List Shopify products",
+        "description": "List products with tags, SKU, and price from the Shopify store.",
+        "args": ["limit", "tag", "title"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
@@ -1875,8 +2139,39 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "shopify_get_customers",
         "name": "List Shopify customers",
-        "description": "Search or list customers in the Shopify store.",
-        "args": ["query", "limit"],
+        "description": "Search or list customers in the Shopify store (includes tags).",
+        "args": ["query", "limit", "tag"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "shopify_update_customer",
+        "name": "Update Shopify customer tags",
+        "description": "Update a Shopify customer's tags and contact fields.",
+        "args": ["customer_id", "tags", "add_tags", "email", "first_name", "last_name", "phone"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "shopify_sync_catalog",
+        "name": "Sync Shopify into Business CRM",
+        "description": (
+            "Import Shopify products and customers into Business CRM with tags, "
+            "linked to the user's company."
+        ),
+        "args": ["what", "company_id", "limit"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "shopify_push_product_tags",
+        "name": "Push product tags to Shopify",
+        "description": "Push a local Business product's tags/name/price to the linked Shopify product.",
+        "args": ["product_id"],
+        "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "shopify_push_customer_tags",
+        "name": "Push customer tags to Shopify",
+        "description": "Push a local Business customer's tags to the linked Shopify customer.",
+        "args": ["customer_id"],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -2022,6 +2317,17 @@ SKILL_CATALOG: list[dict] = [
     # use_app already defined earlier — do not re-register
 ]
 
+# ── Mega skill packs (20 domains × 50 = 1000) ───────────────────────────
+# Loaded from app/skill_packs/*.json; execute via _skill_catalog_deliverable.
+try:
+    from .skill_packs import load_mega_skills  # noqa: E402
+
+    _MEGA = load_mega_skills()
+    if _MEGA:
+        SKILL_CATALOG.extend(_MEGA)
+except Exception:
+    _MEGA = []
+
 # Finalize: dedupe + categories (skills_policy)
 from .skills_policy import (  # noqa: E402
     dedupe_catalog,
@@ -2030,12 +2336,19 @@ from .skills_policy import (  # noqa: E402
     premium_skill_ids,
     integration_skill_available,
     category_for,
+    skill_pack_for_template,
+    skills_for_pack,
+    skills_for_template,
+    role_matches_skill,
+    is_mega_catalog_skill,
 )
 
 SKILL_CATALOG = dedupe_catalog(SKILL_CATALOG)
 
-# Legacy name: full unique catalog ids (not the role pack)
-DEFAULT_ENABLED = [s["id"] for s in SKILL_CATALOG]
+# Legacy name: lean free pack for member (~core + non-mega toolkit).
+# Mega catalog (~1000) stays in SKILL_CATALOG for search/opt-in only.
+# Domain agents get more via skills_for_template (non-mega domain layer).
+DEFAULT_ENABLED = default_enabled_for_role("member", SKILL_CATALOG)
 PREMIUM_SKILL_IDS = premium_skill_ids(SKILL_CATALOG)
 
 _SKILL_BLOCK = re.compile(
@@ -2044,22 +2357,68 @@ _SKILL_BLOCK = re.compile(
 )
 
 
+def _created_skills_as_catalog(db: Session, user_id: int, agent_id: int | None = None) -> list[dict]:
+    """Workspace-created skills as catalog entries (available to list/enable/run)."""
+    try:
+        q = db.query(models.CreatedSkill).filter(
+            models.CreatedSkill.user_id == user_id,
+            models.CreatedSkill.status != "archived",
+        )
+        rows = q.order_by(models.CreatedSkill.id.desc()).limit(200).all()
+    except Exception:
+        return []
+    out = []
+    for r in rows:
+        # Shared with workspace OR owned by this agent
+        if not r.shared and agent_id and r.agent_id != agent_id:
+            continue
+        try:
+            args = json.loads(r.args_json or "[]")
+            if not isinstance(args, list):
+                args = []
+        except Exception:
+            args = []
+        out.append({
+            "id": r.skill_key,
+            "name": r.name,
+            "description": r.description or "",
+            "args": args or ["context", "goal"],
+            "roles": ["orchestrator", "lead", "member", "specialist"],
+            "category": r.category or "custom",
+            "handler": "created_skill",
+            "custom": True,
+            "created_skill_id": r.id,
+            "shared": bool(r.shared),
+            "listed_on_bay": bool(r.listed_on_bay),
+            "list_price": float(r.list_price or 0),
+            "instructions": (r.instructions or "")[:500],
+            "creator_agent_id": r.agent_id,
+        })
+    return out
+
+
 def list_skills_for_agent(agent: models.Agent, db: Session) -> list[dict]:
     role = normalize_role(agent)
     enabled = enabled_skill_ids(agent, db)
+    # Always treat created skills as enabled when present for this agent/workspace
+    catalog = list(SKILL_CATALOG) + _created_skills_as_catalog(db, agent.user_id, agent.id)
     out = []
-    for s in SKILL_CATALOG:
+    for s in catalog:
         allowed_roles = s.get("roles") or []
-        role_ok = role in allowed_roles or is_orchestrator(agent)
+        # specialist inherits member pack (same as default_enabled_for_role)
+        role_ok = role_matches_skill(role, allowed_roles) or is_orchestrator(agent)
         app_ok, app_err = integration_skill_available(s["id"], agent.user_id, db, {})
+        is_custom = bool(s.get("custom") or str(s["id"]).startswith("custom_"))
+        en = (s["id"] in enabled and role_ok) or (is_custom and role_ok)
         out.append({
-            **s,
+            **{k: v for k, v in s.items() if k != "instructions"},
             "category": s.get("category") or category_for(s["id"]),
             "category_label": s.get("category_label"),
-            "enabled": s["id"] in enabled and role_ok,
+            "enabled": en,
             "role_allowed": role_ok,
             "premium": bool(s.get("premium")),
             "cost_credits": float(s.get("cost_credits") or 0) if s.get("premium") else 0,
+            "custom": is_custom,
             "integration_ready": app_ok if app_err or s["id"].startswith((
                 "gmail_", "sheets_", "calendar_", "facebook_", "slack_", "shopify_",
                 "hubspot_", "notion_", "x_", "instagram_", "linkedin_", "discord_",
@@ -2090,8 +2449,40 @@ def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
 
 
 def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -> list[str]:
+    """Persist enabled skills, capped by the owner's plan skills_per_agent."""
+    from .plans import max_enabled_skills, plan_skill_caps
+
     valid = {s["id"] for s in SKILL_CATALOG}
+    by_id = {s["id"]: s for s in SKILL_CATALOG}
     clean = [s for s in skill_ids if s in valid]
+
+    # Plan caps (admin accounts skip)
+    plan_id = "none"
+    is_admin = False
+    try:
+        owner = db.get(models.User, agent.user_id) if agent.user_id else None
+        if owner:
+            plan_id = owner.plan or "none"
+            is_admin = getattr(owner, "role", None) == "admin"
+    except Exception:
+        owner = None
+
+    if not is_admin:
+        caps = plan_skill_caps(plan_id)
+        # Drop premium skills if plan doesn't include them
+        if not caps.get("premium_skills"):
+            clean = [sid for sid in clean if not by_id.get(sid, {}).get("premium")]
+        cap = int(caps.get("skills_per_agent") or 0)
+        if cap > 0 and len(clean) > cap:
+            # Keep earlier (priority) skills; prefer core ids first
+            core = {
+                "create_task", "message_agent", "spawn_agent", "list_team",
+                "execute_goal", "save_memory", "announce_plan", "draft_email",
+            }
+            core_on = [s for s in clean if s in core]
+            rest = [s for s in clean if s not in core]
+            clean = (core_on + rest)[:cap]
+
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
     if not row:
         row = models.AgentSkillState(agent_id=agent.id)
@@ -2116,12 +2507,22 @@ def get_comprehensive_skill_catalog():
     return legacy
 
 
-def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int = 48) -> str:
+def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | None = None) -> str:
     """Compact skill catalogue for the LLM system prompt.
 
-    Listing all 248 skills on every chat blows context (10k+ tokens) and makes
+    Listing the full catalog (1000+ skills) on every chat blows context and makes
     replies slow/empty in the UI. Keep a short always-on core + category summary.
+    Cap is plan.prompt_skills (fallback 48).
     """
+    if max_skills is None:
+        try:
+            from .plans import plan_skill_caps
+            owner = db.get(models.User, agent.user_id) if agent.user_id else None
+            max_skills = int(plan_skill_caps(owner.plan if owner else "none").get("prompt_skills") or 48)
+        except Exception:
+            max_skills = 48
+    max_skills = max(12, int(max_skills or 48))
+
     skills = [s for s in list_skills_for_agent(agent, db) if s.get("enabled")]
     if not skills:
         return ""
@@ -2129,8 +2530,12 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int = 4
     # High-value skills always listed first (orchestrator / daily ops)
     priority_ids = [
         "create_task", "message_agent", "spawn_agent", "list_team", "list_customers",
-        "save_memory", "save_training", "announce_plan", "draft_email", "generate_content",
-        "research", "summarize", "get_time", "search_memory", "escalate_to_human",
+        "list_tasks", "get_task", "list_meetings", "list_humans", "list_deals",
+        "list_pipelines", "get_pipeline", "move_deal", "win_deal", "pipeline_summary",
+        "read_workspace", "comment", "search_knowledge", "search_memory",
+        "save_memory", "save_training", "announce_plan", "execute_goal", "status_update",
+        "draft_email", "generate_content", "post_to_meeting",
+        "research", "summarize", "get_time", "escalate_to_human",
         "log_customer_activity", "create_deal", "prioritize_list", "action_items",
         "skill_recommend", "enable_skills_on", "configure_agent",
     ]
@@ -2231,6 +2636,205 @@ def strip_skill_blocks(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
+
+# Auto-generated skill dispatch table (from former elif chain). Do not hand-edit;
+# re-run scripts/_refactor_skill_dispatch.py after adding skills, or append to HANDLER_TABLE.
+
+# skill_id -> (handler_attr, mode, extra_args_tuple)
+# mode: std | extra | meta | created | default
+HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
+    'spawn_agent': ('_skill_spawn', 'std', ()),
+    'message_agent': ('_skill_message', 'std', ()),
+    'use_app': ('_skill_use_app', 'std', ()),
+    'assign_human': ('_skill_assign_human', 'std', ()),
+    'save_memory': ('_skill_save_memory', 'std', ()),
+    'save_training': ('_skill_save_training', 'std', ()),
+    'create_task': ('_skill_create_task', 'std', ()),
+    'execute_goal': ('_skill_execute_goal', 'std', ()),
+    'announce_plan': ('_skill_announce_plan', 'std', ()),
+    'list_customers': ('_skill_list_customers', 'std', ()),
+    'get_customer': ('_skill_get_customer', 'std', ()),
+    'update_customer': ('_skill_update_customer', 'std', ()),
+    'log_customer_activity': ('_skill_log_customer_activity', 'std', ()),
+    'create_deal': ('_skill_create_deal', 'std', ()),
+    'schedule_meeting': ('_skill_schedule_meeting', 'std', ()),
+    'list_diary': ('_skill_list_diary', 'std', ()),
+    'list_pipelines': ('_skill_list_pipelines', 'std', ()),
+    'get_pipeline': ('_skill_get_pipeline', 'std', ()),
+    'list_pipeline_stages': ('_skill_list_pipeline_stages', 'std', ()),
+    'move_deal': ('_skill_move_deal', 'std', ()),
+    'win_deal': ('_skill_win_deal', 'std', ()),
+    'lose_deal': ('_skill_lose_deal', 'std', ()),
+    'pipeline_summary': ('_skill_pipeline_summary', 'std', ()),
+    'ensure_sales_pipeline': ('_skill_ensure_sales_pipeline', 'std', ()),
+    'list_tasks': ('_skill_list_tasks', 'std', ()),
+    'get_task': ('_skill_get_task', 'std', ()),
+    'list_meetings': ('_skill_list_meetings', 'std', ()),
+    'list_humans': ('_skill_list_humans', 'std', ()),
+    'list_deals': ('_skill_list_deals', 'std', ()),
+    'read_workspace': ('_skill_read_workspace', 'std', ()),
+    'comment': ('_skill_comment', 'std', ()),
+    'create_skill': ('_skill_create_skill', 'std', ()),
+    'list_created_skills': ('_skill_list_created_skills', 'std', ()),
+    'publish_skill_to_bay': ('_skill_publish_skill_to_bay', 'std', ()),
+    'unpublish_skill_from_bay': ('_skill_unpublish_skill_from_bay', 'std', ()),
+    'share_skill': ('_skill_share_skill', 'std', ()),
+    'open_meeting': ('_skill_open_meeting', 'std', ()),
+    'post_to_meeting': ('_skill_post_to_meeting', 'std', ()),
+    'run_meeting_round': ('_skill_run_meeting_round', 'std', ()),
+    'close_meeting': ('_skill_close_meeting', 'std', ()),
+    'extract_meeting_tasks': ('_skill_extract_meeting_tasks', 'std', ()),
+    'draft_email': ('_skill_draft_email', 'std', ()),
+    'send_email': ('_skill_send_email', 'std', ()),
+    'draft_sms': ('_skill_draft_sms', 'std', ()),
+    'send_sms': ('_skill_send_sms', 'std', ()),
+    'initiate_text': ('_skill_send_sms', 'std', ()),
+    'send_whatsapp': ('_skill_send_whatsapp', 'std', ()),
+    'make_voice_call': ('_skill_make_voice_call', 'std', ()),
+    'initiate_call': ('_skill_make_voice_call', 'std', ()),
+    'log_communication': ('_skill_log_communication', 'std', ()),
+    'generate_image': ('_skill_generate_image', 'std', ()),
+    'generate_video': ('_skill_generate_video', 'std', ()),
+    'generate_content': ('_skill_generate_content', 'std', ()),
+    'research': ('_skill_research', 'std', ()),
+    'summarize': ('_skill_summarize', 'std', ()),
+    'get_time': ('_skill_get_time', 'std', ()),
+    'suggest_times': ('_skill_suggest_times', 'std', ()),
+    'create_invoice_draft': ('_skill_create_invoice_draft', 'std', ()),
+    'update_pipeline': ('_skill_update_pipeline', 'std', ()),
+    'escalate_to_human': ('_skill_escalate_to_human', 'std', ()),
+    'notify_human': ('_skill_notify_human', 'std', ()),
+    'status_update': ('_skill_status_update', 'std', ()),
+    'search_memory': ('_skill_search_memory', 'std', ()),
+    'search_knowledge': ('_skill_search_knowledge', 'std', ()),
+    'set_agent_status': ('_skill_set_agent_status', 'std', ()),
+    'create_reminder': ('_skill_create_reminder', 'std', ()),
+    'send_message': ('_skill_send_message', 'std', ()),
+    'spawn_team': ('_skill_spawn_team', 'std', ()),
+    'spawn_specialist': ('_skill_spawn_specialist', 'std', ()),
+    'clone_agent': ('_skill_clone_agent', 'std', ()),
+    'enable_skills_on': ('_skill_enable_skills_on', 'std', ()),
+    'bulk_enable_skills': ('_skill_bulk_enable_skills', 'std', ()),
+    'configure_agent': ('_skill_configure_agent', 'std', ()),
+    'promote_to_lead': ('_skill_promote_to_lead', 'std', ()),
+    'pause_agent': ('_skill_pause_agent', 'std', ()),
+    'resume_agent': ('_skill_resume_agent', 'std', ()),
+    'delete_agent': ('_skill_delete_agent', 'std', ()),
+    'list_team': ('_skill_list_team', 'std', ()),
+    'facebook_post': ('_skill_facebook_post', 'std', ()),
+    'facebook_reply_comment': ('_skill_facebook_reply_comment', 'std', ()),
+    'facebook_reply_message': ('_skill_facebook_reply_message', 'std', ()),
+    'facebook_get_comments': ('_skill_facebook_get_comments', 'std', ()),
+    'facebook_get_posts': ('_skill_facebook_get_posts', 'std', ()),
+    'facebook_get_conversations': ('_skill_facebook_get_conversations', 'std', ()),
+    'facebook_like_comment': ('_skill_facebook_like_comment', 'std', ()),
+    'instagram_post': ('_skill_instagram_post', 'std', ()),
+    'instagram_reply_comment': ('_skill_instagram_reply_comment', 'std', ()),
+    'instagram_get_comments': ('_skill_instagram_get_comments', 'std', ()),
+    'instagram_get_media': ('_skill_instagram_get_media', 'std', ()),
+    'linkedin_post': ('_skill_linkedin_post', 'std', ()),
+    'linkedin_comment': ('_skill_linkedin_comment', 'std', ()),
+    'linkedin_get_posts': ('_skill_linkedin_get_posts', 'std', ()),
+    'linkedin_get_comments': ('_skill_linkedin_get_comments', 'std', ()),
+    'x_post': ('_skill_x_post', 'std', ()),
+    'x_reply': ('_skill_x_reply', 'std', ()),
+    'x_get_mentions': ('_skill_x_get_mentions', 'std', ()),
+    'x_get_timeline': ('_skill_x_get_timeline', 'std', ()),
+    'x_search': ('_skill_x_search', 'std', ()),
+    'gmail_send': ('_skill_gmail_send', 'std', ()),
+    'gmail_reply': ('_skill_gmail_reply', 'std', ()),
+    'gmail_draft': ('_skill_gmail_draft', 'std', ()),
+    'gmail_list': ('_skill_gmail_list', 'std', ()),
+    'gmail_get_thread': ('_skill_gmail_get_thread', 'std', ()),
+    'gmail_search': ('_skill_gmail_search', 'std', ()),
+    'gmail_archive': ('_skill_gmail_archive', 'std', ()),
+    'email_send': ('_skill_send_email', 'std', ()),
+    'email_reply': ('_skill_email_reply', 'std', ()),
+    'slack_post': ('_skill_slack_post', 'std', ()),
+    'slack_reply_thread': ('_skill_slack_reply_thread', 'std', ()),
+    'slack_dm': ('_skill_slack_dm', 'std', ()),
+    'slack_list_channels': ('_skill_slack_list_channels', 'std', ()),
+    'slack_get_messages': ('_skill_slack_get_messages', 'std', ()),
+    'calendar_create_event': ('_skill_calendar_create_event', 'std', ()),
+    'calendar_list_events': ('_skill_calendar_list_events', 'std', ()),
+    'calendar_update_event': ('_skill_calendar_update_event', 'std', ()),
+    'calendar_delete_event': ('_skill_calendar_delete_event', 'std', ()),
+    'sheets_append': ('_skill_sheets_append', 'std', ()),
+    'sheets_read': ('_skill_sheets_read', 'std', ()),
+    'sheets_update': ('_skill_sheets_update', 'std', ()),
+    'sheets_create_sheet': ('_skill_sheets_create_sheet', 'std', ()),
+    'shopify_create_order_note': ('_skill_shopify_action', 'extra', ('create_order_note',)),
+    'shopify_update_product': ('_skill_shopify_action', 'extra', ('update_product',)),
+    'shopify_get_products': ('_skill_shopify_action', 'extra', ('get_products',)),
+    'shopify_get_orders': ('_skill_shopify_action', 'extra', ('get_orders',)),
+    'shopify_get_customers': ('_skill_shopify_action', 'extra', ('get_customers',)),
+    'shopify_update_customer': ('_skill_shopify_action', 'extra', ('update_customer',)),
+    'shopify_fulfill_order': ('_skill_shopify_action', 'extra', ('fulfill_order',)),
+    'shopify_sync_catalog': ('_skill_shopify_sync', 'std', ()),
+    'shopify_push_product_tags': ('_skill_shopify_push_product', 'std', ()),
+    'shopify_push_customer_tags': ('_skill_shopify_push_customer', 'std', ()),
+    'hubspot_create_contact': ('_skill_hubspot_action', 'extra', ('create_contact',)),
+    'hubspot_create_deal': ('_skill_hubspot_action', 'extra', ('create_deal',)),
+    'hubspot_log_note': ('_skill_hubspot_action', 'extra', ('log_note',)),
+    'hubspot_get_contacts': ('_skill_hubspot_action', 'extra', ('get_contacts',)),
+    'notion_create_page': ('_skill_notion_action', 'extra', ('create_page',)),
+    'notion_update_page': ('_skill_notion_action', 'extra', ('update_page',)),
+    'notion_query_database': ('_skill_notion_action', 'extra', ('query_database',)),
+    'notion_append_block': ('_skill_notion_action', 'extra', ('append_block',)),
+    'discord_post': ('_skill_discord_action', 'extra', ('post',)),
+    'discord_dm_user': ('_skill_discord_action', 'extra', ('dm_user',)),
+    'whatsapp_send': ('_skill_send_whatsapp', 'std', ()),
+    'whatsapp_reply': ('_skill_whatsapp_reply', 'std', ()),
+    'mailchimp_add_subscriber': ('_skill_mailchimp_action', 'extra', ('add_subscriber',)),
+    'mailchimp_create_campaign': ('_skill_mailchimp_action', 'extra', ('create_campaign',)),
+    'dropbox_upload': ('_skill_dropbox_action', 'extra', ('upload',)),
+    'dropbox_list': ('_skill_dropbox_action', 'extra', ('list',)),
+}
+
+DEFAULT_SKILL_HANDLER = '_skill_catalog_deliverable'
+CUSTOM_SKILL_HANDLER = '_skill_run_created'
+
+async def _dispatch_skill(
+    skill_id: str,
+    db,
+    agent,
+    user,
+    args: dict,
+    *,
+    meta=None,
+    is_custom: bool = False,
+    custom_row=None,
+):
+    """Registry lookup — replaces the historical if/elif skill tree."""
+    g = globals()
+    if is_custom or (meta or {}).get("handler") == "created_skill":
+        fn = g.get(CUSTOM_SKILL_HANDLER)
+        if not fn:
+            return {"ok": False, "error": "custom skill handler missing"}
+        return await fn(db, agent, user, skill_id, meta, args, custom_row)
+
+    entry = HANDLER_TABLE.get(skill_id)
+    if entry:
+        fname, mode, extras = entry
+        fn = g.get(fname)
+        if not fn:
+            return {"ok": False, "error": f"handler {fname} missing"}
+        if mode == "std":
+            return await fn(db, agent, user, args)
+        if mode == "extra":
+            return await fn(db, agent, user, *extras, args)
+        if mode == "meta":
+            return await fn(db, agent, user, skill_id, meta, args)
+        if mode == "created":
+            return await fn(db, agent, user, skill_id, meta, args, custom_row)
+        return await fn(db, agent, user, args)
+
+    # Catalog skills without dedicated side-effects
+    fn = g.get(DEFAULT_SKILL_HANDLER)
+    if not fn:
+        return {"ok": False, "error": f"Unknown skill '{skill_id}'"}
+    return await fn(db, agent, user, skill_id, meta, args)
+
 async def execute_skill(
     db: Session,
     agent: models.Agent,
@@ -2242,23 +2846,81 @@ async def execute_skill(
 
     args = args or {}
     enabled = enabled_skill_ids(agent, db)
-    if skill_id not in enabled and not is_orchestrator(agent):
+    # Custom skills (created by agents) are always runnable when they belong to this workspace
+    custom_row = None
+    if str(skill_id).startswith("custom_") or skill_id not in {s["id"] for s in SKILL_CATALOG}:
+        try:
+            custom_row = (
+                db.query(models.CreatedSkill)
+                .filter_by(user_id=user.id, skill_key=skill_id)
+                .first()
+            )
+        except Exception:
+            custom_row = None
+    is_custom = custom_row is not None
+    # Skill factory + marketplace meta always available to operators
+    meta_skill_factory = skill_id in {
+        "create_skill",
+        "list_created_skills",
+        "publish_skill_to_bay",
+        "unpublish_skill_from_bay",
+        "share_skill",
+    }
+    if (
+        skill_id not in enabled
+        and not is_orchestrator(agent)
+        and not is_custom
+        and not meta_skill_factory
+    ):
         return {"ok": False, "error": f"Skill '{skill_id}' is disabled for this agent"}
 
     meta = next((s for s in SKILL_CATALOG if s["id"] == skill_id), None)
+    if not meta and is_custom:
+        try:
+            args_list = json.loads(custom_row.args_json or "[]")
+        except Exception:
+            args_list = []
+        meta = {
+            "id": custom_row.skill_key,
+            "name": custom_row.name,
+            "description": custom_row.description or "",
+            "args": args_list,
+            "roles": ["orchestrator", "lead", "member", "specialist"],
+            "handler": "created_skill",
+            "custom": True,
+            "instructions": custom_row.instructions or "",
+        }
     if not meta:
         return {"ok": False, "error": f"Unknown skill '{skill_id}'"}
 
     role = normalize_role(agent)
-    if role not in (meta.get("roles") or []) and not is_orchestrator(agent):
+    # specialist inherits member skill roles (matches default_enabled / _CORE_ALWAYS)
+    if not role_matches_skill(role, meta.get("roles")) and not is_orchestrator(agent):
         return {"ok": False, "error": f"Role '{role}' cannot use skill '{skill_id}'"}
 
     perm = normalize_permission(getattr(agent, "permission_level", None))
-    if skill_id in ("spawn_agent", "assign_human", "create_task", "message_agent") and not (
+    # Assign human stays lead+; spawn is available to any operator (UI Spawn agent button)
+    if skill_id == "assign_human" and not (
         can_delegate(perm) or is_orchestrator(agent)
     ):
-        return {"ok": False, "error": f"Permission '{perm}' cannot delegate/spawn — need lead or admin"}
-    if skill_id in ("use_app", "save_memory", "save_training", "announce_plan") and not can_execute(perm):
+        return {"ok": False, "error": f"Permission '{perm}' cannot assign humans — need lead or admin"}
+    if skill_id == "spawn_agent" and not (
+        can_execute(perm) or can_delegate(perm) or is_orchestrator(agent)
+    ):
+        return {"ok": False, "error": f"Permission '{perm}' cannot spawn — need operator or above"}
+    # Core ops (in _CORE_ALWAYS): any operator+ may run; do not require lead
+    if skill_id in (
+        "create_task", "message_agent", "execute_goal",
+        "open_meeting", "run_meeting_round", "extract_meeting_tasks",
+        "status_update", "action_items",
+    ) and not (
+        can_execute(perm) or is_orchestrator(agent)
+    ):
+        return {"ok": False, "error": f"Permission '{perm}' cannot execute skills — need operator or above"}
+    if skill_id in (
+        "use_app", "save_memory", "save_training", "announce_plan",
+        "post_to_meeting", "close_meeting",
+    ) and not can_execute(perm):
         return {"ok": False, "error": f"Permission '{perm}' cannot execute skills"}
 
     # Gate integration skills (coming_soon apps / not connected)
@@ -2266,12 +2928,17 @@ async def execute_skill(
     if not ok_int:
         return {"ok": False, "error": err_int}
 
-    # Premium only: wallet-hard charge before execution (once).
-    # Non-premium skills never force wallet here — they use included tokens via LLM/chat billing.
+    # Every skill requires an active plan + fuel (included tokens and/or wallet)
+    try:
+        from .auth_utils import ensure_credits as _ensure
+        min_c = float(meta.get("cost_credits") or 0.01) if meta.get("premium") else None
+        _ensure(db, user.id, min_credits=min_c)
+    except Exception as e:
+        return {"ok": False, "error": str(getattr(e, "detail", None) or e)}
+
+    # Premium: hard wallet charge before execution (once). Handlers skip via _billed.
     if meta.get("premium"):
         try:
-            from .auth_utils import ensure_credits as _ensure
-            _ensure(db, user.id, min_credits=float(meta.get("cost_credits") or 0.01))
             charge_event(
                 db, user,
                 meta.get("meter_kind") or "premium-comm",
@@ -2294,275 +2961,32 @@ async def execute_skill(
     )
 
     try:
-        if skill_id == "spawn_agent":
-            result = await _skill_spawn(db, agent, user, args)
-        elif skill_id == "message_agent":
-            result = await _skill_message(db, agent, user, args)
-        elif skill_id == "use_app":
-            result = await _skill_use_app(db, agent, user, args)
-        elif skill_id == "assign_human":
-            result = await _skill_assign_human(db, agent, user, args)
-        elif skill_id == "save_memory":
-            result = await _skill_save_memory(db, agent, user, args)
-        elif skill_id == "save_training":
-            result = await _skill_save_training(db, agent, user, args)
-        elif skill_id == "create_task":
-            result = await _skill_create_task(db, agent, user, args)
-        elif skill_id == "announce_plan":
-            result = await _skill_announce_plan(db, agent, user, args)
-        elif skill_id == "list_customers":
-            result = await _skill_list_customers(db, agent, user, args)
-        elif skill_id == "get_customer":
-            result = await _skill_get_customer(db, agent, user, args)
-        elif skill_id == "update_customer":
-            result = await _skill_update_customer(db, agent, user, args)
-        elif skill_id == "log_customer_activity":
-            result = await _skill_log_customer_activity(db, agent, user, args)
-        elif skill_id == "create_deal":
-            result = await _skill_create_deal(db, agent, user, args)
-        elif skill_id == "schedule_meeting":
-            result = await _skill_schedule_meeting(db, agent, user, args)
-        elif skill_id == "list_diary":
-            result = await _skill_list_diary(db, agent, user, args)
-
-        # ── New comprehensive comms & power skills ─────────────────
-        elif skill_id == "draft_email":
-            result = await _skill_draft_email(db, agent, user, args)
-        elif skill_id == "send_email":
-            result = await _skill_send_email(db, agent, user, args)
-        elif skill_id == "draft_sms":
-            result = await _skill_draft_sms(db, agent, user, args)
-        elif skill_id == "send_sms":
-            result = await _skill_send_sms(db, agent, user, args)
-        elif skill_id == "send_whatsapp":
-            result = await _skill_send_whatsapp(db, agent, user, args)
-        elif skill_id == "make_voice_call":
-            result = await _skill_make_voice_call(db, agent, user, args)
-        elif skill_id == "log_communication":
-            result = await _skill_log_communication(db, agent, user, args)
-        elif skill_id == "generate_image":
-            result = await _skill_generate_image(db, agent, user, args)
-        elif skill_id == "generate_video":
-            result = await _skill_generate_video(db, agent, user, args)
-
-        elif skill_id == "generate_content":
-            result = await _skill_generate_content(db, agent, user, args)
-        elif skill_id == "research":
-            result = await _skill_research(db, agent, user, args)
-        elif skill_id == "summarize":
-            result = await _skill_summarize(db, agent, user, args)
-
-        elif skill_id == "get_time":
-            result = await _skill_get_time(db, agent, user, args)
-        elif skill_id == "suggest_times":
-            result = await _skill_suggest_times(db, agent, user, args)
-
-        elif skill_id == "create_invoice_draft":
-            result = await _skill_create_invoice_draft(db, agent, user, args)
-        elif skill_id == "update_pipeline":
-            result = await _skill_update_pipeline(db, agent, user, args)
-        elif skill_id == "escalate_to_human":
-            result = await _skill_escalate_to_human(db, agent, user, args)
-
-        elif skill_id == "search_memory":
-            result = await _skill_search_memory(db, agent, user, args)
-        elif skill_id == "search_knowledge":
-            result = await _skill_search_knowledge(db, agent, user, args)
-
-        elif skill_id == "set_agent_status":
-            result = await _skill_set_agent_status(db, agent, user, args)
-        elif skill_id == "create_reminder":
-            result = await _skill_create_reminder(db, agent, user, args)
-
-        # Smart unified send (best general communication skill)
-        elif skill_id == "send_message":
-            result = await _skill_send_message(db, agent, user, args)
-
-        # ── META AGENT MAKING SKILLS (spawn 40s of agents + enable their skills) ──
-        elif skill_id == "spawn_team":
-            result = await _skill_spawn_team(db, agent, user, args)
-        elif skill_id == "spawn_specialist":
-            result = await _skill_spawn_specialist(db, agent, user, args)
-        elif skill_id == "clone_agent":
-            result = await _skill_clone_agent(db, agent, user, args)
-        elif skill_id == "enable_skills_on":
-            result = await _skill_enable_skills_on(db, agent, user, args)
-        elif skill_id == "bulk_enable_skills":
-            result = await _skill_bulk_enable_skills(db, agent, user, args)
-        elif skill_id == "configure_agent":
-            result = await _skill_configure_agent(db, agent, user, args)
-        elif skill_id == "promote_to_lead":
-            result = await _skill_promote_to_lead(db, agent, user, args)
-        elif skill_id == "pause_agent":
-            result = await _skill_pause_agent(db, agent, user, args)
-        elif skill_id == "resume_agent":
-            result = await _skill_resume_agent(db, agent, user, args)
-        elif skill_id == "delete_agent":
-            result = await _skill_delete_agent(db, agent, user, args)
-        elif skill_id == "list_team":
-            result = await _skill_list_team(db, agent, user, args)
-
-        # ── CONNECTED APPS — FULL ACTIONS (Facebook, Instagram, X, LinkedIn, Gmail, Slack, Calendar, Sheets, Shopify, etc.) ──
-        # Facebook
-        elif skill_id == "facebook_post":
-            result = await _skill_facebook_post(db, agent, user, args)
-        elif skill_id == "facebook_reply_comment":
-            result = await _skill_facebook_reply_comment(db, agent, user, args)
-        elif skill_id == "facebook_reply_message":
-            result = await _skill_facebook_reply_message(db, agent, user, args)
-        elif skill_id == "facebook_get_comments":
-            result = await _skill_facebook_get_comments(db, agent, user, args)
-        elif skill_id == "facebook_get_posts":
-            result = await _skill_facebook_get_posts(db, agent, user, args)
-        elif skill_id == "facebook_get_conversations":
-            result = await _skill_facebook_get_conversations(db, agent, user, args)
-        elif skill_id == "facebook_like_comment":
-            result = await _skill_facebook_like_comment(db, agent, user, args)
-
-        # Instagram
-        elif skill_id == "instagram_post":
-            result = await _skill_instagram_post(db, agent, user, args)
-        elif skill_id == "instagram_reply_comment":
-            result = await _skill_instagram_reply_comment(db, agent, user, args)
-        elif skill_id == "instagram_get_comments":
-            result = await _skill_instagram_get_comments(db, agent, user, args)
-        elif skill_id == "instagram_get_media":
-            result = await _skill_instagram_get_media(db, agent, user, args)
-
-        # LinkedIn
-        elif skill_id == "linkedin_post":
-            result = await _skill_linkedin_post(db, agent, user, args)
-        elif skill_id == "linkedin_comment":
-            result = await _skill_linkedin_comment(db, agent, user, args)
-        elif skill_id == "linkedin_get_posts":
-            result = await _skill_linkedin_get_posts(db, agent, user, args)
-        elif skill_id == "linkedin_get_comments":
-            result = await _skill_linkedin_get_comments(db, agent, user, args)
-
-        # X / Twitter
-        elif skill_id == "x_post":
-            result = await _skill_x_post(db, agent, user, args)
-        elif skill_id == "x_reply":
-            result = await _skill_x_reply(db, agent, user, args)
-        elif skill_id == "x_get_mentions":
-            result = await _skill_x_get_mentions(db, agent, user, args)
-        elif skill_id == "x_get_timeline":
-            result = await _skill_x_get_timeline(db, agent, user, args)
-        elif skill_id == "x_search":
-            result = await _skill_x_search(db, agent, user, args)
-
-        # Gmail + generic email
-        elif skill_id == "gmail_send":
-            result = await _skill_gmail_send(db, agent, user, args)
-        elif skill_id == "gmail_reply":
-            result = await _skill_gmail_reply(db, agent, user, args)
-        elif skill_id == "gmail_draft":
-            result = await _skill_gmail_draft(db, agent, user, args)
-        elif skill_id == "gmail_list":
-            result = await _skill_gmail_list(db, agent, user, args)
-        elif skill_id == "gmail_get_thread":
-            result = await _skill_gmail_get_thread(db, agent, user, args)
-        elif skill_id == "gmail_search":
-            result = await _skill_gmail_search(db, agent, user, args)
-        elif skill_id == "gmail_archive":
-            result = await _skill_gmail_archive(db, agent, user, args)
-        elif skill_id == "email_send":
-            result = await _skill_send_email(db, agent, user, args)
-        elif skill_id == "email_reply":
-            result = await _skill_email_reply(db, agent, user, args)
-
-        # Slack
-        elif skill_id == "slack_post":
-            result = await _skill_slack_post(db, agent, user, args)
-        elif skill_id == "slack_reply_thread":
-            result = await _skill_slack_reply_thread(db, agent, user, args)
-        elif skill_id == "slack_dm":
-            result = await _skill_slack_dm(db, agent, user, args)
-        elif skill_id == "slack_list_channels":
-            result = await _skill_slack_list_channels(db, agent, user, args)
-        elif skill_id == "slack_get_messages":
-            result = await _skill_slack_get_messages(db, agent, user, args)
-
-        # Google Calendar
-        elif skill_id == "calendar_create_event":
-            result = await _skill_calendar_create_event(db, agent, user, args)
-        elif skill_id == "calendar_list_events":
-            result = await _skill_calendar_list_events(db, agent, user, args)
-        elif skill_id == "calendar_update_event":
-            result = await _skill_calendar_update_event(db, agent, user, args)
-        elif skill_id == "calendar_delete_event":
-            result = await _skill_calendar_delete_event(db, agent, user, args)
-
-        # Google Sheets
-        elif skill_id == "sheets_append":
-            result = await _skill_sheets_append(db, agent, user, args)
-        elif skill_id == "sheets_read":
-            result = await _skill_sheets_read(db, agent, user, args)
-        elif skill_id == "sheets_update":
-            result = await _skill_sheets_update(db, agent, user, args)
-        elif skill_id == "sheets_create_sheet":
-            result = await _skill_sheets_create_sheet(db, agent, user, args)
-
-        # Shopify
-        elif skill_id == "shopify_create_order_note":
-            result = await _skill_shopify_action(db, agent, user, "create_order_note", args)
-        elif skill_id == "shopify_update_product":
-            result = await _skill_shopify_action(db, agent, user, "update_product", args)
-        elif skill_id == "shopify_get_orders":
-            result = await _skill_shopify_action(db, agent, user, "get_orders", args)
-        elif skill_id == "shopify_get_customers":
-            result = await _skill_shopify_action(db, agent, user, "get_customers", args)
-        elif skill_id == "shopify_fulfill_order":
-            result = await _skill_shopify_action(db, agent, user, "fulfill_order", args)
-
-        # HubSpot
-        elif skill_id == "hubspot_create_contact":
-            result = await _skill_hubspot_action(db, agent, user, "create_contact", args)
-        elif skill_id == "hubspot_create_deal":
-            result = await _skill_hubspot_action(db, agent, user, "create_deal", args)
-        elif skill_id == "hubspot_log_note":
-            result = await _skill_hubspot_action(db, agent, user, "log_note", args)
-        elif skill_id == "hubspot_get_contacts":
-            result = await _skill_hubspot_action(db, agent, user, "get_contacts", args)
-
-        # Notion
-        elif skill_id == "notion_create_page":
-            result = await _skill_notion_action(db, agent, user, "create_page", args)
-        elif skill_id == "notion_update_page":
-            result = await _skill_notion_action(db, agent, user, "update_page", args)
-        elif skill_id == "notion_query_database":
-            result = await _skill_notion_action(db, agent, user, "query_database", args)
-        elif skill_id == "notion_append_block":
-            result = await _skill_notion_action(db, agent, user, "append_block", args)
-
-        # Discord
-        elif skill_id == "discord_post":
-            result = await _skill_discord_action(db, agent, user, "post", args)
-        elif skill_id == "discord_dm_user":
-            result = await _skill_discord_action(db, agent, user, "dm_user", args)
-
-        # WhatsApp (explicit)
-        elif skill_id == "whatsapp_send":
-            result = await _skill_send_whatsapp(db, agent, user, args)
-        elif skill_id == "whatsapp_reply":
-            result = await _skill_whatsapp_reply(db, agent, user, args)
-
-        # Others (Mailchimp, Dropbox)
-        elif skill_id == "mailchimp_add_subscriber":
-            result = await _skill_mailchimp_action(db, agent, user, "add_subscriber", args)
-        elif skill_id == "mailchimp_create_campaign":
-            result = await _skill_mailchimp_action(db, agent, user, "create_campaign", args)
-        elif skill_id == "dropbox_upload":
-            result = await _skill_dropbox_action(db, agent, user, "upload", args)
-        elif skill_id == "dropbox_list":
-            result = await _skill_dropbox_action(db, agent, user, "list", args)
-
-        else:
-            # Catalog skills without dedicated side-effects: structured LLM deliverable
-            # (sales scripts, reports, code drafts, HR copy, etc.)
-            result = await _skill_catalog_deliverable(db, agent, user, skill_id, meta, args)
+        result = await _dispatch_skill(
+            skill_id, db, agent, user, args,
+            meta=meta, is_custom=is_custom, custom_row=custom_row,
+        )
     except Exception as e:
         result = {"ok": False, "error": str(e)}
+
+    # Bill every successful action (premium already charged; read/write/llm metered here)
+    if isinstance(result, dict) and result.get("ok") is not False and not result.get("error"):
+        try:
+            usage = bill_skill_execution(
+                db, user, skill_id, meta, result, args,
+                company_id=getattr(agent, "company_id", None),
+                project_id=getattr(agent, "project_id", None),
+            )
+            result = {**result, "usage": usage}
+        except Exception as bill_err:
+            # Do not free-run if billing hard-fails after a successful write
+            if meta.get("premium"):
+                result = {
+                    "ok": False,
+                    "error": f"Billing failed after skill: {getattr(bill_err, 'detail', None) or bill_err}",
+                }
+            else:
+                # Soft: still return skill result but flag missing usage
+                result = {**result, "usage_error": str(bill_err)[:200]}
 
     await emit_ops(
         user.id,
@@ -2571,7 +2995,7 @@ async def execute_skill(
         title=f"{agent.name} → {meta['name']}",
         detail=result.get("message") or result.get("error") or "",
         agent_id=agent.id,
-        payload={"skill": skill_id, "result": result},
+        payload={"skill": skill_id, "result": result, "usage": result.get("usage") if isinstance(result, dict) else None},
         db=db,
     )
     return result
@@ -2596,1623 +3020,13 @@ async def run_skills_from_text(
     return strip_skill_blocks(text), results
 
 
-# ── Individual skills ────────────────────────────────────────────────────
-
-async def _skill_spawn(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    name = (args.get("name") or "New agent").strip()[:120]
-    template = (args.get("template_type") or "custom").strip()[:80]
-    personality = (args.get("personality") or "Professional, helpful, concise.").strip()
-    hrole = (args.get("hierarchy_role") or "member").strip()
-    if hrole not in ("lead", "member", "specialist"):
-        hrole = "member"
-    parent_id = args.get("parent_id")
-    if parent_id is None:
-        parent_id = agent.id if not is_orchestrator(agent) else None
-    else:
-        try:
-            parent_id = int(parent_id)
-        except (TypeError, ValueError):
-            parent_id = agent.id
-
-    from .agent_scaffold import map_model, repair_agent
-
-    child = models.Agent(
-        user_id=user.id,
-        company_id=agent.company_id,
-        project_id=agent.project_id,
-        parent_id=parent_id,
-        hierarchy_role=hrole,
-        is_lead=hrole == "lead",
-        name=name,
-        template_type=template,
-        personality=personality,
-        model=map_model(agent.model or "fast"),
-        status="active",
-        idle_mode="never_idle",
-        permission_level="lead" if hrole == "lead" else "operator",
-        config=json.dumps({"autonomy": "full", "spawned_by": agent.id}),
-        escalate_when="on_failure",
-        escalate_to="parent",
-    )
-    db.add(child)
-    db.flush()
-    repair_agent(db, child, force_never_idle=True, expand_skills=True)
-    db.commit()
-    db.refresh(child)
-    return {
-        "ok": True,
-        "message": f"Spawned autonomous agent {child.name} (id={child.id})",
-        "agent": {
-            "id": child.id,
-            "name": child.name,
-            "hierarchy_role": child.hierarchy_role,
-            "model": child.model,
-            "idle_mode": child.idle_mode,
-            "permission_level": child.permission_level,
-        },
-    }
-
-
-async def _skill_message(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        to_id = int(args.get("to_agent_id"))
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "to_agent_id required"}
-    target = db.get(models.Agent, to_id)
-    if not target or target.user_id != user.id:
-        return {"ok": False, "error": "Target agent not found"}
-    content = (args.get("message") or "").strip()
-    if not content:
-        return {"ok": False, "error": "message required"}
-
-    pair = sorted([agent.id, target.id])
-    thread_key = f"{pair[0]}-{pair[1]}"
-    msg = models.AgentMessage(
-        user_id=user.id,
-        from_agent_id=agent.id,
-        to_agent_id=target.id,
-        thread_key=thread_key,
-        content=content,
-    )
-    db.add(msg)
-    db.commit()
-    db.refresh(msg)
-
-    reply_text = None
-    if args.get("expect_reply", True):
-        # Lightweight auto-reply from target using their personality (no nested skill loop)
-        from .llm import complete
-        from .user_keys import credentials_for_user
-        from .agent_prompts import build_agent_system_prompt
-
-        system = build_agent_system_prompt(db, target)
-        prompt = (
-            f"You received an internal message from teammate agent "
-            f"{agent.name} (id={agent.id}):\n\n{content}\n\n"
-            "Reply helpfully in 1-3 short paragraphs. Do not emit skill blocks."
-        )
-        creds = credentials_for_user(db, user.id)
-        try:
-            reply_text = await complete(
-                [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                target.model or "quality",
-                "general",
-                credentials=creds,
-            )
-            reply_text = (reply_text or "").strip()
-            if reply_text:
-                reply = models.AgentMessage(
-                    user_id=user.id,
-                    from_agent_id=target.id,
-                    to_agent_id=agent.id,
-                    thread_key=thread_key,
-                    content=reply_text,
-                )
-                db.add(reply)
-                db.commit()
-                # Agent-to-agent LLM always meters tokens
-                try:
-                    from .usage_billing import bill_llm_turn
-                    bill_llm_turn(
-                        db, user, target.model or "fast",
-                        [{"role": "user", "content": prompt}],
-                        reply_text,
-                    )
-                except Exception:
-                    pass
-        except Exception as e:
-            reply_text = f"(auto-reply failed: {e})"
-
-    return {
-        "ok": True,
-        "message": f"Messaged {target.name}",
-        "thread_key": thread_key,
-        "message_id": msg.id,
-        "reply": reply_text,
-    }
-
-
-async def _skill_use_app(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from .integration_actions import run_app_action
-
-    app_id = (args.get("app_id") or "").strip().lower()
-    action = (args.get("action") or "status").strip().lower()
-    payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-    if not app_id:
-        return {"ok": False, "error": "app_id required"}
-
-    # Must be allocated to this agent
-    links = db.query(models.AgentIntegration).filter_by(agent_id=agent.id).all()
-    conn = None
-    for link in links:
-        c = db.get(models.IntegrationConnection, link.connection_id)
-        if c and c.app_id == app_id and c.user_id == user.id:
-            conn = c
-            break
-    if not conn:
-        # Fall back to any connected app of that type for orchestrators
-        if is_orchestrator(agent):
-            conn = (
-                db.query(models.IntegrationConnection)
-                .filter_by(user_id=user.id, app_id=app_id, status="connected")
-                .order_by(models.IntegrationConnection.id.desc())
-                .first()
-            )
-    if not conn:
-        return {"ok": False, "error": f"No connected '{app_id}' app allocated to this agent"}
-
-    result = await run_app_action(conn, action, payload)
-    return result
-
-
-async def _skill_assign_human(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        human_id = int(args.get("human_id"))
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "human_id required"}
-    human = db.get(models.Human, human_id)
-    if not human or human.owner_user_id != user.id:
-        return {"ok": False, "error": "Human not found"}
-    title = (args.get("title") or args.get("description") or "Work item")[:120]
-    description = (args.get("description") or title).strip()
-    priority = args.get("priority") or "medium"
-    t = models.Task(
-        user_id=user.id,
-        agent_id=agent.id,
-        human_id=human.id,
-        assignee_type="human",
-        company_id=human.company_id or agent.company_id,
-        project_id=human.project_id or agent.project_id,
-        title=title,
-        description=f"[Assigned by agent {agent.name}] {description}",
-        status="todo",
-        priority=priority,
-        labels="human,allocated",
-    )
-    db.add(t)
-    db.commit()
-    db.refresh(t)
-    await emit_ops(
-        user.id,
-        kind="human",
-        status="queued",
-        title=f"Work for {human.name}",
-        detail=title,
-        agent_id=agent.id,
-        human_id=human.id,
-        task_id=t.id,
-        db=db,
-    )
-    return {
-        "ok": True,
-        "message": f"Assigned to {human.name}",
-        "task_id": t.id,
-        "human": {"id": human.id, "name": human.name},
-    }
-
-
-async def _skill_save_memory(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    content = (args.get("content") or "").strip()
-    if not content:
-        return {"ok": False, "error": "content required"}
-    mem = models.AgentMemory(
-        agent_id=agent.id,
-        user_id=user.id,
-        kind=(args.get("kind") or "note")[:40],
-        title=(args.get("title") or content[:60])[:200],
-        content=content,
-        tags=(args.get("tags") or "")[:200],
-    )
-    db.add(mem)
-    db.commit()
-    db.refresh(mem)
-    return {"ok": True, "message": "Saved to agent data vault", "memory_id": mem.id}
-
-
-async def _skill_save_training(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    content = (args.get("content") or "").strip()
-    if not content:
-        return {"ok": False, "error": "content required"}
-    title = (args.get("title") or f"From {agent.name}")[:200]
-    folder_id = args.get("folder_id")
-    try:
-        folder_id = int(folder_id) if folder_id is not None else None
-    except (TypeError, ValueError):
-        folder_id = None
-
-    kf = models.KnowledgeFile(
-        user_id=user.id,
-        folder_id=folder_id,
-        name=title,
-        description=f"Saved by agent {agent.name}",
-        tags=(args.get("tags") or "agent-saved")[:200],
-        kind="note",
-        storage="local",
-        mime_type="text/plain",
-        size_bytes=len(content.encode("utf-8")),
-        content_text=content,
-        status="ready",
-    )
-    db.add(kf)
-    db.flush()
-    # Grant this agent access
-    db.add(models.AgentKnowledgeAccess(
-        agent_id=agent.id,
-        resource_type="file",
-        resource_id=kf.id,
-        permission="read",
-    ))
-    # Also keep a memory pointer
-    mem = models.AgentMemory(
-        agent_id=agent.id,
-        user_id=user.id,
-        kind="training_candidate",
-        title=title,
-        content=content[:2000],
-        tags="training",
-        knowledge_file_id=kf.id,
-    )
-    db.add(mem)
-    db.commit()
-    db.refresh(kf)
-    return {
-        "ok": True,
-        "message": f"Saved to training library as '{title}'",
-        "knowledge_file_id": kf.id,
-    }
-
-
-async def _skill_create_task(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    title = (args.get("title") or args.get("description") or "Task")[:120]
-    description = (args.get("description") or title).strip()
-    agent_id = args.get("agent_id") or agent.id
-    human_id = args.get("human_id")
-    try:
-        agent_id = int(agent_id) if agent_id is not None else agent.id
-    except (TypeError, ValueError):
-        agent_id = agent.id
-    try:
-        human_id = int(human_id) if human_id is not None else None
-    except (TypeError, ValueError):
-        human_id = None
-
-    target = db.get(models.Agent, agent_id)
-    if not target or target.user_id != user.id:
-        return {"ok": False, "error": "agent not found"}
-
-    t = models.Task(
-        user_id=user.id,
-        agent_id=target.id,
-        human_id=human_id,
-        assignee_type="human" if human_id else "agent",
-        company_id=target.company_id,
-        project_id=target.project_id,
-        title=title,
-        description=description,
-        status="todo",
-        priority=args.get("priority") or "medium",
-        labels="skill-created",
-    )
-    db.add(t)
-    db.commit()
-    db.refresh(t)
-    return {"ok": True, "message": "Task created", "task_id": t.id}
-
-
-async def _skill_announce_plan(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    title = (args.get("title") or "Plan")[:200]
-    steps = args.get("steps") or []
-    if isinstance(steps, str):
-        steps = [s.strip() for s in steps.split("\n") if s.strip()]
-    if not isinstance(steps, list):
-        steps = []
-    plan_id = f"plan-{uuid.uuid4().hex[:10]}"
-    await emit_ops(
-        user.id,
-        kind="plan",
-        status="running",
-        title=title,
-        detail=f"{len(steps)} steps",
-        agent_id=agent.id,
-        plan_id=plan_id,
-        payload={"steps": steps},
-        db=db,
-    )
-    for i, step in enumerate(steps[:20], 1):
-        text = step if isinstance(step, str) else json.dumps(step)
-        await emit_ops(
-            user.id,
-            kind="step",
-            status="queued",
-            title=f"Step {i}",
-            detail=text[:500],
-            agent_id=agent.id,
-            plan_id=plan_id,
-            db=db,
-        )
-    return {"ok": True, "message": f"Plan announced ({len(steps)} steps)", "plan_id": plan_id}
-
-
-# ── CRM + Diary skill implementations (operate on existing customers) ────
-
-async def _skill_list_customers(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from .routers.business import _customer_out
-    q = (args.get("q") or "").strip()
-    status = args.get("status")
-    tag = args.get("tag")
-    try:
-        limit = min(100, int(args.get("limit") or 25))
-    except Exception:
-        limit = 25
-    query = db.query(models.Customer).filter_by(owner_user_id=user.id)
-    if status:
-        query = query.filter_by(status=status)
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            (models.Customer.name.ilike(like)) |
-            (models.Customer.email.ilike(like)) |
-            (models.Customer.account_name.ilike(like)) |
-            (models.Customer.phone.ilike(like))
-        )
-    if tag:
-        query = query.filter(models.Customer.tags.ilike(f"%{tag}%"))
-    rows = query.order_by(models.Customer.updated_at.desc()).limit(limit).all()
-    return {
-        "ok": True,
-        "count": len(rows),
-        "customers": [_customer_out(c, db, light=True) for c in rows],
-    }
-
-
-async def _skill_get_customer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from .routers.business import _customer_out, _owned_customer
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    cust = None
-    if cid:
-        try:
-            cust = _owned_customer(db, int(cid), user)
-        except Exception:
-            cust = None
-    if not cust and email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-    if not cust:
-        return {"ok": False, "error": "customer not found (provide customer_id or email)"}
-    deals = db.query(models.Deal).filter_by(customer_id=cust.id).order_by(models.Deal.updated_at.desc()).limit(10).all()
-    acts = db.query(models.CustomerActivity).filter_by(customer_id=cust.id).order_by(models.CustomerActivity.id.desc()).limit(15).all()
-    diary = db.query(models.DiaryEntry).filter_by(customer_id=cust.id).order_by(models.DiaryEntry.start_at.asc().nullslast()).limit(10).all()
-    return {
-        "ok": True,
-        "customer": _customer_out(cust, db),
-        "deals": [{"id": d.id, "title": d.title, "value": d.value, "status": d.status, "stage_id": d.stage_id} for d in deals],
-        "recent_activity": [{"id": a.id, "kind": a.kind, "title": a.title, "body": a.body, "created_at": a.created_at} for a in acts],
-        "diary": [{"id": d.id, "title": d.title, "start_at": d.start_at, "status": d.status} for d in diary],
-    }
-
-
-async def _skill_update_customer(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from .routers.business import _customer_out
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    cust = None
-    if cid:
-        try:
-            cust = db.get(models.Customer, int(cid))
-        except Exception:
-            cust = None
-    if not cust and email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-    if not cust or cust.owner_user_id != user.id:
-        return {"ok": False, "error": "customer not found or not owned"}
-    for f in ("name", "phone", "status", "tags", "notes"):
-        if args.get(f) is not None:
-            val = args[f]
-            setattr(cust, f, (val or "").strip() if isinstance(val, str) else val)
-    if args.get("owner_human_id") is not None:
-        cust.owner_human_id = args.get("owner_human_id") or None
-    if args.get("owner_agent_id") is not None:
-        cust.owner_agent_id = args.get("owner_agent_id") or None
-    cust.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(cust)
-    return {"ok": True, "message": f"Updated {cust.name}", "customer": _customer_out(cust, db, light=True)}
-
-
-async def _skill_log_customer_activity(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    cust = None
-    if cid:
-        try:
-            cust = db.get(models.Customer, int(cid))
-        except Exception:
-            cust = None
-    if not cust and email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-    if not cust or cust.owner_user_id != user.id:
-        return {"ok": False, "error": "customer not found or not owned"}
-    kind = (args.get("kind") or "note").strip()
-    title = (args.get("title") or kind.title()).strip()
-    body = (args.get("body") or "").strip()
-    a = models.CustomerActivity(
-        customer_id=cust.id,
-        owner_user_id=user.id,
-        kind=kind,
-        title=title,
-        body=body,
-        agent_id=agent.id,
-    )
-    db.add(a)
-    cust.last_contacted_at = datetime.utcnow()
-    cust.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(a)
-    await emit_ops(user.id, kind="action", status="info", title=f"{cust.name}: {title}", detail=body[:180], agent_id=agent.id, db=db)
-    return {"ok": True, "activity_id": a.id, "kind": kind}
-
-
-async def _skill_create_deal(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from .routers.business import _deal_out, _owned_customer, _ensure_default_pipeline
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    cust = None
-    if cid:
-        try:
-            cust = _owned_customer(db, int(cid), user)
-        except Exception:
-            cust = None
-    if not cust and email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-    if not cust or cust.owner_user_id != user.id:
-        return {"ok": False, "error": "customer not found or not owned"}
-    pipe = _ensure_default_pipeline(db, user)
-    stage = db.query(models.PipelineStage).filter_by(pipeline_id=pipe.id).order_by(models.PipelineStage.position).first()
-    if not stage:
-        return {"ok": False, "error": "no stages in default pipeline"}
-    title = (args.get("title") or f"Opportunity for {cust.name}")[:200]
-    d = models.Deal(
-        owner_user_id=user.id,
-        pipeline_id=pipe.id,
-        stage_id=stage.id,
-        customer_id=cust.id,
-        title=title,
-        value=float(args.get("value") or 0),
-        currency="USD",
-        status="open",
-        priority=args.get("priority") or "medium",
-        expected_close=_parse_dt_safe(args.get("expected_close")),
-        owner_agent_id=agent.id,
-    )
-    db.add(d)
-    db.flush()
-    db.add(models.CustomerActivity(
-        customer_id=cust.id,
-        owner_user_id=user.id,
-        kind="deal",
-        title=f"Deal created by {agent.name}: {title}",
-        body=f"Value: {d.value}",
-        deal_id=d.id,
-        agent_id=agent.id,
-    ))
-    db.commit()
-    db.refresh(d)
-    return {"ok": True, "deal": _deal_out(d, db)}
-
-
-def _parse_dt_safe(s):
-    if not s:
-        return None
-    try:
-        return datetime.fromisoformat(str(s).replace("Z", ""))
-    except Exception:
-        return None
-
-
-async def _skill_schedule_meeting(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    cust = None
-    if cid:
-        try:
-            cust = db.get(models.Customer, int(cid))
-        except Exception:
-            cust = None
-    if not cust and email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-    if not cust or cust.owner_user_id != user.id:
-        return {"ok": False, "error": "customer not found or not owned"}
-    title = (args.get("title") or f"Meeting with {cust.name}")[:200]
-    start = _parse_dt_safe(args.get("start_at"))
-    end = _parse_dt_safe(args.get("end_at"))
-    d = models.DiaryEntry(
-        owner_user_id=user.id,
-        customer_id=cust.id,
-        title=title,
-        start_at=start,
-        end_at=end,
-        location=(args.get("location") or "").strip(),
-        notes=(args.get("notes") or "").strip(),
-        status="scheduled",
-        owner_human_id=args.get("owner_human_id"),
-        owner_agent_id=agent.id,
-    )
-    db.add(d)
-    db.flush()
-    db.add(models.CustomerActivity(
-        customer_id=cust.id,
-        owner_user_id=user.id,
-        kind="meeting",
-        title=f"Scheduled: {title}",
-        body=f"{start.isoformat() if start else 'TBD'} @ {d.location or '—'}",
-        agent_id=agent.id,
-    ))
-    cust.last_contacted_at = datetime.utcnow()
-    db.commit()
-    db.refresh(d)
-    await emit_ops(user.id, kind="action", status="info", title=f"Diary: {title}", detail=cust.name, agent_id=agent.id, db=db)
-    return {
-        "ok": True,
-        "diary_id": d.id,
-        "title": d.title,
-        "start_at": d.start_at,
-        "status": d.status,
-    }
-
-
-async def _skill_list_diary(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    status = args.get("status")
-    upcoming = bool(args.get("upcoming"))
-    q = db.query(models.DiaryEntry).filter_by(owner_user_id=user.id)
-    if cid:
-        try:
-            q = q.filter_by(customer_id=int(cid))
-        except Exception:
-            pass
-    elif email:
-        c = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-        if c:
-            q = q.filter_by(customer_id=c.id)
-    if status:
-        q = q.filter_by(status=status)
-    if upcoming:
-        now = datetime.utcnow()
-        q = q.filter(models.DiaryEntry.status == "scheduled", (models.DiaryEntry.start_at >= now) | (models.DiaryEntry.start_at.is_(None)))
-    rows = q.order_by(models.DiaryEntry.start_at.asc().nullslast(), models.DiaryEntry.id.desc()).limit(50).all()
-    out = []
-    for d in rows:
-        cust = db.get(models.Customer, d.customer_id)
-        out.append({
-            "id": d.id,
-            "customer_id": d.customer_id,
-            "customer_name": cust.name if cust else None,
-            "title": d.title,
-            "start_at": d.start_at,
-            "end_at": d.end_at,
-            "location": d.location,
-            "status": d.status,
-        })
-    return {"ok": True, "count": len(out), "diary": out}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NEW COMPREHENSIVE + PREMIUM COMMUNICATION SKILLS IMPLEMENTATIONS
-# Email, SMS, WhatsApp, Voice are first-class and the best ones are charged
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _skill_draft_email(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    subject = (args.get("subject") or "Follow-up").strip()
-    body = (args.get("body") or "").strip()
-    tone = args.get("tone") or "professional"
-    if not to:
-        return {"ok": False, "error": "to (email address) is required"}
-    if not body:
-        body = f"Hi,\n\nI wanted to follow up regarding our conversation.\n\nBest regards,\n{agent.name}"
-    return {
-        "ok": True,
-        "draft": True,
-        "to": to,
-        "subject": subject,
-        "body": body,
-        "tone": tone,
-        "note": "This is a draft. Call send_email (premium) to actually deliver it."
-    }
-
-
-async def _skill_send_email(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    subject = (args.get("subject") or "Message from " + agent.name).strip()
-    body = (args.get("body") or "").strip()
-    if not to or not body:
-        return {"ok": False, "error": "to and body are required"}
-
-    if not args.get("_billed"):
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_email"), {})
-        _charge_premium(db, user, meta, 0.02, text=body)
-
-    sent, detail = await channels.send_email(to, subject, body)
-    await emit_ops(user.id, kind="action", status="done" if sent else "failed",
-                   title=f"Email {'sent' if sent else 'drafted'}", detail=to, agent_id=agent.id, db=db)
-    return {"ok": sent, "to": to, "subject": subject, "detail": detail}
-
-
-async def _skill_draft_sms(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    body = (args.get("body") or "").strip()
-    if not to:
-        return {"ok": False, "error": "to (phone number) is required"}
-    return {"ok": True, "draft": True, "to": to, "body": body, "note": "Draft only. Use send_sms to actually deliver (premium)."}
-
-
-async def _skill_send_sms(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    body = (args.get("body") or "").strip()
-    if not to or not body:
-        return {"ok": False, "error": "to and body are required"}
-
-    if not args.get("_billed"):
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_sms"), {})
-        _charge_premium(db, user, meta, 0.015, text=body)
-
-    sent, detail = await channels.send_sms(to, body)
-    await emit_ops(user.id, kind="action", status="done" if sent else "failed",
-                   title=f"SMS {'sent' if sent else 'drafted'}", detail=to, agent_id=agent.id, db=db)
-    return {"ok": sent, "to": to, "detail": detail}
-
-
-async def _skill_send_whatsapp(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    body = (args.get("body") or "").strip()
-    if not to or not body:
-        return {"ok": False, "error": "to (whatsapp:+number) and body are required"}
-
-    if not args.get("_billed"):
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_whatsapp"), {})
-        _charge_premium(db, user, meta, 0.02, text=body)
-
-    sent, detail = await channels.send_whatsapp(to, body)
-    await emit_ops(user.id, kind="action", status="done" if sent else "failed",
-                   title=f"WhatsApp {'sent' if sent else 'drafted'}", detail=to, agent_id=agent.id, db=db)
-    return {"ok": sent, "to": to, "detail": detail}
-
-
-async def _skill_make_voice_call(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    to = (args.get("to") or "").strip()
-    message = (args.get("message") or f"Hello from {agent.name}. This is an automated call with an important update.").strip()
-    if not to:
-        return {"ok": False, "error": "to (phone number) is required"}
-
-    if not args.get("_billed"):
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "make_voice_call"), {})
-        _charge_premium(db, user, meta, 0.08, text=message)
-
-    sent, detail = await channels.make_call(to, message)
-    await emit_ops(user.id, kind="action", status="done" if sent else "failed",
-                   title=f"Voice call {'placed' if sent else 'scripted'}", detail=to, agent_id=agent.id, db=db)
-    return {"ok": sent, "to": to, "detail": detail}
-
-
-async def _skill_generate_image(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    prompt = (args.get("prompt") or "").strip()
-    if len(prompt) < 3:
-        return {"ok": False, "error": "prompt is required"}
-    meta = next((s for s in SKILL_CATALOG if s["id"] == "generate_image"), {})
-    # If execute_skill already charged premium, avoid double-charge when called via run
-    # Skills run path charges once here when not charged upstream — check cost_credits flag
-    if not args.get("_billed"):
-        _charge_premium(db, user, meta, 0.06, text=prompt)
-
-    from .routers.media import _svg_placeholder
-    url = _svg_placeholder(prompt, "image")
-    # Try live image API when available
-    try:
-        from . import config
-        import httpx
-        key = config.get_grok_token() or ""
-        if key:
-            async with httpx.AsyncClient(timeout=90) as client:
-                r = await client.post(
-                    "https://api.x.ai/v1/images/generations",
-                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json={"model": "grok-imagine-image", "prompt": prompt, "n": 1},
-                )
-                if r.status_code < 400:
-                    body = r.json()
-                    u = (body.get("data") or [{}])[0].get("url")
-                    if u:
-                        url = u
-    except Exception:
-        pass
-
-    await emit_ops(
-        user.id, kind="action", status="done",
-        title="Image generated", detail=prompt[:120], agent_id=agent.id, db=db,
-    )
-    return {"ok": True, "url": url, "prompt": prompt, "style": args.get("style"), "size": args.get("size")}
-
-
-async def _skill_generate_video(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    prompt = (args.get("prompt") or "").strip()
-    if len(prompt) < 3:
-        return {"ok": False, "error": "prompt is required"}
-    meta = next((s for s in SKILL_CATALOG if s["id"] == "generate_video"), {})
-    if not args.get("_billed"):
-        _charge_premium(db, user, meta, 0.25, text=prompt)
-
-    from .routers.media import _svg_placeholder
-    poster = _svg_placeholder(prompt, "video")
-    await emit_ops(
-        user.id, kind="action", status="done",
-        title="Video job created", detail=prompt[:120], agent_id=agent.id, db=db,
-    )
-    return {
-        "ok": True,
-        "poster_url": poster,
-        "video_url": None,
-        "prompt": prompt,
-        "duration_sec": args.get("duration_sec") or 4,
-        "note": "Poster ready. Full video URL when media worker is configured.",
-    }
-
-
-async def _skill_log_communication(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    cid = args.get("customer_id")
-    email = (args.get("email") or "").strip()
-    kind = (args.get("kind") or "email").strip()
-    to = (args.get("to") or "").strip()
-    title = (args.get("subject_or_title") or "").strip()
-    body = (args.get("body") or "").strip()
-
-    cust = None
-    if cid:
-        try:
-            cust = db.get(models.Customer, int(cid))
-        except Exception:
-            pass
-    elif email:
-        cust = db.query(models.Customer).filter_by(owner_user_id=user.id, email=email).first()
-
-    if cust:
-        db.add(models.CustomerActivity(
-            customer_id=cust.id,
-            owner_user_id=user.id,
-            kind=kind,
-            title=title or f"{kind.title()} sent",
-            body=body[:500],
-            agent_id=agent.id,
-        ))
-        cust.last_contacted_at = datetime.utcnow()
-        db.commit()
-
-    return {"ok": True, "logged": True, "kind": kind, "to": to or email, "customer_id": getattr(cust, 'id', None)}
-
-
-async def _skill_catalog_deliverable(
-    db: Session,
-    agent: models.Agent,
-    user: models.User,
-    skill_id: str,
-    meta: dict,
-    args: dict,
-) -> dict:
-    """
-    Generic path for catalog skills without a dedicated side-effect handler.
-
-    Marks the skill as accepted and gives the model a concrete deliverable brief
-    so agents never hit hard "not implemented" for sales/HR/code/content skills.
-    Optionally runs a short LLM completion when a model is available.
-    """
-    name = (meta or {}).get("name") or skill_id
-    desc = (meta or {}).get("description") or ""
-    brief = {
-        "skill": skill_id,
-        "name": name,
-        "description": desc,
-        "args": args or {},
-        "agent": getattr(agent, "name", None),
-        "role": getattr(agent, "hierarchy_role", None) or getattr(agent, "template_type", None),
-    }
-    instruction = (
-        f"You are executing skill '{name}' ({skill_id}).\n"
-        f"Goal: {desc}\n"
-        f"Arguments: {json.dumps(args or {}, default=str)[:2000]}\n"
-        "Produce a complete, usable deliverable (not a plan to do it later)."
-    )
-    content = ""
-    try:
-        from .llm import complete
-        from .agent_scaffold import resolve_runtime
-
-        rt = resolve_runtime(agent)
-        model = getattr(rt, "model", None) or agent.model or "vps-fast"
-        # Prefer a quality text model when on VPS placeholder ids
-        messages = [
-            {
-                "role": "system",
-                "content": f"You are {agent.name}, a business AI agent. Output only the deliverable.",
-            },
-            {"role": "user", "content": instruction},
-        ]
-        content = await complete(
-            messages,
-            model=model,
-            mode=getattr(rt, "mode_hint", None) or "general",
-        )
-        content = (content or "").strip()
-        # Always meter tokens for catalog deliverables (draft skills)
-        if content:
-            try:
-                from .usage_billing import bill_llm_turn
-                bill_llm_turn(db, user, model, messages, content)
-            except Exception:
-                pass
-    except Exception as e:
-        # Still ok — caller LLM can finish from the brief
-        content = ""
-        brief["llm_error"] = str(e)[:200]
-
-    # Persist short memory so later turns can reuse
-    try:
-        title = f"Skill: {name}"
-        body = content[:3500] if content else instruction[:1500]
-        db.add(
-            models.AgentMemory(
-                agent_id=agent.id,
-                user_id=user.id,
-                kind="deliverable",
-                title=title[:200],
-                content=body,
-                tags=skill_id,
-            )
-        )
-        db.commit()
-    except Exception:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-
-    return {
-        "ok": True,
-        "mode": "catalog_deliverable",
-        "skill": skill_id,
-        "name": name,
-        "brief": brief,
-        "content": content or None,
-        "message": (
-            f"Skill '{name}' completed."
-            if content
-            else f"Skill '{name}' accepted — produce the deliverable from the brief."
-        ),
-        "instruction": instruction,
-    }
-
-
-async def _skill_generate_content(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    ctype = args.get("type") or "email"
-    topic = args.get("topic") or ""
-    audience = args.get("audience") or ""
-    tone = args.get("tone") or "professional"
-    length = args.get("length") or "medium"
-    keywords = args.get("keywords") or ""
-    # The actual generation happens in the LLM reply. This skill just structures the request.
-    return {"ok": True, "request": {"type": ctype, "topic": topic, "audience": audience, "tone": tone, "length": length, "keywords": keywords}}
-
-
-async def _skill_research(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return {"ok": True, "request": {"query": args.get("query"), "depth": args.get("depth", "normal"), "focus": args.get("focus")}}
-
-
-async def _skill_summarize(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return {"ok": True, "request": {"format": args.get("format", "bullets"), "max_points": args.get("max_points", 8)}}
-
-
-async def _skill_get_time(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    from datetime import datetime, timezone
-    tz = args.get("timezone") or "UTC"
-    now = datetime.now(timezone.utc)
-    return {"ok": True, "iso": now.isoformat(), "timezone": tz, "note": "Use for scheduling logic."}
-
-
-async def _skill_suggest_times(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return {"ok": True, "suggestions": ["Tomorrow 10:00", "Tomorrow 14:30", "Friday 09:00"], "duration_minutes": args.get("duration_minutes", 30)}
-
-
-async def _skill_create_invoice_draft(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return {"ok": True, "draft": True, "customer_id": args.get("customer_id"), "items": args.get("items", []), "message": "Invoice draft prepared."}
-
-
-async def _skill_update_pipeline(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    # Lightweight wrapper – actual work is done via business router in practice
-    return {"ok": True, "request": args, "note": "Best used together with business CRM endpoints."}
-
-
-async def _skill_escalate_to_human(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return await _skill_assign_human(db, agent, user, {
-        "human_id": args.get("human_id"),
-        "title": args.get("title"),
-        "description": args.get("details"),
-        "priority": args.get("urgency", "high"),
-    })
-
-
-async def _skill_search_memory(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    q = (args.get("query") or "").lower()
-    mems = db.query(models.AgentMemory).filter_by(agent_id=agent.id).order_by(models.AgentMemory.id.desc()).limit(50).all()
-    hits = [m for m in mems if q in (m.content or "").lower() or q in (m.title or "").lower()]
-    return {"ok": True, "hits": [{"id": h.id, "title": h.title, "content": h.content[:400], "kind": h.kind} for h in hits[:10]]}
-
-
-async def _skill_search_knowledge(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return {"ok": True, "request": args, "note": "Search knowledge base via training endpoints for best results."}
-
-
-async def _skill_set_agent_status(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    if args.get("idle_mode"):
-        agent.idle_mode = args["idle_mode"]
-    if args.get("permission_level"):
-        agent.permission_level = args["permission_level"]
-    db.commit()
-    return {"ok": True, "updated": {"idle_mode": agent.idle_mode, "permission_level": agent.permission_level}}
-
-
-async def _skill_create_reminder(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    return await _skill_create_task(db, agent, user, {
-        "title": args.get("title"),
-        "description": args.get("title"),
-        "agent_id": args.get("for_agent_id"),
-        "human_id": args.get("for_human_id"),
-        "priority": "medium",
-    })
-
-
-async def _skill_send_message(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    """Smart unified communication skill.
-    channel can be: email | sms | whatsapp | voice | auto (default)
-    This is the single best skill for agents to use when they want to reach a human.
-    """
-    to = (args.get("to") or "").strip()
-    body = (args.get("body") or args.get("message") or "").strip()
-    subject = args.get("subject") or f"Update from {agent.name}"
-    channel = (args.get("channel") or "auto").lower()
-    cid = args.get("customer_id")
-
-    if not to or not body:
-        return {"ok": False, "error": "to and body are required"}
-
-    # Try to resolve customer for logging
-    cust = None
-    if cid:
-        try:
-            cust = db.get(models.Customer, int(cid))
-        except Exception:
-            pass
-
-    # Auto-detect channel from "to"
-    if channel == "auto":
-        if "@" in to:
-            channel = "email"
-        elif to.lower().startswith("whatsapp:") or "whatsapp" in to.lower():
-            channel = "whatsapp"
-        elif to.replace("+", "").replace("-", "").replace(" ", "").isdigit():
-            channel = "sms"
-        else:
-            channel = "sms"
-
-    result = {"ok": False}
-
-    billed = bool(args.get("_billed"))
-    if channel == "email":
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_email"), {})
-        _charge_premium(db, user, meta, 0.02, text=body, already_billed=billed)
-        sent, detail = await channels.send_email(to, subject, body)
-        result = {"ok": sent, "channel": "email", "to": to, "detail": detail}
-
-    elif channel == "sms":
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_sms"), {})
-        _charge_premium(db, user, meta, 0.015, text=body, already_billed=billed)
-        sent, detail = await channels.send_sms(to, body)
-        result = {"ok": sent, "channel": "sms", "to": to, "detail": detail}
-
-    elif channel == "whatsapp":
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_whatsapp"), {})
-        _charge_premium(db, user, meta, 0.02, text=body, already_billed=billed)
-        sent, detail = await channels.send_whatsapp(to, body)
-        result = {"ok": sent, "channel": "whatsapp", "to": to, "detail": detail}
-
-    elif channel == "voice":
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "make_voice_call"), {})
-        _charge_premium(db, user, meta, 0.08, text=body, already_billed=billed)
-        sent, detail = await channels.make_call(to, body)
-        result = {"ok": sent, "channel": "voice", "to": to, "detail": detail}
-
-    else:
-        meta = next((s for s in SKILL_CATALOG if s["id"] == "send_email"), {})
-        _charge_premium(db, user, meta, 0.02, text=body, already_billed=billed)
-        sent, detail = await channels.send_email(to, subject, body)
-        result = {"ok": sent, "channel": "email", "to": to, "detail": detail}
-
-    # Log to CRM if we have a customer
-    if cust:
-        db.add(models.CustomerActivity(
-            customer_id=cust.id,
-            owner_user_id=user.id,
-            kind=channel if channel in ("email", "sms", "call") else "note",
-            title=f"{channel.title()} via {agent.name}",
-            body=body[:400],
-            agent_id=agent.id,
-        ))
-        cust.last_contacted_at = datetime.utcnow()
-        db.commit()
-
-    await emit_ops(user.id, kind="action", status="done" if result.get("ok") else "failed",
-                   title=f"Sent via {result.get('channel', channel)}", detail=to, agent_id=agent.id, db=db)
-
-    return result
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# META SKILLS — "spawn 40 agents making them"
-# These let agents autonomously create, configure, clone and skill-enable dozens of agents.
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _skill_spawn_team(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    """Spawn N agents quickly with optional preset skills. Core engine for building big teams."""
-    try:
-        count = max(1, min(80, int(args.get("count") or 5)))
-    except Exception:
-        count = 5
-    base = (args.get("base_name") or "Specialist").strip() or "Specialist"
-    templates = args.get("template_types") or ["member"]
-    if isinstance(templates, str):
-        templates = [t.strip() for t in templates.split(",") if t.strip()]
-    parent_id = args.get("parent_id")
-    if parent_id is None:
-        parent_id = agent.id if not is_orchestrator(agent) else None
-    preset = (args.get("enable_preset") or "full").lower()
-
-    from .agent_scaffold import scaffold_agent, map_model
-
-    created = []
-    for i in range(count):
-        ttype = templates[i % len(templates)] if templates else "member"
-        name = f"{base} {i+1}"
-        while db.query(models.Agent).filter_by(user_id=user.id, name=name).first():
-            name = f"{base} {i+1}-{uuid.uuid4().hex[:4]}"
-
-        hrole = "lead" if ttype in ("lead", "orchestrator") else ("specialist" if ttype == "specialist" else "member")
-        child = models.Agent(
-            user_id=user.id,
-            company_id=agent.company_id,
-            project_id=agent.project_id,
-            parent_id=parent_id,
-            hierarchy_role=hrole,
-            is_lead=hrole in ("lead", "orchestrator"),
-            name=name,
-            template_type=ttype,
-            personality="Autonomous specialist created by " + agent.name,
-            model=map_model(agent.model),
-            status="active",
-            idle_mode="never_idle",
-            permission_level="lead" if hrole == "lead" else "operator",
-            config=json.dumps({"autonomy": "full", "spawned_by": agent.id, "spawn_team": True}),
-            escalate_when="on_failure",
-            escalate_to="parent",
-        )
-        db.add(child)
-        db.flush()
-        scaffold_agent(db, child, full_skills=True)
-        if preset:
-            await _apply_preset_skills(db, child, preset)
-        created.append({"id": child.id, "name": child.name, "role": hrole})
-    db.commit()
-    return {"ok": True, "count": len(created), "agents": created, "message": f"Spawned team of {len(created)} agents."}
-
-
-async def _apply_preset_skills(db: Session, target: models.Agent, preset: str):
-    """Helper used by spawn + bulk_enable."""
-    valid = {s["id"] for s in SKILL_CATALOG}
-    preset = (preset or "").lower()
-    base = set(DEFAULT_ENABLED)
-
-    if preset in ("full", "all"):
-        to_enable = list(valid)
-    elif preset == "sales":
-        to_enable = [x for x in base if any(k in x for k in ("sales", "lead", "proposal", "outreach", "cold", "book", "qualif", "close", "churn", "upsell"))] or base
-    elif preset == "support":
-        to_enable = [x for x in base if any(k in x for k in ("support", "ticket", "triage", "refund", "escalat", "onboard", "knowledge", "health", "cancel"))] or base
-    elif preset == "engineering":
-        to_enable = [x for x in base if any(k in x for k in ("code", "api", "test", "debug", "refactor", "docker", "ci", "migration", "review", "arch"))] or base
-    elif preset == "comms":
-        to_enable = [x for x in base if any(k in x for k in ("email", "sms", "whatsapp", "voice", "send", "call", "message"))] or base
-    elif preset == "content":
-        to_enable = [x for x in base if any(k in x for k in ("content", "linkedin", "twitter", "ad", "newsletter", "seo", "video", "script", "blog"))] or base
-    else:
-        to_enable = list(base)
-
-    set_enabled_skills(db, target, list(to_enable)[:220])
-
-
-async def _skill_spawn_specialist(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    domain = (args.get("domain") or "specialist").strip()
-    name = (args.get("name") or f"{domain.title()} Specialist").strip()
-    parent_id = args.get("parent_id") or (agent.id if not is_orchestrator(agent) else None)
-    extra = args.get("skills") or []
-
-    from .agent_scaffold import scaffold_agent, map_model
-
-    child = models.Agent(
-        user_id=user.id,
-        company_id=agent.company_id,
-        project_id=agent.project_id,
-        parent_id=parent_id,
-        hierarchy_role="specialist",
-        is_lead=False,
-        name=name,
-        template_type=domain.lower()[:40],
-        personality=f"World-class specialist in {domain}. Created by {agent.name}.",
-        model=map_model(agent.model),
-        status="active",
-        idle_mode="never_idle",
-        permission_level="operator",
-        config=json.dumps({"autonomy": "full", "domain": domain, "spawned_by": agent.id}),
-        escalate_when="on_failure",
-        escalate_to="parent",
-    )
-    db.add(child)
-    db.flush()
-    scaffold_agent(db, child, full_skills=True)
-
-    wanted = set(DEFAULT_ENABLED)
-    for sid in (extra or []):
-        if sid in {s["id"] for s in SKILL_CATALOG}:
-            wanted.add(sid)
-    set_enabled_skills(db, child, list(wanted))
-    db.commit()
-    db.refresh(child)
-    return {"ok": True, "agent": {"id": child.id, "name": child.name}, "message": f"Spawned specialist {name}"}
-
-
-async def _skill_clone_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        src_id = int(args.get("source_agent_id"))
-    except Exception:
-        return {"ok": False, "error": "source_agent_id required"}
-    src = db.get(models.Agent, src_id)
-    if not src or src.user_id != user.id:
-        return {"ok": False, "error": "Source agent not found"}
-
-    new_name = (args.get("new_name") or (src.name + " (clone)"))[:120]
-    parent = args.get("parent_id") or src.parent_id
-
-    from .agent_scaffold import scaffold_agent, map_model
-    clone = models.Agent(
-        user_id=user.id,
-        company_id=src.company_id,
-        project_id=src.project_id,
-        parent_id=parent,
-        hierarchy_role=src.hierarchy_role,
-        is_lead=src.is_lead,
-        name=new_name,
-        template_type=src.template_type,
-        personality=src.personality,
-        model=map_model(src.model),
-        status="active",
-        idle_mode=src.idle_mode or "never_idle",
-        permission_level=src.permission_level,
-        config=src.config,
-        escalate_when=src.escalate_when or "on_failure",
-        escalate_to=src.escalate_to or "parent",
-        escalate_reason=getattr(src, "escalate_reason", ""),
-    )
-    db.add(clone)
-    db.flush()
-    scaffold_agent(db, clone, full_skills=True)
-
-    src_enabled = enabled_skill_ids(src, db)
-    if src_enabled:
-        set_enabled_skills(db, clone, list(src_enabled))
-    db.commit()
-    db.refresh(clone)
-    return {"ok": True, "cloned": {"id": clone.id, "name": clone.name, "from": src.id}}
-
-
-async def _skill_enable_skills_on(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        target_id = int(args.get("target_agent_id"))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    tgt = db.get(models.Agent, target_id)
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "Target agent not found"}
-
-    skill_ids = args.get("skill_ids") or []
-    if isinstance(skill_ids, str):
-        skill_ids = [s.strip() for s in skill_ids.split(",") if s.strip()]
-    valid = {s["id"] for s in SKILL_CATALOG}
-    clean = [s for s in skill_ids if s in valid]
-    if not clean:
-        return {"ok": False, "error": "No valid skill_ids provided"}
-
-    existing = enabled_skill_ids(tgt, db)
-    new_set = list(set(existing) | set(clean))
-    set_enabled_skills(db, tgt, new_set)
-    await emit_ops(user.id, kind="skill", status="done",
-                   title=f"Enabled {len(clean)} skills on {tgt.name}", agent_id=agent.id, db=db)
-    return {"ok": True, "target": tgt.id, "enabled_now": len(new_set), "added": len(clean)}
-
-
-async def _skill_bulk_enable_skills(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    ids = args.get("agent_ids") or []
-    if isinstance(ids, str):
-        ids = [int(x) for x in ids.split(",") if x.strip().isdigit()]
-    preset = args.get("preset") or "full"
-    extra = args.get("extra_skills") or []
-
-    results = []
-    for aid in ids:
-        try:
-            a = db.get(models.Agent, int(aid))
-            if a and a.user_id == user.id:
-                await _apply_preset_skills(db, a, preset)
-                if extra:
-                    cur = enabled_skill_ids(a, db)
-                    add = [x for x in extra if x in {s["id"] for s in SKILL_CATALOG}]
-                    set_enabled_skills(db, a, list(set(cur) | set(add)))
-                results.append({"id": a.id, "name": a.name, "ok": True})
-        except Exception as e:
-            results.append({"id": aid, "ok": False, "error": str(e)})
-    db.commit()
-    return {"ok": True, "updated": len([r for r in results if r.get("ok")]), "results": results}
-
-
-async def _skill_configure_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("target_agent_id")))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "Target not found"}
-
-    for field in ("model", "personality", "idle_mode", "permission_level", "escalate_when"):
-        if args.get(field) is not None:
-            setattr(tgt, field, args[field])
-    db.commit()
-    return {"ok": True, "configured": tgt.id, "name": tgt.name}
-
-
-async def _skill_promote_to_lead(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("agent_id")))
-    except Exception:
-        return {"ok": False, "error": "agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "Agent not found"}
-
-    tgt.hierarchy_role = "lead"
-    tgt.is_lead = True
-    tgt.permission_level = "lead"
-
-    report_ids = args.get("report_agent_ids") or []
-    wired = 0
-    for rid in report_ids:
-        try:
-            r = db.get(models.Agent, int(rid))
-            if r and r.user_id == user.id:
-                r.parent_id = tgt.id
-                wired += 1
-        except Exception:
-            pass
-    db.commit()
-    return {"ok": True, "promoted": tgt.id, "reports_wired": wired}
-
-
-async def _skill_pause_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("target_agent_id")))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "not found"}
-    tgt.status = "paused"
-    tgt.idle_mode = "allow_idle"
-    db.commit()
-    return {"ok": True, "paused": tgt.id}
-
-
-async def _skill_resume_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("target_agent_id")))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "not found"}
-    tgt.status = "active"
-    tgt.idle_mode = "never_idle"
-    db.commit()
-    return {"ok": True, "resumed": tgt.id}
-
-
-async def _skill_delete_agent(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    try:
-        tgt = db.get(models.Agent, int(args.get("target_agent_id")))
-    except Exception:
-        return {"ok": False, "error": "target_agent_id required"}
-    if not tgt or tgt.user_id != user.id:
-        return {"ok": False, "error": "not found"}
-    if is_orchestrator(tgt):
-        return {"ok": False, "error": "Cannot delete the orchestrator"}
-    db.delete(tgt)
-    db.commit()
-    return {"ok": True, "deleted": int(args.get("target_agent_id"))}
-
-
-async def _skill_list_team(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
-    q = db.query(models.Agent).filter_by(user_id=user.id)
-    if not is_orchestrator(agent):
-        q = q.filter(models.Agent.parent_id == agent.id)
-    role_filter = args.get("role_filter")
-    if role_filter:
-        q = q.filter_by(hierarchy_role=role_filter)
-    rows = q.order_by(models.Agent.id).limit(200).all()
-    out = []
-    for a in rows:
-        sk = list(enabled_skill_ids(a, db)) if args.get("include_skills") else None
-        out.append({
-            "id": a.id, "name": a.name, "role": a.hierarchy_role,
-            "status": a.status, "idle": a.idle_mode, "skills": sk
-        })
-    return {"ok": True, "count": len(out), "team": out}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CONNECTED APP SKILL IMPLEMENTATIONS
-# These call the real integration_actions.py or channels for Facebook, Instagram,
-# X, LinkedIn, Gmail, Slack, Calendar, Sheets, Shopify, etc.
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _run_app(db, agent, user, app_id: str, action: str, payload: dict) -> dict:
-    from . import models as _m
-    from .integration_actions import run_app_action
-    conn = (
-        db.query(_m.IntegrationConnection)
-        .filter_by(user_id=user.id, app_id=app_id, status="connected")
-        .order_by(_m.IntegrationConnection.id.desc())
-        .first()
-    )
-    if not conn:
-        # Also try agent-specific allocation
-        link = db.query(_m.AgentIntegration).filter_by(agent_id=agent.id).first()
-        if link:
-            conn = db.get(_m.IntegrationConnection, link.connection_id)
-    if not conn:
-        return {"ok": False, "error": f"No connected {app_id} app"}
-    return await run_app_action(conn, action, payload or {})
-
-
-# Facebook
-async def _skill_facebook_post(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "post", {
-        "message": args.get("message") or args.get("text"),
-        "link": args.get("link"),
-        "page_id": args.get("page_id"),
-    })
-
-async def _skill_facebook_reply_comment(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "reply_comment", {
-        "comment_id": args.get("comment_id"),
-        "message": args.get("message"),
-        "page_id": args.get("page_id"),
-    })
-
-async def _skill_facebook_reply_message(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "reply_message", {
-        "recipient_id": args.get("recipient_id"),
-        "message": args.get("message"),
-        "page_id": args.get("page_id"),
-    })
-
-async def _skill_facebook_get_comments(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "get_comments", args)
-
-async def _skill_facebook_get_posts(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "get_posts", args)
-
-async def _skill_facebook_get_conversations(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "get_conversations", args)
-
-async def _skill_facebook_like_comment(db, agent, user, args):
-    return await _run_app(db, agent, user, "facebook", "like_comment", args)
-
-
-# Instagram
-async def _skill_instagram_post(db, agent, user, args):
-    return await _run_app(db, agent, user, "instagram", "post", args)
-
-async def _skill_instagram_reply_comment(db, agent, user, args):
-    return await _run_app(db, agent, user, "instagram", "reply_comment", args)
-
-async def _skill_instagram_get_comments(db, agent, user, args):
-    return await _run_app(db, agent, user, "instagram", "get_comments", args)
-
-async def _skill_instagram_get_media(db, agent, user, args):
-    return await _run_app(db, agent, user, "instagram", "get_media", args)
-
-
-# LinkedIn
-async def _skill_linkedin_post(db, agent, user, args):
-    return await _run_app(db, agent, user, "linkedin", "post", args)
-
-async def _skill_linkedin_comment(db, agent, user, args):
-    return await _run_app(db, agent, user, "linkedin", "comment", args)
-
-async def _skill_linkedin_get_posts(db, agent, user, args):
-    return await _run_app(db, agent, user, "linkedin", "get_posts", args)
-
-async def _skill_linkedin_get_comments(db, agent, user, args):
-    return await _run_app(db, agent, user, "linkedin", "get_comments", args)
-
-
-# X / Twitter
-async def _skill_x_post(db, agent, user, args):
-    return await _run_app(db, agent, user, "x", "post", args)
-
-async def _skill_x_reply(db, agent, user, args):
-    return await _run_app(db, agent, user, "x", "reply", args)
-
-async def _skill_x_get_mentions(db, agent, user, args):
-    return await _run_app(db, agent, user, "x", "get_mentions", args)
-
-async def _skill_x_get_timeline(db, agent, user, args):
-    return await _run_app(db, agent, user, "x", "get_timeline", args)
-
-async def _skill_x_search(db, agent, user, args):
-    return await _run_app(db, agent, user, "x", "search", args)
-
-
-# Gmail
-async def _skill_gmail_send(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "send", args)
-
-async def _skill_gmail_reply(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "reply", args)
-
-async def _skill_gmail_draft(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "draft", args)
-
-async def _skill_gmail_list(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "list", args)
-
-async def _skill_gmail_get_thread(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "get_thread", args)
-
-async def _skill_gmail_search(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "search", args)
-
-async def _skill_gmail_archive(db, agent, user, args):
-    return await _run_app(db, agent, user, "gmail", "archive", args)
-
-
-async def _skill_email_reply(db, agent, user, args):
-    # Convenience: send email + log to CRM customer
-    res = await _skill_send_email(db, agent, user, args)
-    cid = args.get("customer_id")
-    if cid and res.get("ok"):
-        try:
-            from . import models as _m
-            c = db.get(_m.Customer, int(cid))
-            if c:
-                db.add(_m.CustomerActivity(
-                    customer_id=c.id, owner_user_id=user.id,
-                    kind="email", title=args.get("subject") or "Reply",
-                    body=(args.get("body") or "")[:500], agent_id=agent.id
-                ))
-                db.commit()
-        except Exception:
-            pass
-    return res
-
-
-# Slack
-async def _skill_slack_post(db, agent, user, args):
-    return await _run_app(db, agent, user, "slack", "post", args)
-
-async def _skill_slack_reply_thread(db, agent, user, args):
-    return await _run_app(db, agent, user, "slack", "reply_thread", args)
-
-async def _skill_slack_dm(db, agent, user, args):
-    return await _run_app(db, agent, user, "slack", "dm", args)
-
-async def _skill_slack_list_channels(db, agent, user, args):
-    return await _run_app(db, agent, user, "slack", "list_channels", args)
-
-async def _skill_slack_get_messages(db, agent, user, args):
-    return await _run_app(db, agent, user, "slack", "get_messages", args)
-
-
-# Google Calendar
-async def _skill_calendar_create_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "create_event", args)
-
-async def _skill_calendar_list_events(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "list_events", args)
-
-async def _skill_calendar_update_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "update_event", args)
-
-async def _skill_calendar_delete_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "delete_event", args)
-
-
-# Google Sheets
-async def _skill_sheets_append(db, agent, user, args):
-    return await _run_app(db, agent, user, "google_sheets", "append", args)
-
-async def _skill_sheets_read(db, agent, user, args):
-    return await _run_app(db, agent, user, "google_sheets", "read", args)
-
-async def _skill_sheets_update(db, agent, user, args):
-    return await _run_app(db, agent, user, "google_sheets", "update", args)
-
-async def _skill_sheets_create_sheet(db, agent, user, args):
-    return await _run_app(db, agent, user, "google_sheets", "create_sheet", args)
-
-
-# Shopify (via generic use_app style)
-async def _skill_shopify_action(db, agent, user, subaction, args):
-    p = {**args, "action": subaction}
-    return await _run_app(db, agent, user, "shopify", subaction, p)
-
-
-# HubSpot
-async def _skill_hubspot_action(db, agent, user, subaction, args):
-    return await _run_app(db, agent, user, "hubspot", subaction, args)
-
-
-# Notion
-async def _skill_notion_action(db, agent, user, subaction, args):
-    return await _run_app(db, agent, user, "notion", subaction, args)
-
-
-# Discord
-async def _skill_discord_action(db, agent, user, subaction, args):
-    return await _run_app(db, agent, user, "discord", subaction, args)
-
-
-# WhatsApp reply helper
-async def _skill_whatsapp_reply(db, agent, user, args):
-    return await _skill_send_whatsapp(db, agent, user, args)
-
-
-# Mailchimp + Dropbox (light)
-async def _skill_mailchimp_action(db, agent, user, subaction, args):
-    return await _run_app(db, agent, user, "mailchimp", subaction, args)
-
-async def _skill_dropbox_action(db, agent, user, subaction, args):
-    return await _run_app(db, agent, user, "dropbox", subaction, args)
+# ── Load implementations from skills.handlers_all into this module ─────────
+from .skills import handlers_all as _handlers_all  # noqa: E402
+
+def _load_skill_handlers_into_globals() -> None:
+    g = globals()
+    for name, val in vars(_handlers_all).items():
+        if name.startswith("_skill_") or name.startswith("_parse_") or name.startswith("_meeting_"):
+            g[name] = val
+
+_load_skill_handlers_into_globals()

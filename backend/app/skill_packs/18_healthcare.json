@@ -1,0 +1,998 @@
+{
+  "pack": "18_healthcare",
+  "category": "ops",
+  "label": "Healthcare ops",
+  "skills": [
+    {
+      "id": "hc_patient_comms",
+      "name": "Patient communications",
+      "description": "Draft clear, empathetic patient-facing messages (results, prep instructions, follow-ups) with the right tone, key points, and call to action.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_appointment_remind",
+      "name": "Appointment reminders",
+      "description": "Create multi-channel appointment reminder copy and sequences (SMS, email, call script) that reduce no-shows and set clear prep expectations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_no_show_reduce",
+      "name": "No-show reduction plan",
+      "description": "Design a practical no-show reduction playbook: outreach timing, confirmation workflows, waitlist fill rules, and metrics to track.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_intake_form_help",
+      "name": "Patient intake forms",
+      "description": "Improve or draft patient intake forms and questionnaires that capture clinical and administrative data cleanly while staying patient-friendly.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_referral_process",
+      "name": "Referral process design",
+      "description": "Map and document the referral workflow end-to-end—ordering, authorization, tracking, and closed-loop communication with referring providers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_care_pathway",
+      "name": "Care pathway design",
+      "description": "Build a structured care pathway or clinical pathway outline with stages, decision points, owners, and expected outcomes for a condition or service line.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_discharge_summary_help",
+      "name": "Discharge summary helper",
+      "description": "Produce a clear discharge summary template or draft covering diagnoses, procedures, meds, follow-up, and patient instructions for handoff continuity.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_medication_reconcile_note",
+      "name": "Medication reconciliation note",
+      "description": "Structure a medication reconciliation note comparing home, inpatient, and discharge meds with discrepancies, rationale, and follow-up actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_prior_auth_packet",
+      "name": "Prior authorization packet",
+      "description": "Assemble a complete prior authorization packet outline: clinical criteria, supporting notes, codes, and payer-ready checklist for faster approvals.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_appeal_letter",
+      "name": "Insurance appeal letter",
+      "description": "Write a professional medical necessity or claim appeal letter with clinical rationale, supporting evidence, and a clear request for reconsideration.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_coding_query",
+      "name": "Clinical coding query",
+      "description": "Draft a compliant physician query for coding clarification (specificity, POA, clinical indicators) without leading language.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_denial_management",
+      "name": "Denial management plan",
+      "description": "Build a denial management workflow: root-cause categories, appeal priorities, ownership, SLAs, and prevention actions for recurring denials.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_billing_explain",
+      "name": "Patient billing explanation",
+      "description": "Explain a patient bill or estimate in plain language—charges, insurance adjustments, patient responsibility, and payment options.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_eligibility_check_note",
+      "name": "Eligibility verification note",
+      "description": "Document insurance eligibility and benefits verification findings: coverage status, copay/deductible, auth requirements, and next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_hipaa_checklist",
+      "name": "HIPAA compliance checklist",
+      "description": "Produce a practical HIPAA privacy and security checklist for a process, system, or clinic workflow with owners and evidence points.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_privacy_incident_hc",
+      "name": "Privacy incident response",
+      "description": "Outline a healthcare privacy incident response plan: containment, risk assessment, notification triggers, documentation, and corrective actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_quality_measure",
+      "name": "Quality measure plan",
+      "description": "Define or improve a clinical quality measure program: measure definitions, data sources, workflows, targets, and improvement interventions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hcahps_improve",
+      "name": "HCAHPS improvement plan",
+      "description": "Create an HCAHPS / patient experience improvement plan with domain-level tactics, staff scripts, measurement, and accountability.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_staffing_hc",
+      "name": "Clinical staffing plan",
+      "description": "Build a clinical staffing model or schedule plan covering demand, skill mix, ratios, coverage gaps, and contingency options.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_credentialing_note",
+      "name": "Provider credentialing note",
+      "description": "Document a provider credentialing or privileging status note with required items, gaps, expirations, and follow-up owners.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_provider_onboard",
+      "name": "Provider onboarding plan",
+      "description": "Design a provider onboarding checklist and timeline covering credentialing, EMR access, orientation, and first-clinic readiness.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_clinic_schedule",
+      "name": "Clinic schedule design",
+      "description": "Optimize clinic templates and schedules for access, provider utilization, rooming flow, and visit-type mix.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_or_block_time",
+      "name": "OR block time plan",
+      "description": "Plan OR / procedure block time allocation, utilization rules, release policies, and performance metrics for surgical services.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_supply_clinical",
+      "name": "Clinical supply plan",
+      "description": "Create a clinical supply and par-level plan for a unit or procedure type, including critical items, reorder points, and waste controls.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_formulary_note",
+      "name": "Formulary decision note",
+      "description": "Draft a formulary review or P&T-style note summarizing efficacy, safety, cost, alternatives, and a recommended status decision.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_telehealth_script",
+      "name": "Telehealth visit script",
+      "description": "Write a telehealth visit script covering tech check, consent, history, counseling, documentation cues, and closing instructions.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_triage_protocol",
+      "name": "Triage protocol",
+      "description": "Design a nurse or call-center triage protocol with acuity levels, red flags, disposition rules, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_escalation_clinical",
+      "name": "Clinical escalation pathway",
+      "description": "Define clinical escalation criteria and communication pathways for deterioration, after-hours issues, and critical results.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_infection_control_note",
+      "name": "Infection control note",
+      "description": "Produce an infection prevention note or checklist for isolation, PPE, outbreak response, or unit-level control measures.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_emergency_plan_hc",
+      "name": "Healthcare emergency plan",
+      "description": "Draft or refine a facility emergency operations plan section covering roles, communication, surge, evacuation, and recovery priorities.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_emr_workflow",
+      "name": "EMR workflow design",
+      "description": "Map or improve an EMR clinical workflow (orders, documentation, in-basket, referrals) to reduce clicks, delays, and documentation burden.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_interop_note",
+      "name": "Interoperability brief",
+      "description": "Summarize a health data interoperability need or integration: systems involved, data exchange goals, standards, risks, and recommended approach.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_patient_portal_copy",
+      "name": "Patient portal copy",
+      "description": "Write patient portal UI copy, notifications, and help text that is clear, accessible, and action-oriented for common self-service tasks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_education_material",
+      "name": "Patient education material",
+      "description": "Create patient education content on a condition, procedure, or self-care topic in plain language with key takeaways and when-to-call guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_consent_plain_language",
+      "name": "Plain-language consent",
+      "description": "Rewrite informed consent or authorization language into plain language while preserving required elements and risks/benefits clarity.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_research_recruit",
+      "name": "Research recruitment plan",
+      "description": "Design a clinical research recruitment plan: eligibility messaging, channels, screening flow, and ethical recruitment language.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_irb_checklist",
+      "name": "IRB submission checklist",
+      "description": "Build an IRB / ethics submission checklist covering protocol elements, consent, risks, data protection, and required attachments.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_clinical_trial_note",
+      "name": "Clinical trial operations note",
+      "description": "Document a clinical trial operations note on site readiness, visit schedule, deviations, or coordination needs for study teams.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_population_health",
+      "name": "Population health plan",
+      "description": "Outline a population health initiative for a defined cohort: risk factors, outreach, care gaps, interventions, and outcome metrics.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_risk_stratify",
+      "name": "Patient risk stratification",
+      "description": "Define a risk stratification approach (tiers, criteria, data inputs) and recommended care intensity for each risk level.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_value_based_care",
+      "name": "Value-based care plan",
+      "description": "Create a value-based care operating plan covering quality metrics, cost drivers, care coordination tactics, and contract alignment.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_aco_report_note",
+      "name": "ACO performance report note",
+      "description": "Summarize ACO or shared-savings performance for a period: quality scores, utilization, financial trends, and recommended actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_payer_contract_note",
+      "name": "Payer contract note",
+      "description": "Summarize key terms of a payer contract for ops and clinical leaders: rates, quality terms, prior auth rules, and operational impacts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_medical_policy_summary",
+      "name": "Medical policy summary",
+      "description": "Distill a payer medical policy into an actionable summary: covered indications, exclusions, documentation requirements, and coding cues.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_guideline_digest",
+      "name": "Clinical guideline digest",
+      "description": "Digest a clinical practice guideline into a concise operational brief for clinicians: key recommendations, changes, and local adoption notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_cme_plan",
+      "name": "CME education plan",
+      "description": "Plan a CME or clinical education series: learning objectives, topics, faculty, schedule, and evaluation methods for a defined period.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_weekly",
+      "name": "Healthcare weekly ops brief",
+      "description": "Produce a weekly healthcare operations brief covering access, quality, staffing, revenue cycle, and top risks with owners and next actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_playbook",
+      "name": "Healthcare ops playbook",
+      "description": "Compile a reusable healthcare operations playbook for a service line or clinic: standard processes, roles, SLAs, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_compliance",
+      "name": "Healthcare compliance review",
+      "description": "Run a focused healthcare compliance review for a process or policy area, listing requirements, gaps, evidence, and remediation steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "hc_custom",
+      "name": "Custom healthcare deliverable",
+      "description": "Produce a custom healthcare operations deliverable tailored to the stated context, goal, audience, and constraints when no specific skill fits.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "18_healthcare",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

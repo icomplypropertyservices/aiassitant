@@ -1,0 +1,1867 @@
+{
+  "ok": true,
+  "generated_at": "2026-07-19T12:06:52Z",
+  "elapsed_sec": 49.08,
+  "base": "https://www.aibusinessagent.xyz/api",
+  "account": {
+    "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+    "user_id": 37,
+    "plan": "trial",
+    "subscription_active": true,
+    "subscription_expires_at": "2026-08-02T11:50:52.958524Z",
+    "plan_limits": {
+      "agents": 10,
+      "companies": 2,
+      "projects": 2
+    },
+    "tokens_remaining_included": 13098,
+    "tokens_used_period": 36902
+  },
+  "trial": {
+    "status": 200,
+    "active": true,
+    "result": {
+      "plan": "trial",
+      "subscription_active": true,
+      "subscription_expires_at": "2026-08-02T11:50:52.958524Z",
+      "already_active": true
+    }
+  },
+  "orchestrator": {
+    "status": 401,
+    "id": null,
+    "name": null,
+    "hierarchy_role": null,
+    "parent_id": null,
+    "bootstrap": null,
+    "bootstrap_error": null,
+    "error": null
+  },
+  "seed_starter_team": {
+    "status": 400,
+    "ok": false,
+    "body": {
+      "detail": "Your plan allows up to 10 agents (10 in use, 0 slot(s) left). Need at least 3 free slots to seed the starter team. Upgrade on Billing."
+    },
+    "plan_limit_blocked": true,
+    "limit_detail": "Your plan allows up to 10 agents (10 in use, 0 slot(s) left). Need at least 3 free slots to seed the starter team. Upgrade on Billing.",
+    "note": "plan_limits.agents=10; seed-starter-team needs free slots and tries to create many agents. Expect 400 when already at/near cap (trial allows up to 10 agents / 2 companies)."
+  },
+  "agent_count": 10,
+  "agents": [
+    {
+      "id": 27,
+      "name": "Main AI Orchestrator",
+      "template_type": "orchestrator",
+      "hierarchy_role": "orchestrator",
+      "parent_id": null,
+      "is_lead": true,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 28,
+      "name": "FAD Ops Lead",
+      "template_type": "ops",
+      "hierarchy_role": "lead",
+      "parent_id": 27,
+      "is_lead": true,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 30,
+      "name": "Lead Agent / Team Lead",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 27,
+      "is_lead": true,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 32,
+      "name": "Operations Lead",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 30,
+      "is_lead": true,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 31,
+      "name": "Sales Lead Agent",
+      "template_type": "lead",
+      "hierarchy_role": "lead",
+      "parent_id": 30,
+      "is_lead": true,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 35,
+      "name": "Appointment Booker",
+      "template_type": "booking",
+      "hierarchy_role": "member",
+      "parent_id": 31,
+      "is_lead": false,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 36,
+      "name": "Customer Support Agent",
+      "template_type": "support",
+      "hierarchy_role": "member",
+      "parent_id": 27,
+      "is_lead": false,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 34,
+      "name": "Lead Qualifier",
+      "template_type": "sales",
+      "hierarchy_role": "member",
+      "parent_id": 31,
+      "is_lead": false,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 29,
+      "name": "Master Designer",
+      "template_type": "designer",
+      "hierarchy_role": "specialist",
+      "parent_id": 27,
+      "is_lead": false,
+      "status": "active",
+      "role": null
+    },
+    {
+      "id": 33,
+      "name": "Sales Outreach Agent",
+      "template_type": "sales",
+      "hierarchy_role": "member",
+      "parent_id": 31,
+      "is_lead": false,
+      "status": "active",
+      "role": null
+    }
+  ],
+  "hierarchy": {
+    "tree": [
+      {
+        "id": 27,
+        "name": "Main AI Orchestrator",
+        "template_type": "orchestrator",
+        "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "admin",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "owner",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": null,
+        "parent_name": null,
+        "is_lead": true,
+        "is_orchestrator": true,
+        "hierarchy_role": "orchestrator",
+        "reports_count": 4,
+        "config": {
+          "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+          "autonomy": "full",
+          "companies_guidance": [
+            "Fire Alarms Dublin",
+            "iComply Property Services",
+            "iComply Products"
+          ],
+          "bootstrap_at": "2026-07-19T12:06:30.055653Z"
+        },
+        "created_at": "2026-07-19T11:50:57.846788",
+        "stats": {
+          "tasks": 65,
+          "completed": 4,
+          "open": 61,
+          "conversations": 1,
+          "reports": 4
+        },
+        "activity": [
+          {
+            "id": 1106,
+            "type": "action",
+            "message": "Main AI Orchestrator \u2192 Generate content",
+            "created_at": "2026-07-19T12:06:26.337783"
+          },
+          {
+            "id": 1107,
+            "type": "action",
+            "message": "Auto-chain: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.: 6 steps delegated under task #272",
+            "created_at": "2026-07-19T12:06:28.783620"
+          },
+          {
+            "id": 1108,
+            "type": "action",
+            "message": "[1/6] Clarify goal & success criteria: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:29.988669"
+          },
+          {
+            "id": 1112,
+            "type": "action",
+            "message": "[5/6] QA / review & pack result: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:34.714785"
+          },
+          {
+            "id": 1113,
+            "type": "action",
+            "message": "[6/6] Monitor completion & escalate blockers: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:35.878455"
+          },
+          {
+            "id": 1114,
+            "type": "info",
+            "message": "Task received: Live API test: confirm task appears on /agents/tasks with non-empty status.",
+            "created_at": "2026-07-19T12:06:36.958835"
+          },
+          {
+            "id": 1115,
+            "type": "action",
+            "message": "Main AI Orchestrator thinking: I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+            "created_at": "2026-07-19T12:06:37.458905"
+          },
+          {
+            "id": 1116,
+            "type": "action",
+            "message": "Replied to a direct chat message",
+            "created_at": "2026-07-19T12:06:37.636124"
+          }
+        ],
+        "integrations": [],
+        "children": [
+          {
+            "id": 28,
+            "name": "FAD Ops Lead",
+            "template_type": "ops",
+            "personality": "Lead for Fire Alarms Dublin. Coordinate specialists and report to the Main Orchestrator.",
+            "model": "quality",
+            "status": "active",
+            "idle_mode": "never_idle",
+            "permission_level": "lead",
+            "escalate_when": "on_failure",
+            "escalate_reason": "",
+            "escalate_to": "parent",
+            "escalate_human_id": null,
+            "company_id": 36,
+            "project_id": null,
+            "company_name": "Fire Alarms Dublin",
+            "project_name": null,
+            "parent_id": 27,
+            "parent_name": "Main AI Orchestrator",
+            "is_lead": true,
+            "is_orchestrator": false,
+            "hierarchy_role": "lead",
+            "reports_count": 0,
+            "config": {
+              "company_slug": "Fire Alarms Dublin",
+              "role": "company_lead"
+            },
+            "created_at": "2026-07-19T11:51:01.779653",
+            "stats": {
+              "tasks": 11,
+              "completed": 0,
+              "open": 11,
+              "conversations": 0,
+              "reports": 0
+            },
+            "activity": [
+              {
+                "id": 584,
+                "type": "action",
+                "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T11:53:41.299461"
+              },
+              {
+                "id": 644,
+                "type": "action",
+                "message": "[1/2] Create a short company mission for Live Demo Co and list 3 next actions.: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T11:54:47.242575"
+              },
+              {
+                "id": 722,
+                "type": "action",
+                "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T11:55:45.458198"
+              },
+              {
+                "id": 723,
+                "type": "action",
+                "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T11:55:46.639088"
+              },
+              {
+                "id": 1087,
+                "type": "action",
+                "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T12:05:38.156783"
+              },
+              {
+                "id": 1088,
+                "type": "action",
+                "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T12:05:39.342598"
+              },
+              {
+                "id": 1109,
+                "type": "action",
+                "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T12:06:31.260240"
+              },
+              {
+                "id": 1110,
+                "type": "action",
+                "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+                "created_at": "2026-07-19T12:06:32.436375"
+              }
+            ],
+            "integrations": [],
+            "children": []
+          },
+          {
+            "id": 30,
+            "name": "Lead Agent / Team Lead",
+            "template_type": "lead",
+            "personality": "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",
+            "model": "quality",
+            "status": "active",
+            "idle_mode": "never_idle",
+            "permission_level": "lead",
+            "escalate_when": "on_failure",
+            "escalate_reason": "",
+            "escalate_to": "parent",
+            "escalate_human_id": null,
+            "company_id": null,
+            "project_id": null,
+            "company_name": null,
+            "project_name": null,
+            "parent_id": 27,
+            "parent_name": "Main AI Orchestrator",
+            "is_lead": true,
+            "is_orchestrator": false,
+            "hierarchy_role": "lead",
+            "reports_count": 2,
+            "config": {
+              "team_goal": "",
+              "reporting_style": "",
+              "delegation_rules": "",
+              "autonomy": "full"
+            },
+            "created_at": "2026-07-19T11:51:23.969213",
+            "stats": {
+              "tasks": 1,
+              "completed": 0,
+              "open": 1,
+              "conversations": 0,
+              "reports": 2
+            },
+            "activity": [
+              {
+                "id": 557,
+                "type": "action",
+                "message": "[3/6] (2) Write 5 outreach emails (sequences/variants) aligned to that ICP.: \u2192 Lead Agent / Team Lead",
+                "created_at": "2026-07-19T11:53:29.487923"
+              }
+            ],
+            "integrations": [],
+            "children": [
+              {
+                "id": 32,
+                "name": "Operations Lead",
+                "template_type": "lead",
+                "personality": "Runs multi-agent workflows across sales, support and ops \u2014 assigns owners and tracks completion.",
+                "model": "quality",
+                "status": "active",
+                "idle_mode": "never_idle",
+                "permission_level": "lead",
+                "escalate_when": "on_failure",
+                "escalate_reason": "",
+                "escalate_to": "parent",
+                "escalate_human_id": null,
+                "company_id": null,
+                "project_id": null,
+                "company_name": null,
+                "project_name": null,
+                "parent_id": 30,
+                "parent_name": "Lead Agent / Team Lead",
+                "is_lead": true,
+                "is_orchestrator": false,
+                "hierarchy_role": "lead",
+                "reports_count": 0,
+                "config": {
+                  "scope": "",
+                  "sla": "",
+                  "autonomy": "full"
+                },
+                "created_at": "2026-07-19T11:51:25.887764",
+                "stats": {
+                  "tasks": 0,
+                  "completed": 0,
+                  "open": 0,
+                  "conversations": 0,
+                  "reports": 0
+                },
+                "activity": [],
+                "integrations": [],
+                "children": []
+              },
+              {
+                "id": 31,
+                "name": "Sales Lead Agent",
+                "template_type": "lead",
+                "personality": "Owns the sales pod: pipeline hygiene, coaching scripts, and assigning leads to outreach agents.",
+                "model": "quality",
+                "status": "active",
+                "idle_mode": "never_idle",
+                "permission_level": "lead",
+                "escalate_when": "on_failure",
+                "escalate_reason": "",
+                "escalate_to": "parent",
+                "escalate_human_id": null,
+                "company_id": null,
+                "project_id": null,
+                "company_name": null,
+                "project_name": null,
+                "parent_id": 30,
+                "parent_name": "Lead Agent / Team Lead",
+                "is_lead": true,
+                "is_orchestrator": false,
+                "hierarchy_role": "lead",
+                "reports_count": 3,
+                "config": {
+                  "pipeline_stages": "",
+                  "quota": "",
+                  "autonomy": "full"
+                },
+                "created_at": "2026-07-19T11:51:24.885509",
+                "stats": {
+                  "tasks": 0,
+                  "completed": 0,
+                  "open": 0,
+                  "conversations": 0,
+                  "reports": 3
+                },
+                "activity": [],
+                "integrations": [],
+                "children": [
+                  {
+                    "id": 35,
+                    "name": "Appointment Booker",
+                    "template_type": "booking",
+                    "personality": "Handles booking requests, confirms slots and sends reminders.",
+                    "model": "fast",
+                    "status": "active",
+                    "idle_mode": "never_idle",
+                    "permission_level": "operator",
+                    "escalate_when": "on_failure",
+                    "escalate_reason": "",
+                    "escalate_to": "parent",
+                    "escalate_human_id": null,
+                    "company_id": null,
+                    "project_id": null,
+                    "company_name": null,
+                    "project_name": null,
+                    "parent_id": 31,
+                    "parent_name": "Sales Lead Agent",
+                    "is_lead": false,
+                    "is_orchestrator": false,
+                    "hierarchy_role": "member",
+                    "reports_count": 0,
+                    "config": {
+                      "services": "",
+                      "hours": "",
+                      "autonomy": "full"
+                    },
+                    "created_at": "2026-07-19T11:51:28.767242",
+                    "stats": {
+                      "tasks": 0,
+                      "completed": 0,
+                      "open": 0,
+                      "conversations": 0,
+                      "reports": 0
+                    },
+                    "activity": [],
+                    "integrations": [],
+                    "children": []
+                  },
+                  {
+                    "id": 34,
+                    "name": "Lead Qualifier",
+                    "template_type": "sales",
+                    "personality": "Scores inbound enquiries, asks qualifying questions, and routes hot leads to you.",
+                    "model": "fast",
+                    "status": "active",
+                    "idle_mode": "never_idle",
+                    "permission_level": "operator",
+                    "escalate_when": "on_failure",
+                    "escalate_reason": "",
+                    "escalate_to": "parent",
+                    "escalate_human_id": null,
+                    "company_id": null,
+                    "project_id": null,
+                    "company_name": null,
+                    "project_name": null,
+                    "parent_id": 31,
+                    "parent_name": "Sales Lead Agent",
+                    "is_lead": false,
+                    "is_orchestrator": false,
+                    "hierarchy_role": "member",
+                    "reports_count": 0,
+                    "config": {
+                      "icp": "",
+                      "disqualify": "",
+                      "autonomy": "full"
+                    },
+                    "created_at": "2026-07-19T11:51:27.792922",
+                    "stats": {
+                      "tasks": 0,
+                      "completed": 0,
+                      "open": 0,
+                      "conversations": 0,
+                      "reports": 0
+                    },
+                    "activity": [],
+                    "integrations": [],
+                    "children": []
+                  },
+                  {
+                    "id": 33,
+                    "name": "Sales Outreach Agent",
+                    "template_type": "sales",
+                    "personality": "Finds leads, drafts personalised outreach and follows up automatically.",
+                    "model": "fast",
+                    "status": "active",
+                    "idle_mode": "never_idle",
+                    "permission_level": "operator",
+                    "escalate_when": "on_failure",
+                    "escalate_reason": "",
+                    "escalate_to": "parent",
+                    "escalate_human_id": null,
+                    "company_id": null,
+                    "project_id": null,
+                    "company_name": null,
+                    "project_name": null,
+                    "parent_id": 31,
+                    "parent_name": "Sales Lead Agent",
+                    "is_lead": false,
+                    "is_orchestrator": false,
+                    "hierarchy_role": "member",
+                    "reports_count": 0,
+                    "config": {
+                      "product": "",
+                      "target": "",
+                      "autonomy": "full"
+                    },
+                    "created_at": "2026-07-19T11:51:26.854947",
+                    "stats": {
+                      "tasks": 5,
+                      "completed": 0,
+                      "open": 5,
+                      "conversations": 0,
+                      "reports": 0
+                    },
+                    "activity": [
+                      {
+                        "id": 535,
+                        "type": "action",
+                        "message": "[1/5] Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property : \u2192 Sales Outreach Agent",
+                        "created_at": "2026-07-19T11:53:21.442446"
+                      },
+                      {
+                        "id": 540,
+                        "type": "action",
+                        "message": "[3/5] 3) Set weekly sales targets (demos booked, emails sent, follow-ups, conversion).: \u2192 Sales Outreach Agent",
+                        "created_at": "2026-07-19T11:53:23.916935"
+                      },
+                      {
+                        "id": 546,
+                        "type": "action",
+                        "message": "[5/5] Deliver a consolidated sales plan; delegate research/content to team leads where useful; save key outputs to memor: \u2192 Sales Outreach Agent",
+                        "created_at": "2026-07-19T11:53:26.329722"
+                      },
+                      {
+                        "id": 549,
+                        "type": "action",
+                        "message": "[1/6] Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella.: \u2192 Sales Outreach Agent",
+                        "created_at": "2026-07-19T11:53:27.269005"
+                      },
+                      {
+                        "id": 561,
+                        "type": "action",
+                        "message": "[4/6] (3) Set clear weekly sales targets (demos booked, demos run, follow-ups, pipeline value).: \u2192 Sales Outreach Agent",
+                        "created_at": "2026-07-19T11:53:30.699064"
+                      }
+                    ],
+                    "integrations": [],
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 36,
+            "name": "Customer Support Agent",
+            "template_type": "support",
+            "personality": "Answers customer questions by email/SMS using your business info.",
+            "model": "fast",
+            "status": "active",
+            "idle_mode": "never_idle",
+            "permission_level": "operator",
+            "escalate_when": "on_failure",
+            "escalate_reason": "",
+            "escalate_to": "parent",
+            "escalate_human_id": null,
+            "company_id": null,
+            "project_id": null,
+            "company_name": null,
+            "project_name": null,
+            "parent_id": 27,
+            "parent_name": "Main AI Orchestrator",
+            "is_lead": false,
+            "is_orchestrator": false,
+            "hierarchy_role": "member",
+            "reports_count": 0,
+            "config": {
+              "business_name": "",
+              "faq": "",
+              "autonomy": "full"
+            },
+            "created_at": "2026-07-19T11:51:29.772307",
+            "stats": {
+              "tasks": 1,
+              "completed": 0,
+              "open": 1,
+              "conversations": 0,
+              "reports": 0
+            },
+            "activity": [
+              {
+                "id": 543,
+                "type": "action",
+                "message": "[4/5] 4) Structure a progress report cadence for the owner.: \u2192 Customer Support Agent",
+                "created_at": "2026-07-19T11:53:25.108857"
+              }
+            ],
+            "integrations": [],
+            "children": []
+          },
+          {
+            "id": 29,
+            "name": "Master Designer",
+            "template_type": "designer",
+            "personality": "Exacting product designer. You judge UI polish for mobile and desktop: ChatGPT-like agent chat, touch targets, spacing, hierarchy, contrast, and clarity. You block ship until the experience feels premium and simple \u2014 one agent per page for chat.",
+            "model": "quality",
+            "status": "active",
+            "idle_mode": "never_idle",
+            "permission_level": "lead",
+            "escalate_when": "on_failure",
+            "escalate_reason": "UI polish not acceptable until designer gates pass",
+            "escalate_to": "orchestrator",
+            "escalate_human_id": null,
+            "company_id": null,
+            "project_id": null,
+            "company_name": null,
+            "project_name": null,
+            "parent_id": 27,
+            "parent_name": "Main AI Orchestrator",
+            "is_lead": false,
+            "is_orchestrator": false,
+            "hierarchy_role": "specialist",
+            "reports_count": 0,
+            "config": {
+              "brand": "AI Business Assistant",
+              "mobile_first": true,
+              "autonomy": "full",
+              "gates": [
+                "Agent chat is full-screen ChatGPT style",
+                "One agent per chat page",
+                "Touch targets \u2265 44px on mobile",
+                "Bottom nav on phone for main areas",
+                "Safe-area padding"
+              ]
+            },
+            "created_at": "2026-07-19T11:51:22.945248",
+            "stats": {
+              "tasks": 9,
+              "completed": 0,
+              "open": 9,
+              "conversations": 0,
+              "reports": 0
+            },
+            "activity": [
+              {
+                "id": 537,
+                "type": "action",
+                "message": "[2/5] 2) Write 5 outreach emails mapped to ICP pains.: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:53:22.738674"
+              },
+              {
+                "id": 553,
+                "type": "action",
+                "message": "[2/6] Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that convert to FAD, iComply Property Services, a: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:53:28.373567"
+              },
+              {
+                "id": 565,
+                "type": "action",
+                "message": "[6/6] Coordinate via Lead Agent; use research and generate_content; save final plan to memory.: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:53:33.033253"
+              },
+              {
+                "id": 587,
+                "type": "action",
+                "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:53:42.397061"
+              },
+              {
+                "id": 647,
+                "type": "action",
+                "message": "[2/2] Reply as the orchestrator to the human owner.: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:54:48.386535"
+              },
+              {
+                "id": 724,
+                "type": "action",
+                "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+                "created_at": "2026-07-19T11:55:47.776013"
+              },
+              {
+                "id": 1089,
+                "type": "action",
+                "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+                "created_at": "2026-07-19T12:05:40.441829"
+              },
+              {
+                "id": 1111,
+                "type": "action",
+                "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+                "created_at": "2026-07-19T12:06:33.609021"
+              }
+            ],
+            "integrations": [],
+            "children": []
+          }
+        ]
+      }
+    ],
+    "orchestrator": {
+      "id": 27,
+      "name": "Main AI Orchestrator",
+      "template_type": "orchestrator",
+      "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+      "model": "quality",
+      "status": "active",
+      "idle_mode": "never_idle",
+      "permission_level": "admin",
+      "escalate_when": "on_failure",
+      "escalate_reason": "",
+      "escalate_to": "owner",
+      "escalate_human_id": null,
+      "company_id": 36,
+      "project_id": null,
+      "company_name": "Fire Alarms Dublin",
+      "project_name": null,
+      "parent_id": null,
+      "parent_name": null,
+      "is_lead": true,
+      "is_orchestrator": true,
+      "hierarchy_role": "orchestrator",
+      "reports_count": 4,
+      "config": {
+        "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+        "autonomy": "full",
+        "companies_guidance": [
+          "Fire Alarms Dublin",
+          "iComply Property Services",
+          "iComply Products"
+        ],
+        "bootstrap_at": "2026-07-19T12:06:30.055653Z"
+      },
+      "created_at": "2026-07-19T11:50:57.846788",
+      "stats": {
+        "tasks": 65,
+        "completed": 4,
+        "open": 61,
+        "conversations": 1,
+        "reports": 4
+      },
+      "activity": [
+        {
+          "id": 1107,
+          "type": "action",
+          "message": "Auto-chain: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.: 6 steps delegated under task #272",
+          "created_at": "2026-07-19T12:06:28.783620"
+        },
+        {
+          "id": 1108,
+          "type": "action",
+          "message": "[1/6] Clarify goal & success criteria: \u2192 Main AI Orchestrator",
+          "created_at": "2026-07-19T12:06:29.988669"
+        },
+        {
+          "id": 1112,
+          "type": "action",
+          "message": "[5/6] QA / review & pack result: \u2192 Main AI Orchestrator",
+          "created_at": "2026-07-19T12:06:34.714785"
+        },
+        {
+          "id": 1113,
+          "type": "action",
+          "message": "[6/6] Monitor completion & escalate blockers: \u2192 Main AI Orchestrator",
+          "created_at": "2026-07-19T12:06:35.878455"
+        },
+        {
+          "id": 1114,
+          "type": "info",
+          "message": "Task received: Live API test: confirm task appears on /agents/tasks with non-empty status.",
+          "created_at": "2026-07-19T12:06:36.958835"
+        },
+        {
+          "id": 1115,
+          "type": "action",
+          "message": "Main AI Orchestrator thinking: I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+          "created_at": "2026-07-19T12:06:37.458905"
+        },
+        {
+          "id": 1116,
+          "type": "action",
+          "message": "Replied to a direct chat message",
+          "created_at": "2026-07-19T12:06:37.636124"
+        },
+        {
+          "id": 1117,
+          "type": "action",
+          "message": "Main AI Orchestrator replied: Building the weekly sales plan now: I\u2019ll research the ICP, draft 3 outreach lines, set targets, and report back to you.\n\n\u2014 Skills: research: None; create_task: Task created; generate_content: None\n\n\u2014 Auto-chain started: goal task #272 with ",
+          "created_at": "2026-07-19T12:06:38.843467"
+        }
+      ],
+      "integrations": []
+    },
+    "orchestrators": [
+      {
+        "id": 27,
+        "name": "Main AI Orchestrator",
+        "template_type": "orchestrator",
+        "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "admin",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "owner",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": null,
+        "parent_name": null,
+        "is_lead": true,
+        "is_orchestrator": true,
+        "hierarchy_role": "orchestrator",
+        "reports_count": 4,
+        "config": {
+          "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+          "autonomy": "full",
+          "companies_guidance": [
+            "Fire Alarms Dublin",
+            "iComply Property Services",
+            "iComply Products"
+          ],
+          "bootstrap_at": "2026-07-19T12:06:30.055653Z"
+        },
+        "created_at": "2026-07-19T11:50:57.846788",
+        "stats": {
+          "tasks": 65,
+          "completed": 4,
+          "open": 61,
+          "conversations": 1,
+          "reports": 4
+        },
+        "activity": [
+          {
+            "id": 1107,
+            "type": "action",
+            "message": "Auto-chain: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.: 6 steps delegated under task #272",
+            "created_at": "2026-07-19T12:06:28.783620"
+          },
+          {
+            "id": 1108,
+            "type": "action",
+            "message": "[1/6] Clarify goal & success criteria: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:29.988669"
+          },
+          {
+            "id": 1112,
+            "type": "action",
+            "message": "[5/6] QA / review & pack result: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:34.714785"
+          },
+          {
+            "id": 1113,
+            "type": "action",
+            "message": "[6/6] Monitor completion & escalate blockers: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:35.878455"
+          },
+          {
+            "id": 1114,
+            "type": "info",
+            "message": "Task received: Live API test: confirm task appears on /agents/tasks with non-empty status.",
+            "created_at": "2026-07-19T12:06:36.958835"
+          },
+          {
+            "id": 1115,
+            "type": "action",
+            "message": "Main AI Orchestrator thinking: I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+            "created_at": "2026-07-19T12:06:37.458905"
+          },
+          {
+            "id": 1116,
+            "type": "action",
+            "message": "Replied to a direct chat message",
+            "created_at": "2026-07-19T12:06:37.636124"
+          },
+          {
+            "id": 1117,
+            "type": "action",
+            "message": "Main AI Orchestrator replied: Building the weekly sales plan now: I\u2019ll research the ICP, draft 3 outreach lines, set targets, and report back to you.\n\n\u2014 Skills: research: None; create_task: Task created; generate_content: None\n\n\u2014 Auto-chain started: goal task #272 with ",
+            "created_at": "2026-07-19T12:06:38.843467"
+          }
+        ],
+        "integrations": []
+      }
+    ],
+    "leads": [
+      {
+        "id": 27,
+        "name": "Main AI Orchestrator",
+        "template_type": "orchestrator",
+        "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "admin",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "owner",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": null,
+        "parent_name": null,
+        "is_lead": true,
+        "is_orchestrator": true,
+        "hierarchy_role": "orchestrator",
+        "reports_count": 4,
+        "config": {
+          "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+          "autonomy": "full",
+          "companies_guidance": [
+            "Fire Alarms Dublin",
+            "iComply Property Services",
+            "iComply Products"
+          ],
+          "bootstrap_at": "2026-07-19T12:06:30.055653Z"
+        },
+        "created_at": "2026-07-19T11:50:57.846788",
+        "stats": {
+          "tasks": 65,
+          "completed": 4,
+          "open": 61,
+          "conversations": 1,
+          "reports": 4
+        },
+        "activity": [
+          {
+            "id": 1107,
+            "type": "action",
+            "message": "Auto-chain: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.: 6 steps delegated under task #272",
+            "created_at": "2026-07-19T12:06:28.783620"
+          },
+          {
+            "id": 1108,
+            "type": "action",
+            "message": "[1/6] Clarify goal & success criteria: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:29.988669"
+          },
+          {
+            "id": 1112,
+            "type": "action",
+            "message": "[5/6] QA / review & pack result: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:34.714785"
+          },
+          {
+            "id": 1113,
+            "type": "action",
+            "message": "[6/6] Monitor completion & escalate blockers: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:35.878455"
+          },
+          {
+            "id": 1114,
+            "type": "info",
+            "message": "Task received: Live API test: confirm task appears on /agents/tasks with non-empty status.",
+            "created_at": "2026-07-19T12:06:36.958835"
+          },
+          {
+            "id": 1115,
+            "type": "action",
+            "message": "Main AI Orchestrator thinking: I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+            "created_at": "2026-07-19T12:06:37.458905"
+          },
+          {
+            "id": 1116,
+            "type": "action",
+            "message": "Replied to a direct chat message",
+            "created_at": "2026-07-19T12:06:37.636124"
+          },
+          {
+            "id": 1117,
+            "type": "action",
+            "message": "Main AI Orchestrator replied: Building the weekly sales plan now: I\u2019ll research the ICP, draft 3 outreach lines, set targets, and report back to you.\n\n\u2014 Skills: research: None; create_task: Task created; generate_content: None\n\n\u2014 Auto-chain started: goal task #272 with ",
+            "created_at": "2026-07-19T12:06:38.843467"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 28,
+        "name": "FAD Ops Lead",
+        "template_type": "ops",
+        "personality": "Lead for Fire Alarms Dublin. Coordinate specialists and report to the Main Orchestrator.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 0,
+        "config": {
+          "company_slug": "Fire Alarms Dublin",
+          "role": "company_lead"
+        },
+        "created_at": "2026-07-19T11:51:01.779653",
+        "stats": {
+          "tasks": 11,
+          "completed": 0,
+          "open": 11,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [
+          {
+            "id": 584,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:53:41.299461"
+          },
+          {
+            "id": 644,
+            "type": "action",
+            "message": "[1/2] Create a short company mission for Live Demo Co and list 3 next actions.: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:54:47.242575"
+          },
+          {
+            "id": 722,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:55:45.458198"
+          },
+          {
+            "id": 723,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:55:46.639088"
+          },
+          {
+            "id": 1087,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:05:38.156783"
+          },
+          {
+            "id": 1088,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:05:39.342598"
+          },
+          {
+            "id": 1109,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:06:31.260240"
+          },
+          {
+            "id": 1110,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:06:32.436375"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 30,
+        "name": "Lead Agent / Team Lead",
+        "template_type": "lead",
+        "personality": "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 2,
+        "config": {
+          "team_goal": "",
+          "reporting_style": "",
+          "delegation_rules": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:23.969213",
+        "stats": {
+          "tasks": 1,
+          "completed": 0,
+          "open": 1,
+          "conversations": 0,
+          "reports": 2
+        },
+        "activity": [
+          {
+            "id": 557,
+            "type": "action",
+            "message": "[3/6] (2) Write 5 outreach emails (sequences/variants) aligned to that ICP.: \u2192 Lead Agent / Team Lead",
+            "created_at": "2026-07-19T11:53:29.487923"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 32,
+        "name": "Operations Lead",
+        "template_type": "lead",
+        "personality": "Runs multi-agent workflows across sales, support and ops \u2014 assigns owners and tracks completion.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 30,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 0,
+        "config": {
+          "scope": "",
+          "sla": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:25.887764",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 31,
+        "name": "Sales Lead Agent",
+        "template_type": "lead",
+        "personality": "Owns the sales pod: pipeline hygiene, coaching scripts, and assigning leads to outreach agents.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 30,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 3,
+        "config": {
+          "pipeline_stages": "",
+          "quota": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:24.885509",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 3
+        },
+        "activity": [],
+        "integrations": []
+      }
+    ],
+    "flat": [
+      {
+        "id": 27,
+        "name": "Main AI Orchestrator",
+        "template_type": "orchestrator",
+        "personality": "Strategic, clear, and decisive. You sit above all other agents, route work to the right lead or project team, and keep the human owner informed. You operate 100% autonomously: spawn, delegate, run skills, and recover from failures.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "admin",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "owner",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": null,
+        "parent_name": null,
+        "is_lead": true,
+        "is_orchestrator": true,
+        "hierarchy_role": "orchestrator",
+        "reports_count": 4,
+        "config": {
+          "mission": "Coordinate Fire Alarms Dublin, iComply Property Services, and iComply Products. Route sales, ops, catalogue/SEO, git repos, and local machine agents. Keep wallets funded and skills enabled.",
+          "autonomy": "full",
+          "companies_guidance": [
+            "Fire Alarms Dublin",
+            "iComply Property Services",
+            "iComply Products"
+          ],
+          "bootstrap_at": "2026-07-19T12:06:30.055653Z"
+        },
+        "created_at": "2026-07-19T11:50:57.846788",
+        "stats": {
+          "tasks": 65,
+          "completed": 4,
+          "open": 61,
+          "conversations": 1,
+          "reports": 4
+        },
+        "activity": [
+          {
+            "id": 1107,
+            "type": "action",
+            "message": "Auto-chain: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.: 6 steps delegated under task #272",
+            "created_at": "2026-07-19T12:06:28.783620"
+          },
+          {
+            "id": 1108,
+            "type": "action",
+            "message": "[1/6] Clarify goal & success criteria: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:29.988669"
+          },
+          {
+            "id": 1112,
+            "type": "action",
+            "message": "[5/6] QA / review & pack result: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:34.714785"
+          },
+          {
+            "id": 1113,
+            "type": "action",
+            "message": "[6/6] Monitor completion & escalate blockers: \u2192 Main AI Orchestrator",
+            "created_at": "2026-07-19T12:06:35.878455"
+          },
+          {
+            "id": 1114,
+            "type": "info",
+            "message": "Task received: Live API test: confirm task appears on /agents/tasks with non-empty status.",
+            "created_at": "2026-07-19T12:06:36.958835"
+          },
+          {
+            "id": 1115,
+            "type": "action",
+            "message": "Main AI Orchestrator thinking: I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+            "created_at": "2026-07-19T12:06:37.458905"
+          },
+          {
+            "id": 1116,
+            "type": "action",
+            "message": "Replied to a direct chat message",
+            "created_at": "2026-07-19T12:06:37.636124"
+          },
+          {
+            "id": 1117,
+            "type": "action",
+            "message": "Main AI Orchestrator replied: Building the weekly sales plan now: I\u2019ll research the ICP, draft 3 outreach lines, set targets, and report back to you.\n\n\u2014 Skills: research: None; create_task: Task created; generate_content: None\n\n\u2014 Auto-chain started: goal task #272 with ",
+            "created_at": "2026-07-19T12:06:38.843467"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 28,
+        "name": "FAD Ops Lead",
+        "template_type": "ops",
+        "personality": "Lead for Fire Alarms Dublin. Coordinate specialists and report to the Main Orchestrator.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": 36,
+        "project_id": null,
+        "company_name": "Fire Alarms Dublin",
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 0,
+        "config": {
+          "company_slug": "Fire Alarms Dublin",
+          "role": "company_lead"
+        },
+        "created_at": "2026-07-19T11:51:01.779653",
+        "stats": {
+          "tasks": 11,
+          "completed": 0,
+          "open": 11,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [
+          {
+            "id": 584,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:53:41.299461"
+          },
+          {
+            "id": 644,
+            "type": "action",
+            "message": "[1/2] Create a short company mission for Live Demo Co and list 3 next actions.: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:54:47.242575"
+          },
+          {
+            "id": 722,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:55:45.458198"
+          },
+          {
+            "id": 723,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T11:55:46.639088"
+          },
+          {
+            "id": 1087,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:05:38.156783"
+          },
+          {
+            "id": 1088,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:05:39.342598"
+          },
+          {
+            "id": 1109,
+            "type": "action",
+            "message": "[2/6] Set company/project targets: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:06:31.260240"
+          },
+          {
+            "id": 1110,
+            "type": "action",
+            "message": "[3/6] Break work into owned workstreams: \u2192 FAD Ops Lead",
+            "created_at": "2026-07-19T12:06:32.436375"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 30,
+        "name": "Lead Agent / Team Lead",
+        "template_type": "lead",
+        "personality": "Orchestrates a team of agents: prioritises work, delegates tasks, reviews deliverables, and reports status to you.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 2,
+        "config": {
+          "team_goal": "",
+          "reporting_style": "",
+          "delegation_rules": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:23.969213",
+        "stats": {
+          "tasks": 1,
+          "completed": 0,
+          "open": 1,
+          "conversations": 0,
+          "reports": 2
+        },
+        "activity": [
+          {
+            "id": 557,
+            "type": "action",
+            "message": "[3/6] (2) Write 5 outreach emails (sequences/variants) aligned to that ICP.: \u2192 Lead Agent / Team Lead",
+            "created_at": "2026-07-19T11:53:29.487923"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 32,
+        "name": "Operations Lead",
+        "template_type": "lead",
+        "personality": "Runs multi-agent workflows across sales, support and ops \u2014 assigns owners and tracks completion.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 30,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 0,
+        "config": {
+          "scope": "",
+          "sla": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:25.887764",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 31,
+        "name": "Sales Lead Agent",
+        "template_type": "lead",
+        "personality": "Owns the sales pod: pipeline hygiene, coaching scripts, and assigning leads to outreach agents.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 30,
+        "parent_name": "Lead Agent / Team Lead",
+        "is_lead": true,
+        "is_orchestrator": false,
+        "hierarchy_role": "lead",
+        "reports_count": 3,
+        "config": {
+          "pipeline_stages": "",
+          "quota": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:24.885509",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 3
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 35,
+        "name": "Appointment Booker",
+        "template_type": "booking",
+        "personality": "Handles booking requests, confirms slots and sends reminders.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 31,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "services": "",
+          "hours": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:28.767242",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 36,
+        "name": "Customer Support Agent",
+        "template_type": "support",
+        "personality": "Answers customer questions by email/SMS using your business info.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "business_name": "",
+          "faq": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:29.772307",
+        "stats": {
+          "tasks": 1,
+          "completed": 0,
+          "open": 1,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [
+          {
+            "id": 543,
+            "type": "action",
+            "message": "[4/5] 4) Structure a progress report cadence for the owner.: \u2192 Customer Support Agent",
+            "created_at": "2026-07-19T11:53:25.108857"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 34,
+        "name": "Lead Qualifier",
+        "template_type": "sales",
+        "personality": "Scores inbound enquiries, asks qualifying questions, and routes hot leads to you.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 31,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "icp": "",
+          "disqualify": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:27.792922",
+        "stats": {
+          "tasks": 0,
+          "completed": 0,
+          "open": 0,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [],
+        "integrations": []
+      },
+      {
+        "id": 29,
+        "name": "Master Designer",
+        "template_type": "designer",
+        "personality": "Exacting product designer. You judge UI polish for mobile and desktop: ChatGPT-like agent chat, touch targets, spacing, hierarchy, contrast, and clarity. You block ship until the experience feels premium and simple \u2014 one agent per page for chat.",
+        "model": "quality",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "lead",
+        "escalate_when": "on_failure",
+        "escalate_reason": "UI polish not acceptable until designer gates pass",
+        "escalate_to": "orchestrator",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 27,
+        "parent_name": "Main AI Orchestrator",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "specialist",
+        "reports_count": 0,
+        "config": {
+          "brand": "AI Business Assistant",
+          "mobile_first": true,
+          "autonomy": "full",
+          "gates": [
+            "Agent chat is full-screen ChatGPT style",
+            "One agent per chat page",
+            "Touch targets \u2265 44px on mobile",
+            "Bottom nav on phone for main areas",
+            "Safe-area padding"
+          ]
+        },
+        "created_at": "2026-07-19T11:51:22.945248",
+        "stats": {
+          "tasks": 9,
+          "completed": 0,
+          "open": 9,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [
+          {
+            "id": 537,
+            "type": "action",
+            "message": "[2/5] 2) Write 5 outreach emails mapped to ICP pains.: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:53:22.738674"
+          },
+          {
+            "id": 553,
+            "type": "action",
+            "message": "[2/6] Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that convert to FAD, iComply Property Services, a: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:53:28.373567"
+          },
+          {
+            "id": 565,
+            "type": "action",
+            "message": "[6/6] Coordinate via Lead Agent; use research and generate_content; save final plan to memory.: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:53:33.033253"
+          },
+          {
+            "id": 587,
+            "type": "action",
+            "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:53:42.397061"
+          },
+          {
+            "id": 647,
+            "type": "action",
+            "message": "[2/2] Reply as the orchestrator to the human owner.: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:54:48.386535"
+          },
+          {
+            "id": 724,
+            "type": "action",
+            "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+            "created_at": "2026-07-19T11:55:47.776013"
+          },
+          {
+            "id": 1089,
+            "type": "action",
+            "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+            "created_at": "2026-07-19T12:05:40.441829"
+          },
+          {
+            "id": 1111,
+            "type": "action",
+            "message": "[4/6] Execute primary deliverable: \u2192 Master Designer",
+            "created_at": "2026-07-19T12:06:33.609021"
+          }
+        ],
+        "integrations": []
+      },
+      {
+        "id": 33,
+        "name": "Sales Outreach Agent",
+        "template_type": "sales",
+        "personality": "Finds leads, drafts personalised outreach and follows up automatically.",
+        "model": "fast",
+        "status": "active",
+        "idle_mode": "never_idle",
+        "permission_level": "operator",
+        "escalate_when": "on_failure",
+        "escalate_reason": "",
+        "escalate_to": "parent",
+        "escalate_human_id": null,
+        "company_id": null,
+        "project_id": null,
+        "company_name": null,
+        "project_name": null,
+        "parent_id": 31,
+        "parent_name": "Sales Lead Agent",
+        "is_lead": false,
+        "is_orchestrator": false,
+        "hierarchy_role": "member",
+        "reports_count": 0,
+        "config": {
+          "product": "",
+          "target": "",
+          "autonomy": "full"
+        },
+        "created_at": "2026-07-19T11:51:26.854947",
+        "stats": {
+          "tasks": 5,
+          "completed": 0,
+          "open": 5,
+          "conversations": 0,
+          "reports": 0
+        },
+        "activity": [
+          {
+            "id": 535,
+            "type": "action",
+            "message": "[1/5] Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property : \u2192 Sales Outreach Agent",
+            "created_at": "2026-07-19T11:53:21.442446"
+          },
+          {
+            "id": 540,
+            "type": "action",
+            "message": "[3/5] 3) Set weekly sales targets (demos booked, emails sent, follow-ups, conversion).: \u2192 Sales Outreach Agent",
+            "created_at": "2026-07-19T11:53:23.916935"
+          },
+          {
+            "id": 546,
+            "type": "action",
+            "message": "[5/5] Deliver a consolidated sales plan; delegate research/content to team leads where useful; save key outputs to memor: \u2192 Sales Outreach Agent",
+            "created_at": "2026-07-19T11:53:26.329722"
+          },
+          {
+            "id": 549,
+            "type": "action",
+            "message": "[1/6] Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella.: \u2192 Sales Outreach Agent",
+            "created_at": "2026-07-19T11:53:27.269005"
+          },
+          {
+            "id": 561,
+            "type": "action",
+            "message": "[4/6] (3) Set clear weekly sales targets (demos booked, demos run, follow-ups, pipeline value).: \u2192 Sales Outreach Agent",
+            "created_at": "2026-07-19T11:53:30.699064"
+          }
+        ],
+        "integrations": []
+      }
+    ],
+    "total": 10
+  },
+  "goal": "more agents so hierarchy auto-chain has people to delegate to",
+  "recommendation": "Upgrade plan (starter/pro/business) for more agent slots, then re-run POST /api/agents/seed-starter-team so leads/specialists exist for hierarchy auto-chain delegation. Current plan agents limit=10, count=10.",
+  "steps": {
+    "auth": "ok",
+    "auth_me_status": 200,
+    "billing_trial_status": 200,
+    "ensure_orchestrator_status": 401,
+    "seed_starter_team_status": 400,
+    "list_agents_status": 200,
+    "hierarchy_status": 200
+  }
+}

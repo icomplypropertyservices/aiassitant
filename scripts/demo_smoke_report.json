@@ -1,0 +1,326 @@
+{
+  "generated_at": "2026-07-19T11:34:13Z",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "token_source": "scripts/.demo_token",
+  "token_mask": "aba_lgch...",
+  "summary": {
+    "templates_non_empty": true,
+    "templates_count": 41,
+    "plan_blocked_count": 1,
+    "total_checks": 19,
+    "status_codes": {
+      "200": 11,
+      "402": 1,
+      "404": 6,
+      "405": 1
+    }
+  },
+  "plan_blocked_endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/agents/ensure-orchestrator",
+      "status": 402,
+      "detail": {
+        "detail": "Choose a subscription plan to continue."
+      }
+    }
+  ],
+  "results": [
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "ok": true,
+        "service": "ai-business-assistant",
+        "version": "1.5.0",
+        "environment": "production",
+        "serverless": true,
+        "billing_free_grants": false,
+        "docs_enabled": false,
+        "cron_secret_configured": "***",
+        "path_frontend_hint": "https://aibusinessagent.xyz/agents",
+        "cli_api": true,
+        "features": {
+          "type": "list",
+          "count": 5
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "type": "list",
+        "count": 41,
+        "sample_keys": [
+          "id",
+          "name",
+          "type",
+          "description",
+          "unique_fields",
+          "est_cost"
+        ],
+        "first_id": 1,
+        "first_name": "Main AI Orchestrator"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "type": "list",
+        "count": 41,
+        "sample_keys": [
+          "id",
+          "name",
+          "type",
+          "description",
+          "unique_fields",
+          "est_cost"
+        ],
+        "first_id": 1,
+        "first_name": "Main AI Orchestrator"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/agents/",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "type": "list",
+        "count": 0,
+        "sample_keys": null,
+        "first_id": null,
+        "first_name": null
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/agents",
+      "status": 200,
+      "plan_blocked": false,
+      "body": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta\n      name=\"viewport\"\n      content=\"width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no\"\n    />\n    <meta name=\"theme-color\" content=\"#0b1f3a\" />\n    <meta name=\"apple-mobile-web-app-capable\" content=\"yes\" />\n    <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\" />\n    <meta name=\"apple-mobile-web-app-title\" content=\"AI Assistant\" />\n    <meta na"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agents/ensure-orchestrator",
+      "status": 402,
+      "plan_blocked": true,
+      "body": {
+        "detail": "Choose a subscription plan to continue."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/meetings/",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "meetings": {
+          "type": "list",
+          "count": 0
+        },
+        "count": 0
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/meetings",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "meetings": {
+          "type": "list",
+          "count": 0
+        },
+        "count": 0
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/meetings/",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "id": 5,
+        "user_id": 6,
+        "company_id": null,
+        "project_id": null,
+        "task_id": null,
+        "task_title": null,
+        "title": "Demo smoke meeting",
+        "purpose": "demo_smoke_report",
+        "room_type": "brainstorm",
+        "status": "open",
+        "chair_agent_id": null,
+        "chair_name": null,
+        "settings": {},
+        "summary_text": "",
+        "created_at": "2026-07-19T11:34:16.825298Z",
+        "closed_at": null,
+        "participant_count": 1,
+        "message_count": 1,
+        "participants": {
+          "type": "list",
+          "count": 1
+        },
+        "messages": {
+          "type": "list",
+          "count": 1
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/meetings",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "id": 6,
+        "user_id": 6,
+        "company_id": null,
+        "project_id": null,
+        "task_id": null,
+        "task_title": null,
+        "title": "Demo smoke meeting",
+        "purpose": "demo_smoke_report",
+        "room_type": "brainstorm",
+        "status": "open",
+        "chair_agent_id": null,
+        "chair_name": null,
+        "settings": {},
+        "summary_text": "",
+        "created_at": "2026-07-19T11:34:19.191861Z",
+        "closed_at": null,
+        "participant_count": 1,
+        "message_count": 1,
+        "participants": {
+          "type": "list",
+          "count": 1
+        },
+        "messages": {
+          "type": "list",
+          "count": 1
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/ops/",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/ops",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/ops/features",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/features",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/features/",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/plan",
+      "status": 405,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Method Not Allowed"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/usage",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "_summary": "{\"total_tokens\": \"***\", \"total_cost\": 0, \"by_model\": {}, \"daily\": {\"type\": \"list\", \"count\": 7}, \"meter\": {\"plan\": \"none\", \"plan_name\": \"No plan\", \"subscription_active\": false, \"subscription_expires_at\": null, \"credits\": 0.0, \"tokens_included\": \"***\", \"tokens_used_period\": \"***\", \"tokens_remaining_included\": \"***\", \"usage_percent\": 0.0, \"warn\": false, \"hard_block_soon\": false, \"hard_block\": true, \"needs_topup\": true, \"urgency\": \"critical\", \"headline\": \"Your agents just ran out of fuel\", \"sales_me...",
+        "keys": [
+          "total_tokens",
+          "total_cost",
+          "by_model",
+          "daily",
+          "meter"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/me",
+      "status": 404,
+      "plan_blocked": false,
+      "body": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "plan_blocked": false,
+      "body": {
+        "_summary": "{\"id\": 6, \"email\": \"test+1784460702@aibusinessagent.xyz\", \"name\": \"Test Agent\", \"role\": \"user\", \"plan\": \"none\", \"subscription_active\": false, \"subscription_expires_at\": null, \"needs_subscription\": true, \"email_verified\": false, \"needs_email_verification\": true, \"has_api_key\": \"***\", \"api_key_prefix\": \"aba_lgch...\", \"auth_type\": \"api_key\", \"meter\": {\"plan\": \"none\", \"plan_name\": \"No plan\", \"subscription_active\": false, \"subscription_expires_at\": null, \"credits\": 0.0, \"tokens_included\": \"***\", \"tok...",
+        "keys": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "plan",
+          "subscription_active",
+          "subscription_expires_at",
+          "needs_subscription",
+          "email_verified",
+          "needs_email_verification",
+          "has_api_key",
+          "api_key_prefix",
+          "auth_type",
+          "meter"
+        ]
+      }
+    }
+  ],
+  "notes": [
+    "Token from scripts/.demo_token (masked aba_lgch...).",
+    "User id=6 plan=none subscription_active=false needs_subscription=true.",
+    "GET /api/agents (no trailing slash) returned SPA HTML via frontend fallback; use /api/agents/.",
+    "Ops root /api/ops and /api/features 404; features appear on /api/health.features; ops routes are subpaths (e.g. autonomy/tick-all).",
+    "POST meetings succeeded without plan; ensure-orchestrator is plan-gated (402)."
+  ]
+}

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models
 from ..auth_utils import get_current_user
 from .. import storage_backends as store
@@ -18,6 +19,7 @@ from ..training_context import (
     files_for_agent,
 )
 from ..integrations_service import connection_out
+from ..storage_quota import assert_storage_allows, storage_snapshot
 
 router = APIRouter(prefix="/training", tags=["training"])
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
@@ -151,9 +153,10 @@ def _folder_out(folder: models.KnowledgeFolder, db: Session) -> dict:
 
 
 def _owned_file(file_id: int, user, db) -> models.KnowledgeFile:
-    f = db.get(models.KnowledgeFile, file_id)
-    if not f or f.user_id != user.id:
-        raise HTTPException(404, "File not found")
+    f = require_owned(
+        db, models.KnowledgeFile, file_id, user,
+        user_field='user_id', not_found="File not found",
+    )
     return f
 
 
@@ -210,6 +213,7 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
         "folders": folders,
         "ready": ready,
         "by_storage": by_storage,
+        "quota": storage_snapshot(db, user),
         "storage_connections": [connection_out(c, db) for c in conns],
         "backends": [
             {"id": "local", "name": "Local (server)", "always": True},
@@ -217,6 +221,12 @@ def overview(db: Session = Depends(get_db), user=Depends(get_current_user)):
             {"id": "dropbox", "name": "Dropbox", "app_id": "dropbox"},
         ],
     }
+
+
+@router.get("/storage")
+def training_storage(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Monitor user training-library storage usage, limits, and upgrade options."""
+    return storage_snapshot(db, user)
 
 
 @router.get("/folders")
@@ -253,9 +263,10 @@ def create_folder(data: FolderIn, db: Session = Depends(get_db), user=Depends(ge
 
 @router.delete("/folders/{folder_id}")
 def delete_folder(folder_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    folder = db.get(models.KnowledgeFolder, folder_id)
-    if not folder or folder.user_id != user.id:
-        raise HTTPException(404, "Folder not found")
+    folder = require_owned(
+        db, models.KnowledgeFolder, folder_id, user,
+        user_field='user_id', not_found="Folder not found",
+    )
     for f in db.query(models.KnowledgeFile).filter_by(folder_id=folder_id).all():
         f.folder_id = None
     db.query(models.AgentKnowledgeAccess).filter_by(
@@ -309,6 +320,8 @@ def create_note(data: NoteIn, db: Session = Depends(get_db), user=Depends(get_cu
         raise HTTPException(400, "Name required")
     if not content.strip():
         raise HTTPException(400, "Content required")
+    size = len(content.encode("utf-8"))
+    assert_storage_allows(db, user, size)
     if data.folder_id:
         folder = db.get(models.KnowledgeFolder, data.folder_id)
         if not folder or folder.user_id != user.id:
@@ -323,7 +336,7 @@ def create_note(data: NoteIn, db: Session = Depends(get_db), user=Depends(get_cu
         storage="local",
         storage_path="",
         mime_type="text/markdown",
-        size_bytes=len(content.encode("utf-8")),
+        size_bytes=size,
         content_text=content,
         status=data.status or "ready",
     )
@@ -350,6 +363,7 @@ async def upload_file(
         raise HTTPException(400, "Empty file")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
+    assert_storage_allows(db, user, len(data))
 
     storage = (storage or "local").lower()
     conn = _storage_connection(db, user, storage, connection_id) if storage != "local" else None
@@ -403,6 +417,7 @@ async def import_cloud(data: ImportCloudIn, db: Session = Depends(get_db), user=
         raw = await store.read_bytes(storage=storage, storage_path=data.path, connection=conn)
     except Exception as e:
         raise HTTPException(400, f"Import failed: {e}") from e
+    assert_storage_allows(db, user, len(raw))
     name = data.name or data.path.rstrip("/").split("/")[-1] or "imported"
     text = store.extract_text(name, raw)
     f = models.KnowledgeFile(
@@ -487,8 +502,12 @@ def update_file(file_id: int, data: FileUpdate, db: Session = Depends(get_db), u
                 raise HTTPException(400, "Invalid folder")
             f.folder_id = data.folder_id
     if data.content is not None:
+        new_size = len(data.content.encode("utf-8"))
+        assert_storage_allows(
+            db, user, new_size, replace_bytes=int(f.size_bytes or 0)
+        )
         f.content_text = data.content
-        f.size_bytes = len(data.content.encode("utf-8"))
+        f.size_bytes = new_size
     if data.status is not None:
         if data.status not in ("draft", "ready", "archived"):
             raise HTTPException(400, "Invalid status")
@@ -515,9 +534,10 @@ async def delete_file(file_id: int, db: Session = Depends(get_db), user=Depends(
 
 
 def _agent_access_payload(agent_id: int, db: Session, user) -> dict:
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     access = db.query(models.AgentKnowledgeAccess).filter_by(agent_id=agent_id).all()
     items = []
     for row in access:
@@ -574,9 +594,10 @@ def set_agent_access(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     if data.replace:
         db.query(models.AgentKnowledgeAccess).filter_by(agent_id=agent_id).delete()
     for item in data.items or []:
@@ -611,10 +632,10 @@ def set_agent_program(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
-
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     program = db.query(models.AgentProgram).filter_by(agent_id=agent_id).first()
     if not program:
         program = models.AgentProgram(agent_id=agent_id)
@@ -664,9 +685,10 @@ def set_agent_program(
 
 @router.get("/agents/{agent_id}/context")
 def agent_context_preview(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    a = db.get(models.Agent, agent_id)
-    if not a or a.user_id != user.id:
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     return {"agent_id": agent_id, "context": knowledge_context_for_agent(db, agent_id)}
 
 

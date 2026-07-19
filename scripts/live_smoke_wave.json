@@ -1,0 +1,205 @@
+{
+  "ok": true,
+  "generated_at": "2026-07-19T11:57:29Z",
+  "elapsed_sec": 32.49,
+  "base": "https://www.aibusinessagent.xyz",
+  "login_path": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\.demo_login.json",
+  "account": {
+    "email_at_wave_start": "test+live1784460867@aibusinessagent.xyz",
+    "user_id_at_wave_start": 19,
+    "agent_id_at_wave_start": 9,
+    "plan": "trial",
+    "subscription_active": true,
+    "subscription_expires_at": "2026-08-02T11:34:24.710902Z",
+    "demo_login_now": {
+      "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+      "user_id": 37,
+      "agent_id": 27
+    },
+    "note": "scripts/.demo_login.json was rewritten mid-wave by concurrent e2e/bootstrap; meeting id=24 belongs to later session (user_id 37). Core checks for trial/orchestrator/templates/agents used user 19."
+  },
+  "areas": {
+    "health": true,
+    "login": true,
+    "trial": true,
+    "orchestrator": true,
+    "templates": true,
+    "agents": true,
+    "meetings": true
+  },
+  "failed": [],
+  "checks": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "ok": true,
+      "detail": "{\"ok\": true, \"version\": \"1.5.0\", \"environment\": \"production\", \"meetings\": true, \"features\": [\"agent_wallets\", \"git_repos\", \"local_machines\", \"orchestrator_bootstrap\", \"meeting_rooms\"]}"
+    },
+    {
+      "name": "login",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "ok": true,
+      "detail": "email=test+live1784460867@aibusinessagent.xyz user_id=19 token_prefix=aba_rljfNuQq\u2026"
+    },
+    {
+      "name": "auth_me",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "ok": true,
+      "detail": "plan=trial active=True",
+      "plan": "trial",
+      "subscription_active": true
+    },
+    {
+      "name": "trial",
+      "method": "POST",
+      "path": "/api/billing/plan",
+      "status": 200,
+      "ok": true,
+      "detail": "{\"plan\": \"trial\", \"subscription_active\": true, \"already_active\": true, \"subscription_expires_at\": \"2026-08-02T11:34:24.710902Z\"}",
+      "plan": "trial",
+      "already_active": true,
+      "subscription_active": true
+    },
+    {
+      "name": "orchestrator",
+      "method": "POST",
+      "path": "/api/agents/ensure-orchestrator?bootstrap=true",
+      "status": 200,
+      "ok": true,
+      "detail": "id=9 name='Main AI Orchestrator' role=orchestrator bootstrap_error=None",
+      "agent_id": 9,
+      "agent_name": "Main AI Orchestrator",
+      "hierarchy_role": "orchestrator",
+      "bootstrap_error": null
+    },
+    {
+      "name": "templates",
+      "method": "GET",
+      "path": "/api/templates/",
+      "status": 200,
+      "ok": true,
+      "detail": "count=41",
+      "count": 41,
+      "sample": [
+        {
+          "id": 1,
+          "name": "Main AI Orchestrator",
+          "type": "orchestrator"
+        },
+        {
+          "id": 36,
+          "name": "Master Designer",
+          "type": "designer"
+        },
+        {
+          "id": 2,
+          "name": "Lead Agent / Team Lead",
+          "type": "lead"
+        },
+        {
+          "id": 3,
+          "name": "Operations Lead",
+          "type": "lead"
+        },
+        {
+          "id": 4,
+          "name": "Sales Lead Agent",
+          "type": "lead"
+        }
+      ]
+    },
+    {
+      "name": "agents",
+      "method": "GET",
+      "path": "/api/agents/",
+      "status": 200,
+      "ok": true,
+      "detail": "count=4",
+      "count": 4,
+      "agents": [
+        {
+          "id": 9,
+          "name": "Main AI Orchestrator",
+          "hierarchy_role": "orchestrator",
+          "template_type": "orchestrator",
+          "parent_id": null,
+          "status": "active"
+        },
+        {
+          "id": 25,
+          "name": "FAD Ops Lead",
+          "hierarchy_role": "lead",
+          "template_type": "ops",
+          "parent_id": 9,
+          "status": "active"
+        },
+        {
+          "id": 15,
+          "name": "E2E Specialist mrrq1di4",
+          "hierarchy_role": "member",
+          "template_type": "sales",
+          "parent_id": 9,
+          "status": "active"
+        },
+        {
+          "id": 17,
+          "name": "E2E Specialist mrrq3p58",
+          "hierarchy_role": "member",
+          "template_type": "sales",
+          "parent_id": 9,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "meetings_list",
+      "method": "GET",
+      "path": "/api/meetings/",
+      "status": 200,
+      "ok": true,
+      "detail": "count=2",
+      "count": 2
+    },
+    {
+      "name": "meetings_create",
+      "method": "POST",
+      "path": "/api/meetings/",
+      "status": 200,
+      "ok": true,
+      "detail": "id=24",
+      "meeting_id": 24,
+      "retry": true
+    },
+    {
+      "name": "meetings_get",
+      "method": "GET",
+      "path": "/api/meetings/24",
+      "status": 200,
+      "ok": true,
+      "retry": true,
+      "detail": "title=Live smoke wave meeting"
+    }
+  ],
+  "summary": {
+    "total_checks": 10,
+    "passed": 10,
+    "failed": 0,
+    "templates_count": 41,
+    "agents_count": 4,
+    "meetings_count": 2,
+    "orchestrator_id": 9,
+    "meeting_id": 24
+  },
+  "retry_note": "Wave completed with re-login on 401 (shared demo key rotation). meetings_create id=24 verified after cooldown.",
+  "notes": [
+    "POST /api/auth/login rotates session api_key; concurrent use of same demo account causes intermittent 401 Invalid API key.",
+    "Login rate limit (429) can fire after repeated re-auth during smoke.",
+    "Core areas: trial active, orchestrator id=9, templates=41, agents=4, meetings list+create OK."
+  ]
+}

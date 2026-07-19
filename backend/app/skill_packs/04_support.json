@@ -1,0 +1,1000 @@
+{
+  "pack": "04_support",
+  "category": "support",
+  "label": "Support",
+  "skills": [
+    {
+      "id": "sup_ticket_triage",
+      "name": "Ticket triage",
+      "description": "Triage an inbound ticket by priority, category, owner, and recommended first response.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_reply_draft",
+      "name": "Customer reply draft",
+      "description": "Draft a clear, empathetic customer reply with key points and a next-step CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_macro_write",
+      "name": "Support macro",
+      "description": "Write a reusable support macro/template for a common issue type.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_escalation_note",
+      "name": "Escalation note",
+      "description": "Write a concise escalation note with impact, timeline, attempts, and ask for engineering/L2.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_bug_repro",
+      "name": "Bug reproduction steps",
+      "description": "Document clear bug reproduction steps, environment, and expected vs actual behavior.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_rca_summary",
+      "name": "RCA summary",
+      "description": "Summarize a root-cause analysis with timeline, cause, impact, and preventive actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_kb_article",
+      "name": "Knowledge base article",
+      "description": "Draft a structured knowledge base article with steps, screenshots placeholders, and related links.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_faq_update",
+      "name": "FAQ update",
+      "description": "Update or expand FAQ entries for a product area with clear Q&A pairs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_deflection_script",
+      "name": "Self-serve deflection script",
+      "description": "Write a deflection script that guides customers to self-serve help before opening a ticket.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_chat_handoff",
+      "name": "Chat handoff summary",
+      "description": "Produce a chat-to-agent handoff summary with context, sentiment, and open questions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_phone_script_sup",
+      "name": "Support phone script",
+      "description": "Write a support phone script with greeting, diagnosis questions, and closing.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_refund_policy_explain",
+      "name": "Refund policy explanation",
+      "description": "Explain refund eligibility and process in customer-friendly language with next steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_status_page_update",
+      "name": "Status page update",
+      "description": "Draft a status page update covering impact, current state, and next check-in time.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_outage_comms",
+      "name": "Outage communications",
+      "description": "Draft multi-channel outage communications for customers and internal stakeholders.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_vip_play",
+      "name": "VIP support playbook",
+      "description": "Build a VIP/high-touch support play with SLAs, owners, and escalation paths.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_sla_breach_plan",
+      "name": "SLA breach recovery plan",
+      "description": "Plan recovery actions, customer outreach, and process fixes after an SLA breach.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_queue_prioritize",
+      "name": "Queue prioritization",
+      "description": "Prioritize the support queue by severity, SLA risk, customer tier, and effort.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_tag_taxonomy",
+      "name": "Ticket tag taxonomy",
+      "description": "Design a ticket tagging taxonomy for routing, reporting, and knowledge gaps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_csat_recover",
+      "name": "CSAT recovery plan",
+      "description": "Create a CSAT recovery plan for a low score, including apology, fix, and follow-up.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_angry_customer",
+      "name": "Angry customer response",
+      "description": "Craft a de-escalation response for an angry customer with empathy and resolution path.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_billing_dispute",
+      "name": "Billing dispute response",
+      "description": "Handle a billing dispute with fact summary, policy application, and proposed resolution.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_login_help",
+      "name": "Login troubleshooting guide",
+      "description": "Provide step-by-step login troubleshooting for password, MFA, and account lockouts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_api_error_help",
+      "name": "API error help",
+      "description": "Explain an API error code with causes, checks, and sample fix steps for the customer.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_integration_troubleshoot",
+      "name": "Integration troubleshooting",
+      "description": "Troubleshoot a third-party integration with checklist, logs to collect, and likely fixes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_data_export_help",
+      "name": "Data export help",
+      "description": "Guide a customer through data export options, formats, limits, and common failures.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_privacy_request_help",
+      "name": "Privacy request handling",
+      "description": "Guide handling of privacy/DSR requests with steps, owners, and customer messaging.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_feature_how_to",
+      "name": "Feature how-to guide",
+      "description": "Write a step-by-step how-to for a product feature aimed at end users.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_workaround",
+      "name": "Temporary workaround",
+      "description": "Document a safe temporary workaround while a permanent fix is pending.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_release_notes_sup",
+      "name": "Support-facing release notes",
+      "description": "Rewrite release notes for support agents with impact, talk tracks, and FAQ risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_known_issue",
+      "name": "Known issue notice",
+      "description": "Draft a known-issue notice with scope, workaround, and expected resolution window.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_shift_handoff",
+      "name": "Shift handoff brief",
+      "description": "Create a shift handoff brief covering open Sev issues, VIPs, and watch items.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_team_huddle",
+      "name": "Team huddle agenda",
+      "description": "Build a support team huddle agenda with metrics, blockers, and focus themes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_quality_review",
+      "name": "Ticket quality review",
+      "description": "Review ticket quality against a rubric and list coaching opportunities.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_coaching_note",
+      "name": "Agent coaching note",
+      "description": "Write a constructive coaching note with strengths, gaps, and practice actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_training_new_hire",
+      "name": "New-hire support training",
+      "description": "Outline a new-hire support training plan with modules, shadowing, and milestones.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_channel_policy",
+      "name": "Support channel policy",
+      "description": "Define channel policy for chat, email, phone, and social including SLAs and scope.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_social_support",
+      "name": "Social support reply",
+      "description": "Draft a public and private social support reply pair for a customer complaint.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_email_template_sup",
+      "name": "Support email template",
+      "description": "Create a branded support email template with variables for common case types.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_internal_note",
+      "name": "Internal ticket note",
+      "description": "Write a crisp internal ticket note with findings, hypotheses, and next owner action.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_public_reply",
+      "name": "Public-facing reply",
+      "description": "Draft a public-facing support reply suitable for forums, reviews, or status comments.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_severity_map",
+      "name": "Severity mapping guide",
+      "description": "Define severity levels with examples, response targets, and escalation rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_language_localize",
+      "name": "Support content localization",
+      "description": "Localize a support reply or article for language, tone, and regional policy nuances.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_accessibility_help",
+      "name": "Accessibility support help",
+      "description": "Assist with accessibility issues including workarounds and escalation to product.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_enterprise_support",
+      "name": "Enterprise support plan",
+      "description": "Design an enterprise support engagement plan with named contacts, SLAs, and cadences.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_partner_ticket",
+      "name": "Partner ticket handling",
+      "description": "Handle a partner/reseller ticket with dual-customer context and white-label guidance.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_security_incident_sup",
+      "name": "Security incident support play",
+      "description": "Outline support steps during a security incident: intake, containment comms, and handoff.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_compliance_ticket",
+      "name": "Compliance ticket workflow",
+      "description": "Process a compliance-related ticket with evidence needs, owners, and customer updates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_multi_account",
+      "name": "Multi-account support case",
+      "description": "Coordinate a multi-account support case with linked orgs, ownership, and unified updates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_bulk_action_help",
+      "name": "Bulk action help",
+      "description": "Help customers safely run bulk actions with prerequisites, limits, and rollback tips.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "sup_report",
+      "name": "Support metrics report",
+      "description": "Produce a support metrics report covering volume, SLA, CSAT, and top issue themes.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "support",
+      "pack": "04_support",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

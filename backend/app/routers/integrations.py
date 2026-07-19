@@ -1,19 +1,22 @@
 """Connected apps: OAuth + API keys + agent allocation."""
 from __future__ import annotations
 
+import logging
 import os
 import secrets
+import time
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models, config
 from ..auth_utils import get_current_user
 from ..integrations_catalog import (
@@ -38,9 +41,14 @@ from ..integrations_service import (
     integrations_context_for_agent,
 )
 
+log = logging.getLogger("app.integrations")
+
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 OAUTH_STATE_TTL_MIN = 20
+GOOGLE_APP_IDS = frozenset(GOOGLE_FAMILY) | frozenset(
+    {"google", "gmail", "google_sheets", "google_business", "youtube"}
+)
 
 
 class ConnectIn(BaseModel):
@@ -71,14 +79,19 @@ class OAuthStartIn(BaseModel):
 
 
 def _encode_oauth_state(user_id: int, app_id: str, extra: dict | None = None) -> str:
+    # Use numeric exp — some JWT libs mishandle datetime objects
     payload = {
-        "uid": user_id,
+        "uid": int(user_id),
         "app": app_id,
         "nonce": secrets.token_hex(8),
-        "exp": datetime.utcnow() + timedelta(minutes=OAUTH_STATE_TTL_MIN),
+        "exp": int(time.time()) + OAUTH_STATE_TTL_MIN * 60,
         **(extra or {}),
     }
-    return jwt.encode(payload, config.JWT_SECRET, algorithm="HS256")
+    token = jwt.encode(payload, config.JWT_SECRET, algorithm="HS256")
+    # PyJWT <2 returned bytes
+    if isinstance(token, bytes):
+        return token.decode("utf-8")
+    return str(token)
 
 
 def _decode_oauth_state(state: str) -> dict:
@@ -88,20 +101,98 @@ def _decode_oauth_state(state: str) -> dict:
         raise HTTPException(400, f"Invalid or expired OAuth state: {e}") from e
 
 
-def _oauth_redirect_uri() -> str:
-    # Prefer API base derived from FRONTEND or explicit env
-    explicit = os.getenv("OAUTH_REDIRECT_URI", "").strip()
+def _oauth_redirect_uri(request: Request | None = None) -> str:
+    """Exact redirect_uri for authorize + token exchange.
+
+    Google returns "invalid_request" / redirect_uri_mismatch when this does not
+    match the Authorized redirect URI in Cloud Console **exactly**.
+
+    Correct production value:
+      https://aibusinessagent.xyz/api/integrations/oauth/callback
+
+    Never use FRONTEND_URL + /api/... when FRONTEND is .../agents (that produces
+    the broken .../agents/api/integrations/oauth/callback path).
+    """
+    # 1) Explicit env (highest priority)
+    explicit = (
+        (getattr(config, "OAUTH_REDIRECT_URI", None) or "").strip()
+        or os.getenv("OAUTH_REDIRECT_URI", "").strip()
+    )
     if explicit:
-        return explicit
-    # Same-origin on Vercel: FRONTEND_URL + /api/integrations/oauth/callback
+        return explicit.rstrip("/")
+
+    # 2) API_PUBLIC_URL from config / env
+    api_public = (
+        (getattr(config, "API_PUBLIC_URL", None) or "").strip().rstrip("/")
+        or os.getenv("API_PUBLIC_URL", "").strip().rstrip("/")
+    )
+    if api_public:
+        # Accept either .../api or bare origin
+        if api_public.endswith("/api"):
+            return f"{api_public}/integrations/oauth/callback"
+        return f"{api_public}/api/integrations/oauth/callback"
+
+    # 3) Derive from request host (Vercel / reverse proxy)
+    if request is not None:
+        try:
+            # Prefer public host headers
+            proto = (
+                request.headers.get("x-forwarded-proto")
+                or request.url.scheme
+                or "https"
+            ).split(",")[0].strip()
+            host = (
+                request.headers.get("x-forwarded-host")
+                or request.headers.get("host")
+                or request.url.netloc
+            )
+            host = (host or "").split(",")[0].strip()
+            if host and "localhost" not in host and "127.0.0.1" not in host:
+                return f"{proto}://{host}/api/integrations/oauth/callback"
+            if host:
+                # Local dev: callback hits API directly (no /api strip needed if
+                # uvicorn serves backend at :8000 without /api prefix)
+                return f"{proto}://{host}/integrations/oauth/callback"
+        except Exception:
+            pass
+
+    # 4) FRONTEND_URL — strip SPA path prefixes carefully
     base = (config.FRONTEND_URL or "").rstrip("/")
     if base:
-        # If frontend is separate, API may be FRONTEND/api or a dedicated host
-        api_public = os.getenv("API_PUBLIC_URL", "").rstrip("/")
-        if api_public:
-            return f"{api_public}/integrations/oauth/callback"
-        return f"{base}/api/integrations/oauth/callback"
+        if base.endswith("/agents"):
+            origin = base[: -len("/agents")]
+            return f"{origin}/api/integrations/oauth/callback"
+        # Subdomain app (e.g. https://app.example.com) → same host /api
+        from urllib.parse import urlparse
+        p = urlparse(base)
+        if p.scheme and p.netloc:
+            return f"{p.scheme}://{p.netloc}/api/integrations/oauth/callback"
+
+    # 5) Vercel URL fallback
+    vercel = (os.getenv("VERCEL_URL") or "").strip().lstrip("https://").lstrip("http://")
+    if vercel:
+        return f"https://{vercel}/api/integrations/oauth/callback"
+
     return "http://localhost:8000/integrations/oauth/callback"
+
+
+def _is_google_app(app: dict) -> bool:
+    aid = (app.get("id") or "").lower()
+    return aid in GOOGLE_APP_IDS or app.get("family") == "google" or aid.startswith("google")
+
+
+def _normalize_scopes(scopes: str | list | None, *, google: bool) -> str:
+    if not scopes:
+        return ""
+    if isinstance(scopes, (list, tuple)):
+        parts = [str(s).strip() for s in scopes if str(s).strip()]
+    else:
+        raw = str(scopes).replace(",", " ")
+        parts = [p.strip() for p in raw.split() if p.strip()]
+    # Google wants space-separated scopes
+    if google:
+        return " ".join(parts)
+    return " ".join(parts)
 
 
 @router.get("/catalog")
@@ -126,12 +217,11 @@ def catalog(user=Depends(get_current_user)):
 
 
 @router.get("/oauth/google-status")
-def google_oauth_status(user=Depends(get_current_user)):
+def google_oauth_status(request: Request, user=Depends(get_current_user)):
     """Verify Google OAuth client env is present for all Google apps."""
-    import os
     cid = (os.getenv("GOOGLE_OAUTH_CLIENT_ID") or "").strip()
     csec = (os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or "").strip()
-    redirect = _oauth_redirect_uri()
+    redirect = _oauth_redirect_uri(request)
     apps = []
     for aid in OAUTH_ONE_CLICK_ORDER:
         app = get_app(aid)
@@ -142,18 +232,27 @@ def google_oauth_status(user=Depends(get_current_user)):
             "name": app.get("name"),
             "scopes": (app.get("oauth") or {}).get("scopes"),
             "oauth_ready": bool(cid and csec),
-            "coming_soon": False,
+            "coming_soon": bool(app.get("coming_soon")),
         })
     return {
-        "ok": bool(cid and csec),
+        "ok": bool(cid and csec and redirect),
         "client_id_set": bool(cid),
         "client_secret_set": bool(csec),
         "client_id_preview": (cid[:12] + "…") if len(cid) > 12 else (cid or None),
         "redirect_uri": redirect,
+        "api_public_url": getattr(config, "API_PUBLIC_URL", None) or os.getenv("API_PUBLIC_URL") or None,
         "apps": apps,
+        "console_steps": [
+            "Open Google Cloud Console → APIs & Services → Credentials",
+            "OAuth 2.0 Client IDs → your Web application client",
+            f"Authorized redirect URIs → add exactly: {redirect}",
+            "Authorized JavaScript origins → add your site origin (e.g. https://aibusinessagent.xyz)",
+            "Enable APIs: Google+ / People, Gmail, Sheets, Calendar, Drive, YouTube Data, Business Profile",
+            "OAuth consent screen → add test users if app is in Testing mode",
+        ],
         "note": (
-            "Add this redirect URI in Google Cloud Console → Credentials → OAuth client. "
-            "Enable Gmail, Sheets, Calendar, Drive, Business Profile, YouTube APIs as needed."
+            "Google shows 'request is invalid' when redirect_uri does not match Console exactly "
+            "(including https, path, no trailing slash). Copy redirect_uri below into Console."
         ),
     }
 
@@ -174,9 +273,10 @@ def list_connections(db: Session = Depends(get_db), user=Depends(get_current_use
 
 @router.get("/connections/{connection_id}")
 def get_connection(connection_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    row = db.get(models.IntegrationConnection, connection_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Connection not found")
+    row = require_owned(
+        db, models.IntegrationConnection, connection_id, user,
+        user_field='user_id', not_found="Connection not found",
+    )
     return connection_out(row, db)
 
 
@@ -269,9 +369,10 @@ def allocate_agents(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    row = db.get(models.IntegrationConnection, connection_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Connection not found")
+    row = require_owned(
+        db, models.IntegrationConnection, connection_id, user,
+        user_field='user_id', not_found="Connection not found",
+    )
     if data.permission not in ("read", "write", "full"):
         raise HTTPException(400, "permission must be read, write, or full")
     linked = set_agent_links(db, row, data.agent_ids, user, permission=data.permission)
@@ -286,9 +387,10 @@ def allocate_agents(
 
 @router.post("/connections/{connection_id}/test")
 async def test_connection(connection_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    row = db.get(models.IntegrationConnection, connection_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Connection not found")
+    row = require_owned(
+        db, models.IntegrationConnection, connection_id, user,
+        user_field='user_id', not_found="Connection not found",
+    )
     secrets = secrets_from_row(row)
     meta = meta_from_row(row)
     probe = await probe_connection(row.app_id, secrets, meta)
@@ -321,9 +423,10 @@ async def run_connection_action(
     from ..integration_actions import run_app_action
     from ..live_ops import emit_ops
 
-    row = db.get(models.IntegrationConnection, connection_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Connection not found")
+    row = require_owned(
+        db, models.IntegrationConnection, connection_id, user,
+        user_field='user_id', not_found="Connection not found",
+    )
     result = await run_app_action(row, data.action, data.payload or {})
     await emit_ops(
         user.id,
@@ -339,9 +442,10 @@ async def run_connection_action(
 
 @router.delete("/connections/{connection_id}")
 def delete_connection(connection_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    row = db.get(models.IntegrationConnection, connection_id)
-    if not row or row.user_id != user.id:
-        raise HTTPException(404, "Connection not found")
+    row = require_owned(
+        db, models.IntegrationConnection, connection_id, user,
+        user_field='user_id', not_found="Connection not found",
+    )
     db.query(models.AgentIntegration).filter_by(connection_id=row.id).delete()
     db.delete(row)
     db.commit()
@@ -350,9 +454,10 @@ def delete_connection(connection_id: int, db: Session = Depends(get_db), user=De
 
 @router.get("/agents/{agent_id}")
 def agent_integrations(agent_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    a = db.get(models.Agent, agent_id)
-    if not a or (a.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     links = db.query(models.AgentIntegration).filter_by(agent_id=agent_id).all()
     conns = []
     for link in links:
@@ -376,9 +481,10 @@ def set_agent_integrations(
     user=Depends(get_current_user),
 ):
     """Allocate connected apps to this agent. Body: { connection_ids, permission }."""
-    a = db.get(models.Agent, agent_id)
-    if not a or (a.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     connection_ids = list(data.connection_ids or [])
     if not connection_ids and data.agent_ids:
         connection_ids = [int(x) for x in data.agent_ids]
@@ -416,6 +522,7 @@ def set_agent_integrations(
 @router.post("/{app_id}/oauth/start")
 def oauth_start(
     app_id: str,
+    request: Request,
     data: OAuthStartIn | None = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
@@ -425,34 +532,42 @@ def oauth_start(
     app = get_app(app_id)
     if not app:
         raise HTTPException(404, "Unknown app")
-    # Launch: only Google family is 1-click live
-    if app.get("coming_soon") or (
-        app.get("id") not in GOOGLE_FAMILY and app.get("family") != "google"
-    ):
-        raise HTTPException(
-            503,
-            f"{app.get('name') or app_id} is coming soon. Google apps are available for 1-click connect.",
-        )
     oauth = app.get("oauth")
     if not oauth:
         raise HTTPException(400, "This app does not support OAuth — use API credentials instead")
 
-    if not oauth_env_ready(app):
+    # Allow any app with OAuth credentials configured. Coming-soon only blocks
+    # apps that are not wired yet AND have no server credentials.
+    ready = oauth_env_ready(app)
+    if app.get("coming_soon") and not ready and not _is_google_app(app):
+        raise HTTPException(
+            503,
+            f"{app.get('name') or app_id} is coming soon. Google apps are available for 1-click connect.",
+        )
+    if not ready:
         return {
             "ok": False,
             "mode": "credentials",
             "message": (
                 f"OAuth app credentials not configured on the server "
-                f"({oauth.get('client_id_env')}). Use Connect with API keys, "
-                f"or set those env vars and redeploy."
+                f"({oauth.get('client_id_env')}). Set those env vars and redeploy, "
+                f"or use Connect with API keys."
             ),
             "fields": public_app(app)["fields"],
             "oauth_ready": False,
+            "redirect_uri": _oauth_redirect_uri(request),
         }
 
     client_id = os.getenv(oauth["client_id_env"], "").strip()
-    redirect_uri = _oauth_redirect_uri()
-    extra = {}
+    if not client_id:
+        raise HTTPException(503, f"Missing {oauth.get('client_id_env')} on server")
+
+    redirect_uri = _oauth_redirect_uri(request)
+    is_google = _is_google_app(app)
+    extra = {
+        # Persist exact redirect_uri so token exchange matches authorize request
+        "ru": redirect_uri,
+    }
     if data.redirect_after:
         extra["next"] = data.redirect_after[:200]
 
@@ -482,10 +597,11 @@ def oauth_start(
     if shop:
         meta["shop_domain"] = shop
     meta["oauth_state_nonce"] = "pending"
+    meta["oauth_redirect_uri"] = redirect_uri
     set_meta(row, meta)
     db.commit()
 
-    scopes = oauth.get("scopes") or ""
+    scopes = _normalize_scopes(oauth.get("scopes"), google=is_google)
     auth_base = oauth["authorize_url"]
     if "{shop}" in auth_base:
         auth_base = auth_base.format(shop=shop)
@@ -498,13 +614,14 @@ def oauth_start(
     }
     if scopes:
         params["scope"] = scopes
-    # Google / YouTube extras
-    if app["id"] in (
-        "gmail", "google_sheets", "google_business", "google", "youtube",
-    ) or "google" in app["id"]:
-        params["access_type"] = "offline"
-        params["prompt"] = "consent"
-        params["include_granted_scopes"] = "true"
+
+    # Google / YouTube — offline refresh + consent for refresh_token
+    if is_google:
+        params["access_type"] = oauth.get("access_type") or "offline"
+        params["prompt"] = oauth.get("prompt") or "consent"
+        # Never send include_granted_scopes — causes invalid_request with
+        # mixed / restricted Google scopes across Gmail/Calendar/Sheets family.
+
     # Notion
     if app["id"] == "notion":
         params["owner"] = "user"
@@ -514,21 +631,30 @@ def oauth_start(
     # LinkedIn
     if app["id"] == "linkedin":
         params["response_type"] = "code"
-    # Meta / Instagram use client_id as app id
+    # Meta / Instagram
     if app["id"] in ("meta", "instagram"):
         params["client_id"] = client_id
-    # X (Twitter) OAuth 2.0 with PKCE-ish: still send standard code flow when confidential client
+    # X (Twitter) OAuth 2.0 PKCE (confidential client still sends challenge)
     if app["id"] == "x":
         params["code_challenge"] = "challenge"
         params["code_challenge_method"] = "plain"
-        params["scope"] = scopes.replace(",", " ") if scopes else params.get("scope")
+        if scopes:
+            params["scope"] = scopes
 
-    # Slack uses scope differently (user vs bot) — keep simple
+    # Slack uses scope without response_type in some flows
     if app["id"] == "slack":
         params.pop("response_type", None)
-        params["scope"] = scopes
+        if scopes:
+            params["scope"] = scopes.replace(" ", ",")
 
-    authorize_url = f"{auth_base}?{urlencode(params)}"
+    # doseq=False; safe encode for Google
+    authorize_url = f"{auth_base}?{urlencode(params, quote_via=quote)}"
+    log.info(
+        "oauth_start app=%s redirect_uri=%s client_id_prefix=%s",
+        app["id"],
+        redirect_uri,
+        client_id[:12] if client_id else "",
+    )
     return {
         "ok": True,
         "mode": "oauth",
@@ -536,14 +662,20 @@ def oauth_start(
         "redirect_uri": redirect_uri,
         "oauth_ready": True,
         "connection_id": row.id,
+        "hint": (
+            "If Google shows 'request is invalid', add this exact redirect_uri "
+            "under OAuth client → Authorized redirect URIs."
+        ),
     }
 
 
 @router.get("/oauth/callback")
 async def oauth_callback(
+    request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
+    error_description: str | None = None,
     shop: str | None = None,
     db: Session = Depends(get_db),
 ):
@@ -551,27 +683,41 @@ async def oauth_callback(
     frontend = (config.FRONTEND_URL or "http://localhost:5173").rstrip("/")
     fail_url = f"{frontend}/settings?tab=apps&oauth=error"
 
+    def _fail(msg: str):
+        msg = quote(str(msg or "oauth_error")[:300], safe="")
+        return RedirectResponse(f"{fail_url}&message={msg}", status_code=302)
+
     if error:
-        return RedirectResponse(f"{fail_url}&message={error}", status_code=302)
+        detail = error_description or error
+        log.warning("oauth_callback provider_error=%s desc=%s", error, error_description)
+        return _fail(detail)
     if not code or not state:
-        return RedirectResponse(f"{fail_url}&message=missing_code", status_code=302)
+        return _fail("missing_code_or_state")
 
     try:
         payload = _decode_oauth_state(state)
-    except HTTPException:
-        return RedirectResponse(f"{fail_url}&message=bad_state", status_code=302)
+    except HTTPException as e:
+        return _fail(f"bad_state:{e.detail}")
 
     user_id = int(payload["uid"])
     app_id = payload["app"]
     app = get_app(app_id)
     if not app or not app.get("oauth"):
-        return RedirectResponse(f"{fail_url}&message=unknown_app", status_code=302)
+        return _fail("unknown_app")
 
     oauth = app["oauth"]
     client_id = os.getenv(oauth["client_id_env"], "").strip()
     client_secret = os.getenv(oauth["client_secret_env"], "").strip()
-    redirect_uri = _oauth_redirect_uri()
+    # Must match authorize request exactly
+    redirect_uri = (
+        (payload.get("ru") or "").strip()
+        or _oauth_redirect_uri(request)
+    )
     shop_domain = payload.get("shop") or shop
+    is_google = _is_google_app(app)
+
+    if not client_id or not client_secret:
+        return _fail("server_missing_oauth_credentials")
 
     token_url = oauth["token_url"]
     if "{shop}" in token_url:
@@ -624,20 +770,37 @@ async def oauth_callback(
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
             else:
-                # Google, HubSpot, LinkedIn, Meta, Microsoft, etc. — form token exchange
+                # Google, HubSpot, LinkedIn, Meta, Microsoft, etc.
+                # Google requires application/x-www-form-urlencoded body
+                form = {
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                }
                 r = await client.post(
                     token_url,
-                    data={
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "code": code,
-                        "redirect_uri": redirect_uri,
-                        "grant_type": "authorization_code",
-                    },
+                    data=form,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
             data = r.json() if r.content else {}
             if r.status_code >= 400:
-                raise RuntimeError(data.get("error_description") or data.get("error") or r.text[:200])
+                err = (
+                    data.get("error_description")
+                    or data.get("error")
+                    or r.text[:200]
+                )
+                log.warning(
+                    "oauth_token_exchange_failed app=%s status=%s err=%s redirect=%s",
+                    app_id,
+                    r.status_code,
+                    err,
+                    redirect_uri,
+                )
+                raise RuntimeError(str(err))
+            if is_google and not data.get("access_token"):
+                raise RuntimeError(data.get("error_description") or data.get("error") or "no_access_token")
             tokens = data
     except Exception as e:
         row = (
@@ -650,7 +813,7 @@ async def oauth_callback(
             row.status = "error"
             row.last_error = str(e)[:500]
             db.commit()
-        return RedirectResponse(f"{fail_url}&message=token_exchange_failed", status_code=302)
+        return _fail(f"token_exchange_failed:{e}")
 
     # Normalize tokens into secrets
     secrets_blob = {}
@@ -673,6 +836,15 @@ async def oauth_callback(
             secrets_blob["refresh_token"] = tokens["refresh_token"]
         meta["scope"] = tokens.get("scope")
         meta["token_type"] = tokens.get("token_type")
+        if tokens.get("expires_in"):
+            try:
+                meta["expires_at"] = (
+                    datetime.utcnow() + timedelta(seconds=int(tokens["expires_in"]))
+                ).isoformat() + "Z"
+            except Exception:
+                pass
+        if tokens.get("id_token"):
+            meta["has_id_token"] = True
 
     row = (
         db.query(models.IntegrationConnection)
@@ -690,12 +862,29 @@ async def oauth_callback(
     set_secrets(row, existing)
     old_meta = meta_from_row(row)
     old_meta.update({k: v for k, v in meta.items() if v is not None})
+    old_meta["oauth_redirect_uri"] = redirect_uri
+
+    # Best-effort identity / probe so UI shows Connected with email
+    status_msg = "OAuth connected"
+    try:
+        probe = await probe_connection(app_id, existing, old_meta)
+        if probe.get("ok") and probe.get("message"):
+            status_msg = probe["message"]
+            if "Google identity:" in status_msg:
+                email = status_msg.split("Google identity:", 1)[-1].strip()
+                if email and email != "ok":
+                    row.display_name = f"{app['name']} ({email})"
+                    old_meta["email"] = email
+    except Exception as probe_err:
+        log.warning("oauth_probe_after_connect app=%s err=%s", app_id, probe_err)
+
     set_meta(row, old_meta)
     row.auth_mode = "oauth"
     row.display_name = row.display_name or app["name"]
-    mark_connected(row, "OAuth connected")
+    mark_connected(row, status_msg)
     row.updated_at = datetime.utcnow()
     db.commit()
+    log.info("oauth_connected app=%s user=%s", app_id, user_id)
 
     next_path = payload.get("next") or "/settings?tab=apps&oauth=success"
     if not str(next_path).startswith("/"):

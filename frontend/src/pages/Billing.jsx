@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Card, Row, Col, Statistic, Button, InputNumber, Space, message, Tag, Alert, Table, Typography, Progress, Switch,
+  Card, Row, Col, Statistic, Button, InputNumber, Space, message, Tag, Alert, Table, Typography, Progress, Switch, Divider,
 } from 'antd'
-import { CheckOutlined, ArrowUpOutlined, CrownOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { ArrowUpOutlined, CrownOutlined, ThunderboltOutlined, CloudServerOutlined } from '@ant-design/icons'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { api, IS_NATIVE, getUser } from '../api'
 import TokenMeter from '../components/TokenMeter'
 import CryptoPay from '../components/CryptoPay'
-import PageHeader from '../components/PageHeader'
+import PageShell from '../components/PageShell'
+import PlanCards, { PlansSectionHeader } from '../components/PlanCards'
 
 const PLAN_ORDER = ['trial', 'starter', 'pro', 'business']
 
@@ -33,10 +34,15 @@ export default function Billing() {
   const [preorder, setPreorder] = useState(null)
   const [autoTopup, setAutoTopup] = useState(null)
   const [autoBusy, setAutoBusy] = useState(false)
+  const [storage, setStorage] = useState(null)
+  const [storageBusy, setStorageBusy] = useState(null)
   const preorderOn = preorder == null ? true : Boolean(preorder.active)
 
   const load = () => {
-    api('/billing/balance').then(setBalance).catch(() => {})
+    api('/billing/balance').then((b) => {
+      setBalance(b)
+      if (b?.storage) setStorage(b.storage)
+    }).catch(() => {})
     api('/billing/plans').then(setPlans).catch(() => {})
     api('/billing/usage').then(setUsage).catch(() => {})
     api('/billing/rates').then((r) => {
@@ -49,6 +55,27 @@ export default function Billing() {
     }).catch(() => {})
     api('/billing/preorder').then(setPreorder).catch(() => {})
     api('/billing/auto-topup').then(setAutoTopup).catch(() => {})
+    api('/billing/storage').then(setStorage).catch(() => {})
+  }
+
+  const buyStorageAddon = async (addonId) => {
+    setStorageBusy(addonId)
+    try {
+      const r = await api('/billing/storage-addon', {
+        method: 'POST',
+        body: { addon_id: addonId },
+      })
+      if (r.checkout_url) {
+        window.location.href = r.checkout_url
+        return
+      }
+      message.success(r.message || `Storage expanded: ${r.added_human || ''}`)
+      load()
+    } catch (e) {
+      message.error(e.message || 'Could not start storage upgrade')
+    } finally {
+      setStorageBusy(null)
+    }
   }
 
   useEffect(() => {
@@ -169,6 +196,16 @@ export default function Billing() {
   const meter = usage?.meter || balance
   const ctaFor = (key, p) => {
     if (currentPlan === key) return { label: 'Current plan', disabled: true, type: 'default' }
+    // Free trial: one-click POST /billing/plan { plan: 'trial' } — obvious for users not on a paid tier
+    if (key === 'trial' || !(p.price > 0)) {
+      const eligible =
+        !currentPlan || ['none', 'pay_as_you_go', ''].includes(String(currentPlan).toLowerCase())
+      return {
+        label: eligible ? 'Start free trial — no card' : 'Free trial unavailable',
+        disabled: !eligible,
+        type: eligible ? 'primary' : 'default',
+      }
+    }
     const upgrading = planRank(key) > planRank(currentPlan)
     if (upgrading) {
       return {
@@ -178,31 +215,29 @@ export default function Billing() {
       }
     }
     return {
-      label: p.price ? `Switch to ${p.name}` : (p.cta || 'Select'),
+      label: `Switch to ${p.name}`,
       disabled: false,
       type: 'default',
     }
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Billing & plans"
-        subtitle="Included monthly tokens, credit wallet, and upgrades. Token usage stays in the header meter."
-        extra={
-          payOpts?.stripe?.ready ? (
-            <Button loading={busy} onClick={openPortal}>
-              Manage subscription
-            </Button>
-          ) : null
-        }
-      />
-
+    <PageShell
+      title="Billing & plans"
+      subtitle="Included monthly tokens, credit wallet, and upgrades. Token usage stays in the header meter."
+      extra={
+        payOpts?.stripe?.ready ? (
+          <Button loading={busy} onClick={openPortal}>
+            Manage subscription
+          </Button>
+        ) : null
+      }
+    >
       {IS_NATIVE && (
         <Alert
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, borderRadius: 12 }}
           message="Subscriptions & top-ups"
           description="On the iOS app, manage payments on the website. Token meters still work here."
           action={
@@ -217,7 +252,7 @@ export default function Billing() {
         <Alert
           type="success"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, borderRadius: 12 }}
           message={`Pre-order · ${preorder?.discount_percent || 10}% off · early access`}
           description={
             <>
@@ -232,7 +267,7 @@ export default function Billing() {
         <Alert
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, borderRadius: 12 }}
           message="Stripe sandbox (test mode)"
           description={
             <>
@@ -248,7 +283,7 @@ export default function Billing() {
           type="success"
           showIcon
           icon={<CrownOutlined />}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, borderRadius: 12 }}
           message={
             <span>
               <strong>{plans[currentPlan]?.upgrade_teaser || `Upgrade to ${nextTeaserPlan.name}`}</strong>
@@ -273,39 +308,148 @@ export default function Billing() {
         />
       )}
 
-      <Card className="aba-soft-card" style={{ marginBottom: 16 }}>
-        <TokenMeter
-          meter={
-            meter
-              ? {
-                  ...meter,
-                  plan: meter.plan || currentPlan,
-                  subscription_expires_at:
-                    meter.subscription_expires_at || expiresAt,
-                }
-              : meter
+      {/* Training storage monitor + upgrade */}
+      {storage && (
+        <Card
+          className="aba-soft-card aba-billing-meter-card"
+          style={{ marginBottom: 16, borderRadius: 16 }}
+          styles={{
+            header: { textAlign: 'center', borderBottom: '1px solid var(--aba-border, #e2e8f0)' },
+            body: { paddingTop: 20, paddingBottom: 20 },
+          }}
+          title={
+            <Space>
+              <CloudServerOutlined />
+              Training storage
+            </Space>
           }
-          compact={false}
-        />
-        <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-          <strong>How billing works:</strong> your plan includes a monthly token pool for managed chat
-          (Fast / Quality / Reasoning / Large). When the pool is used, usage draws from your credit wallet
-          at the public rates below. Image and video are always wallet events.
-        </Typography.Paragraph>
-        {meter?.tokens_included > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <Progress
-              percent={Math.min(100, meter.usage_percent || 0)}
-              status={meter.hard_block ? 'exception' : meter.warn ? 'active' : 'normal'}
-              format={() => `${(meter.usage_percent || 0).toFixed(0)}% of included tokens`}
+        >
+          {(storage.hard_block || storage.warn) && (
+            <Alert
+              type={storage.hard_block ? 'error' : 'warning'}
+              showIcon
+              style={{ marginBottom: 16, textAlign: 'left' }}
+              message={storage.hard_block ? 'Storage full' : 'Storage running low'}
+              description={
+                storage.upgrade_hint
+                || 'Free space by deleting files, upgrade your plan, or buy a permanent storage pack.'
+              }
             />
-          </div>
-        )}
+          )}
+          <Row gutter={[16, 16]} justify="center">
+            <Col xs={24} sm={8}>
+              <Statistic title="Used" value={storage.used_human || '0 B'} />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic title="Limit" value={storage.limit_human || '—'} />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic title="Bonus packs" value={storage.bonus_human || '0 B'} />
+            </Col>
+          </Row>
+          {!storage.unlimited && (
+            <div style={{ marginTop: 16, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
+              <Progress
+                percent={Math.min(100, storage.usage_percent || 0)}
+                status={storage.hard_block ? 'exception' : storage.warn ? 'active' : 'normal'}
+                format={() => `${(storage.usage_percent || 0).toFixed(0)}% used`}
+              />
+              <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
+                Plan includes {storage.plan_human || '—'}
+                {storage.bonus_bytes > 0 ? ` + ${storage.bonus_human} purchased` : ''}.
+                {' '}Counts training notes &amp; uploads (local + indexed cloud imports).
+              </Typography.Paragraph>
+            </div>
+          )}
+          <Divider style={{ margin: '20px 0 12px' }} />
+          <Typography.Text strong style={{ display: 'block', textAlign: 'center', marginBottom: 12 }}>
+            Expand storage
+          </Typography.Text>
+          <Row gutter={[12, 12]} justify="center">
+            {(storage.addons || []).map((a) => (
+              <Col key={a.id} xs={24} sm={8}>
+                <Card size="small" className="aba-soft-card" styles={{ body: { textAlign: 'center' } }}>
+                  <Typography.Text strong>{a.name}</Typography.Text>
+                  <div style={{ margin: '8px 0', fontSize: 22, fontWeight: 700 }}>
+                    ${Number(a.price_usd || 0).toFixed(0)}
+                  </div>
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, minHeight: 40 }}>
+                    {a.blurb}
+                  </Typography.Paragraph>
+                  <Button
+                    type="primary"
+                    block
+                    loading={storageBusy === a.id}
+                    onClick={() => buyStorageAddon(a.id)}
+                  >
+                    {a.cta || `Add ${a.gb} GB`}
+                  </Button>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          {nextTeaserPlan && (
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+              <Button type="link" icon={<ArrowUpOutlined />} onClick={() => {
+                const el = document.getElementById('aba-plans')
+                if (el) el.scrollIntoView({ behavior: 'smooth' })
+              }}>
+                Or upgrade plan to {nextTeaserPlan.name} for more included storage
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Token meter — centered Ant Design Card container */}
+      <Card
+        className="aba-soft-card aba-billing-meter-card"
+        style={{ marginBottom: 16, borderRadius: 16 }}
+        styles={{
+          header: { textAlign: 'center', borderBottom: '1px solid var(--aba-border, #e2e8f0)' },
+          body: { paddingTop: 20, paddingBottom: 20 },
+        }}
+        title={
+          <Space>
+            <ThunderboltOutlined />
+            Token meter
+          </Space>
+        }
+      >
+        <div className="aba-billing-meter-body">
+          <TokenMeter
+            meter={
+              meter
+                ? {
+                    ...meter,
+                    plan: meter.plan || currentPlan,
+                    subscription_expires_at:
+                      meter.subscription_expires_at || expiresAt,
+                  }
+                : meter
+            }
+            compact={false}
+          />
+          <Typography.Paragraph type="secondary" className="aba-billing-meter-blurb">
+            <strong>How billing works:</strong> your plan includes a monthly token pool for managed chat
+            (Fast / Quality / Reasoning / Large). When the pool is used, usage draws from your credit wallet
+            at the public rates below. Image and video are always wallet events.
+          </Typography.Paragraph>
+          {meter?.tokens_included > 0 && (
+            <div className="aba-billing-meter-progress">
+              <Progress
+                percent={Math.min(100, meter.usage_percent || 0)}
+                status={meter.hard_block ? 'exception' : meter.warn ? 'active' : 'normal'}
+                format={() => `${(meter.usage_percent || 0).toFixed(0)}% of included tokens`}
+              />
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card
-        className="aba-soft-card"
-        style={{ marginBottom: 16 }}
+        className="aba-soft-card aba-billing-section-card"
+        style={{ marginBottom: 16, borderRadius: 16 }}
         title={<Space><ThunderboltOutlined /> Auto top-up — never stall mid-deal</Space>}
         extra={
           <Switch
@@ -415,9 +559,9 @@ export default function Billing() {
         </Space>
       </Card>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }} justify="center">
         <Col xs={24} md={8}>
-          <Card className="aba-stat-card" title="Credit wallet">
+          <Card className="aba-stat-card aba-soft-card" title="Credit wallet" style={{ height: '100%' }}>
             <Statistic prefix="$" precision={2} value={balance?.credits ?? 0} />
             <Space style={{ marginTop: 12 }} wrap>
               <InputNumber min={5} max={1000} prefix="$" value={amount} onChange={setAmount} />
@@ -440,7 +584,7 @@ export default function Billing() {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="This period">
+          <Card className="aba-soft-card" title="This period" style={{ height: '100%' }}>
             <Statistic title="Tokens used" value={meter?.tokens_used_period ?? usage?.total_tokens ?? 0} />
             <Statistic
               title="Included remaining"
@@ -449,7 +593,7 @@ export default function Billing() {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card className="aba-stat-card" title="Current plan">
+          <Card className="aba-stat-card aba-soft-card" title="Current plan" style={{ height: '100%' }}>
             <Tag color="blue" style={{ fontSize: 14 }}>
               {plans[currentPlan]?.name || currentPlan}
             </Tag>
@@ -482,118 +626,44 @@ export default function Billing() {
         </Col>
       </Row>
 
-      <Typography.Title level={4} style={{ marginTop: 8 }}>
-        Subscription tiers
-      </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        Upgrade anytime. Higher tiers unlock more agents, companies, and included tokens.
-      </Typography.Paragraph>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {orderedPlans.map(([key, p]) => {
-          const cta = ctaFor(key, p)
-          const isCurrent = currentPlan === key
-          const isUpgrade = planRank(key) > planRank(currentPlan)
-          return (
-            <Col xs={24} sm={12} lg={6} key={key}>
-              <Card
-                className={`aba-plan-card${p.highlight ? ' is-highlight' : ''}${isCurrent ? ' is-current' : ''}`}
-                style={{
-                  height: '100%',
-                  border: isCurrent ? '2px solid #1668dc' : p.highlight ? '2px solid #1677ff' : undefined,
-                  borderRadius: 14,
-                }}
-                title={
-                  <Space wrap>
-                    <span>{p.name}</span>
-                    {p.badge && <Tag color={p.highlight ? 'blue' : 'default'}>{p.badge}</Tag>}
-                    {isCurrent && <Tag color="success">You</Tag>}
-                  </Space>
+      {/* Plans — centered aba-box + Ant Design Card shell + tier Cards */}
+      <div className="aba-box aba-billing-plans-box">
+        <Card
+          className="aba-soft-card aba-billing-plans-card"
+          bordered={false}
+          styles={{ body: { padding: '8px 4px 12px' } }}
+        >
+          <PlansSectionHeader
+            title="Subscription tiers"
+            subtitle={
+              preorderOn
+                ? 'Pre-order 10% off · upgrade anytime. Higher tiers unlock more agents, companies, and tokens.'
+                : 'Upgrade anytime. Higher tiers unlock more agents, companies, and included tokens.'
+            }
+            centered
+          />
+          <div className="aba-billing-plans-inner">
+            <PlanCards
+              plans={orderedPlans}
+              preorderOn={preorderOn}
+              currentPlan={currentPlan}
+              busy={busy}
+              stripeSandbox={!!payOpts?.stripe?.sandbox}
+              showCrypto
+              ctaFor={ctaFor}
+              onChoose={choose}
+              onCrypto={(key) => {
+                if (IS_NATIVE) {
+                  window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
+                  return
                 }
-                extra={
-                  <Typography.Text strong style={{ fontSize: 18 }}>
-                    {p.price ? (
-                      preorderOn && p.price_checkout != null && p.price_checkout < p.price ? (
-                        <>
-                          <Typography.Text delete type="secondary" style={{ fontSize: 13, marginRight: 6 }}>
-                            ${p.price}
-                          </Typography.Text>
-                          ${Number(p.price_checkout).toFixed(p.price_checkout % 1 ? 2 : 0)}
-                        </>
-                      ) : `$${p.price}`
-                    ) : '$0'}
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>/mo</Typography.Text>
-                  </Typography.Text>
-                }
-              >
-                <Typography.Paragraph type="secondary" style={{ minHeight: 48, fontSize: 13 }}>
-                  {p.blurb}
-                </Typography.Paragraph>
-                {preorderOn && p.price > 0 && (
-                  <Tag color="gold" style={{ marginBottom: 8 }}>
-                    Pre-order · {p.preorder_discount_percent || 10}% off
-                  </Tag>
-                )}
-                <Tag color="processing" style={{ marginBottom: 8 }}>
-                  {(p.tokens_included || 0).toLocaleString()} tokens/mo
-                </Tag>
-                {p.value_line && (
-                  <div style={{ marginBottom: 10, fontSize: 12, color: '#16a34a' }}>
-                    {p.value_line}
-                  </div>
-                )}
-                <ul style={{ paddingLeft: 18, marginBottom: 12, fontSize: 13 }}>
-                  {(p.features || []).slice(0, 6).map((f) => (
-                    <li key={f} style={{ marginBottom: 4 }}>
-                      <CheckOutlined style={{ color: '#16a34a', marginRight: 6 }} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                {(p.teasers || []).length > 0 && !isCurrent && (
-                  <Alert
-                    type="info"
-                    showIcon={false}
-                    style={{ marginBottom: 12, fontSize: 12 }}
-                    message={(p.teasers || [])[0]}
-                  />
-                )}
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Button
-                    type={cta.type}
-                    icon={isUpgrade ? <ArrowUpOutlined /> : null}
-                    disabled={cta.disabled}
-                    loading={busy}
-                    onClick={() => choose(key)}
-                    block
-                    size="large"
-                  >
-                    {cta.label}
-                    {p.price > 0 && isUpgrade
-                      ? ` · $${preorderOn && p.price_checkout != null ? Number(p.price_checkout).toFixed(p.price_checkout % 1 ? 2 : 0) : p.price}/mo`
-                      : ''}
-                  </Button>
-                  {p.price > 0 && !isCurrent && (
-                    <Button
-                      block
-                      onClick={() => {
-                        if (IS_NATIVE) {
-                          window.open('https://aiassitant-nu.vercel.app/billing', '_blank')
-                          return
-                        }
-                        setCryptoCtx({ kind: 'plan', plan: key })
-                        setCryptoOpen(true)
-                      }}
-                    >
-                      {preorderOn ? 'Pre-order with crypto' : 'Pay with crypto'}
-                    </Button>
-                  )}
-                </Space>
-              </Card>
-            </Col>
-          )
-        })}
-      </Row>
+                setCryptoCtx({ kind: 'plan', plan: key })
+                setCryptoOpen(true)
+              }}
+            />
+          </div>
+        </Card>
+      </div>
 
       <CryptoPay
         open={cryptoOpen}
@@ -608,6 +678,8 @@ export default function Billing() {
       />
 
       <Card
+        className="aba-soft-card aba-billing-section-card"
+        style={{ borderRadius: 16 }}
         title="Token rates (wallet / overage)"
         extra={<Button type="link" onClick={() => nav('/subscribe')}>Compare on subscribe page</Button>}
       >
@@ -646,6 +718,6 @@ export default function Billing() {
           at the rates above. Media always uses the wallet.
         </Typography.Paragraph>
       </Card>
-    </div>
+    </PageShell>
   )
 }

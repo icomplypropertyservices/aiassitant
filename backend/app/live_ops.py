@@ -24,11 +24,14 @@ def _json_default(obj: Any):
     return str(obj)
 
 
-def _payload(row: models.LiveOpsEvent) -> dict:
+def _payload(row: models.LiveOpsEvent, agent_name: str | None = None) -> dict:
     try:
         extra = json.loads(row.payload_json or "{}")
     except Exception:
         extra = {}
+    name = agent_name
+    if not name and isinstance(extra, dict):
+        name = extra.get("agent_name") or extra.get("name")
     return {
         "id": row.id,
         "kind": row.kind,
@@ -36,6 +39,7 @@ def _payload(row: models.LiveOpsEvent) -> dict:
         "title": row.title,
         "detail": row.detail,
         "agent_id": row.agent_id,
+        "agent_name": name or None,
         "human_id": row.human_id,
         "task_id": row.task_id,
         "plan_id": row.plan_id or "",
@@ -63,6 +67,17 @@ async def emit_ops(
     if own_db:
         db = SessionLocal()
     try:
+        # Stamp agent name into payload for the live ticker (click-to-agent UI)
+        agent_name = None
+        payload_out = dict(payload or {}) if isinstance(payload, dict) else {}
+        if agent_id:
+            try:
+                ag = db.get(models.Agent, agent_id)
+                if ag:
+                    agent_name = ag.name
+                    payload_out.setdefault("agent_name", agent_name)
+            except Exception:
+                pass
         row = models.LiveOpsEvent(
             user_id=user_id,
             kind=kind,
@@ -73,13 +88,13 @@ async def emit_ops(
             human_id=human_id,
             task_id=task_id,
             plan_id=plan_id or "",
-            payload_json=json.dumps(payload or {}, default=_json_default),
+            payload_json=json.dumps(payload_out, default=_json_default),
             created_at=datetime.utcnow(),
         )
         db.add(row)
         db.commit()
         db.refresh(row)
-        data = _payload(row)
+        data = _payload(row, agent_name=agent_name)
         await manager.broadcast(f"ops:{user_id}", {"event": "ops", "entry": data})
         # Also mirror into activity feed when agent-scoped
         if agent_id:
@@ -117,7 +132,16 @@ def list_ops(db: Session, user_id: int, *, limit: int = 80, plan_id: str | None 
     if plan_id:
         q = q.filter_by(plan_id=plan_id)
     rows = q.order_by(models.LiveOpsEvent.id.desc()).limit(limit).all()
-    return [_payload(r) for r in rows]
+    # Batch-resolve agent names for ticker click labels
+    agent_ids = {r.agent_id for r in rows if r.agent_id}
+    names: dict[int, str] = {}
+    if agent_ids:
+        try:
+            for a in db.query(models.Agent).filter(models.Agent.id.in_(list(agent_ids))).all():
+                names[a.id] = a.name
+        except Exception:
+            names = {}
+    return [_payload(r, agent_name=names.get(r.agent_id) if r.agent_id else None) for r in rows]
 
 
 def ops_snapshot(db: Session, user_id: int) -> dict[str, Any]:

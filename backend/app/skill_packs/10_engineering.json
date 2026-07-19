@@ -1,0 +1,999 @@
+{
+  "pack": "10_engineering",
+  "category": "code",
+  "label": "Engineering",
+  "skills": [
+    {
+      "id": "eng_tech_design",
+      "name": "Technical design doc",
+      "description": "Write a technical design document covering architecture, trade-offs, and implementation plan.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_adr_write",
+      "name": "Architecture decision record",
+      "description": "Draft an ADR with context, options considered, decision, and consequences.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_api_design",
+      "name": "API design",
+      "description": "Design REST/GraphQL API contracts with resources, errors, and versioning.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_schema_design",
+      "name": "Schema design",
+      "description": "Design database or event schemas with keys, indexes, and migration notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_threat_model",
+      "name": "Threat model",
+      "description": "Produce a threat model with assets, attack surfaces, mitigations, and residual risk.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_load_test_plan",
+      "name": "Load test plan",
+      "description": "Plan load/performance tests with scenarios, SLAs, tooling, and success criteria.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_perf_budget",
+      "name": "Performance budget",
+      "description": "Define performance budgets for latency, throughput, payload size, and Core Web Vitals.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_code_review_checklist",
+      "name": "Code review checklist",
+      "description": "Create a code review checklist covering correctness, security, tests, and maintainability.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_refactor_plan",
+      "name": "Refactor plan",
+      "description": "Plan a safe refactor with scope, sequencing, risk, and rollback checkpoints.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_migration_eng",
+      "name": "Migration plan",
+      "description": "Plan a system or data migration with dual-write/read strategy and cutover steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_rollback_plan",
+      "name": "Rollback plan",
+      "description": "Document rollback triggers, steps, owners, and verification after a failed deploy.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_feature_flag_plan",
+      "name": "Feature flag plan",
+      "description": "Design feature-flag rollout, targeting, cleanup, and kill-switch strategy.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_ci_cd_pipeline",
+      "name": "CI/CD pipeline design",
+      "description": "Design a CI/CD pipeline with stages, gates, environments, and promotion rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_observability_plan",
+      "name": "Observability plan",
+      "description": "Plan logs, metrics, traces, dashboards, and alert coverage for a system.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_slo_sli",
+      "name": "SLO and SLI definition",
+      "description": "Define SLIs, SLOs, measurement windows, and alerting thresholds for reliability.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_oncall_runbook",
+      "name": "On-call runbook",
+      "description": "Write an on-call runbook with alert responses, escalation, and common fixes.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_incident_command",
+      "name": "Incident command guide",
+      "description": "Define incident roles, severity levels, communication cadence, and handoffs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_debug_playbook",
+      "name": "Debug playbook",
+      "description": "Create a systematic debugging playbook with hypotheses, tools, and evidence steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_root_cause",
+      "name": "Root cause analysis",
+      "description": "Perform root cause analysis with timeline, contributing factors, and preventive actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_hotfix_plan",
+      "name": "Hotfix plan",
+      "description": "Plan an emergency hotfix path with validation, deploy, and post-fix follow-up.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_dependency_upgrade",
+      "name": "Dependency upgrade plan",
+      "description": "Plan dependency upgrades with compatibility checks, test matrix, and rollout order.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_security_patch",
+      "name": "Security patch plan",
+      "description": "Plan urgent security patching with CVE impact, blast radius, and verification.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_secret_rotation",
+      "name": "Secret rotation plan",
+      "description": "Plan credential and secret rotation with dual-validity windows and cutover checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_iac_plan",
+      "name": "Infrastructure as code plan",
+      "description": "Plan IaC modules, environments, state strategy, and change review process.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_k8s_topology",
+      "name": "Kubernetes topology",
+      "description": "Design Kubernetes topology for namespaces, workloads, networking, and scaling.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_cost_optimization_eng",
+      "name": "Engineering cost optimization",
+      "description": "Identify infra and compute cost reductions with trade-offs and savings estimates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_data_pipeline",
+      "name": "Data pipeline design",
+      "description": "Design a data pipeline with sources, transforms, SLAs, and failure handling.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_etl_design",
+      "name": "ETL design",
+      "description": "Design ETL/ELT flows with schemas, quality checks, and incremental load strategy.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_ml_serving_note",
+      "name": "ML serving design note",
+      "description": "Document model serving architecture, latency targets, and rollout/rollback.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_sdk_design",
+      "name": "SDK design",
+      "description": "Design client SDK surface, idioms, auth, and error model for developers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_client_sdk_changelog",
+      "name": "Client SDK changelog",
+      "description": "Write a clear SDK changelog with breaking changes, migrations, and examples.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_backward_compat",
+      "name": "Backward compatibility plan",
+      "description": "Plan API/schema backward compatibility, deprecation windows, and dual support.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_versioning_policy",
+      "name": "Versioning policy",
+      "description": "Define semantic versioning, deprecation, and release cadence policy for APIs/packages.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_error_budget",
+      "name": "Error budget policy",
+      "description": "Define error budgets, burn-rate alerts, and freeze/release policy tied to SLOs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_capacity_eng",
+      "name": "Capacity plan",
+      "description": "Forecast capacity needs with growth assumptions, headroom, and scaling actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_chaos_experiment",
+      "name": "Chaos experiment plan",
+      "description": "Design a chaos experiment with hypothesis, blast radius, abort criteria, and learning.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_dr_drill",
+      "name": "Disaster recovery drill",
+      "description": "Plan a DR drill with RTO/RPO targets, failover steps, and success criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_backup_restore_test",
+      "name": "Backup restore test",
+      "description": "Design backup restore tests with scope, restore procedure, and integrity checks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_multi_region",
+      "name": "Multi-region architecture",
+      "description": "Design multi-region strategy for data locality, failover, consistency, and cost.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_edge_strategy",
+      "name": "Edge strategy",
+      "description": "Plan CDN/edge caching, routing, and compute placement for latency and resilience.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_mobile_release",
+      "name": "Mobile release plan",
+      "description": "Plan mobile app release with store review, phased rollout, and crash gates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_web_perf",
+      "name": "Web performance plan",
+      "description": "Analyze and improve web performance with CWV targets, bottlenecks, and fixes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_accessibility_eng",
+      "name": "Accessibility engineering plan",
+      "description": "Plan accessibility engineering work with WCAG targets, audits, and fix backlog.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_i18n_eng",
+      "name": "Internationalization plan",
+      "description": "Plan i18n/l10n engineering for strings, locales, formatting, and RTL support.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_test_strategy",
+      "name": "Test strategy",
+      "description": "Define test pyramid, ownership, coverage goals, and tooling for a product area.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_e2e_plan",
+      "name": "E2E test plan",
+      "description": "Plan end-to-end tests with critical paths, environments, flakiness controls, and CI gates.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_contract_test",
+      "name": "Contract testing plan",
+      "description": "Design consumer/provider contract tests for service boundaries and CI enforcement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_docs_eng",
+      "name": "Engineering documentation",
+      "description": "Produce engineering docs: README, runbooks, architecture notes, and onboarding guides.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_weekly",
+      "name": "Engineering weekly update",
+      "description": "Write a weekly engineering update covering progress, risks, incidents, and priorities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "eng_custom",
+      "name": "Custom engineering deliverable",
+      "description": "Produce a custom engineering deliverable tailored to the stated goal and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "code",
+      "pack": "10_engineering",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

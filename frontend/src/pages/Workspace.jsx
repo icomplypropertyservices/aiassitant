@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Card, Row, Col, Button, Modal, Form, Input, Select, Tag, Space, Typography,
-  List, Empty, message, Popconfirm, Collapse, Badge, Switch, Alert, Divider,
+  List, Empty, message, Popconfirm, Collapse, Badge, Switch, Alert,
 } from 'antd'
 import {
   PlusOutlined, BankOutlined, ProjectOutlined, CheckSquareOutlined, DeleteOutlined,
@@ -11,7 +11,10 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import OrchestratorBanner from '../components/OrchestratorBanner'
+import PageHeader from '../components/PageHeader'
 import { isOrchestrator } from '../agents/roles'
+import PageShell from '../components/PageShell'
+
 
 const STATUS_COLOR = {
   active: 'green',
@@ -43,11 +46,19 @@ export default function Workspace() {
 
   const load = () => {
     api('/org/tree').then(setTree).catch(e => message.error(e.message))
-    api('/agents/').then(setAgents).catch(() => setAgents([]))
+    api('/agents/')
+      .then((list) => setAgents(Array.isArray(list) ? list : []))
+      .catch(() => setAgents([]))
   }
   useEffect(() => {
     load()
-    api('/org/templates').then(setTemplates).catch(() => {})
+    api('/org/templates')
+      .then((t) => setTemplates({
+        companies: Array.isArray(t?.companies) ? t.companies : [],
+        projects: Array.isArray(t?.projects) ? t.projects : [],
+        tasks: Array.isArray(t?.tasks) ? t.tasks : [],
+      }))
+      .catch(() => {})
   }, [])
 
   const createCompany = async (v) => {
@@ -167,16 +178,15 @@ export default function Workspace() {
   }
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Workspace
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            Companies or Personal → projects → agents & tasks
+    <PageShell>
+      <PageHeader
+        title="Workspace"
+        subtitle={(
+          <span>
+            Companies or Personal → projects → agents &amp; tasks
             {tree?.subscriber && (
-              <> · Plan <Tag color="blue">{tree.subscriber.plan}</Tag>
+              <>
+                {' '}· Plan <Tag color="blue">{tree.subscriber.plan}</Tag>
                 {limits.companies != null && (
                   <Tag>
                     {tree.counts?.companies || 0}/{limits.companies} workspaces · {tree.counts?.projects || 0}/{limits.projects} projects
@@ -184,29 +194,31 @@ export default function Workspace() {
                 )}
               </>
             )}
-          </Typography.Text>
-        </div>
-        <Space wrap>
-          <Button icon={<ApartmentOutlined />} onClick={() => nav('/hierarchy')}>Hierarchy</Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setCompanyOpen(true)
-              setSelectedCompanyTpl((templates.companies || []).find((t) => t.id === 'personal') || null)
-              companyForm.setFieldsValue({
-                template_id: 'personal',
-                name: 'Personal',
-                industry: 'Personal',
-                notes: 'Your life, goals, and personal ops — not a registered business.',
-                create_suggested_projects: true,
-              })
-            }}
-          >
-            New company / Personal
-          </Button>
-        </Space>
-      </Space>
+          </span>
+        )}
+        extra={(
+          <>
+            <Button icon={<ApartmentOutlined />} onClick={() => nav('/hierarchy')}>Hierarchy</Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setCompanyOpen(true)
+                setSelectedCompanyTpl((templates.companies || []).find((t) => t.id === 'personal') || null)
+                companyForm.setFieldsValue({
+                  template_id: 'personal',
+                  name: 'Personal',
+                  industry: 'Personal',
+                  notes: 'Your life, goals, and personal ops — not a registered business.',
+                  create_suggested_projects: true,
+                })
+              }}
+            >
+              New company / Personal
+            </Button>
+          </>
+        )}
+      />
 
       <OrchestratorBanner
         orchestrator={tree?.orchestrator}
@@ -214,7 +226,7 @@ export default function Workspace() {
       />
 
       {companies.length === 0 ? (
-        <Card>
+        <Card className="aba-soft-card">
           <Empty description="No companies yet — create one (use a template for a head start)">
             <Button type="primary" onClick={() => setCompanyOpen(true)}>Create company</Button>
           </Empty>
@@ -224,6 +236,7 @@ export default function Workspace() {
           {companies.map(c => (
             <Col xs={24} key={c.id}>
               <Card
+                className="aba-soft-card"
                 title={
                   <Space wrap>
                     <BankOutlined />
@@ -277,109 +290,111 @@ export default function Workspace() {
                     </Button>
                   </Empty>
                 ) : (
-                  <Collapse
-                    items={(c.projects || []).map(p => ({
-                      key: p.id,
-                      label: (
-                        <Space wrap>
-                          <ProjectOutlined />
-                          <strong>{p.name}</strong>
-                          <Tag color={STATUS_COLOR[p.status] || 'default'}>{p.status}</Tag>
-                          <Badge count={p.open_tasks} overflowCount={99} style={{ background: '#1668dc' }} />
-                          <Typography.Text type="secondary">{p.task_count} tasks</Typography.Text>
-                          <Tag icon={<RobotOutlined />} color="geekblue">
-                            {p.agent_count || 0} agents
-                          </Tag>
-                        </Space>
-                      ),
-                      extra: (
-                        <Space onClick={e => e.stopPropagation()}>
-                          <Button size="small" icon={<RobotOutlined />} onClick={() => openAlloc(p)}>
-                            Agents
-                          </Button>
-                          <Button size="small" onClick={() => setTaskOpen(p)}>Add task</Button>
-                          <Popconfirm title="Delete project?" onConfirm={async () => {
-                            try {
-                              await api(`/org/projects/${p.id}`, { method: 'DELETE' })
-                              load()
-                            } catch (e) { message.error(e.message) }
-                          }}>
-                            <Button size="small" danger icon={<DeleteOutlined />} />
-                          </Popconfirm>
-                        </Space>
-                      ),
-                      children: (
-                        <div>
-                          <div style={{ marginBottom: 12 }}>
-                            <Typography.Text type="secondary">Allocated agents: </Typography.Text>
-                            <Space wrap size={[4, 4]}>
-                              {projectAgents(p).length === 0 ? (
-                                <Typography.Text type="secondary">None — click Agents to assign</Typography.Text>
-                              ) : projectAgents(p).map(a => (
-                                <Tag
-                                  key={a.id}
-                                  color={isOrchestrator(a) ? 'gold' : 'blue'}
-                                  style={{ cursor: 'pointer' }}
-                                  onClick={() => nav(`/agents/${a.id}`)}
-                                >
-                                  {isOrchestrator(a) && <CrownOutlined />} {a.name}
-                                </Tag>
-                              ))}
-                            </Space>
+                  <Card size="small" type="inner" title="Projects">
+                    <Collapse
+                      items={(c.projects || []).map(p => ({
+                        key: p.id,
+                        label: (
+                          <Space wrap>
+                            <ProjectOutlined />
+                            <strong>{p.name}</strong>
+                            <Tag color={STATUS_COLOR[p.status] || 'default'}>{p.status}</Tag>
+                            <Badge count={p.open_tasks} overflowCount={99} style={{ background: '#1668dc' }} />
+                            <Typography.Text type="secondary">{p.task_count} tasks</Typography.Text>
+                            <Tag icon={<RobotOutlined />} color="geekblue">
+                              {p.agent_count || 0} agents
+                            </Tag>
+                          </Space>
+                        ),
+                        extra: (
+                          <Space onClick={e => e.stopPropagation()}>
+                            <Button size="small" icon={<RobotOutlined />} onClick={() => openAlloc(p)}>
+                              Agents
+                            </Button>
+                            <Button size="small" onClick={() => setTaskOpen(p)}>Add task</Button>
+                            <Popconfirm title="Delete project?" onConfirm={async () => {
+                              try {
+                                await api(`/org/projects/${p.id}`, { method: 'DELETE' })
+                                load()
+                              } catch (e) { message.error(e.message) }
+                            }}>
+                              <Button size="small" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                          </Space>
+                        ),
+                        children: (
+                          <div>
+                            <Card size="small" type="inner" title="Allocated agents" style={{ marginBottom: 12 }}>
+                              <Space wrap size={[4, 4]}>
+                                {projectAgents(p).length === 0 ? (
+                                  <Typography.Text type="secondary">None — click Agents to assign</Typography.Text>
+                                ) : projectAgents(p).map(a => (
+                                  <Tag
+                                    key={a.id}
+                                    color={isOrchestrator(a) ? 'gold' : 'blue'}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => nav(`/agents/${a.id}`)}
+                                  >
+                                    {isOrchestrator(a) && <CrownOutlined />} {a.name}
+                                  </Tag>
+                                ))}
+                              </Space>
+                            </Card>
+                            <Card size="small" type="inner" title="Tasks">
+                              <List
+                                dataSource={p.tasks || []}
+                                locale={{ emptyText: 'No tasks yet' }}
+                                renderItem={t => (
+                                  <List.Item
+                                    actions={[
+                                      t.agent_id && t.status !== 'completed' && (
+                                        <Button
+                                          key="run"
+                                          type="link"
+                                          icon={<ThunderboltOutlined />}
+                                          loading={runningId === t.id}
+                                          onClick={() => runTask(t)}
+                                        >
+                                          Run
+                                        </Button>
+                                      ),
+                                      t.status !== 'completed' && (
+                                        <Button key="done" type="link" onClick={() => setTaskStatus(t.id, 'completed')}>
+                                          Complete
+                                        </Button>
+                                      ),
+                                      <Button key="progress" type="link" onClick={() => setTaskStatus(t.id, 'in_progress')}>
+                                        In progress
+                                      </Button>,
+                                    ].filter(Boolean)}
+                                  >
+                                    <List.Item.Meta
+                                      avatar={<CheckSquareOutlined />}
+                                      title={
+                                        <Space wrap>
+                                          {t.title}
+                                          <Tag color={STATUS_COLOR[t.status] || 'default'}>{t.status}</Tag>
+                                          {t.agent_id && (
+                                            <Tag icon={<RobotOutlined />} color="geekblue">
+                                              {agents.find(a => a.id === t.agent_id)?.name || 'Agent'}
+                                            </Tag>
+                                          )}
+                                          {t.tokens_used > 0 && (
+                                            <Tag color="purple">{t.tokens_used} tok · ${Number(t.cost || 0).toFixed(4)}</Tag>
+                                          )}
+                                        </Space>
+                                      }
+                                      description={t.description}
+                                    />
+                                  </List.Item>
+                                )}
+                              />
+                            </Card>
                           </div>
-                          <Divider style={{ margin: '8px 0' }} />
-                          <List
-                            dataSource={p.tasks || []}
-                            locale={{ emptyText: 'No tasks yet' }}
-                            renderItem={t => (
-                              <List.Item
-                                actions={[
-                                  t.agent_id && t.status !== 'completed' && (
-                                    <Button
-                                      key="run"
-                                      type="link"
-                                      icon={<ThunderboltOutlined />}
-                                      loading={runningId === t.id}
-                                      onClick={() => runTask(t)}
-                                    >
-                                      Run
-                                    </Button>
-                                  ),
-                                  t.status !== 'completed' && (
-                                    <Button key="done" type="link" onClick={() => setTaskStatus(t.id, 'completed')}>
-                                      Complete
-                                    </Button>
-                                  ),
-                                  <Button key="progress" type="link" onClick={() => setTaskStatus(t.id, 'in_progress')}>
-                                    In progress
-                                  </Button>,
-                                ].filter(Boolean)}
-                              >
-                                <List.Item.Meta
-                                  avatar={<CheckSquareOutlined />}
-                                  title={
-                                    <Space wrap>
-                                      {t.title}
-                                      <Tag color={STATUS_COLOR[t.status] || 'default'}>{t.status}</Tag>
-                                      {t.agent_id && (
-                                        <Tag icon={<RobotOutlined />} color="geekblue">
-                                          {agents.find(a => a.id === t.agent_id)?.name || 'Agent'}
-                                        </Tag>
-                                      )}
-                                      {t.tokens_used > 0 && (
-                                        <Tag color="purple">{t.tokens_used} tok · ${Number(t.cost || 0).toFixed(4)}</Tag>
-                                      )}
-                                    </Space>
-                                  }
-                                  description={t.description}
-                                />
-                              </List.Item>
-                            )}
-                          />
-                        </div>
-                      ),
-                    }))}
-                  />
+                        ),
+                      }))}
+                    />
+                  </Card>
                 )}
               </Card>
             </Col>
@@ -601,6 +616,6 @@ export default function Workspace() {
           <Button type="primary" htmlType="submit" block>Add task</Button>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   )
 }

@@ -6,10 +6,13 @@
     "androidScheme": "https",
     "iosScheme": "https",
     "allowNavigation": [
+      "aibusinessagent.xyz",
+      "www.aibusinessagent.xyz",
       "aiassitant-nu.vercel.app",
       "*.vercel.app",
       "checkout.stripe.com",
-      "*.stripe.com"
+      "*.stripe.com",
+      "api.resend.com"
     ]
   },
   "plugins": {

@@ -1,0 +1,124 @@
+/* part: base.css */
+/* ── AI Business Assistant — global polish ───────────────────────── */
+
+:root {
+  --aba-primary: #1668dc;
+  --aba-primary-soft: #e8f1fc;
+  --aba-ink: #0f172a;
+  --aba-muted: #64748b;
+  --aba-border: #e2e8f0;
+  --aba-surface: #ffffff;
+  --aba-bg: #f1f5f9;
+  --aba-bg-warm: #f8fafc;
+  --aba-success: #16a34a;
+  --aba-warning: #d97706;
+  --aba-danger: #dc2626;
+  --aba-radius: 12px;
+  --aba-radius-sm: 8px;
+  --aba-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
+  --aba-shadow-md: 0 4px 24px rgba(15, 23, 42, 0.08);
+  --aba-font: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Boxed / centered page shell — MOBILE-FIRST defaults (phone first) */
+  --aba-page-max: 100%;
+  --aba-page-wide: 100%;
+  --aba-page-narrow: 100%;
+  --aba-header-h: 56px;
+  --aba-content-pad-x: 12px;
+  --aba-content-pad-y: 12px;
+  --aba-content-pad-bottom: 40px;
+  /* Space above fixed mobile bottom nav (icons + labels + safe area) */
+  --aba-mobile-nav-clearance: 88px;
+  --aba-box-pad-x: 12px;
+  --aba-box-pad-y: 14px;
+  --aba-box-gap: 12px;
+  /* Vertical rhythm between stacked cards / sections in the shell */
+  --aba-shell-stack-gap: 12px;
+}
+
+/* Tablet: slightly roomier phone shell (still full-width column) */
+@media (min-width: 768px) {
+  :root {
+    --aba-header-h: 56px;
+    --aba-content-pad-x: 20px;
+    --aba-content-pad-y: 20px;
+    --aba-box-pad-x: 18px;
+    --aba-box-pad-y: 18px;
+    --aba-box-gap: 14px;
+    --aba-shell-stack-gap: 14px;
+  }
+}
+
+/* Desktop: centered max-width column + roomy padding (v2 sider at 1024+) */
+@media (min-width: 1024px) {
+  :root {
+    --aba-page-max: 1120px;
+    --aba-page-wide: 1480px;
+    --aba-page-narrow: 720px;
+    --aba-header-h: 64px;
+    --aba-content-pad-x: 28px;
+    --aba-content-pad-y: 24px;
+    --aba-box-pad-x: 22px;
+    --aba-box-pad-y: 20px;
+    --aba-box-gap: 16px;
+    --aba-shell-stack-gap: 16px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Prevent rubber-band / child overflow from creating horizontal page scroll */
+  overflow-x: clip;
+  max-width: 100%;
+  /* Use dynamic viewport when available (mobile browser chrome) */
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  min-height: 100dvh;
+  max-width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--aba-font);
+  color: var(--aba-ink);
+  background: var(--aba-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  width: 100%;
+}
+
+/* Smooth selection */
+::selection {
+  background: rgba(22, 104, 220, 0.18);
+  color: var(--aba-ink);
+}
+
+/* Subtle scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

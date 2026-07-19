@@ -1,0 +1,1438 @@
+{
+  "generated_at": "2026-07-19T12:06:35Z",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "agent_id": 27,
+  "message": "I am the human owner. Confirm receipt, create a task Status for human, and summarize open work for me.",
+  "steps": {
+    "health": {
+      "status": 200,
+      "version": "1.5.0"
+    },
+    "chat": {
+      "status": 200,
+      "elapsed_sec": 32.39,
+      "ok": true,
+      "conversation_id": 15,
+      "tokens": 2272,
+      "cost": 0.0,
+      "reply_len": 829,
+      "reply_preview": "**Receipt confirmed.** Building the weekly sales plan now (ICP research \u2192 3 outreach lines \u2192 targets \u2192 report to you). Creating the status task and summarizing open work.\n\n### Open work (summary for you)\n| Item | Status |\n|------|--------|\n| Weekly sales plan (ICP \u2192 3 outreach lines \u2192 targets \u2192 your report) | **Starting now** |\n| Human Status task | **Created** (tracker for you) |\n| Prior Live Demo Co / browser-loop chain | In progress / monitored |\n| Team (FAD Ops, Lead, Designer, Support) | Active \u2014 will delegate specialist steps as needed |\n\nI\u2019ll post the ICP, 3 lines, targets, and a tight owner report as soon as they land.\n\n\u2014 Skills: create_task: Task created; create_task: Task created; execute_goal: Goal chain started with 3 delegated steps\n\n\u2014 Goal chain started via execute_goal: task #283 with 3 delegated steps.",
+      "reply_full": "**Receipt confirmed.** Building the weekly sales plan now (ICP research \u2192 3 outreach lines \u2192 targets \u2192 report to you). Creating the status task and summarizing open work.\n\n### Open work (summary for you)\n| Item | Status |\n|------|--------|\n| Weekly sales plan (ICP \u2192 3 outreach lines \u2192 targets \u2192 your report) | **Starting now** |\n| Human Status task | **Created** (tracker for you) |\n| Prior Live Demo Co / browser-loop chain | In progress / monitored |\n| Team (FAD Ops, Lead, Designer, Support) | Active \u2014 will delegate specialist steps as needed |\n\nI\u2019ll post the ICP, 3 lines, targets, and a tight owner report as soon as they land.\n\n\u2014 Skills: create_task: Task created; create_task: Task created; execute_goal: Goal chain started with 3 delegated steps\n\n\u2014 Goal chain started via execute_goal: task #283 with 3 delegated steps.",
+      "detail": null,
+      "response_keys": [
+        "bill_source",
+        "conversation_id",
+        "cost",
+        "credits",
+        "goal_chain",
+        "ok",
+        "provider_hint",
+        "reply",
+        "skills",
+        "tokens",
+        "tokens_used_period"
+      ],
+      "goal_chain": {
+        "skill": "execute_goal",
+        "ok": true,
+        "message": "Goal chain started with 3 delegated steps",
+        "parent_task_id": 283,
+        "owner_agent_id": 27,
+        "company_id": 36,
+        "project_id": null,
+        "children": [
+          {
+            "task_id": 284,
+            "title": "[1/3] Build a weekly sales plan for Fire Alarms Dublin: (1) research and define ICP, (2) write 3 outreach lines, (3) set weekl",
+            "agent_id": 33,
+            "agent_name": "Sales Outreach Agent",
+            "status": "queued"
+          },
+          {
+            "task_id": 285,
+            "title": "[2/3] Use team leads where useful.",
+            "agent_id": 29,
+            "agent_name": "Master Designer",
+            "status": "todo"
+          },
+          {
+            "task_id": 286,
+            "title": "[3/3] Save deliverables and keep the human-facing Status task updated.",
+            "agent_id": 30,
+            "agent_name": "Lead Agent / Team Lead",
+            "status": "todo"
+          }
+        ],
+        "steps": 3,
+        "from_skill": true
+      }
+    },
+    "tasks": {
+      "/api/agents/27/tasks": {
+        "status": 200,
+        "type": "list",
+        "count": 50,
+        "sample": [
+          {
+            "id": 293,
+            "title": "Live API test: confirm task appears on /agents/tasks",
+            "status": "queued",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:07:36.763430"
+          },
+          {
+            "id": 283,
+            "title": "Goal: Build a weekly sales plan for Fire Alarms Dublin: (1) research and define ICP, (2) write 3 outreach lines, (3) set weekly sales targets, (4) deliver a clear sta",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:55.747087"
+          },
+          {
+            "id": 282,
+            "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+            "status": "queued",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:52.880193"
+          },
+          {
+            "id": 281,
+            "title": "Status: Weekly sales plan (for human owner)",
+            "status": "todo",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:49.877275"
+          },
+          {
+            "id": 280,
+            "title": "Full loop browser task",
+            "status": "completed",
+            "labels": "",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:44.236582"
+          },
+          {
+            "id": 279,
+            "title": "Live test queued task 1784462790",
+            "status": "completed",
+            "labels": "live-test,queued,demo",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:35.969332"
+          },
+          {
+            "id": 278,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.620601"
+          },
+          {
+            "id": 277,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.504964"
+          },
+          {
+            "id": 273,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": "auto-chain,step,1",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.042291"
+          },
+          {
+            "id": 272,
+            "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:26.923538"
+          },
+          {
+            "id": 271,
+            "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+            "status": "queued",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:22.689347"
+          },
+          {
+            "id": 270,
+            "title": "Full loop browser task",
+            "status": "completed",
+            "labels": "",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:05:48.712484"
+          },
+          {
+            "id": 269,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.669357"
+          },
+          {
+            "id": 268,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.543281"
+          },
+          {
+            "id": 264,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": "auto-chain,step,1",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:33.970589"
+          },
+          {
+            "id": 263,
+            "title": "Goal: Reply in one short sentence confirming you are online for the full browser loop test.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:05:33.841210"
+          },
+          {
+            "id": 262,
+            "title": "Step 6: Hand off active outreach/ops to Lead Agent + FAD Ops",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.872579"
+          },
+          {
+            "id": 261,
+            "title": "Step 5: Compile full plan and deliver to owner",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.814694"
+          },
+          {
+            "id": 260,
+            "title": "Step 4: Define progress reporting cadence to human owner",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.756609"
+          },
+          {
+            "id": 259,
+            "title": "Step 3: Set weekly targets (demos booked, held, follow-ups)",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.698506"
+          },
+          {
+            "id": 258,
+            "title": "Step 2: Draft 5 outreach emails for live demo offer",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.640616"
+          },
+          {
+            "id": 257,
+            "title": "Step 1: Research and lock ICP (property/facilities/landlords, Dublin/Ireland)",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.582631"
+          },
+          {
+            "id": 256,
+            "title": "Plan: Live Demo Co sales plan \u2014 execution",
+            "status": "todo",
+            "labels": "plan",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:04:06.467113"
+          },
+          {
+            "id": 255,
+            "title": "Live Demo Co \u2014 full sales plan execution",
+            "status": "queued",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:04:03.482609"
+          },
+          {
+            "id": 253,
+            "title": "Browser E2E task",
+            "status": "completed",
+            "labels": "",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:58:36.730171"
+          },
+          {
+            "id": 221,
+            "title": "Own Live Demo Co weekly sales targets + progress report",
+            "status": "queued",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:55:56.015608"
+          },
+          {
+            "id": 220,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.907918"
+          },
+          {
+            "id": 219,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.778624"
+          },
+          {
+            "id": 215,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": "auto-chain,step,1",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.198619"
+          },
+          {
+            "id": 214,
+            "title": "Goal: Complete Live Demo Co full sales plan: synthesize ICP from research, finalize 5 outreach emails, define weekly sales targets (demos booked, demos run, follow-up",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:55:41.006200"
+          },
+          {
+            "id": 213,
+            "title": "Step 5: Save plan and open progress reporting cadence",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 208,
+            "created_at": "2026-07-19T11:55:26.047965"
+          },
+          {
+            "id": 212,
+            "title": "Step 4: Assign ownership to Lead + Support + Designer",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 208,
+            "created_at": "2026-07-19T11:55:25.990631"
+          },
+          {
+            "id": 211,
+            "title": "Step 3: Set weekly activity and pipeline targets",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 208,
+            "created_at": "2026-07-19T11:55:25.933262"
+          },
+          {
+            "id": 210,
+            "title": "Step 2: Draft 5 outreach emails (cold + warm demo offers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 208,
+            "created_at": "2026-07-19T11:55:25.875869"
+          },
+          {
+            "id": 209,
+            "title": "Step 1: Research and lock ICP (Irish property/facilities buyers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 208,
+            "created_at": "2026-07-19T11:55:25.818811"
+          },
+          {
+            "id": 208,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:55:25.705155"
+          },
+          {
+            "id": 196,
+            "title": "Browser E2E task",
+            "status": "completed",
+            "labels": "",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:54:54.735786"
+          },
+          {
+            "id": 184,
+            "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:54:44.494985"
+          },
+          {
+            "id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 149,
+            "created_at": "2026-07-19T11:53:36.573858"
+          },
+          {
+            "id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": 149,
+            "created_at": "2026-07-19T11:53:36.446524"
+          }
+        ],
+        "status_or_human_related": [
+          {
+            "id": 281,
+            "title": "Status: Weekly sales plan (for human owner)",
+            "status": "todo",
+            "labels": "skill-created",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:49.877275"
+          },
+          {
+            "id": 272,
+            "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:26.923538"
+          },
+          {
+            "id": 260,
+            "title": "Step 4: Define progress reporting cadence to human owner",
+            "status": "queued",
+            "labels": "plan-step",
+            "priority": "medium",
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.756609"
+          },
+          {
+            "id": 184,
+            "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "priority": "high",
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:54:44.494985"
+          }
+        ]
+      },
+      "/api/org/tasks": {
+        "status": 200,
+        "type": "list",
+        "count": 100,
+        "sample": [
+          {
+            "id": 293,
+            "title": "Live API test: confirm task appears on /agents/tasks",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:07:36.763430"
+          },
+          {
+            "id": 286,
+            "title": "[3/3] Save deliverables and keep the human-facing Status task updated.",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 30,
+            "parent_task_id": 283,
+            "created_at": "2026-07-19T12:06:56.267978"
+          },
+          {
+            "id": 285,
+            "title": "[2/3] Use team leads where useful.",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 29,
+            "parent_task_id": 283,
+            "created_at": "2026-07-19T12:06:56.096090"
+          },
+          {
+            "id": 284,
+            "title": "[1/3] Build a weekly sales plan for Fire Alarms Dublin: (1) research and define ICP, (2) write 3 outreach lines, (3) set weekl",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 33,
+            "parent_task_id": 283,
+            "created_at": "2026-07-19T12:06:55.922983"
+          },
+          {
+            "id": 283,
+            "title": "Goal: Build a weekly sales plan for Fire Alarms Dublin: (1) research and define ICP, (2) write 3 outreach lines, (3) set weekly sales targets, (4) deliver a clear sta",
+            "status": "in_progress",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:55.747087"
+          },
+          {
+            "id": 282,
+            "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:52.880193"
+          },
+          {
+            "id": 281,
+            "title": "Status: Weekly sales plan (for human owner)",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:49.877275"
+          },
+          {
+            "id": 280,
+            "title": "Full loop browser task",
+            "status": "completed",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:44.236582"
+          },
+          {
+            "id": 279,
+            "title": "Live test queued task 1784462790",
+            "status": "completed",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:35.969332"
+          },
+          {
+            "id": 278,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.620601"
+          },
+          {
+            "id": 277,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.504964"
+          },
+          {
+            "id": 276,
+            "title": "[4/6] Execute primary deliverable",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 29,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.389299"
+          },
+          {
+            "id": 275,
+            "title": "[3/6] Break work into owned workstreams",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.273800"
+          },
+          {
+            "id": 274,
+            "title": "[2/6] Set company/project targets",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.157908"
+          },
+          {
+            "id": 273,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 272,
+            "created_at": "2026-07-19T12:06:27.042291"
+          },
+          {
+            "id": 272,
+            "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+            "status": "in_progress",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:26.923538"
+          },
+          {
+            "id": 271,
+            "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:22.689347"
+          },
+          {
+            "id": 270,
+            "title": "Full loop browser task",
+            "status": "completed",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:05:48.712484"
+          },
+          {
+            "id": 269,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.669357"
+          },
+          {
+            "id": 268,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.543281"
+          },
+          {
+            "id": 267,
+            "title": "[4/6] Execute primary deliverable",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 29,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.417388"
+          },
+          {
+            "id": 266,
+            "title": "[3/6] Break work into owned workstreams",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.284139"
+          },
+          {
+            "id": 265,
+            "title": "[2/6] Set company/project targets",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:34.157813"
+          },
+          {
+            "id": 264,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 263,
+            "created_at": "2026-07-19T12:05:33.970589"
+          },
+          {
+            "id": 263,
+            "title": "Goal: Reply in one short sentence confirming you are online for the full browser loop test.",
+            "status": "in_progress",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:05:33.841210"
+          },
+          {
+            "id": 262,
+            "title": "Step 6: Hand off active outreach/ops to Lead Agent + FAD Ops",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.872579"
+          },
+          {
+            "id": 261,
+            "title": "Step 5: Compile full plan and deliver to owner",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.814694"
+          },
+          {
+            "id": 260,
+            "title": "Step 4: Define progress reporting cadence to human owner",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.756609"
+          },
+          {
+            "id": 259,
+            "title": "Step 3: Set weekly targets (demos booked, held, follow-ups)",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.698506"
+          },
+          {
+            "id": 258,
+            "title": "Step 2: Draft 5 outreach emails for live demo offer",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.640616"
+          },
+          {
+            "id": 257,
+            "title": "Step 1: Research and lock ICP (property/facilities/landlords, Dublin/Ireland)",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.582631"
+          },
+          {
+            "id": 256,
+            "title": "Plan: Live Demo Co sales plan \u2014 execution",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:04:06.467113"
+          },
+          {
+            "id": 255,
+            "title": "Live Demo Co \u2014 full sales plan execution",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:04:03.482609"
+          },
+          {
+            "id": 253,
+            "title": "Browser E2E task",
+            "status": "completed",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:58:36.730171"
+          },
+          {
+            "id": 221,
+            "title": "Own Live Demo Co weekly sales targets + progress report",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T11:55:56.015608"
+          },
+          {
+            "id": 220,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.907918"
+          },
+          {
+            "id": 219,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.778624"
+          },
+          {
+            "id": 218,
+            "title": "[4/6] Execute primary deliverable",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 29,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.649511"
+          },
+          {
+            "id": 217,
+            "title": "[3/6] Break work into owned workstreams",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.520527"
+          },
+          {
+            "id": 216,
+            "title": "[2/6] Set company/project targets",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 28,
+            "parent_task_id": 214,
+            "created_at": "2026-07-19T11:55:41.328044"
+          }
+        ],
+        "status_or_human_related": [
+          {
+            "id": 286,
+            "title": "[3/3] Save deliverables and keep the human-facing Status task updated.",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 30,
+            "parent_task_id": 283,
+            "created_at": "2026-07-19T12:06:56.267978"
+          },
+          {
+            "id": 281,
+            "title": "Status: Weekly sales plan (for human owner)",
+            "status": "todo",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:49.877275"
+          },
+          {
+            "id": 272,
+            "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+            "status": "in_progress",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": null,
+            "created_at": "2026-07-19T12:06:26.923538"
+          },
+          {
+            "id": 260,
+            "title": "Step 4: Define progress reporting cadence to human owner",
+            "status": "queued",
+            "labels": null,
+            "priority": null,
+            "agent_id": 27,
+            "parent_task_id": 256,
+            "created_at": "2026-07-19T12:04:06.756609"
+          }
+        ]
+      },
+      "/api/agents/tasks/board": {
+        "status": 200,
+        "type": "dict",
+        "count": 0,
+        "sample": [],
+        "keys": [
+          "columns",
+          "counts",
+          "total"
+        ],
+        "status_or_human_related": []
+      }
+    }
+  },
+  "summary": {
+    "ok": true,
+    "chat_status": 200,
+    "reply_nonempty": true,
+    "reply_len": 829,
+    "reply_snippet": "**Receipt confirmed.** Building the weekly sales plan now (ICP research \u2192 3 outreach lines \u2192 targets \u2192 report to you). Creating the status task and summarizing open work.\n\n### Open work (summary for you)\n| Item | Status |\n|------|--------|\n| Weekly sales plan (ICP \u2192 3 outreach lines \u2192 targets \u2192 your report) | **Starting now** |\n| Human Status task | **Created** (tracker for you) |\n| Prior Live Demo Co / browser-loop chain | In progress / monitored |\n| Team (FAD Ops, Lead, Designer, Support) | Ac",
+    "recent_task_count": 40,
+    "agent_id": 27,
+    "status_human_tasks": [
+      {
+        "id": 281,
+        "title": "Status: Weekly sales plan (for human owner)",
+        "status": "todo",
+        "labels": "skill-created",
+        "priority": "high",
+        "agent_id": 27,
+        "parent_task_id": null,
+        "created_at": "2026-07-19T12:06:49.877275"
+      },
+      {
+        "id": 272,
+        "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+        "status": "in_progress",
+        "labels": "goal,auto-chain,monitor",
+        "priority": "high",
+        "agent_id": 27,
+        "parent_task_id": null,
+        "created_at": "2026-07-19T12:06:26.923538"
+      },
+      {
+        "id": 260,
+        "title": "Step 4: Define progress reporting cadence to human owner",
+        "status": "queued",
+        "labels": "plan-step",
+        "priority": "medium",
+        "agent_id": 27,
+        "parent_task_id": 256,
+        "created_at": "2026-07-19T12:04:06.756609"
+      },
+      {
+        "id": 184,
+        "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+        "status": "in_progress",
+        "labels": "goal,auto-chain,monitor",
+        "priority": "high",
+        "agent_id": 27,
+        "parent_task_id": null,
+        "created_at": "2026-07-19T11:54:44.494985"
+      }
+    ],
+    "tasks_listed": true
+  },
+  "recent_tasks": [
+    {
+      "id": 293,
+      "title": "Live API test: confirm task appears on /agents/tasks",
+      "status": "queued",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:07:36.763430"
+    },
+    {
+      "id": 283,
+      "title": "Goal: Build a weekly sales plan for Fire Alarms Dublin: (1) research and define ICP, (2) write 3 outreach lines, (3) set weekly sales targets, (4) deliver a clear sta",
+      "status": "in_progress",
+      "labels": "goal,auto-chain,monitor",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:55.747087"
+    },
+    {
+      "id": 282,
+      "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+      "status": "queued",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:52.880193"
+    },
+    {
+      "id": 281,
+      "title": "Status: Weekly sales plan (for human owner)",
+      "status": "todo",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:49.877275"
+    },
+    {
+      "id": 280,
+      "title": "Full loop browser task",
+      "status": "completed",
+      "labels": "",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:44.236582"
+    },
+    {
+      "id": 279,
+      "title": "Live test queued task 1784462790",
+      "status": "completed",
+      "labels": "live-test,queued,demo",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:35.969332"
+    },
+    {
+      "id": 278,
+      "title": "[6/6] Monitor completion & escalate blockers",
+      "status": "todo",
+      "labels": "auto-chain,step,6",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 272,
+      "created_at": "2026-07-19T12:06:27.620601"
+    },
+    {
+      "id": 277,
+      "title": "[5/6] QA / review & pack result",
+      "status": "todo",
+      "labels": "auto-chain,step,5",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 272,
+      "created_at": "2026-07-19T12:06:27.504964"
+    },
+    {
+      "id": 273,
+      "title": "[1/6] Clarify goal & success criteria",
+      "status": "queued",
+      "labels": "auto-chain,step,1",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 272,
+      "created_at": "2026-07-19T12:06:27.042291"
+    },
+    {
+      "id": 272,
+      "title": "Goal: Build a weekly sales plan: research ICP, write 3 outreach lines, set targets, report to human owner.",
+      "status": "in_progress",
+      "labels": "goal,auto-chain,monitor",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:26.923538"
+    },
+    {
+      "id": 271,
+      "title": "Weekly sales plan: ICP + 3 outreach lines + targets + owner report",
+      "status": "queued",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:06:22.689347"
+    },
+    {
+      "id": 270,
+      "title": "Full loop browser task",
+      "status": "completed",
+      "labels": "",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:05:48.712484"
+    },
+    {
+      "id": 269,
+      "title": "[6/6] Monitor completion & escalate blockers",
+      "status": "todo",
+      "labels": "auto-chain,step,6",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 263,
+      "created_at": "2026-07-19T12:05:34.669357"
+    },
+    {
+      "id": 268,
+      "title": "[5/6] QA / review & pack result",
+      "status": "todo",
+      "labels": "auto-chain,step,5",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 263,
+      "created_at": "2026-07-19T12:05:34.543281"
+    },
+    {
+      "id": 264,
+      "title": "[1/6] Clarify goal & success criteria",
+      "status": "queued",
+      "labels": "auto-chain,step,1",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 263,
+      "created_at": "2026-07-19T12:05:33.970589"
+    },
+    {
+      "id": 263,
+      "title": "Goal: Reply in one short sentence confirming you are online for the full browser loop test.",
+      "status": "in_progress",
+      "labels": "goal,auto-chain,monitor",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:05:33.841210"
+    },
+    {
+      "id": 262,
+      "title": "Step 6: Hand off active outreach/ops to Lead Agent + FAD Ops",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.872579"
+    },
+    {
+      "id": 261,
+      "title": "Step 5: Compile full plan and deliver to owner",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.814694"
+    },
+    {
+      "id": 260,
+      "title": "Step 4: Define progress reporting cadence to human owner",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.756609"
+    },
+    {
+      "id": 259,
+      "title": "Step 3: Set weekly targets (demos booked, held, follow-ups)",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.698506"
+    },
+    {
+      "id": 258,
+      "title": "Step 2: Draft 5 outreach emails for live demo offer",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.640616"
+    },
+    {
+      "id": 257,
+      "title": "Step 1: Research and lock ICP (property/facilities/landlords, Dublin/Ireland)",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 256,
+      "created_at": "2026-07-19T12:04:06.582631"
+    },
+    {
+      "id": 256,
+      "title": "Plan: Live Demo Co sales plan \u2014 execution",
+      "status": "todo",
+      "labels": "plan",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:04:06.467113"
+    },
+    {
+      "id": 255,
+      "title": "Live Demo Co \u2014 full sales plan execution",
+      "status": "queued",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T12:04:03.482609"
+    },
+    {
+      "id": 253,
+      "title": "Browser E2E task",
+      "status": "completed",
+      "labels": "",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:58:36.730171"
+    },
+    {
+      "id": 221,
+      "title": "Own Live Demo Co weekly sales targets + progress report",
+      "status": "queued",
+      "labels": "skill-created",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:55:56.015608"
+    },
+    {
+      "id": 220,
+      "title": "[6/6] Monitor completion & escalate blockers",
+      "status": "todo",
+      "labels": "auto-chain,step,6",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 214,
+      "created_at": "2026-07-19T11:55:41.907918"
+    },
+    {
+      "id": 219,
+      "title": "[5/6] QA / review & pack result",
+      "status": "todo",
+      "labels": "auto-chain,step,5",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 214,
+      "created_at": "2026-07-19T11:55:41.778624"
+    },
+    {
+      "id": 215,
+      "title": "[1/6] Clarify goal & success criteria",
+      "status": "queued",
+      "labels": "auto-chain,step,1",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 214,
+      "created_at": "2026-07-19T11:55:41.198619"
+    },
+    {
+      "id": 214,
+      "title": "Goal: Complete Live Demo Co full sales plan: synthesize ICP from research, finalize 5 outreach emails, define weekly sales targets (demos booked, demos run, follow-up",
+      "status": "in_progress",
+      "labels": "goal,auto-chain,monitor",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:55:41.006200"
+    },
+    {
+      "id": 213,
+      "title": "Step 5: Save plan and open progress reporting cadence",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 208,
+      "created_at": "2026-07-19T11:55:26.047965"
+    },
+    {
+      "id": 212,
+      "title": "Step 4: Assign ownership to Lead + Support + Designer",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 208,
+      "created_at": "2026-07-19T11:55:25.990631"
+    },
+    {
+      "id": 211,
+      "title": "Step 3: Set weekly activity and pipeline targets",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 208,
+      "created_at": "2026-07-19T11:55:25.933262"
+    },
+    {
+      "id": 210,
+      "title": "Step 2: Draft 5 outreach emails (cold + warm demo offers)",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 208,
+      "created_at": "2026-07-19T11:55:25.875869"
+    },
+    {
+      "id": 209,
+      "title": "Step 1: Research and lock ICP (Irish property/facilities buyers)",
+      "status": "queued",
+      "labels": "plan-step",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": 208,
+      "created_at": "2026-07-19T11:55:25.818811"
+    },
+    {
+      "id": 208,
+      "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+      "status": "todo",
+      "labels": "plan",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:55:25.705155"
+    },
+    {
+      "id": 196,
+      "title": "Browser E2E task",
+      "status": "completed",
+      "labels": "",
+      "priority": "medium",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:54:54.735786"
+    },
+    {
+      "id": 184,
+      "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+      "status": "in_progress",
+      "labels": "goal,auto-chain,monitor",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": null,
+      "created_at": "2026-07-19T11:54:44.494985"
+    },
+    {
+      "id": 161,
+      "title": "[6/6] Monitor completion & escalate blockers",
+      "status": "todo",
+      "labels": "auto-chain,step,6",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 149,
+      "created_at": "2026-07-19T11:53:36.573858"
+    },
+    {
+      "id": 160,
+      "title": "[5/6] QA / review & pack result",
+      "status": "todo",
+      "labels": "auto-chain,step,5",
+      "priority": "high",
+      "agent_id": 27,
+      "parent_task_id": 149,
+      "created_at": "2026-07-19T11:53:36.446524"
+    }
+  ]
+}

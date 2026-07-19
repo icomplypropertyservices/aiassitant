@@ -1,0 +1,994 @@
+{
+  "generated_at": "2026-07-19T11:52:00Z",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "email": "test+e2eb1784461857256@aibusinessagent.xyz",
+  "user_id_hint": 37,
+  "agent_id_hint": 27,
+  "message": "Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+  "steps": {
+    "health": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "service": "ai-business-assistant",
+        "version": "1.5.0",
+        "environment": "production",
+        "serverless": true,
+        "billing_free_grants": false,
+        "docs_enabled": false,
+        "cron_secret_configured": false,
+        "path_frontend_hint": "https://aibusinessagent.xyz/agents",
+        "cli_api": true,
+        "meetings": true,
+        "features": [
+          "agent_wallets",
+          "git_repos",
+          "local_machines",
+          "orchestrator_bootstrap",
+          "meeting_rooms"
+        ]
+      }
+    },
+    "login": {
+      "status": "skipped_valid_stored_key",
+      "has_token": true,
+      "user_id": 37,
+      "plan": "trial",
+      "subscription_active": true,
+      "source": "stored_api_key"
+    },
+    "me_before": {
+      "status": 200,
+      "plan": "trial",
+      "subscription_active": true,
+      "user_id": 37
+    },
+    "activate_trial": {
+      "status": "skipped",
+      "plan": "trial"
+    },
+    "ensure_orchestrator": {
+      "status": 200,
+      "agent_id": 27,
+      "name": "Main AI Orchestrator",
+      "is_orchestrator": true,
+      "hierarchy_role": "orchestrator",
+      "detail": null
+    },
+    "agents_list": {
+      "status": 200,
+      "count": 10,
+      "ids": [
+        {
+          "id": 27,
+          "name": "Main AI Orchestrator",
+          "is_orchestrator": true,
+          "hierarchy_role": "orchestrator"
+        },
+        {
+          "id": 28,
+          "name": "FAD Ops Lead",
+          "is_orchestrator": false,
+          "hierarchy_role": "lead"
+        },
+        {
+          "id": 30,
+          "name": "Lead Agent / Team Lead",
+          "is_orchestrator": false,
+          "hierarchy_role": "lead"
+        },
+        {
+          "id": 32,
+          "name": "Operations Lead",
+          "is_orchestrator": false,
+          "hierarchy_role": "lead"
+        },
+        {
+          "id": 31,
+          "name": "Sales Lead Agent",
+          "is_orchestrator": false,
+          "hierarchy_role": "lead"
+        },
+        {
+          "id": 35,
+          "name": "Appointment Booker",
+          "is_orchestrator": false,
+          "hierarchy_role": "member"
+        },
+        {
+          "id": 36,
+          "name": "Customer Support Agent",
+          "is_orchestrator": false,
+          "hierarchy_role": "member"
+        },
+        {
+          "id": 34,
+          "name": "Lead Qualifier",
+          "is_orchestrator": false,
+          "hierarchy_role": "member"
+        },
+        {
+          "id": 29,
+          "name": "Master Designer",
+          "is_orchestrator": false,
+          "hierarchy_role": "specialist"
+        },
+        {
+          "id": 33,
+          "name": "Sales Outreach Agent",
+          "is_orchestrator": false,
+          "hierarchy_role": "member"
+        }
+      ],
+      "selected_agent_id": 27
+    },
+    "chat": {
+      "status": 200,
+      "elapsed_sec": 99.45,
+      "ok": true,
+      "conversation_id": 15,
+      "tokens": 2032,
+      "cost": 0.0,
+      "has_goal_chain_field": true,
+      "goal_chain": {
+        "ok": true,
+        "message": "Goal chain started with 6 delegated steps",
+        "parent_task_id": 149,
+        "owner_agent_id": 27,
+        "company_id": 36,
+        "project_id": null,
+        "children": [
+          {
+            "task_id": 150,
+            "title": "[1/6] Clarify goal & success criteria",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "status": "queued"
+          },
+          {
+            "task_id": 151,
+            "title": "[2/6] Set company/project targets",
+            "agent_id": 28,
+            "agent_name": "FAD Ops Lead",
+            "status": "todo"
+          },
+          {
+            "task_id": 154,
+            "title": "[3/6] Break work into owned workstreams",
+            "agent_id": 28,
+            "agent_name": "FAD Ops Lead",
+            "status": "todo"
+          },
+          {
+            "task_id": 157,
+            "title": "[4/6] Execute primary deliverable",
+            "agent_id": 29,
+            "agent_name": "Master Designer",
+            "status": "todo"
+          },
+          {
+            "task_id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "status": "todo"
+          },
+          {
+            "task_id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "agent_id": 27,
+            "agent_name": "Main AI Orchestrator",
+            "status": "todo"
+          }
+        ],
+        "steps": 6
+      },
+      "skills_count": 5,
+      "reply_preview": "Building the full Live Demo Co sales plan: researching the ICP, then drafting outreach, targets, and a progress frame. Delegating and running the work now. monospaced\n\n\u2014 Skills: announce_plan: Plan announced (5 steps); research: None; generate_content: None; create_task: Task created; save_memory: Saved to agent data vault\n\n\u2014 Auto-chain started: goal task #149 with 6 delegated steps (hierarchy). Autonomy will run/monitor them.",
+      "reply_len": 430,
+      "detail": null,
+      "response_keys": [
+        "bill_source",
+        "conversation_id",
+        "cost",
+        "credits",
+        "goal_chain",
+        "ok",
+        "provider_hint",
+        "reply",
+        "skills",
+        "tokens",
+        "tokens_used_period"
+      ]
+    },
+    "tasks": {
+      "/api/agents/27/tasks": {
+        "status": 200,
+        "type": "list",
+        "count": 32,
+        "chain_related": [
+          {
+            "id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 158,
+            "title": "Step 4: Package sales plan + progress report for owner",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 155,
+            "title": "Step 2: Draft 5 outreach emails mapped to ICP/scenarios",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 153,
+            "title": "Step 1: Research and define ICP (segments, pains, triggers, buyers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 152,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 150,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": "auto-chain,step,1",
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 146,
+            "title": "Step 3: Define weekly sales targets and KPIs",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 145,
+            "title": "Step 2: Write 5 ICP-mapped outreach emails",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 144,
+            "title": "Step 1: Research and lock ICP (segments, pains, triggers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 143,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 142,
+            "title": "Execute Live Demo Co sales plan \u2014 outreach + weekly targets",
+            "status": "queued",
+            "labels": "skill-created",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 135,
+            "title": "Goal: Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella. Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that conv",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 124,
+            "title": "Goal: Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Services, iComply Products (property managers,",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 121,
+            "title": "Step 3: Set weekly sales targets and cadence",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 120,
+            "title": "Step 2: Write 5 outreach emails mapped to ICP pain and demo offer",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 119,
+            "title": "Step 1: Research ICP for Live Demo Co (FAD, iComply Property, iComply Products buyers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 118,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 111,
+            "title": "Goal: Create a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null,
+            "agent_id": 27
+          }
+        ],
+        "sample": [
+          {
+            "id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": "auto-chain,step,6",
+            "parent_task_id": 149
+          },
+          {
+            "id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": "auto-chain,step,5",
+            "parent_task_id": 149
+          },
+          {
+            "id": 159,
+            "title": "Step 5: Save plan to memory and assign ongoing ownership to Lead Agent",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152
+          },
+          {
+            "id": 158,
+            "title": "Step 4: Package sales plan + progress report for owner",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152
+          },
+          {
+            "id": 156,
+            "title": "Step 3: Set weekly targets (activity + outcomes)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152
+          },
+          {
+            "id": 155,
+            "title": "Step 2: Draft 5 outreach emails mapped to ICP/scenarios",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152
+          },
+          {
+            "id": 153,
+            "title": "Step 1: Research and define ICP (segments, pains, triggers, buyers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 152
+          },
+          {
+            "id": 152,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "parent_task_id": null
+          },
+          {
+            "id": 150,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": "auto-chain,step,1",
+            "parent_task_id": 149
+          },
+          {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null
+          },
+          {
+            "id": 148,
+            "title": "Step 5: Save plan to memory and assign follow-up tasks to Lead/FAD Ops",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143
+          },
+          {
+            "id": 147,
+            "title": "Step 4: Set progress-report cadence and owner dashboard notes",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143
+          },
+          {
+            "id": 146,
+            "title": "Step 3: Define weekly sales targets and KPIs",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143
+          },
+          {
+            "id": 145,
+            "title": "Step 2: Write 5 ICP-mapped outreach emails",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143
+          },
+          {
+            "id": 144,
+            "title": "Step 1: Research and lock ICP (segments, pains, triggers)",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 143
+          },
+          {
+            "id": 143,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": "plan",
+            "parent_task_id": null
+          },
+          {
+            "id": 142,
+            "title": "Execute Live Demo Co sales plan \u2014 outreach + weekly targets",
+            "status": "queued",
+            "labels": "skill-created",
+            "parent_task_id": null
+          },
+          {
+            "id": 135,
+            "title": "Goal: Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella. Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that conv",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null
+          },
+          {
+            "id": 124,
+            "title": "Goal: Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Services, iComply Products (property managers,",
+            "status": "in_progress",
+            "labels": "goal,auto-chain,monitor",
+            "parent_task_id": null
+          },
+          {
+            "id": 123,
+            "title": "Step 5: Delegate follow-up execution to Lead Agent / FAD Ops",
+            "status": "queued",
+            "labels": "plan-step",
+            "parent_task_id": 118
+          }
+        ]
+      },
+      "/api/agents/tasks/board": {
+        "status": 200,
+        "type": "dict",
+        "keys": [
+          "columns",
+          "counts",
+          "total"
+        ],
+        "body_preview": "{\"columns\": {\"todo\": [{\"id\": 161, \"title\": \"[6/6] Monitor completion & escalate blockers\", \"description\": \"Track open subtasks, re-queue stuck work, escalate only if blocked. Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.\\n\\n---\\nParent goal #149: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.\\nAssigned via hierarchy auto-chain. Complete your part; parent monitors completion.\", \"status\": \"todo\", \"priority\": \"high\", \"labels\": \"auto-chain,ste"
+      },
+      "/api/org/tasks": {
+        "status": 200,
+        "type": "list",
+        "count": 48,
+        "chain_related": [
+          {
+            "id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 158,
+            "title": "Step 4: Package sales plan + progress report for owner",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 157,
+            "title": "[4/6] Execute primary deliverable",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 29
+          },
+          {
+            "id": 155,
+            "title": "Step 2: Draft 5 outreach emails mapped to ICP/scenarios",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 154,
+            "title": "[3/6] Break work into owned workstreams",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 28
+          },
+          {
+            "id": 153,
+            "title": "Step 1: Research and define ICP (segments, pains, triggers, buyers)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152,
+            "agent_id": 27
+          },
+          {
+            "id": 152,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 151,
+            "title": "[2/6] Set company/project targets",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 28
+          },
+          {
+            "id": 150,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 149,
+            "agent_id": 27
+          },
+          {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 146,
+            "title": "Step 3: Define weekly sales targets and KPIs",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 145,
+            "title": "Step 2: Write 5 ICP-mapped outreach emails",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 144,
+            "title": "Step 1: Research and lock ICP (segments, pains, triggers)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143,
+            "agent_id": 27
+          },
+          {
+            "id": 143,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 142,
+            "title": "Execute Live Demo Co sales plan \u2014 outreach + weekly targets",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 139,
+            "title": "[4/6] (3) Set clear weekly sales targets (demos booked, demos run, follow-ups, pipeline value).",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 135,
+            "agent_id": 33
+          },
+          {
+            "id": 138,
+            "title": "[3/6] (2) Write 5 outreach emails (sequences/variants) aligned to that ICP.",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 135,
+            "agent_id": 30
+          },
+          {
+            "id": 137,
+            "title": "[2/6] Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that convert to FAD, iComply Property Services, and iCo",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 135,
+            "agent_id": 29
+          },
+          {
+            "id": 136,
+            "title": "[1/6] Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella.",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 135,
+            "agent_id": 33
+          },
+          {
+            "id": 135,
+            "title": "Goal: Build a full sales plan for Live Demo Co under Fire Alarms Dublin / iComply umbrella. Deliverables: (1) ICP research for Live Demo Co \u2014 who buys demos that conv",
+            "status": "in_progress",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 129,
+            "title": "[5/5] Deliver a consolidated sales plan; delegate research/content to team leads where useful; save key outputs to memory.",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 124,
+            "agent_id": 33
+          },
+          {
+            "id": 127,
+            "title": "[3/5] 3) Set weekly sales targets (demos booked, emails sent, follow-ups, conversion).",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 124,
+            "agent_id": 33
+          },
+          {
+            "id": 126,
+            "title": "[2/5] 2) Write 5 outreach emails mapped to ICP pains.",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 124,
+            "agent_id": 29
+          },
+          {
+            "id": 125,
+            "title": "[1/5] Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Servic",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 124,
+            "agent_id": 33
+          },
+          {
+            "id": 124,
+            "title": "Goal: Live Demo Co full sales plan: 1) Research ICP for Live Demo Co in context of Fire Alarms Dublin, iComply Property Services, iComply Products (property managers,",
+            "status": "in_progress",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          },
+          {
+            "id": 121,
+            "title": "Step 3: Set weekly sales targets and cadence",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 120,
+            "title": "Step 2: Write 5 outreach emails mapped to ICP pain and demo offer",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 119,
+            "title": "Step 1: Research ICP for Live Demo Co (FAD, iComply Property, iComply Products buyers)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 118,
+            "agent_id": 27
+          },
+          {
+            "id": 118,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": null,
+            "agent_id": 27
+          }
+        ],
+        "sample": [
+          {
+            "id": 161,
+            "title": "[6/6] Monitor completion & escalate blockers",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 160,
+            "title": "[5/6] QA / review & pack result",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 159,
+            "title": "Step 5: Save plan to memory and assign ongoing ownership to Lead Agent",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152
+          },
+          {
+            "id": 158,
+            "title": "Step 4: Package sales plan + progress report for owner",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152
+          },
+          {
+            "id": 157,
+            "title": "[4/6] Execute primary deliverable",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 156,
+            "title": "Step 3: Set weekly targets (activity + outcomes)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152
+          },
+          {
+            "id": 155,
+            "title": "Step 2: Draft 5 outreach emails mapped to ICP/scenarios",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152
+          },
+          {
+            "id": 154,
+            "title": "[3/6] Break work into owned workstreams",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 153,
+            "title": "Step 1: Research and define ICP (segments, pains, triggers, buyers)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 152
+          },
+          {
+            "id": 152,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": null
+          },
+          {
+            "id": 151,
+            "title": "[2/6] Set company/project targets",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 150,
+            "title": "[1/6] Clarify goal & success criteria",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 149
+          },
+          {
+            "id": 149,
+            "title": "Goal: Build a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.",
+            "status": "in_progress",
+            "labels": null,
+            "parent_task_id": null
+          },
+          {
+            "id": 148,
+            "title": "Step 5: Save plan to memory and assign follow-up tasks to Lead/FAD Ops",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143
+          },
+          {
+            "id": 147,
+            "title": "Step 4: Set progress-report cadence and owner dashboard notes",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143
+          },
+          {
+            "id": 146,
+            "title": "Step 3: Define weekly sales targets and KPIs",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143
+          },
+          {
+            "id": 145,
+            "title": "Step 2: Write 5 ICP-mapped outreach emails",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143
+          },
+          {
+            "id": 144,
+            "title": "Step 1: Research and lock ICP (segments, pains, triggers)",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": 143
+          },
+          {
+            "id": 143,
+            "title": "Plan: Live Demo Co \u2014 Full Sales Plan",
+            "status": "todo",
+            "labels": null,
+            "parent_task_id": null
+          },
+          {
+            "id": 142,
+            "title": "Execute Live Demo Co sales plan \u2014 outreach + weekly targets",
+            "status": "queued",
+            "labels": null,
+            "parent_task_id": null
+          }
+        ]
+      }
+    },
+    "tasks_auth_source": "stored"
+  },
+  "goal_chain": {
+    "ok": true,
+    "message": "Goal chain started with 6 delegated steps",
+    "parent_task_id": 149,
+    "owner_agent_id": 27,
+    "company_id": 36,
+    "project_id": null,
+    "children": [
+      {
+        "task_id": 150,
+        "title": "[1/6] Clarify goal & success criteria",
+        "agent_id": 27,
+        "agent_name": "Main AI Orchestrator",
+        "status": "queued"
+      },
+      {
+        "task_id": 151,
+        "title": "[2/6] Set company/project targets",
+        "agent_id": 28,
+        "agent_name": "FAD Ops Lead",
+        "status": "todo"
+      },
+      {
+        "task_id": 154,
+        "title": "[3/6] Break work into owned workstreams",
+        "agent_id": 28,
+        "agent_name": "FAD Ops Lead",
+        "status": "todo"
+      },
+      {
+        "task_id": 157,
+        "title": "[4/6] Execute primary deliverable",
+        "agent_id": 29,
+        "agent_name": "Master Designer",
+        "status": "todo"
+      },
+      {
+        "task_id": 160,
+        "title": "[5/6] QA / review & pack result",
+        "agent_id": 27,
+        "agent_name": "Main AI Orchestrator",
+        "status": "todo"
+      },
+      {
+        "task_id": 161,
+        "title": "[6/6] Monitor completion & escalate blockers",
+        "agent_id": 27,
+        "agent_name": "Main AI Orchestrator",
+        "status": "todo"
+      }
+    ],
+    "steps": 6
+  },
+  "auto_chain_text_present": true,
+  "deploy_required": false,
+  "summary": {
+    "ok": true,
+    "status": "auto_chain_live",
+    "agent_id": 27,
+    "chat_http": 200,
+    "has_goal_chain_field": true,
+    "goal_chain_ok": true,
+    "auto_chain_text_present": true,
+    "deploy_required": false,
+    "parent_task_id": 149,
+    "steps_count": 6,
+    "auth_source": "stored_api_key"
+  },
+  "notes": [
+    "prefer stored api_key first to avoid login rotation races / 429",
+    "tasks refreshed with stored"
+  ],
+  "auto_chain_markers_found": [
+    "Auto-chain started",
+    "auto-chain",
+    "goal task #",
+    "delegated steps"
+  ]
+}

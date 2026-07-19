@@ -9,6 +9,8 @@ from ..ws import manager
 from ..pricing import MODEL_LABELS, PRICING, format_token_count, public_rates
 from ..plans import (
     PLANS,
+    TRIAL_DAYS,
+    STORAGE_ADDONS,
     public_plans,
     plan_limits,
     is_upgrade,
@@ -20,6 +22,11 @@ from ..plans import (
 )
 from ..usage_billing import meter_snapshot, ensure_period
 from .. import crypto_payments as crypto_pay
+from ..storage_quota import (
+    storage_snapshot,
+    list_storage_addons_public,
+    grant_storage_addon,
+)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -179,6 +186,18 @@ def _fulfill_stripe_session(db: Session, session) -> dict:
             u.subscription_expires_at = None
             db.flush()
         amount = float(session.get("amount_total") or 0) / 100.0
+    elif kind == "storage":
+        u = db.get(models.User, user_id)
+        if not u:
+            raise HTTPException(404, "User not found")
+        addon_id = (meta.get("addon_id") or meta.get("plan") or "").strip()
+        if addon_id not in STORAGE_ADDONS:
+            raise HTTPException(400, f"Unknown storage add-on: {addon_id}")
+        grant_storage_addon(db, u, addon_id)
+        plan = addon_id  # store addon id in StripeCheckout.plan for audit
+        amount = float(STORAGE_ADDONS[addon_id].get("price_usd") or 0)
+        if amount <= 0:
+            amount = float(session.get("amount_total") or 0) / 100.0
     else:
         raise HTTPException(400, f"Unknown checkout kind: {kind}")
 
@@ -198,6 +217,10 @@ def _fulfill_stripe_session(db: Session, session) -> dict:
 
 class TopupIn(BaseModel):
     amount: float
+
+
+class StorageAddonIn(BaseModel):
+    addon_id: str = Field(..., description="storage_5gb | storage_25gb | storage_100gb")
 
 
 class AutoTopupIn(BaseModel):
@@ -361,6 +384,91 @@ def payment_options():
         },
         "preorder": po,
         "ready_for_payments": _stripe_ready() or crypto_pay.crypto_enabled(),
+    }
+
+
+@router.get("/storage")
+def billing_storage(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """User storage usage, plan limit, bonus packs, and upgrade options."""
+    snap = storage_snapshot(db, user)
+    return {
+        **snap,
+        "addons": list_storage_addons_public(),
+        "upgrade_plan": plan_limits(user.plan or "none").get("next_plan"),
+    }
+
+
+@router.get("/storage-addons")
+def billing_storage_addons():
+    return {"addons": list_storage_addons_public()}
+
+
+@router.post("/storage-addon")
+def buy_storage_addon(
+    data: StorageAddonIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Start Stripe checkout (or dev grant) for a permanent storage expansion pack."""
+    addon_id = (data.addon_id or "").strip()
+    addon = STORAGE_ADDONS.get(addon_id)
+    if not addon or not addon.get("public", True):
+        raise HTTPException(400, f"Unknown storage add-on: {addon_id}")
+    price = float(addon.get("price_usd") or 0)
+    if price <= 0:
+        raise HTTPException(400, "Add-on has no price")
+
+    stripe = _stripe()
+    if stripe:
+        success, cancel = _checkout_urls("/billing", "/billing")
+        try:
+            session = stripe.checkout.Session.create(
+                mode="payment",
+                line_items=[{
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": addon.get("name") or f"Storage {addon_id}",
+                            "description": addon.get("blurb") or f"+{addon.get('gb')} GB training storage",
+                        },
+                        "unit_amount": int(round(price * 100)),
+                    },
+                    "quantity": 1,
+                }],
+                success_url=success,
+                cancel_url=cancel,
+                customer_email=user.email,
+                metadata={
+                    "kind": "storage",
+                    "user_id": str(user.id),
+                    "addon_id": addon_id,
+                    "amount": str(price),
+                },
+            )
+        except Exception as e:
+            raise HTTPException(502, f"Stripe Checkout error: {e}") from e
+        return {
+            "checkout_url": session.url,
+            "session_id": session.id,
+            "provider": "stripe",
+            "stripe_mode": _stripe_mode(),
+            "addon_id": addon_id,
+            "price_usd": price,
+        }
+
+    if config.IS_PRODUCTION:
+        raise HTTPException(
+            503,
+            "Stripe is not configured. Set STRIPE_SECRET_KEY or contact support to expand storage.",
+        )
+    # Dev / sandbox without Stripe: grant immediately
+    result = grant_storage_addon(db, user, addon_id)
+    db.commit()
+    return {
+        "ok": True,
+        "provider": "dev",
+        "message": f"Dev grant: {result.get('added_human')} storage added",
+        **result,
     }
 
 
@@ -548,7 +656,7 @@ def trigger_auto_topup(db: Session = Depends(get_db), user=Depends(get_current_u
     }
 
 
-TRIAL_DAYS = 14
+# TRIAL_DAYS imported from plans (single source of truth with agent/company caps)
 TRIAL_ENDED_MSG = "Trial ended — choose a paid plan"
 
 
@@ -583,10 +691,17 @@ def _had_or_has_trial(db: Session, user: models.User) -> bool:
 
 
 def _activate_plan(db: Session, user: models.User, plan: str, company_name: str | None = None):
+    """Activate a plan (trial / paid post-checkout). Commits plan+balance first.
+
+    Company bootstrap is best-effort in a follow-up commit so a company table
+    glitch cannot leave a new register stuck on plan=none (ensure-orchestrator 402).
+    """
     if plan not in PLANS or plan == "none":
         raise HTTPException(400, "Unknown plan")
     limits = plan_limits(plan)
     u = db.get(models.User, user.id)
+    if u is None:
+        raise HTTPException(404, "User not found")
     u.plan = plan
     u.subscription_active = True
     # Free trial: one-shot 14-day window (set only when missing)
@@ -610,12 +725,19 @@ def _activate_plan(db: Session, user: models.User, plan: str, company_name: str 
             bal.credits = max(bal.credits or 0, 2.0)
         if plan == "pay_as_you_go" and (bal.credits or 0) < 5:
             bal.credits = max(bal.credits or 0, 5.0)
-    # Bootstrap first company if requested or none exist
-    existing = db.query(models.Company).filter_by(owner_user_id=user.id).count()
-    if existing == 0:
-        name = (company_name or f"{u.name or 'My'} company").strip() or "My company"
-        db.add(models.Company(owner_user_id=user.id, name=name, industry=""))
+    # Commit plan + balance before optional company so register never loses trial
     db.commit()
+    db.refresh(u)
+
+    # Bootstrap first company if requested or none exist (non-fatal)
+    try:
+        existing = db.query(models.Company).filter_by(owner_user_id=u.id).count()
+        if existing == 0:
+            name = (company_name or f"{u.name or 'My'} company").strip() or "My company"
+            db.add(models.Company(owner_user_id=u.id, name=name, industry=""))
+            db.commit()
+    except Exception:
+        db.rollback()
     return u
 
 
@@ -922,6 +1044,7 @@ def balance(db: Session = Depends(get_db), user=Depends(get_current_user)):
         "tokens_used_period": snap["tokens_used_period"],
         "tokens_remaining_included": snap["tokens_remaining_included"],
         "usage_percent": snap["usage_percent"],
+        "storage": snap.get("storage") or storage_snapshot(db, user),
         "subscription_expires_at": (
             user.subscription_expires_at.isoformat() + "Z"
             if getattr(user, "subscription_expires_at", None)

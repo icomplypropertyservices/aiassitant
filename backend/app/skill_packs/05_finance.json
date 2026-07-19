@@ -1,0 +1,998 @@
+{
+  "pack": "05_finance",
+  "category": "finance",
+  "label": "Finance",
+  "skills": [
+    {
+      "id": "fin_invoice_narrative",
+      "name": "Invoice narrative",
+      "description": "Draft clear invoice line descriptions and payment terms language for customers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_expense_policy",
+      "name": "Expense policy",
+      "description": "Write or update an employee expense policy with limits, approvals, and examples.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_budget_vs_actual",
+      "name": "Budget vs actual analysis",
+      "description": "Compare budget to actuals, explain variances, and recommend corrective actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_cashflow_note",
+      "name": "Cash flow note",
+      "description": "Summarize cash position, near-term inflows/outflows, and liquidity risks.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_ar_followup",
+      "name": "AR follow-up plan",
+      "description": "Prioritize overdue receivables and draft a collections follow-up sequence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_ap_prioritize",
+      "name": "AP payment prioritization",
+      "description": "Rank payables by due date, discounts, and cash constraints to plan payments.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_payroll_summary",
+      "name": "Payroll summary",
+      "description": "Produce a payroll run summary with headcount, cost, and exception notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_tax_checklist",
+      "name": "Tax checklist",
+      "description": "Build a filing and compliance checklist with owners, systems, and due dates.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_audit_prep",
+      "name": "Audit preparation pack",
+      "description": "Organize audit requests, evidence lists, and prep notes for internal or external audit.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_board_pack_fin",
+      "name": "Finance board pack",
+      "description": "Assemble board-ready financial slides: P&L, cash, KPIs, and talking points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_fp_a_commentary",
+      "name": "FP&A commentary",
+      "description": "Write management commentary on performance drivers, risks, and outlook.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_unit_economics",
+      "name": "Unit economics model",
+      "description": "Calculate and explain unit economics (CAC, LTV, contribution margin, payback).",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_pricing_model",
+      "name": "Pricing model",
+      "description": "Design or refine a pricing structure with tiers, costs, and margin targets.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_discount_policy",
+      "name": "Discount policy",
+      "description": "Define discount authority, floors, and approval rules to protect margin.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_credit_memo_note",
+      "name": "Credit memo note",
+      "description": "Document the reason, amount, and accounting treatment for a credit memo.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_collection_script",
+      "name": "Collections script",
+      "description": "Write a professional collections call or email script with tone and CTAs.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_vendor_payment_plan",
+      "name": "Vendor payment plan",
+      "description": "Propose a staged vendor payment plan aligned to cash and relationship goals.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_capex_request",
+      "name": "CapEx request",
+      "description": "Build a capital expenditure request with ROI, options, and payback analysis.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_opex_review",
+      "name": "OpEx review",
+      "description": "Review operating expenses for trends, waste, and savings opportunities.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_forecast_model",
+      "name": "Forecast model",
+      "description": "Build a financial forecast with drivers, assumptions, and output schedules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_scenario_plan",
+      "name": "Scenario plan",
+      "description": "Create base, upside, and downside scenarios with owners and decision triggers.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_sensitivity",
+      "name": "Sensitivity analysis",
+      "description": "Test how key assumptions move revenue, margin, cash, and breakeven outcomes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_break_even",
+      "name": "Break-even analysis",
+      "description": "Calculate break-even volume, price, and contribution margin thresholds.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_margin_analysis",
+      "name": "Margin analysis",
+      "description": "Analyze gross and contribution margins by product, segment, or channel.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_cohort_revenue",
+      "name": "Cohort revenue analysis",
+      "description": "Analyze revenue retention and expansion by customer cohort over time.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_saas_metrics",
+      "name": "SaaS metrics pack",
+      "description": "Compute and interpret core SaaS KPIs: ARR, churn, NRR, CAC, LTV, and runway.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_arr_bridge",
+      "name": "ARR bridge",
+      "description": "Build an ARR bridge from new, expansion, contraction, and churn movements.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_deferred_revenue",
+      "name": "Deferred revenue schedule",
+      "description": "Schedule deferred revenue balances, releases, and remaining performance obligations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_rev_rec_note",
+      "name": "Revenue recognition note",
+      "description": "Document revenue recognition treatment, performance obligations, and timing.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_close_checklist",
+      "name": "Month-end close checklist",
+      "description": "Create a close checklist with tasks, systems, owners, and dependencies.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_reconciliation_note",
+      "name": "Reconciliation note",
+      "description": "Explain account reconciling items, aging, and clearing actions needed.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_bank_match_help",
+      "name": "Bank match helper",
+      "description": "Guide bank transaction matching, exceptions, and unresolved item follow-up.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_fx_summary",
+      "name": "FX exposure summary",
+      "description": "Summarize foreign-exchange exposure, rate impacts, and hedge recommendations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_treasury_note",
+      "name": "Treasury note",
+      "description": "Brief on cash, investments, facilities, covenants, and treasury actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_debt_schedule",
+      "name": "Debt schedule",
+      "description": "Build a debt amortization and interest schedule with covenants and maturities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_investor_update_fin",
+      "name": "Investor finance update",
+      "description": "Draft investor-facing financial highlights, metrics, and forward guidance notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_grant_report",
+      "name": "Grant financial report",
+      "description": "Prepare grant spend reporting against budget, milestones, and allowability rules.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_nonprofit_fin",
+      "name": "Nonprofit finance pack",
+      "description": "Produce nonprofit financial summaries: restricted funds, program ratios, and cash.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_cost_center",
+      "name": "Cost center report",
+      "description": "Report cost-center spend vs budget with drivers and owner accountability notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_allocation_key",
+      "name": "Allocation key design",
+      "description": "Design cost allocation keys and methods across teams, products, or entities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_transfer_pricing",
+      "name": "Transfer pricing memo",
+      "description": "Outline transfer pricing approach, methods, and documentation for intercompany charges.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_intercompany",
+      "name": "Intercompany accounting note",
+      "description": "Document intercompany transactions, eliminations, and balance settlement steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_lease_accounting_note",
+      "name": "Lease accounting note",
+      "description": "Summarize lease classification, ROU asset/liability, and journal entry impacts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_inventory_value",
+      "name": "Inventory valuation",
+      "description": "Value inventory with method notes, reserves, and obsolescence considerations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_cogs_analysis",
+      "name": "COGS analysis",
+      "description": "Break down cost of goods sold by component and flag margin improvement levers.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_procurement_fin",
+      "name": "Procurement finance review",
+      "description": "Review purchase spend, savings, contract terms, and finance controls on buying.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_contract_value",
+      "name": "Contract value analysis",
+      "description": "Calculate TCV, ACV, and recognized value for a contract or book of business.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_milestone_billing",
+      "name": "Milestone billing plan",
+      "description": "Design milestone-based billing schedules tied to delivery and cash timing.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_dunning_email",
+      "name": "Dunning email",
+      "description": "Write a polite, escalating past-due payment email with clear next steps.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "fin_weekly",
+      "name": "Weekly finance digest",
+      "description": "Produce a weekly finance digest covering cash, revenue, costs, and open actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "finance",
+      "pack": "05_finance",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

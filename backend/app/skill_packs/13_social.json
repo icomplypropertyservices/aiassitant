@@ -1,0 +1,1000 @@
+{
+  "pack": "13_social",
+  "category": "social",
+  "label": "Social media",
+  "skills": [
+    {
+      "id": "social_calendar",
+      "name": "Social content calendar",
+      "description": "Build a multi-channel social content calendar with themes, owners, and post cadence.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_tweet_thread",
+      "name": "X/Twitter thread",
+      "description": "Write a numbered X/Twitter thread with hooks, flow, and a clear CTA.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_linkedin_post_soc",
+      "name": "LinkedIn post",
+      "description": "Draft a LinkedIn post with hook, body, and engagement-oriented close.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_instagram_caption",
+      "name": "Instagram caption",
+      "description": "Write an Instagram caption with hook, story, hashtags, and CTA.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_tiktok_script",
+      "name": "TikTok script",
+      "description": "Script a TikTok with hook, beats, on-screen text, and CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_youtube_title",
+      "name": "YouTube title options",
+      "description": "Generate click-worthy YouTube title variants optimized for search and CTR.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_youtube_desc",
+      "name": "YouTube description",
+      "description": "Write a YouTube description with summary, timestamps, links, and SEO keywords.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_shorts_script",
+      "name": "YouTube Shorts script",
+      "description": "Script a YouTube Short with hook, pacing cues, and end-screen CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_reel_hook",
+      "name": "Reels hook lines",
+      "description": "Write scroll-stopping opening hooks for Instagram Reels or short video.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_story_sequence",
+      "name": "Stories sequence",
+      "description": "Plan a multi-frame Stories sequence with stickers, polls, and CTAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_carousel_copy",
+      "name": "Carousel copy",
+      "description": "Write slide-by-slide copy for a LinkedIn or Instagram carousel.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_hashtag_set",
+      "name": "Hashtag set",
+      "description": "Recommend a balanced hashtag set by reach, relevance, and brand fit.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_community_reply",
+      "name": "Community reply",
+      "description": "Draft on-brand replies to comments, DMs, and community questions.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_crisis_social",
+      "name": "Social crisis response",
+      "description": "Prepare crisis holding statements, reply trees, and escalation guidance for social.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_influencer_list",
+      "name": "Influencer shortlist",
+      "description": "Build a shortlist of influencers with fit criteria, reach notes, and outreach angles.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_ugc_brief",
+      "name": "UGC brief",
+      "description": "Write a user-generated content brief with creative direction, do/don'ts, and deliverables.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_contest_rules_soc",
+      "name": "Social contest rules",
+      "description": "Draft clear contest or giveaway rules, eligibility, and winner selection language.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_live_stream_plan",
+      "name": "Live stream plan",
+      "description": "Plan a live stream agenda, promo timeline, run-of-show, and follow-up posts.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "social_listening",
+      "name": "Social listening brief",
+      "description": "Define social listening queries, sources, alerts, and insight reporting cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_sentiment_summary",
+      "name": "Sentiment summary",
+      "description": "Summarize social sentiment themes, volume shifts, and recommended responses.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_competitor_social",
+      "name": "Competitor social audit",
+      "description": "Audit competitor social presence, content pillars, cadence, and engagement patterns.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_brand_mention_reply",
+      "name": "Brand mention reply",
+      "description": "Draft replies to brand mentions, tags, and public shout-outs across channels.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_employee_advocacy",
+      "name": "Employee advocacy kit",
+      "description": "Create employee advocacy posts, sharing guidelines, and ready-to-post assets.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "social_proof_post",
+      "name": "Social proof post",
+      "description": "Turn testimonials, reviews, or case wins into shareable social proof posts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_launch_social",
+      "name": "Product launch social plan",
+      "description": "Plan teaser, launch-day, and post-launch social posts for a product release.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_meme_brief",
+      "name": "Meme creative brief",
+      "description": "Brief a brand-safe meme concept with formats, caption options, and risk notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_gif_caption",
+      "name": "GIF caption",
+      "description": "Write short captions paired with GIF or reaction-image posts.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_poll_ideas",
+      "name": "Social poll ideas",
+      "description": "Generate engagement polls with options, framing, and follow-up content ideas.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_ama_prep",
+      "name": "AMA prep pack",
+      "description": "Prepare AMA talking points, likely questions, and sample answers for social Q&A.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_twitter_spaces_plan",
+      "name": "X Spaces plan",
+      "description": "Plan an X Spaces session with topic, guests, promo posts, and show notes.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_linkedin_newsletter",
+      "name": "LinkedIn newsletter issue",
+      "description": "Draft a LinkedIn newsletter issue with intro, sections, and subscribe CTA.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_pin_description",
+      "name": "Pinterest pin description",
+      "description": "Write SEO-friendly Pinterest pin titles and descriptions with keyword coverage.",
+      "args": [
+        "recipient",
+        "tone",
+        "key_points",
+        "cta"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_reddit_post",
+      "name": "Reddit post",
+      "description": "Draft a subreddit-aware Reddit post that fits community norms and rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_discord_announce",
+      "name": "Discord announcement",
+      "description": "Write a Discord server announcement with clear formatting and role pings.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_slack_community",
+      "name": "Slack community update",
+      "description": "Draft a Slack community update, welcome message, or channel announcement.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "social_report",
+      "name": "Social performance report",
+      "description": "Summarize social KPIs, top posts, insights, and recommended next actions.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_engagement_boost",
+      "name": "Engagement boost plan",
+      "description": "Propose tactics and content experiments to increase social engagement rates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_dark_post_copy",
+      "name": "Dark post ad copy",
+      "description": "Write unpublished dark-post ad copy variants for paid social targeting.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_boost_budget_note",
+      "name": "Boost budget note",
+      "description": "Recommend which organic posts to boost and how to allocate a small paid budget.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_creator_contract_note",
+      "name": "Creator contract note",
+      "description": "Outline key creator deal terms, deliverables, usage rights, and payment notes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_rights_management",
+      "name": "Content rights checklist",
+      "description": "Document usage rights, licenses, and reuse rules for social creative assets.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_takedown_request",
+      "name": "Takedown request",
+      "description": "Draft a platform takedown or infringement notice for unauthorized content.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_platform_policy_check",
+      "name": "Platform policy check",
+      "description": "Review planned content against platform ad and community policy risk areas.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_geo_social",
+      "name": "Geo-targeted social plan",
+      "description": "Adapt social messaging and posting plans for specific markets or regions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_language_social",
+      "name": "Multilingual social copy",
+      "description": "Localize social posts for target languages while preserving brand voice.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_event_social",
+      "name": "Event social playbook",
+      "description": "Plan pre-, during-, and post-event social coverage with post templates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_hiring_social",
+      "name": "Hiring social posts",
+      "description": "Write employer-brand and job-promo posts for open roles on social channels.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_csr_social",
+      "name": "CSR social campaign",
+      "description": "Craft social posts for CSR, sustainability, or community-impact initiatives.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "social_weekly",
+      "name": "Weekly social digest",
+      "description": "Produce a weekly social performance and content digest for stakeholders.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "soc_custom",
+      "name": "Custom social deliverable",
+      "description": "Produce a custom social media deliverable tailored to the stated goal and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "social",
+      "pack": "13_social",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

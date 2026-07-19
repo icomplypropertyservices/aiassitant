@@ -25,7 +25,7 @@ export function modelLabel(id) {
 
 /** Ant Design Select options with optgroups */
 export function modelSelectOptions(models = FALLBACK_MODELS) {
-  const list = models.map(m => ({
+  const list = (Array.isArray(models) ? models : FALLBACK_MODELS).map(m => ({
     value: m.value || m.id,
     label: m.rate_per_1m != null
       ? `${m.label}  ·  $${Number(m.rate_per_1m).toFixed(2)}/1M`
@@ -55,7 +55,7 @@ export function modelSelectOptions(models = FALLBACK_MODELS) {
 
 /** Flat {value,label}[] for simple Selects */
 export function modelFlatOptions(models = FALLBACK_MODELS) {
-  return models.map(m => ({
+  return (Array.isArray(models) ? models : FALLBACK_MODELS).map(m => ({
     value: m.value || m.id,
     label: m.label,
   }))
@@ -71,7 +71,12 @@ export async function loadModels(apiFn) {
   _loading = (async () => {
     try {
       const data = await apiFn('/system/models')
-      const models = (data.models || data || []).map(m => ({
+      const raw = Array.isArray(data?.models)
+        ? data.models
+        : Array.isArray(data)
+          ? data
+          : []
+      const models = raw.map(m => ({
         value: m.id || m.value,
         id: m.id || m.value,
         label: m.label,
@@ -82,7 +87,7 @@ export async function loadModels(apiFn) {
         configured: m.configured,
       }))
       _cache = models.length ? models : FALLBACK_MODELS
-      return { models: _cache, groups: data.groups || [] }
+      return { models: _cache, groups: Array.isArray(data?.groups) ? data.groups : [] }
     } catch {
       _cache = FALLBACK_MODELS
       return { models: _cache, groups: [] }

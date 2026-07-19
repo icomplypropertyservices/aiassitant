@@ -1,0 +1,87 @@
+{
+  "ok": true,
+  "task_id": 279,
+  "status": "completed",
+  "agent_id": 27,
+  "title": "Live test queued task 1784462790",
+  "create_http": 200,
+  "run_http": 200,
+  "get_http": null,
+  "list_http": 401,
+  "task": {
+    "id": 279,
+    "title": "Live test queued task 1784462790",
+    "status": "completed",
+    "agent_id": 27,
+    "labels": "live-test,queued,demo",
+    "priority": "high",
+    "description": "Live API test: confirm task appears on /agents/tasks with non-empty status."
+  },
+  "list_match": null,
+  "token_prefix": "",
+  "run_retry_ok": true,
+  "browser": {
+    "task_id": 279,
+    "url": "https://www.aibusinessagent.xyz/agents/tasks",
+    "login": {
+      "ok": true,
+      "status": 200,
+      "user_id": 37,
+      "key_prefix": "aba_FDOMyh1Mgllo"
+    },
+    "visible": true,
+    "status_text": "completed",
+    "board_api": {
+      "board_http": 401,
+      "get_http": 200,
+      "board_column_keys": null,
+      "get": {
+        "id": 279,
+        "title": "Live test queued task 1784462790",
+        "status": "completed",
+        "agent_id": 27,
+        "labels": "live-test,queued,demo"
+      },
+      "raw_columns_type": null,
+      "flatten": {
+        "http": 401,
+        "total": 0,
+        "found": null,
+        "sample": [],
+        "completed_sample": []
+      }
+    },
+    "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\queued_task_board.png",
+    "login_retry": {
+      "ok": true,
+      "status": 200,
+      "user_id": 37,
+      "key_prefix": "aba_pvaCzj-Sp80s"
+    },
+    "visible_in_dom": true,
+    "task_on_board": true,
+    "status_empty": false,
+    "body_snippet": "Dashboard Workspace Business Tasks board Meetings Console Hierarchy Team Permissions Live ops AI Chat Templates Training Analytics Billing AgentBay Profile Settings Tasks board 0 / 500.0k $50.00 Trial 14d Trial E E2E B LIVE OPS 12 active Main AI Orchestrator thinking \u2014 Reply to me (the human owner) in one sentence confirming you received this. Then create_task for yourself: title Status check. M",
+    "screenshot_focus": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\queued_task_focus.png"
+  },
+  "browser_visible": true,
+  "screenshot": "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\queued_task_board.png",
+  "task_on_board": true,
+  "status_empty": false,
+  "summary": {
+    "task_id": 279,
+    "status": "completed",
+    "status_empty": false,
+    "agent_id": 27,
+    "agent_name": "Main AI Orchestrator",
+    "title": "Live test queued task 1784462790",
+    "create": "POST /api/agents/27/tasks -> 200 (initial todo, then PATCH status=queued)",
+    "run": "POST /api/agents/tasks/279/run -> 200 status=queued",
+    "final_get": "GET /api/agents/tasks/279 -> 200 status=completed",
+    "browser_url": "https://www.aibusinessagent.xyz/agents/tasks",
+    "browser_visible": true,
+    "screenshot": "scripts/live-screenshots/queued_task_board.png",
+    "screenshot_focus": "scripts/live-screenshots/queued_task_focus.png",
+    "note": "Task advanced queued->completed via runner after POST /run. Board UI loads Tasks workflow with To do/Queued/In progress/Review/Completed columns; statuses non-empty."
+  }
+}

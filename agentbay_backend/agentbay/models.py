@@ -106,6 +106,52 @@ class Order(Base):
     reserved_qty = Column(Integer, default=0)
     shipping_address = Column(Text, default="")
     notes = Column(Text, default="")
+    # Escrow / seller payout
+    # payment_method: stripe | crypto
+    payment_method = Column(String, default="stripe", index=True)
+    crypto_chain = Column(String, default="")  # eth | sol | btc | xrp when crypto
+    crypto_tx_hash = Column(String, default="")
+    platform_fee = Column(Float, default=0.0)
+    seller_net = Column(Float, default=0.0)
+    # payout_status: none | held | awaiting_seller_details | ready | released | failed
+    payout_status = Column(String, default="none", index=True)
+    payout_method = Column(String, default="")  # bank | crypto
+    payout_reference = Column(String, default="")
+    payout_notes = Column(Text, default="")
+    payout_destination_json = Column(Text, default="{}")
+    escrow_held_at = Column(DateTime, nullable=True)
+    seller_delivered_at = Column(DateTime, nullable=True)
+    buyer_confirmed_at = Column(DateTime, nullable=True)
+    payout_released_at = Column(DateTime, nullable=True)
+    payout_released_by = Column(Integer, ForeignKey("bay_users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SellerPayoutProfile(Base):
+    """Seller bank + crypto destinations — required before escrow release."""
+
+    __tablename__ = "bay_seller_payout_profiles"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("bay_users.id"), unique=True, nullable=False, index=True)
+    preferred_method = Column(String, default="bank")  # bank | crypto
+    # Bank transfer
+    bank_account_name = Column(String, default="")
+    bank_name = Column(String, default="")
+    bank_country = Column(String, default="")
+    bank_currency = Column(String, default="USD")
+    bank_iban = Column(String, default="")
+    bank_account_number = Column(String, default="")
+    bank_routing = Column(String, default="")
+    bank_sort_code = Column(String, default="")
+    bank_swift = Column(String, default="")
+    # Crypto wallets (receive payouts when buyer paid in crypto)
+    crypto_eth = Column(String, default="")
+    crypto_sol = Column(String, default="")
+    crypto_btc = Column(String, default="")
+    crypto_xrp = Column(String, default="")
+    crypto_xrp_tag = Column(String, default="")
+    notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -20,12 +20,13 @@ export default function ModelSelect({
   const [models, setModels] = useState(FALLBACK_MODELS)
 
   useEffect(() => {
-    loadModels(api).then(({ models: m }) => setModels(m))
+    loadModels(api).then(({ models: m }) => setModels(Array.isArray(m) && m.length ? m : FALLBACK_MODELS))
   }, [])
 
+  const safeModels = Array.isArray(models) ? models : FALLBACK_MODELS
   const options = showRates
-    ? modelSelectOptions(models)
-    : modelSelectOptions(models.map(m => ({ ...m, rate_per_1m: undefined })))
+    ? modelSelectOptions(safeModels)
+    : modelSelectOptions(safeModels.map(m => ({ ...m, rate_per_1m: undefined })))
 
   return (
     <Select

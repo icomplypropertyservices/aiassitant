@@ -1,4 +1,4 @@
-"""Human teammates — add people and allocate work."""
+"""Human teammates — My Human, message box, assign/delegate, AgentBay subcontractors."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -8,9 +8,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models
 from ..auth_utils import get_current_user
 from ..live_ops import emit_ops
+from .. import human_service
 
 router = APIRouter(prefix="/humans", tags=["humans"])
 
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/humans", tags=["humans"])
 class HumanIn(BaseModel):
     name: str
     email: str = ""
+    phone: str = ""  # E.164 for SMS notify shortcuts
     role_title: str = ""
     skills: str = ""
     company_id: int | None = None
@@ -29,11 +32,13 @@ class HumanIn(BaseModel):
     escalate_when: str = "on_blocked"
     escalate_reason: str = ""
     escalate_to: str = "orchestrator"
+    is_my_human: bool = False
 
 
 class HumanUpdate(BaseModel):
     name: str | None = None
     email: str | None = None
+    phone: str | None = None
     role_title: str | None = None
     skills: str | None = None
     company_id: int | None = None
@@ -45,6 +50,7 @@ class HumanUpdate(BaseModel):
     escalate_when: str | None = None
     escalate_reason: str | None = None
     escalate_to: str | None = None
+    is_my_human: bool | None = None
 
 
 class AssignIn(BaseModel):
@@ -54,6 +60,38 @@ class AssignIn(BaseModel):
     agent_id: int | None = None
     project_id: int | None = None
     company_id: int | None = None
+    message: str = ""  # also post to human message box
+
+
+class MessageIn(BaseModel):
+    content: str
+    kind: str = "message"
+    related_human_id: int | None = None
+    task_id: int | None = None
+    # When agent posts on behalf of itself
+    sender_agent_id: int | None = None
+
+
+class DelegateIn(BaseModel):
+    """My Human (or any human) delegates work to another human and/or AI agent."""
+    title: str
+    description: str = ""
+    to_human_id: int | None = None
+    to_agent_id: int | None = None
+    priority: str = "medium"
+    message: str = ""  # note in message box
+    project_id: int | None = None
+    company_id: int | None = None
+
+
+def _unread_count(db: Session, human_id: int, user_id: int) -> int:
+    return (
+        db.query(models.HumanMessage)
+        .filter_by(user_id=user_id, human_id=human_id)
+        .filter(models.HumanMessage.read_at.is_(None))
+        .filter(models.HumanMessage.sender_role != "owner")
+        .count()
+    )
 
 
 def _out(h: models.Human, db: Session) -> dict:
@@ -71,6 +109,7 @@ def _out(h: models.Human, db: Session) -> dict:
         "id": h.id,
         "name": h.name,
         "email": h.email or "",
+        "phone": getattr(h, "phone", None) or "",
         "role_title": h.role_title or "",
         "skills": h.skills or "",
         "company_id": h.company_id,
@@ -84,7 +123,14 @@ def _out(h: models.Human, db: Session) -> dict:
         "escalate_reason": getattr(h, "escalate_reason", None) or "",
         "escalate_to": getattr(h, "escalate_to", None) or "orchestrator",
         "notes": h.notes or "",
+        "is_my_human": bool(getattr(h, "is_my_human", False)),
         "open_tasks": open_n,
+        "unread_messages": _unread_count(db, h.id, h.owner_user_id),
+        "notify_ready": bool(
+            (h.email or "").strip()
+            and (getattr(h, "phone", None) or "").strip()
+            and (h.status or "") == "active"
+        ),
         "created_at": h.created_at,
         "updated_at": h.updated_at,
     }
@@ -92,25 +138,72 @@ def _out(h: models.Human, db: Session) -> dict:
 
 @router.get("/")
 def list_humans(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    my = human_service.ensure_my_human(db, user)
+    db.commit()
     rows = (
         db.query(models.Human)
         .filter_by(owner_user_id=user.id)
-        .order_by(models.Human.name)
+        .order_by(models.Human.is_my_human.desc(), models.Human.name)
         .all()
     )
-    return {"humans": [_out(h, db) for h in rows], "count": len(rows)}
+    return {
+        "humans": [_out(h, db) for h in rows],
+        "count": len(rows),
+        "my_human": _out(my, db),
+        "my_human_id": my.id,
+    }
+
+
+@router.get("/my")
+def get_my_human(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    h = human_service.ensure_my_human(db, user)
+    db.commit()
+    return _out(h, db)
+
+
+@router.post("/my/ensure")
+def ensure_my_human_route(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    h = human_service.ensure_my_human(db, user)
+    db.commit()
+    db.refresh(h)
+    return {"ok": True, "human": _out(h, db)}
+
+
+@router.post("/my/set/{human_id}")
+def set_my_human_route(
+    human_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    try:
+        h = human_service.set_my_human(db, user, human_id)
+        db.commit()
+        db.refresh(h)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return {"ok": True, "human": _out(h, db)}
+
+
+@router.get("/subcontractors")
+def list_subcontractors(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """AgentBay hires (paid orders) visible as subcontractors for this account."""
+    return human_service.list_agentbay_subcontractors(db, user)
 
 
 @router.post("/")
 async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    # Ensure primary exists first
+    human_service.ensure_my_human(db, user)
     name = (data.name or "").strip()
     if not name:
         raise HTTPException(400, "name required")
     from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
+    make_primary = bool(data.is_my_human)
     h = models.Human(
         owner_user_id=user.id,
         name=name,
         email=(data.email or "").strip(),
+        phone=(getattr(data, "phone", None) or "").strip(),
         role_title=(data.role_title or "").strip(),
         skills=(data.skills or "").strip(),
         company_id=data.company_id,
@@ -122,8 +215,12 @@ async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depend
         escalate_when=normalize_escalate_when(data.escalate_when),
         escalate_reason=(data.escalate_reason or "").strip(),
         escalate_to=normalize_escalate_to(data.escalate_to),
+        is_my_human=False,
     )
     db.add(h)
+    db.flush()
+    if make_primary:
+        human_service.set_my_human(db, user, h.id)
     db.commit()
     db.refresh(h)
     await emit_ops(
@@ -140,9 +237,10 @@ async def create_human(data: HumanIn, db: Session = Depends(get_db), user=Depend
 
 @router.get("/{human_id}")
 def get_human(human_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    h = db.get(models.Human, human_id)
-    if not h or h.owner_user_id != user.id:
-        raise HTTPException(404, "Human not found")
+    h = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
     tasks = (
         db.query(models.Task)
         .filter_by(human_id=h.id)
@@ -150,6 +248,10 @@ def get_human(human_id: int, db: Session = Depends(get_db), user=Depends(get_cur
         .limit(40)
         .all()
     )
+    try:
+        messages = human_service.list_human_messages(db, user, h.id, limit=40)
+    except ValueError:
+        messages = []
     return {
         **_out(h, db),
         "tasks": [
@@ -164,6 +266,7 @@ def get_human(human_id: int, db: Session = Depends(get_db), user=Depends(get_cur
             }
             for t in tasks
         ],
+        "messages": messages,
     }
 
 
@@ -174,11 +277,12 @@ def update_human(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    h = db.get(models.Human, human_id)
-    if not h or h.owner_user_id != user.id:
-        raise HTTPException(404, "Human not found")
+    h = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
     from ..permissions import normalize_permission, normalize_escalate_when, normalize_escalate_to
-    for field in ("name", "email", "role_title", "skills", "status", "notes"):
+    for field in ("name", "email", "phone", "role_title", "skills", "status", "notes"):
         val = getattr(data, field)
         if val is not None:
             setattr(h, field, val.strip() if isinstance(val, str) else val)
@@ -196,6 +300,8 @@ def update_human(
         h.escalate_reason = (data.escalate_reason or "").strip()
     if data.escalate_to is not None:
         h.escalate_to = normalize_escalate_to(data.escalate_to)
+    if data.is_my_human is True:
+        human_service.set_my_human(db, user, h.id)
     h.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(h)
@@ -204,17 +310,115 @@ def update_human(
 
 @router.delete("/{human_id}")
 def delete_human(human_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    h = db.get(models.Human, human_id)
-    if not h or h.owner_user_id != user.id:
-        raise HTTPException(404, "Human not found")
-    # Unassign tasks rather than delete work history
+    h = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
+    if getattr(h, "is_my_human", False):
+        raise HTTPException(
+            400,
+            "Cannot remove My Human. Designate another person as My Human first, or keep this primary operator.",
+        )
     for t in db.query(models.Task).filter_by(human_id=h.id).all():
         t.human_id = None
         if t.assignee_type == "human":
             t.assignee_type = "agent" if t.agent_id else "unassigned"
+    # Clear message box + related_human_id refs so FK delete does not 500
+    db.query(models.HumanMessage).filter_by(human_id=h.id).delete(synchronize_session=False)
+    db.query(models.HumanMessage).filter_by(related_human_id=h.id).update(
+        {"related_human_id": None}, synchronize_session=False
+    )
+    # Escalation logs may point at this human
+    try:
+        db.query(models.EscalationLog).filter_by(from_human_id=h.id).update(
+            {"from_human_id": None}, synchronize_session=False
+        )
+        db.query(models.EscalationLog).filter_by(to_human_id=h.id).update(
+            {"to_human_id": None}, synchronize_session=False
+        )
+    except Exception:
+        pass
     db.delete(h)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{human_id}/messages")
+def get_messages(
+    human_id: int,
+    limit: int = 80,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    try:
+        msgs = human_service.list_human_messages(db, user, human_id, limit=limit)
+        human_service.mark_messages_read(db, user, human_id)
+        db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return {"messages": msgs, "count": len(msgs)}
+
+
+@router.post("/{human_id}/messages")
+async def post_message(
+    human_id: int,
+    data: MessageIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    role = "owner"
+    agent_id = data.sender_agent_id
+    if agent_id:
+        a = db.get(models.Agent, agent_id)
+        if not a or a.user_id != user.id:
+            raise HTTPException(400, "Invalid sender_agent_id")
+        role = "agent"
+    try:
+        msg = human_service.post_human_message(
+            db,
+            user=user,
+            human_id=human_id,
+            content=data.content,
+            sender_role=role,
+            sender_agent_id=agent_id,
+            related_human_id=data.related_human_id,
+            task_id=data.task_id,
+            kind=data.kind or "message",
+        )
+        db.commit()
+        db.refresh(msg)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+    h = db.get(models.Human, human_id)
+    # Optional email/SMS notify when owner messages
+    notify = None
+    if role == "owner" and h:
+        try:
+            from ..human_notify import notify_human
+            notify = await notify_human(
+                db,
+                user,
+                title=f"Message for {h.name}",
+                details=(data.content or "")[:2000],
+                human_id=h.id,
+                link_path=f"/humans",
+            )
+        except Exception as e:
+            notify = {"ok": False, "error": str(e)[:200]}
+
+    await emit_ops(
+        user.id,
+        kind="human",
+        status="info",
+        title=f"Message → {h.name if h else human_id}",
+        detail=(data.content or "")[:200],
+        human_id=human_id,
+        agent_id=agent_id,
+        db=db,
+    )
+    msgs = human_service.list_human_messages(db, user, human_id, limit=40)
+    return {"ok": True, "messages": msgs, "notify": notify}
 
 
 @router.post("/{human_id}/assign")
@@ -224,9 +428,10 @@ async def assign_work(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    h = db.get(models.Human, human_id)
-    if not h or h.owner_user_id != user.id:
-        raise HTTPException(404, "Human not found")
+    h = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
     title = (data.title or "").strip()
     if not title:
         raise HTTPException(400, "title required")
@@ -246,9 +451,21 @@ async def assign_work(
         description=(data.description or title).strip(),
         status="todo",
         priority=data.priority or "medium",
-        labels="human,allocated",
+        labels="human,allocated" + (",my-human" if getattr(h, "is_my_human", False) else ""),
     )
     db.add(t)
+    db.flush()
+    note = (data.message or "").strip() or f"Task assigned: {title}"
+    human_service.post_human_message(
+        db,
+        user=user,
+        human_id=h.id,
+        content=note,
+        sender_role="owner",
+        sender_agent_id=agent_id,
+        task_id=t.id,
+        kind="task_delegate",
+    )
     db.commit()
     db.refresh(t)
     await emit_ops(
@@ -272,4 +489,117 @@ async def assign_work(
             "agent_id": agent_id,
         },
         "human": _out(h, db),
+    }
+
+
+@router.post("/{human_id}/delegate")
+async def delegate_work(
+    human_id: int,
+    data: DelegateIn,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    From My Human (or any human): create a task for another human and/or agent,
+    and log the delegation in both message boxes.
+    """
+    source = require_owned(
+        db, models.Human, human_id, user,
+        user_field='owner_user_id', not_found="Human not found",
+    )
+    title = (data.title or "").strip()
+    if not title:
+        raise HTTPException(400, "title required")
+    if not data.to_human_id and not data.to_agent_id:
+        raise HTTPException(400, "Provide to_human_id and/or to_agent_id")
+
+    to_human = None
+    if data.to_human_id:
+        to_human = db.get(models.Human, data.to_human_id)
+        if not to_human or to_human.owner_user_id != user.id:
+            raise HTTPException(400, "Invalid to_human_id")
+    to_agent = None
+    if data.to_agent_id:
+        to_agent = db.get(models.Agent, data.to_agent_id)
+        if not to_agent or to_agent.user_id != user.id:
+            raise HTTPException(400, "Invalid to_agent_id")
+
+    assignee_type = "human" if to_human else "agent"
+    t = models.Task(
+        user_id=user.id,
+        human_id=to_human.id if to_human else None,
+        agent_id=to_agent.id if to_agent else None,
+        assignee_type=assignee_type,
+        company_id=data.company_id or source.company_id,
+        project_id=data.project_id or source.project_id,
+        title=title,
+        description=(data.description or title).strip(),
+        status="todo" if to_human else "queued",
+        priority=data.priority or "medium",
+        labels=f"delegated,from-human-{source.id}"
+        + (",my-human" if getattr(source, "is_my_human", False) else ""),
+    )
+    db.add(t)
+    db.flush()
+
+    targets = []
+    if to_human:
+        targets.append(f"human:{to_human.name}")
+    if to_agent:
+        targets.append(f"agent:{to_agent.name}")
+    body = (
+        (data.message or "").strip()
+        or f"{source.name} delegated “{title}” → {', '.join(targets)}"
+    )
+    # Source human thread
+    human_service.post_human_message(
+        db,
+        user=user,
+        human_id=source.id,
+        content=body,
+        sender_role="human",
+        related_human_id=to_human.id if to_human else None,
+        sender_agent_id=to_agent.id if to_agent else None,
+        task_id=t.id,
+        kind="task_delegate",
+    )
+    # Target human thread
+    if to_human:
+        human_service.post_human_message(
+            db,
+            user=user,
+            human_id=to_human.id,
+            content=f"Delegated from {source.name}: {body}",
+            sender_role="human",
+            related_human_id=source.id,
+            sender_agent_id=to_agent.id if to_agent else None,
+            task_id=t.id,
+            kind="task_delegate",
+        )
+    db.commit()
+    db.refresh(t)
+
+    await emit_ops(
+        user.id,
+        kind="human",
+        status="queued",
+        title=f"{source.name} delegated: {title}",
+        detail=", ".join(targets),
+        human_id=source.id,
+        agent_id=to_agent.id if to_agent else None,
+        task_id=t.id,
+        db=db,
+    )
+    return {
+        "ok": True,
+        "task": {
+            "id": t.id,
+            "title": t.title,
+            "status": t.status,
+            "human_id": to_human.id if to_human else None,
+            "agent_id": to_agent.id if to_agent else None,
+            "from_human_id": source.id,
+        },
+        "from_human": _out(source, db),
+        "to_human": _out(to_human, db) if to_human else None,
     }

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Button, Space, Typography, Tag, InputNumber, Alert, Row, Col } from 'antd'
+import {
+  Modal, Button, Space, Typography, Tag, InputNumber, Alert, Row, Col, Divider, Statistic,
+} from 'antd'
 import {
   ThunderboltOutlined, RocketOutlined, CrownOutlined, WalletOutlined, FireOutlined,
 } from '@ant-design/icons'
@@ -36,12 +38,17 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
 
   const urgency = meter.urgency || (meter.hard_block ? 'critical' : meter.warn ? 'medium' : 'ok')
   const colors = {
-    critical: { border: '#dc2626', tag: 'error', icon: <FireOutlined /> },
-    high: { border: '#ea580c', tag: 'orange', icon: <ThunderboltOutlined /> },
-    medium: { border: '#d97706', tag: 'gold', icon: <RocketOutlined /> },
-    ok: { border: '#1668dc', tag: 'blue', icon: <WalletOutlined /> },
+    critical: { border: '#dc2626', soft: '#fef2f2', tag: 'error', icon: <FireOutlined /> },
+    high: { border: '#ea580c', soft: '#fff7ed', tag: 'orange', icon: <ThunderboltOutlined /> },
+    medium: { border: '#d97706', soft: '#fffbeb', tag: 'gold', icon: <RocketOutlined /> },
+    ok: { border: '#1668dc', soft: '#e8f1fc', tag: 'blue', icon: <WalletOutlined /> },
   }
   const theme = colors[urgency] || colors.medium
+
+  const urgencyLabel =
+    urgency === 'critical' ? 'Agents offline risk'
+      : urgency === 'high' ? 'Almost empty'
+        : 'Running low'
 
   const topup = async (amt) => {
     const a = Number(amt || amount)
@@ -123,116 +130,154 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
       width={480}
       centered
       destroyOnClose
+      className="aba-topup-modal"
       styles={{
-        content: { borderTop: `4px solid ${theme.border}`, borderRadius: 16 },
+        content: {
+          borderTop: `4px solid ${theme.border}`,
+          borderRadius: 16,
+          overflow: 'hidden',
+        },
+        body: {
+          padding: 0,
+        },
       }}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 36, color: theme.border, marginBottom: 8 }}>{theme.icon}</div>
-          <Tag color={theme.tag} style={{ marginBottom: 8 }}>
-            {urgency === 'critical' ? 'AGENTS OFFLINE RISK' : urgency === 'high' ? 'ALMOST EMPTY' : 'RUNNING LOW'}
+      <div className="aba-topup-body">
+        {/* Header */}
+        <header className="aba-topup-header">
+          <div
+            className="aba-topup-icon"
+            style={{ background: theme.soft, color: theme.border }}
+            aria-hidden
+          >
+            {theme.icon}
+          </div>
+          <Tag color={theme.tag} bordered={false} className="aba-topup-urgency">
+            {urgencyLabel}
           </Tag>
-          <Title level={3} style={{ margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+          <Title level={3} className="aba-topup-title">
             {meter.headline || "Don't let your agents go quiet"}
           </Title>
-          <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 15 }}>
+          <Paragraph type="secondary" className="aba-topup-sub">
             {meter.sales_message || meter.message || 'Top up credits to keep chat, agents, and media running.'}
           </Paragraph>
-        </div>
+        </header>
 
-        <Row gutter={12} style={{ textAlign: 'center' }}>
+        {/* Stats */}
+        <Row gutter={[12, 12]} className="aba-topup-stats">
           <Col span={12}>
-            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 12 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Tokens used</Text>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>
-                {Math.round(meter.usage_percent || 0)}%
-              </div>
+            <div className="aba-topup-stat">
+              <Statistic
+                title="Tokens used"
+                value={Math.round(meter.usage_percent || 0)}
+                suffix="%"
+                valueStyle={{ fontSize: 22, fontWeight: 700, color: theme.border }}
+              />
             </div>
           </Col>
           <Col span={12}>
-            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 12 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Wallet</Text>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>
-                ${Number(meter.credits || 0).toFixed(2)}
-              </div>
+            <div className="aba-topup-stat">
+              <Statistic
+                title="Wallet"
+                prefix="$"
+                value={Number(meter.credits || 0).toFixed(2)}
+                valueStyle={{ fontSize: 22, fontWeight: 700 }}
+              />
             </div>
           </Col>
         </Row>
 
-        <div>
-          <Text strong>Quick top-up</Text>
-          <Space wrap style={{ marginTop: 8, width: '100%' }}>
+        {/* Amount picker */}
+        <section className="aba-topup-amounts" aria-label="Top-up amount">
+          <Text strong className="aba-topup-section-label">
+            Quick top-up
+          </Text>
+          <div className="aba-topup-amount-row">
             {(meter.suggested_amounts || [10, 25, 50, 100]).map((a) => (
               <Button
                 key={a}
                 type={amount === a ? 'primary' : 'default'}
                 size="large"
+                className="aba-topup-amount-btn"
                 onClick={() => setAmount(a)}
               >
                 ${a}
               </Button>
             ))}
-            <InputNumber
-              min={5}
-              max={1000}
-              prefix="$"
-              value={amount}
-              onChange={setAmount}
+          </div>
+          <InputNumber
+            min={5}
+            max={1000}
+            prefix="$"
+            value={amount}
+            onChange={setAmount}
+            size="large"
+            className="aba-topup-custom"
+            aria-label="Custom top-up amount"
+          />
+        </section>
+
+        {err ? (
+          <Alert
+            type="error"
+            showIcon
+            message={err}
+            className="aba-topup-alert"
+          />
+        ) : null}
+
+        {/* Primary actions */}
+        <Space direction="vertical" size={10} className="aba-topup-actions">
+          {meter.auto_checkout_url && (
+            <Button
+              type="primary"
               size="large"
-            />
-          </Space>
-        </div>
+              block
+              icon={<ThunderboltOutlined />}
+              onClick={() => { window.location.href = meter.auto_checkout_url }}
+              className="aba-topup-btn-success"
+            >
+              Complete auto top-up checkout →
+            </Button>
+          )}
 
-        {err && <Alert type="error" showIcon message={err} />}
-
-        {meter.auto_checkout_url && (
           <Button
             type="primary"
             size="large"
             block
-            icon={<ThunderboltOutlined />}
-            onClick={() => { window.location.href = meter.auto_checkout_url }}
-            style={{ height: 48, fontWeight: 600, background: '#16a34a' }}
+            loading={busy}
+            icon={<RocketOutlined />}
+            onClick={() => topup(amount)}
+            className="aba-topup-btn-primary"
           >
-            Complete auto top-up checkout →
+            {meter.cta || `Power up — add $${amount} credits`}
           </Button>
-        )}
 
-        <Button
-          type="primary"
-          size="large"
-          block
-          loading={busy}
-          icon={<RocketOutlined />}
-          onClick={() => topup(amount)}
-          style={{ height: 48, fontWeight: 600 }}
-        >
-          {meter.cta || `Power up — add $${amount} credits`}
-        </Button>
+          <Button
+            size="large"
+            block
+            loading={busy}
+            icon={<ThunderboltOutlined />}
+            onClick={enableAutoAndPay}
+            className="aba-topup-btn-secondary"
+          >
+            Enable auto top-up (${amount}) &amp; refill now
+          </Button>
+        </Space>
 
-        <Button
-          size="large"
-          block
-          loading={busy}
-          icon={<ThunderboltOutlined />}
-          onClick={enableAutoAndPay}
-        >
-          Enable auto top-up (${amount}) &amp; refill now
-        </Button>
-
-        {meter.upgrade_teaser && (
+        {meter.upgrade_teaser ? (
           <Alert
             type="success"
             showIcon
             icon={<CrownOutlined />}
+            className="aba-topup-upgrade"
             message="Or upgrade your plan"
             description={
               <Space direction="vertical" size={4} style={{ width: '100%' }}>
                 <span>{meter.upgrade_teaser}</span>
                 <Button
                   type="link"
-                  style={{ padding: 0 }}
+                  className="aba-topup-upgrade-link"
                   onClick={() => {
                     onClose?.()
                     nav('/billing')
@@ -243,22 +288,38 @@ export default function TopUpModal({ open, meter, onClose, onTopped }) {
               </Space>
             }
           />
-        )}
+        ) : null}
 
-        <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12, textAlign: 'center' }}>
-          Card checkout is secure via Stripe. Crypto top-ups available on Billing.
-          Auto top-up starts a checkout when you run low — you confirm each refill.
-        </Paragraph>
+        <Divider className="aba-topup-divider" />
 
-        <Button type="text" block onClick={onClose} disabled={meter.hard_block && urgency === 'critical'}>
-          {meter.hard_block ? 'I understand — continue to Billing' : 'Not now'}
-        </Button>
-        {meter.hard_block && (
-          <Button type="link" block onClick={() => { onClose?.(); nav('/billing') }}>
-            Open Billing
-          </Button>
-        )}
-      </Space>
+        <footer className="aba-topup-footer">
+          <Paragraph type="secondary" className="aba-topup-footnote">
+            Card checkout is secure via Stripe. Crypto top-ups available on Billing.
+            Auto top-up starts a checkout when you run low — you confirm each refill.
+          </Paragraph>
+
+          <Space direction="vertical" size={4} className="aba-topup-dismiss">
+            <Button
+              type="text"
+              block
+              onClick={onClose}
+              disabled={meter.hard_block && urgency === 'critical'}
+              className="aba-topup-dismiss-btn"
+            >
+              {meter.hard_block ? 'I understand — continue to Billing' : 'Not now'}
+            </Button>
+            {meter.hard_block && (
+              <Button
+                type="link"
+                block
+                onClick={() => { onClose?.(); nav('/billing') }}
+              >
+                Open Billing
+              </Button>
+            )}
+          </Space>
+        </footer>
+      </div>
     </Modal>
   )
 }

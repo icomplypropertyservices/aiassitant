@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-07-19T12:10:42.060Z",
+  "agentId": 27,
+  "chat_url": "https://www.aibusinessagent.xyz/agents/login",
+  "banners": [],
+  "banners2": [],
+  "ops": {
+    "status": 401,
+    "events": []
+  },
+  "act": {
+    "status": 401,
+    "recent": []
+  },
+  "bodySnippet": "Main AI Orchestrator\nOnline · orchestrator\nactive\nCreate a short company mission for Live Demo Co and list 3 next actions. Reply as the orchestrator to the human owner.\n**Live Demo Co — Mission**\n\nShow buyers what’s possible in minutes: run crisp, credible product demos that turn interest into pipeline for Fire Alarms Dublin, iComply Property Services, and iComply Products.\n\n**3 next actions**\n1. **Positioning** — Lock a one-liner and 3 demo scenarios (FAD compliance, iComply property ops, iComply product catalogue).\n2. **Demo kit** — Script a 5–7 min flow + objection handle; assign Master Designer for simple visual cover.\n3. **Pipeline hook** — Route every completed demo to Lead Agent / FAD Ops with a single follow-up task (quote, site survey, or trial).\n\nSay if you want this saved to memory or turned into tasks for the team.\n\n— Auto-chain started: goal task #111 with 2 delegated steps (hierarchy). Autonomy will run/monitor them.\nBuild a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.\nConfirm you received the mission instruction. One sentence.\nBuild a full sales plan for Live Demo Co: research ICP, write 5 outreach emails, set weekly targets, and report progress.\n**Confirmed:** I received the Live Demo Co mission instruction and will build the full sales plan (ICP research, 5 outreach emails, weekly targets, progress reporting).\n\nExecuting the plan now: researching ICP, then delegating content and targets.  \n\n```skill\n{\"skill\": \"generate_content\", \"args\": {\"type\": \"sales_plan\", \"topic\": \"Live Demo Co outreach: 5 short cold/warm emails for Irish property managers, facilities managers, and landlords promoting live demos of fire alarm compliance (Fire Alarms Dublin), property compliance ops (iComply Property Services), and product catalogue (iComply Products)\", \"audience\": \"B2B property and facilities decision-makers in Dublin/Ireland\", \"tone\": \"professional, direct, low-hype\", \"length\": \"medium\", \"keyw",
+  "dashSnippet": "AI Business Assistant\nRun companies, projects and AI agents in one workspace — with a clear token meter and fair public pricing.\nPre-order now — 10% off + early access\nLaunch 27 July 2026. Pre-orders get 10% off paid plans and early access before open.\nLaunch 27 July 2026\nCompany → Projects → Tasks\nLive token meter\nStripe + crypto\nSign in\nPre-order\nEmail\nPassword\nSign in\nForgot password?\nAfter pre-order, pick a plan — 10% off until launch. Stripe card or crypto (ETH / SOL / BTC / XRP).\nPre-order plans\n10% off · early access · launch 27 July 2026\nFull plans →\nFree trial\nFree trial\nFree\n\nTry the full product — no card required to start.\n\n50,000 tokens/mo · 2 co · 10 agents\nStarter\n10% off\n$39\n$35.10\n/mo\n\nFreelancers & small teams — serious volume at a clear monthly price.\n\n2,000,000 tokens/mo · 1 co · 5 agents\nPro\nPopular\n10% off\n$99\n$89.10\n/mo\n\nGrowing teams — more agents, more projects, full model ladder.\n\n10,000,000 tokens/mo · 3 co · 20 agents\nBusiness\n10% off\n$249\n$224.10\n/mo\n\nAgenc",
+  "screenshots": [
+    "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\status_update_chat.png",
+    "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\live-screenshots\\status_update_dashboard_ops.png"
+  ]
+}

@@ -1,0 +1,182 @@
+﻿[
+    {
+        "index":  1,
+        "description":  "Deploy production vercel",
+        "process_id":  5812,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_01.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_01.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_01.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Deploy production: vercel --prod --yes from project root; ver"
+    },
+    {
+        "index":  2,
+        "description":  "PageShell AppLayout center",
+        "process_id":  27528,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_02.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_02.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_02.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): PageShell + AppLayout centered container (aba-page-center / a"
+    },
+    {
+        "index":  3,
+        "description":  "global.css layout polish",
+        "process_id":  25484,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_03.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_03.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_03.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): global.css polish for boxed centered layout; mobile safe.\n\nDo"
+    },
+    {
+        "index":  4,
+        "description":  "Dashboard Cards layout",
+        "process_id":  24804,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_04.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_04.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_04.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Dashboard.jsx: all content in Ant Design Cards.\n\nDo concrete "
+    },
+    {
+        "index":  5,
+        "description":  "Agents page Cards UI",
+        "process_id":  9488,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_05.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_05.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_05.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Agents.jsx: list + spawn UI in Cards.\n\nDo concrete code/UI/AP"
+    },
+    {
+        "index":  6,
+        "description":  "Meetings Cards empty states",
+        "process_id":  25532,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_06.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_06.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_06.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Meetings.jsx + MeetingRoom.jsx: Card containers, empty states"
+    },
+    {
+        "index":  7,
+        "description":  "TasksBoard Card columns",
+        "process_id":  24496,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_07.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_07.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_07.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): TasksBoard.jsx: columns as Cards; goal-chain tags.\n\nDo concre"
+    },
+    {
+        "index":  8,
+        "description":  "Hierarchy Cards layout",
+        "process_id":  27144,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_08.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_08.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_08.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Hierarchy.jsx: tree/list in Cards.\n\nDo concrete code/UI/API/d"
+    },
+    {
+        "index":  9,
+        "description":  "Billing PlanCards boxed",
+        "process_id":  26448,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_09.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_09.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_09.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Billing.jsx + PlanCards: centered boxed plans.\n\nDo concrete c"
+    },
+    {
+        "index":  10,
+        "description":  "Login centered Card form",
+        "process_id":  11468,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_10.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_10.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_10.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Login.jsx: centered Card form.\n\nDo concrete code/UI/API/deplo"
+    },
+    {
+        "index":  11,
+        "description":  "Settings Profile section Cards",
+        "process_id":  24156,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_11.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_11.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_11.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Settings.jsx + Profile.jsx: section Cards.\n\nDo concrete code/"
+    },
+    {
+        "index":  12,
+        "description":  "Business Ops Card tables",
+        "process_id":  13736,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_12.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_12.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_12.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Business.jsx + Ops.jsx: tables inside Cards.\n\nDo concrete cod"
+    },
+    {
+        "index":  13,
+        "description":  "AgentChat panels goal chain",
+        "process_id":  13060,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_13.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_13.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_13.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): AgentChat.jsx: message list + composer in bordered panels; go"
+    },
+    {
+        "index":  14,
+        "description":  "task_chain goal auto-chain",
+        "process_id":  27756,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_14.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_14.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_14.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): task_chain.py + execute_goal skill + chat auto-chain + task_r"
+    },
+    {
+        "index":  15,
+        "description":  "plans trial limits verify",
+        "process_id":  27784,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_15.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_15.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_15.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): plans.py trial: 10 agents, 2 companies if not already.\n\nDo co"
+    },
+    {
+        "index":  16,
+        "description":  "ops autonomy tick secret",
+        "process_id":  27960,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_16.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_16.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_16.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): ops.py: autonomy tick-all GET+POST with secret.\n\nDo concrete "
+    },
+    {
+        "index":  17,
+        "description":  "Frontend npm build fix",
+        "process_id":  28184,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_17.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_17.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_17.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Frontend npm run build; fix compile errors.\n\nDo concrete code"
+    },
+    {
+        "index":  18,
+        "description":  "Live smoke demo login",
+        "process_id":  28404,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_18.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_18.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_18.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Live smoke: demo login, templates, agents, meetings, chat goa"
+    },
+    {
+        "index":  19,
+        "description":  "Browser e2e agent A",
+        "process_id":  28440,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_19.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_19.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_19.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Browser e2e agent A: node scripts/live_browser_e2e.mjs --agen"
+    },
+    {
+        "index":  20,
+        "description":  "Browser e2e agent B",
+        "process_id":  28568,
+        "prompt_file":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_prompts\\task_20.txt",
+        "out_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_20.out.log",
+        "err_log":  "C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\\scripts\\swarm_worker_logs\\worker_20.err.log",
+        "task":  "You are a general-purpose worker on PROJECT: C:\\Users\\E-Store\\ai-business-assistant\\ai-business-assistant\n\nTASK (from swarm_backlog.json): Browser e2e agent B: node scripts/live_browser_e2e.mjs --agen"
+    }
+]

@@ -1,0 +1,995 @@
+{
+  "pack": "08_operations",
+  "category": "ops",
+  "label": "Operations",
+  "skills": [
+    {
+      "id": "ops_sop_write",
+      "name": "SOP writer",
+      "description": "Write a clear standard operating procedure with steps, owners, systems, and controls.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_process_map",
+      "name": "Process map",
+      "description": "Map an end-to-end process with stages, handoffs, systems, and pain points.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_raci_matrix",
+      "name": "RACI matrix",
+      "description": "Build a RACI matrix defining who is responsible, accountable, consulted, and informed.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_sla_ops",
+      "name": "SLA definition",
+      "description": "Define operational SLAs with targets, measurement methods, and escalation rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_capacity_plan",
+      "name": "Capacity plan",
+      "description": "Plan team or system capacity against demand for a given period and goals.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_shift_roster",
+      "name": "Shift roster",
+      "description": "Create a shift roster covering coverage needs, skills, and fairness constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_incident_runbook",
+      "name": "Incident runbook",
+      "description": "Write an incident runbook with detection, triage, response, and recovery steps.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_postmortem",
+      "name": "Postmortem report",
+      "description": "Produce a blameless postmortem with timeline, root cause, and action items.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_change_request",
+      "name": "Change request",
+      "description": "Draft a change request with scope, risk, rollback plan, and approval criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_vendor_ops_score",
+      "name": "Vendor ops scorecard",
+      "description": "Score vendor operational performance on reliability, quality, and responsiveness.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_inventory_count",
+      "name": "Inventory count plan",
+      "description": "Plan a physical inventory count with process steps, controls, and reconciliation.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_reorder_point",
+      "name": "Reorder point model",
+      "description": "Calculate reorder points and safety stock from demand, lead time, and service level.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_warehouse_layout",
+      "name": "Warehouse layout",
+      "description": "Design or improve warehouse layout for flow, pick efficiency, and safety.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_quality_checklist",
+      "name": "Quality checklist",
+      "description": "Build a quality inspection checklist with pass/fail criteria and owners.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_safety_brief",
+      "name": "Safety brief",
+      "description": "Write a safety brief covering hazards, controls, and required PPE.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_facility_plan",
+      "name": "Facility plan",
+      "description": "Plan facility capacity, layout, and utilization against operational goals.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_office_move",
+      "name": "Office move plan",
+      "description": "Plan an office move with timeline, logistics, and stakeholder communications.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_travel_policy_ops",
+      "name": "Travel policy (ops)",
+      "description": "Draft operational travel policy covering booking, approvals, and expense rules.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_expense_ops",
+      "name": "Expense ops workflow",
+      "description": "Design expense submission, approval, and exception workflows for ops teams.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_tooling_stack",
+      "name": "Ops tooling stack",
+      "description": "Recommend or document the operations tooling stack and how tools integrate.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_automation_opportunity",
+      "name": "Automation opportunity map",
+      "description": "Identify high-ROI automation opportunities across operational processes.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_kpi_ops",
+      "name": "Ops KPI framework",
+      "description": "Define operational KPIs with formulas, targets, owners, and review cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_daily_standup_ops",
+      "name": "Daily ops standup",
+      "description": "Structure a daily operations standup agenda with metrics, risks, and blockers.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_war_room_agenda",
+      "name": "War room agenda",
+      "description": "Build a war-room agenda for critical incidents or peak-period operations.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_continuity_plan",
+      "name": "Business continuity plan",
+      "description": "Draft a business continuity plan for critical processes and dependencies.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_disaster_recovery",
+      "name": "Disaster recovery plan",
+      "description": "Produce a disaster recovery plan with RTO/RPO targets and recovery steps.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_backup_verify",
+      "name": "Backup verification plan",
+      "description": "Define backup verification procedures, schedules, and success criteria.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_access_review_ops",
+      "name": "Access review (ops)",
+      "description": "Run an operational access review of systems, roles, and least-privilege gaps.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_asset_inventory",
+      "name": "Asset inventory",
+      "description": "Build an asset inventory of equipment, licenses, locations, and ownership.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_procurement_ops",
+      "name": "Procurement ops playbook",
+      "description": "Document procurement operations from request through approval, order, and receipt.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_contract_ops",
+      "name": "Contract ops checklist",
+      "description": "Create an operational checklist for contract renewals, obligations, and SLAs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_sla_breach_ops",
+      "name": "SLA breach response",
+      "description": "Define response and remediation steps when operational SLAs are breached.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_customer_ops_escalation",
+      "name": "Customer ops escalation",
+      "description": "Design customer ops escalation paths, owners, and communication templates.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_field_service_plan",
+      "name": "Field service plan",
+      "description": "Plan field service coverage, skills mix, and SLA-aligned dispatch priorities.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_route_plan",
+      "name": "Route plan",
+      "description": "Optimize delivery or service routes against time windows and capacity.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_maintenance_schedule",
+      "name": "Maintenance schedule",
+      "description": "Build a preventive maintenance schedule for equipment and facilities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_equipment_checklist",
+      "name": "Equipment checklist",
+      "description": "Create pre-use and inspection checklists for critical equipment.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_supplier_scorecard",
+      "name": "Supplier scorecard",
+      "description": "Score suppliers on quality, delivery, cost, and risk factors.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_make_vs_buy",
+      "name": "Make-vs-buy analysis",
+      "description": "Analyze make-versus-buy options with cost, risk, and capability tradeoffs.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_cost_to_serve",
+      "name": "Cost-to-serve analysis",
+      "description": "Calculate cost-to-serve by channel, segment, or product to guide ops decisions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_process_mining_note",
+      "name": "Process mining notes",
+      "description": "Summarize process mining findings with variants, bottlenecks, and recommendations.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_bottleneck_analysis",
+      "name": "Bottleneck analysis",
+      "description": "Analyze process bottlenecks with throughput data and improvement options.",
+      "args": [
+        "data",
+        "period",
+        "focus",
+        "audience"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_throughput_plan",
+      "name": "Throughput plan",
+      "description": "Plan throughput targets and capacity levers to meet demand.",
+      "args": [
+        "period",
+        "goals",
+        "owners",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_queue_theory_note",
+      "name": "Queue theory note",
+      "description": "Apply simple queueing analysis to staffing levels and wait-time decisions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_lean_waste",
+      "name": "Lean waste audit",
+      "description": "Identify the eight wastes of lean and prioritize elimination opportunities.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_kaizen_event",
+      "name": "Kaizen event plan",
+      "description": "Plan a kaizen event with scope, charter, agenda, and success metrics.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_5s_checklist",
+      "name": "5S checklist",
+      "description": "Build a 5S workplace organization checklist and audit scoring sheet.",
+      "args": [
+        "process",
+        "systems",
+        "owners"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_dashboard",
+      "name": "Ops dashboard spec",
+      "description": "Specify an operations dashboard with metrics, views, and refresh cadence.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_weekly",
+      "name": "Weekly ops report",
+      "description": "Produce a weekly operations report with KPIs, risks, and next actions.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    },
+    {
+      "id": "ops_play_custom",
+      "name": "Custom ops playbook",
+      "description": "Create a custom operations playbook tailored to context, goal, and constraints.",
+      "args": [
+        "context",
+        "goal",
+        "audience",
+        "constraints"
+      ],
+      "roles": [
+        "orchestrator",
+        "lead",
+        "member",
+        "specialist"
+      ],
+      "category": "ops",
+      "pack": "08_operations",
+      "handler": "catalog_deliverable"
+    }
+  ]
+}

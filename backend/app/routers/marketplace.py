@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ownership import require_owned
 from .. import models, config
 from ..auth_utils import get_current_user
 from .. import agentbay_bridge
@@ -28,6 +29,16 @@ def marketplace_status(user=Depends(get_current_user)):
     }
 
 
+@router.get("/subcontractors")
+def marketplace_subcontractors(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Hired AgentBay skills/agents (paid orders) for this account."""
+    from ..human_service import list_agentbay_subcontractors
+    return list_agentbay_subcontractors(db, user)
+
+
 @router.post("/agents/{agent_id}/publish")
 async def publish_one(
     agent_id: int,
@@ -35,9 +46,10 @@ async def publish_one(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    a = db.get(models.Agent, agent_id)
-    if not a or (a.user_id != user.id and user.role != "admin"):
-        raise HTTPException(404, "Agent not found")
+    a = require_owned(
+        db, models.Agent, agent_id, user,
+        user_field='user_id', not_found="Agent not found",
+    )
     data = data or PublishIn()
     extra = {}
     if data.title:

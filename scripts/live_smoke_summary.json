@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-07-19T11:58:00Z",
+  "base_url": "https://www.aibusinessagent.xyz",
+  "task": "Live smoke: demo login, templates, agents, meetings, chat goal chain",
+  "api": {
+    "report": "scripts/live_smoke_full_report.json",
+    "ok": true,
+    "passed": 13,
+    "total": 13,
+    "highlights": {
+      "demo_login": "PASS (stored session key; trial active)",
+      "templates": "PASS count=41",
+      "agents": "PASS count=10 orchestrator id=27",
+      "meetings": "PASS list + create room 21 + message",
+      "chat_goal_chain": "PASS parent_task_id=214, 6 delegated steps via execute_goal",
+      "auto_chain": "prompt → task → delegate → monitor steps present"
+    }
+  },
+  "browser": {
+    "report": "scripts/live_smoke_browser_report.json",
+    "ok": true,
+    "passed": 6,
+    "total": 6,
+    "pages": ["login", "dashboard", "templates", "agents", "meetings", "chat"],
+    "screenshots_dir": "scripts/live-screenshots/"
+  },
+  "notes": [
+    "Login rate-limit (429) can hit when many swarm workers re-login the same demo account.",
+    "Session API keys rotate on each login; smoke prefers stored key + re-login only on 401.",
+    "Meetings list returns {meetings, count} dict, not a bare array."
+  ]
+}

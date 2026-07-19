@@ -10,7 +10,9 @@
  * Native default: VITE_PROD_API_URL or https://aibusinessagent.xyz/api
  */
 
-const PROD_API_DEFAULT = 'https://aibusinessagent.xyz/api'
+// Prefer www: apex currently 308-redirects some POSTs to www, which breaks
+// non-browser clients (urllib / some native stacks) that do not re-POST.
+const PROD_API_DEFAULT = 'https://www.aibusinessagent.xyz/api'
 
 function isNativeShell() {
   try {
@@ -88,23 +90,35 @@ export function getToken() {
 }
 
 /**
+ * Dead socket stub (Vercel/prod default — serverless has no durable WS).
+ * Duck-types WebSocket enough for callers that assign onmessage / close.
+ */
+function createNoopSocket() {
+  return {
+    readyState: 3, // CLOSED
+    mode: 'noop',
+    send() {},
+    close() {},
+    addEventListener() {},
+    removeEventListener() {},
+    onopen: null,
+    onclose: null,
+    onerror: null,
+    onmessage: null,
+  }
+}
+
+/**
  * Open a WebSocket and auth with API key (first message, not JWT).
+ * Production defaults to a noop socket unless `force: true` (Vercel has no durable WS).
+ * Prefer `createRealtime({ mode })` for new call sites.
+ *
  * @param {string} path
  * @param {{ useQueryToken?: boolean, force?: boolean }} [opts]
  */
 export function connectAuthedWs(path, opts = {}) {
   if (import.meta.env.PROD && !opts.force) {
-    return {
-      readyState: 3,
-      send() {},
-      close() {},
-      addEventListener() {},
-      removeEventListener() {},
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-    }
+    return createNoopSocket()
   }
   const apiKey = getApiKey() || ''
   const p = path.startsWith('/') ? path : `/${path}`
@@ -117,6 +131,7 @@ export function connectAuthedWs(path, opts = {}) {
     url = `${base}${p}`
   }
   const ws = new WebSocket(url)
+  ws.mode = 'ws'
   if (!opts.useQueryToken && apiKey) {
     ws.addEventListener(
       'open',
@@ -131,6 +146,74 @@ export function connectAuthedWs(path, opts = {}) {
     )
   }
   return ws
+}
+
+/**
+ * Single realtime adapter so pages do not branch on env.
+ *
+ * Modes:
+ * - `noop` — closed stub (default in production)
+ * - `ws`   — authenticated WebSocket via connectAuthedWs (force in prod if needed)
+ * - `poll` — interval polling; returns a socket-like with close() to clear the timer
+ *
+ * @param {{
+ *   mode?: 'ws' | 'poll' | 'noop',
+ *   path?: string,
+ *   force?: boolean,
+ *   useQueryToken?: boolean,
+ *   intervalMs?: number,
+ *   onPoll?: () => void | Promise<void>,
+ * }} [opts]
+ */
+export function createRealtime(opts = {}) {
+  const mode =
+    opts.mode ||
+    (import.meta.env.PROD && !opts.force ? 'noop' : 'ws')
+
+  if (mode === 'noop') {
+    return createNoopSocket()
+  }
+
+  if (mode === 'poll') {
+    const intervalMs = opts.intervalMs ?? 8000
+    let timer = null
+    const tick = () => {
+      try {
+        const r = opts.onPoll?.()
+        if (r && typeof r.then === 'function') r.catch(() => {})
+      } catch {
+        /* ignore poll errors */
+      }
+    }
+    if (typeof opts.onPoll === 'function' && intervalMs > 0) {
+      timer = setInterval(tick, intervalMs)
+      // First tick shortly after open so UI is not empty
+      setTimeout(tick, 0)
+    }
+    return {
+      readyState: 1,
+      mode: 'poll',
+      send() {},
+      close() {
+        if (timer != null) {
+          clearInterval(timer)
+          timer = null
+        }
+      },
+      addEventListener() {},
+      removeEventListener() {},
+      onopen: null,
+      onclose: null,
+      onerror: null,
+      onmessage: null,
+    }
+  }
+
+  // mode === 'ws'
+  return connectAuthedWs(opts.path || '/agents/ws', {
+    force: !!opts.force || !import.meta.env.PROD,
+    useQueryToken: opts.useQueryToken,
+  })
 }
 export function getUser() {
   try {
@@ -175,17 +258,68 @@ function formatDetail(detail) {
   return String(detail)
 }
 
+/** Short TTL GET cache — makes revisiting lists/dashboard feel instant */
+const _getCache = new Map()
+const GET_CACHE_MS = 8000
+const CACHEABLE_PREFIXES = [
+  '/agents/',
+  '/dashboard/',
+  '/templates/',
+  '/org/',
+  '/billing/meter',
+  '/billing/plans',
+  '/humans/',
+  '/meetings/',
+]
+
+function _cacheKey(path, method) {
+  return `${method || 'GET'}:${path}:${getApiKey().slice(0, 16)}`
+}
+
+function _isCacheableGet(path, options) {
+  const method = (options.method || 'GET').toUpperCase()
+  if (method !== 'GET') return false
+  if (options.cache === false || options.noCache) return false
+  const p = path.startsWith('/') ? path : `/${path}`
+  // Don't cache detail chat payloads with long paths that include dynamic churn
+  if (p.includes('/chat') || p.includes('/ws')) return false
+  return CACHEABLE_PREFIXES.some((pre) => p === pre || p.startsWith(pre) || p.startsWith(pre.replace(/\/$/, '')))
+}
+
+/** Bust list caches after mutations (call from create/update UIs if needed). */
+export function invalidateApiCache(prefix = '') {
+  if (!prefix) {
+    _getCache.clear()
+    return
+  }
+  for (const k of _getCache.keys()) {
+    if (k.includes(prefix)) _getCache.delete(k)
+  }
+}
+
 /**
  * Unified API fetch. Paths start with / (e.g. /auth/login).
+ * GETs for list-ish endpoints are cached ~8s for snappy UI.
  */
 export async function api(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase()
+  const cacheable = _isCacheableGet(path, options)
+  const ckey = cacheable ? _cacheKey(path, method) : null
+  if (ckey) {
+    const hit = _getCache.get(ckey)
+    if (hit && Date.now() - hit.at < GET_CACHE_MS) {
+      return hit.data
+    }
+  }
+
   const url = `${API}${path.startsWith('/') ? path : `/${path}`}`
   let res
   try {
     const apiKey = getApiKey()
-    const { body, headers: optHeaders, signal, ...rest } = options
+    const { body, headers: optHeaders, signal, cache: _c, noCache: _n, ...rest } = options
     res = await fetch(url, {
       ...rest,
+      method,
       signal,
       headers: {
         Accept: 'application/json',
@@ -267,5 +401,28 @@ export async function api(path, options = {}) {
     err.status = res.status
     throw err
   }
+
+  // Cache successful GETs for list endpoints
+  if (ckey && method === 'GET') {
+    _getCache.set(ckey, { at: Date.now(), data })
+    // Bound cache size
+    if (_getCache.size > 80) {
+      const first = _getCache.keys().next().value
+      _getCache.delete(first)
+    }
+  } else if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    // Mutations invalidate related caches (prefix match)
+    invalidateApiCache('/agents')
+    invalidateApiCache('/dashboard')
+    invalidateApiCache('/meetings')
+    invalidateApiCache('/humans')
+    invalidateApiCache('/business')
+    invalidateApiCache('/org')
+    invalidateApiCache('/integrations')
+    invalidateApiCache('/billing')
+    invalidateApiCache('/tasks')
+    invalidateApiCache('/ops')
+  }
+
   return data
 }
