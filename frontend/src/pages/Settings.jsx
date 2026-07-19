@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Card, Typography, Tabs, Badge, Space, message } from 'antd'
+import { Card, Tabs, Badge, message } from 'antd'
 import {
   KeyOutlined, AppstoreOutlined, RobotOutlined, UserOutlined,
   CloudOutlined, MobileOutlined,
 } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
-import PageHeader from '../components/PageHeader'
 import PageShell from '../components/PageShell'
-import SystemNav from '../components/SystemNav'
 import SettingsProfile from './settings/SettingsProfile'
 import SettingsKeys from './settings/SettingsKeys'
 import SettingsApps from './settings/SettingsApps'
@@ -56,60 +54,41 @@ export default function Settings() {
   }
 
   return (
-    <PageShell>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Card className="aba-soft-card" styles={{ body: { paddingBlock: 16 } }}>
-          <PageHeader
-            title="Settings"
-            subtitle="Profile, mobile, API keys, connected apps, and agent access"
-            style={{ marginBottom: 0 }}
-          />
-        </Card>
-
-        <Card
-          className="aba-soft-card"
-          size="small"
-          title="Jump to any area"
-          extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>Click a card</Typography.Text>}
-        >
-          <SystemNav compact groups={false} />
-        </Card>
-
-        <Card className="aba-soft-card" styles={{ body: { paddingTop: 8 } }}>
-          <Tabs
-            activeKey={tab}
-            onChange={onTabChange}
-            centered
-            tabBarStyle={{ marginBottom: 16 }}
-            items={[
-              { key: 'profile', label: <span><UserOutlined /> Profile</span>, children: <SettingsProfile /> },
-              { key: 'mobile', label: <span><MobileOutlined /> Mobile</span>, children: <SettingsMobile active={tab === 'mobile'} /> },
-              { key: 'keys', label: <span><KeyOutlined /> API keys</span>, children: <SettingsKeys /> },
-              {
-                key: 'apps',
-                label: (
-                  <span>
-                    <AppstoreOutlined /> Connected apps{' '}
-                    <Badge
-                      count={connectedCount}
-                      size="small"
-                      offset={[4, -2]}
-                    />
-                  </span>
-                ),
-                children: (
-                  <SettingsApps
-                    key={appsRefreshKey}
-                    onConnectedCountChange={onConnectedCountChange}
-                  />
-                ),
-              },
-              { key: 'agents', label: <span><RobotOutlined /> Agent apps</span>, children: <SettingsAgents /> },
-              { key: 'platform', label: <span><CloudOutlined /> Platform</span>, children: <SettingsPlatform /> },
-            ]}
-          />
-        </Card>
-      </Space>
+    <PageShell
+      title="Settings"
+      subtitle={tab === 'apps' ? 'Connect Gmail, Sheets, and other apps' : 'Profile, keys, apps, and agent access'}
+      showBack
+      backTo="/"
+    >
+      <Card className="aba-soft-card" styles={{ body: { paddingTop: 8 } }}>
+        <Tabs
+          activeKey={tab}
+          onChange={onTabChange}
+          tabBarStyle={{ marginBottom: 16 }}
+          items={[
+            { key: 'profile', label: <span><UserOutlined /> Profile</span>, children: <SettingsProfile /> },
+            { key: 'mobile', label: <span><MobileOutlined /> Mobile</span>, children: <SettingsMobile active={tab === 'mobile'} /> },
+            { key: 'keys', label: <span><KeyOutlined /> API keys</span>, children: <SettingsKeys /> },
+            {
+              key: 'apps',
+              label: (
+                <span>
+                  <AppstoreOutlined /> Apps{' '}
+                  <Badge count={connectedCount} size="small" offset={[4, -2]} />
+                </span>
+              ),
+              children: (
+                <SettingsApps
+                  key={appsRefreshKey}
+                  onConnectedCountChange={onConnectedCountChange}
+                />
+              ),
+            },
+            { key: 'agents', label: <span><RobotOutlined /> Agents</span>, children: <SettingsAgents /> },
+            { key: 'platform', label: <span><CloudOutlined /> Platform</span>, children: <SettingsPlatform /> },
+          ]}
+        />
+      </Card>
     </PageShell>
   )
 }

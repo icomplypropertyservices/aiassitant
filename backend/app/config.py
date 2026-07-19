@@ -169,9 +169,16 @@ else:
         )
 
 # Exact callback Google/Slack/etc. must redirect to.
-# Production always pins to canonical www URI unless OAUTH_REDIRECT_URI is set non-empty.
-if IS_PRODUCTION and "aibusinessagent.xyz" in (API_PUBLIC_URL + FRONTEND_URL + _oauth_redirect_env):
-    OAUTH_REDIRECT_URI = _oauth_redirect_env or PROD_OAUTH_REDIRECT_URI
+# Production product domain ALWAYS pins to canonical www URI so Google Console
+# has one stable value (Error 400 redirect_uri_mismatch = www vs apex or drifted env).
+_product_host = "aibusinessagent.xyz" in (
+    f"{API_PUBLIC_URL} {FRONTEND_URL} {_oauth_redirect_env}"
+)
+if IS_PRODUCTION and _product_host:
+    # Force www canonical — ignore apex / wrong host in OAUTH_REDIRECT_URI env
+    OAUTH_REDIRECT_URI = PROD_OAUTH_REDIRECT_URI
+elif IS_PRODUCTION and not _oauth_redirect_env:
+    OAUTH_REDIRECT_URI = PROD_OAUTH_REDIRECT_URI
 else:
     OAUTH_REDIRECT_URI = (
         _oauth_redirect_env
@@ -179,6 +186,11 @@ else:
     )
 # Normalize accidental trailing slash (Google treats as different URI)
 OAUTH_REDIRECT_URI = (OAUTH_REDIRECT_URI or "").rstrip("/")
+# Final pin: never leave product domain on apex host
+if "://aibusinessagent.xyz/" in (OAUTH_REDIRECT_URI or "") and "://www." not in OAUTH_REDIRECT_URI:
+    OAUTH_REDIRECT_URI = OAUTH_REDIRECT_URI.replace(
+        "://aibusinessagent.xyz/", "://www.aibusinessagent.xyz/"
+    )
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 

@@ -4,18 +4,20 @@ import {
   List, Empty, Spin,
 } from 'antd'
 import { SendOutlined, ThunderboltOutlined, PlusOutlined, MessageOutlined } from '@ant-design/icons'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api, createRealtime } from '../api'
 import ModelSelect from '../components/ModelSelect'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
+import MessageActions from '../components/MessageActions'
 import PageShell from '../components/PageShell'
-import { hapticMedium, hapticSuccess, hapticError } from '../native'
+import { hapticMedium, hapticSuccess, hapticError, hapticLight } from '../native'
 
 const TEMPLATES = ['Write a follow-up email', 'Summarise this for a customer', 'Draft a quote cover note', 'Reply to a bad review', 'Fix this Python bug', 'Write a FastAPI endpoint']
 
 export default function Chat() {
   const loc = useLocation()
+  const nav = useNavigate()
   const [model, setModel] = useState('vps-fast')
   const [mode, setMode] = useState('general')
   const [messages, setMessages] = useState([])
@@ -152,13 +154,26 @@ export default function Chat() {
     }
   }
 
+  const goBack = () => {
+    hapticLight()
+    if (loc.key && loc.key !== 'default') nav(-1)
+    else nav('/')
+  }
+
   return (
-    <PageShell wide className="aba-chat-page">
+    <PageShell
+      wide
+      className="aba-chat-page"
+      title="AI Chat"
+      subtitle="General assistant · voice, media, and modes"
+      showBack
+      backTo={goBack}
+    >
       <div
         style={{
           display: 'flex',
           gap: 12,
-          height: 'calc(100vh - 160px)',
+          height: 'calc(100vh - 200px)',
           minHeight: 480,
           width: '100%',
         }}
@@ -267,13 +282,18 @@ export default function Chat() {
             )}
             {messages.map((m, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
-                <div style={{
-                  maxWidth: '70%', padding: '8px 14px', borderRadius: 10, whiteSpace: 'pre-wrap',
-                  background: m.role === 'user' ? '#1668dc' : '#fff',
-                  color: m.role === 'user' ? '#fff' : '#000',
-                  border: m.role === 'user' ? 'none' : '1px solid #e8e8e8',
-                  fontFamily: mode === 'coding' && m.role === 'assistant' ? 'ui-monospace, monospace' : undefined,
-                }}>{m.content}</div>
+                <div style={{ maxWidth: '70%', minWidth: 0 }}>
+                  <div style={{
+                    padding: '8px 14px', borderRadius: 10, whiteSpace: 'pre-wrap',
+                    background: m.role === 'user' ? '#1668dc' : '#fff',
+                    color: m.role === 'user' ? '#fff' : '#000',
+                    border: m.role === 'user' ? 'none' : '1px solid #e8e8e8',
+                    fontFamily: mode === 'coding' && m.role === 'assistant' ? 'ui-monospace, monospace' : undefined,
+                  }}>{m.content}</div>
+                  {m.role === 'assistant' && !m.streaming && m.content && (
+                    <MessageActions text={m.content} filename="chat-reply" />
+                  )}
+                </div>
               </div>
             ))}
             <div ref={bottomRef} />

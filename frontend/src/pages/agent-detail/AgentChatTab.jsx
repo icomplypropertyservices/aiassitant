@@ -5,6 +5,7 @@ import {
 import { ThunderboltOutlined, MessageOutlined, SendOutlined } from '@ant-design/icons'
 import VoiceControls from '../../components/VoiceControls'
 import MediaActions from '../../components/MediaActions'
+import MessageActions from '../../components/MessageActions'
 import { PROMPTS } from './constants'
 
 /** Agent manage page — Live chat tab body. */
@@ -77,18 +78,25 @@ export default function AgentChatTab({
                 marginBottom: 8,
               }}
             >
-              <div style={{
-                maxWidth: '75%',
-                padding: '8px 14px',
-                borderRadius: 12,
-                whiteSpace: 'pre-wrap',
-                background: m.role === 'user' ? '#1668dc' : '#fff',
-                color: m.role === 'user' ? '#fff' : 'var(--aba-ink, #000)',
-                border: m.role === 'user' ? 'none' : '1px solid var(--aba-border, #e8e8e8)',
-                opacity: m.streaming ? 0.95 : 1,
-              }}
-              >
-                {m.content || (m.streaming ? '…' : '')}
+              <div style={{ maxWidth: '75%', minWidth: 0 }}>
+                <div style={{
+                  padding: '8px 14px',
+                  borderRadius: 12,
+                  whiteSpace: 'pre-wrap',
+                  background: m.role === 'user' ? '#1668dc' : '#fff',
+                  color: m.role === 'user' ? '#fff' : 'var(--aba-ink, #000)',
+                  border: m.role === 'user' ? 'none' : '1px solid var(--aba-border, #e8e8e8)',
+                  opacity: m.streaming ? 0.95 : 1,
+                }}
+                >
+                  {m.content || (m.streaming ? '…' : '')}
+                </div>
+                {m.role === 'assistant' && !m.streaming && m.content && (
+                  <MessageActions
+                    text={m.content}
+                    filename={`${(agent?.name || 'agent').replace(/\s+/g, '-')}-reply`}
+                  />
+                )}
               </div>
             </div>
           ))

@@ -50,7 +50,8 @@ export default function AppHeader({
             }}
           />
         )}
-        {showSider && (
+        {/* Back on desktop always; on mobile when not on Home so Chat / detail pages can leave */}
+        {(showSider || (loc.pathname && loc.pathname !== '/')) && (
           <Tooltip title="Go back">
             <Button
               type="text"

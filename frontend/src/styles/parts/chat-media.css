@@ -516,6 +516,57 @@
   opacity: 0.75;
 }
 
+/* Play · Copy · Download under each assistant response */
+.aba-msg-actions {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 2px 0 0;
+  max-width: 100%;
+}
+.aba-msg-actions.agent-chat-msg-actions {
+  margin-top: 4px;
+  padding-left: 2px;
+}
+.aba-msg-action-btn.ant-btn {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--aba-muted, #64748b) !important;
+  border-radius: 8px !important;
+  line-height: 1.2 !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.aba-msg-action-btn.ant-btn:hover,
+.aba-msg-action-btn.ant-btn:focus-visible {
+  color: var(--aba-primary, #1668dc) !important;
+  background: var(--aba-primary-soft, #e8f1fc) !important;
+}
+.aba-msg-action-btn.ant-btn:active {
+  transform: scale(0.97);
+}
+.aba-msg-action-btn.ant-btn .anticon {
+  font-size: 13px;
+}
+@media (max-width: 768px) {
+  .aba-msg-action-btn.ant-btn {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+  .aba-msg-action-btn.ant-btn .anticon {
+    font-size: 14px;
+  }
+}
+
 /* Question chips under assistant replies */
 .agent-chat-questions {
   margin-top: 8px;
@@ -737,6 +788,52 @@
   }
   .aba-media-modal .ant-modal-footer {
     flex-wrap: wrap;
+  }
+}
+
+/* Settings → Connected apps: single clean list */
+.aba-settings-apps .aba-apps-list__item {
+  padding: 12px 0 !important;
+  align-items: center !important;
+}
+.aba-settings-apps .aba-apps-list__item .ant-list-item-action {
+  margin-inline-start: 12px;
+  flex-shrink: 0;
+}
+.aba-settings-apps .aba-apps-list__item .ant-list-item-action > li {
+  padding: 0;
+}
+.aba-apps-list__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .aba-settings-apps .aba-apps-list__item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+  .aba-settings-apps .aba-apps-list__item .ant-list-item-action {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+  .aba-settings-apps .aba-apps-list__item .ant-list-item-action > li {
+    width: 100%;
+  }
+  .aba-settings-apps .aba-apps-list__item .ant-list-item-action .ant-btn,
+  .aba-settings-apps .aba-apps-list__item .ant-list-item-action .ant-space {
+    width: 100%;
+  }
+  .aba-settings-apps .aba-apps-list__item .ant-list-item-action .ant-btn-primary {
+    min-height: 44px;
   }
 }
 

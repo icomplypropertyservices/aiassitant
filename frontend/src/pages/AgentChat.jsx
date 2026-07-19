@@ -9,11 +9,12 @@ import {
   ClusterOutlined, CheckSquareOutlined, CommentOutlined, TeamOutlined,
   ApartmentOutlined, HomeOutlined, CreditCardOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { api, connectAuthedWs } from '../api'
 import { hapticMedium, hapticSuccess, hapticError, acquireKeepAwake, releaseKeepAwake, forceAllowSleep } from '../native'
 import VoiceControls, { speakText, stopSpeaking } from '../components/VoiceControls'
 import MediaActions from '../components/MediaActions'
+import MessageActions from '../components/MessageActions'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -151,6 +152,7 @@ function GoalChainAlert({ chain, onOpenTasks }) {
 export default function AgentChat() {
   const { id } = useParams()
   const nav = useNavigate()
+  const loc = useLocation()
   const [agent, setAgent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [messages, setMessages] = useState([])
@@ -437,9 +439,18 @@ export default function AgentChat() {
           onClick={() => {
             // Always allow leaving even while a reply is in flight
             try { abortRef.current?.abort() } catch { /* ignore */ }
-            nav('/console')
+            try { stopSpeaking() } catch { /* ignore */ }
+            // Prefer browser history; fall back to agents list for deep links
+            if (loc.key && loc.key !== 'default') {
+              nav(-1)
+              return
+            }
+            const p = loc.pathname || ''
+            if (p.startsWith('/army')) nav('/army')
+            else if (p.startsWith('/agents')) nav('/agents')
+            else nav('/console')
           }}
-          aria-label="Back to agents"
+          aria-label="Back"
         />
         <button type="button" className="agent-chat-identity" onClick={() => setMenuOpen(true)}>
           <div className="agent-chat-avatar">
@@ -538,6 +549,13 @@ export default function AgentChat() {
                         <span className="agent-chat-dots"><i /><i /><i /></span>
                       ) : '')}
                     </div>
+                    {!isUser && !m.streaming && (split.display || m.content) && (
+                      <MessageActions
+                        text={split.display || m.content}
+                        filename={`${(agent?.name || 'agent').replace(/\s+/g, '-')}-reply`}
+                        className="agent-chat-msg-actions"
+                      />
+                    )}
                     {!isUser && !m.streaming && split.questions?.length > 0 && (
                       <div className="agent-chat-questions" role="group" aria-label="Questions from agent">
                         <Text type="secondary" className="agent-chat-questions-label">

@@ -1,30 +1,45 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Typography, Alert, Form, Input, Button, Tag, Space, message,
-  Spin, List, Popconfirm, Modal, Select, Badge, Row, Col, Empty,
+  Spin, List, Popconfirm, Modal, Select, Empty,
 } from 'antd'
 import {
   DeleteOutlined, RobotOutlined, LinkOutlined, ReloadOutlined,
-  ExperimentOutlined, AppstoreOutlined,
+  GoogleOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
 import { api } from '../../api'
 import { connStatusColor } from './helpers'
 
 const { Text, Paragraph } = Typography
 
+const GOOGLE_IDS = new Set([
+  'google', 'gmail', 'google_sheets', 'google_business', 'youtube',
+])
+
+function providerLabel(app) {
+  const id = app?.id || ''
+  if (GOOGLE_IDS.has(id) || id.includes('google') || id.includes('gmail') || id.includes('youtube')) {
+    return 'Google'
+  }
+  if (id === 'meta') return 'Facebook'
+  if (id === 'instagram') return 'Instagram'
+  if (id === 'linkedin') return 'LinkedIn'
+  if (id === 'slack') return 'Slack'
+  if (id === 'microsoft') return 'Microsoft'
+  if (id === 'shopify') return 'Shopify'
+  return app?.name || 'OAuth'
+}
+
 export default function SettingsApps({ onConnectedCountChange }) {
   const [catalog, setCatalog] = useState([])
-  const [oneClickApps, setOneClickApps] = useState([])
   const [googleOauthOk, setGoogleOauthOk] = useState(null)
-  const [categories, setCategories] = useState([])
-  const [categoryFilter, setCategoryFilter] = useState('all')
   const [connections, setConnections] = useState([])
   const [appsLoading, setAppsLoading] = useState(true)
   const [agents, setAgents] = useState([])
   const [connectModal, setConnectModal] = useState(null)
   const [allocateModal, setAllocateModal] = useState(null)
   const [connectSaving, setConnectSaving] = useState(false)
-  const [oauthStarting, setOauthStarting] = useState(false)
+  const [oauthStarting, setOauthStarting] = useState(null)
   const [connectForm] = Form.useForm()
   const [allocateForm] = Form.useForm()
   const [shopDomain, setShopDomain] = useState('')
@@ -32,15 +47,13 @@ export default function SettingsApps({ onConnectedCountChange }) {
   const loadApps = () => {
     setAppsLoading(true)
     Promise.all([
-      api('/integrations/catalog').catch(() => ({ apps: [], categories: [], one_click_oauth: [] })),
+      api('/integrations/catalog').catch(() => ({ apps: [] })),
       api('/integrations/connections').catch(() => ({ connections: [] })),
       api('/agents/').catch(() => []),
       api('/integrations/oauth/google-status').catch(() => null),
     ])
       .then(([cat, con, ag, gstat]) => {
         setCatalog(cat.apps || [])
-        setOneClickApps(cat.one_click_oauth || (cat.apps || []).filter((a) => a.one_click_oauth))
-        setCategories(cat.categories || [])
         setConnections(con.connections || [])
         setAgents(Array.isArray(ag) ? ag : [])
         setGoogleOauthOk(gstat)
@@ -66,10 +79,22 @@ export default function SettingsApps({ onConnectedCountChange }) {
     return m
   }, [connections])
 
-  const filteredCatalog = useMemo(() => {
-    if (categoryFilter === 'all') return catalog
-    return catalog.filter((a) => a.category === categoryFilter)
-  }, [catalog, categoryFilter])
+  /** Live apps first, then coming soon. Connected apps float to top. */
+  const appRows = useMemo(() => {
+    const rows = (catalog || []).map((app) => {
+      const conn = connectionByApp[app.id]
+      return { app, conn, connected: conn?.status === 'connected' }
+    })
+    rows.sort((a, b) => {
+      if (a.connected !== b.connected) return a.connected ? -1 : 1
+      if (!!a.app.coming_soon !== !!b.app.coming_soon) return a.app.coming_soon ? 1 : -1
+      return (a.app.name || '').localeCompare(b.app.name || '')
+    })
+    return rows
+  }, [catalog, connectionByApp])
+
+  const redirectUri = googleOauthOk?.redirect_uri
+    || 'https://www.aibusinessagent.xyz/api/integrations/oauth/callback'
 
   const openConnect = (app) => {
     setConnectModal(app)
@@ -100,7 +125,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
       if (r.status === 'connected' || r.probe?.ok) {
         message.success(r.probe?.message || `${connectModal.name} connected`)
       } else if (r.status === 'error') {
-        message.warning(r.probe?.message || r.last_error || 'Saved but test failed — check credentials')
+        message.warning(r.probe?.message || r.last_error || 'Saved but test failed')
       } else {
         message.success('Connection saved')
       }
@@ -114,7 +139,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
   }
 
   const startOAuth = async (app) => {
-    setOauthStarting(true)
+    setOauthStarting(app.id)
     try {
       const body = {
         redirect_after: '/settings?tab=apps',
@@ -122,7 +147,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
       }
       if (app.id === 'shopify' && !body.shop_domain) {
         message.warning('Enter your shop domain first (e.g. my-store.myshopify.com)')
-        setOauthStarting(false)
+        setOauthStarting(null)
         return
       }
       const r = await api(`/integrations/${app.id}/oauth/start`, { method: 'POST', body })
@@ -133,21 +158,14 @@ export default function SettingsApps({ onConnectedCountChange }) {
           } catch { /* ignore */ }
         }
         const url = r.authorize_url
-
         const isNative = !!(window.Capacitor?.isNativePlatform?.())
-
         if (isNative) {
-          // Capacitor Browser (SFSafariViewController / Chrome Custom Tabs) — window.open is unreliable
           try {
             const { Browser } = await import('@capacitor/browser')
             await Browser.open({ url, presentationStyle: 'popover' })
-            message.info('Complete Google sign-in, then return to this app. Pull to refresh Connected apps.')
-          } catch (browserErr) {
-            try {
-              window.open(url, '_blank')
-            } catch {
-              message.error(`Could not open Google login: ${browserErr?.message || browserErr}`)
-            }
+            message.info('Complete sign-in, then return here and tap Refresh.')
+          } catch {
+            window.open(url, '_blank')
           }
         } else {
           window.location.href = url
@@ -156,24 +174,24 @@ export default function SettingsApps({ onConnectedCountChange }) {
       }
       if (r.redirect_uri) {
         message.warning(
-          `${r.message || 'OAuth not ready'}. Add this exact Redirect URI in Google Cloud Console → Credentials → Authorized redirect URIs: ${r.redirect_uri}`,
-          12,
+          `Add this Redirect URI in Google Cloud Console → Credentials → Web client:\n${r.redirect_uri}`,
+          14,
         )
       } else {
-        message.info(r.message || 'OAuth not configured on server — use API credentials below')
+        message.info(r.message || 'OAuth not configured — use API keys')
       }
     } catch (e) {
       const msg = e?.message || String(e)
       if (/redirect_uri|invalid_request|mismatch/i.test(msg)) {
         message.error(
-          `${msg} — Fix: Google Cloud Console → your Web OAuth client → Authorized redirect URIs must include https://www.aibusinessagent.xyz/api/integrations/oauth/callback`,
-          12,
+          `redirect_uri_mismatch — Google Console must include exactly:\n${redirectUri}`,
+          14,
         )
       } else {
         message.error(msg)
       }
     } finally {
-      setOauthStarting(false)
+      setOauthStarting(null)
     }
   }
 
@@ -206,17 +224,6 @@ export default function SettingsApps({ onConnectedCountChange }) {
     }
   }
 
-  const testConn = async (conn) => {
-    try {
-      const r = await api(`/integrations/connections/${conn.id}/test`, { method: 'POST' })
-      if (r.probe?.ok) message.success(r.probe.message || 'Connection OK')
-      else message.warning(r.probe?.message || 'Test failed')
-      loadApps()
-    } catch (e) {
-      message.error(e.message)
-    }
-  }
-
   const deleteConn = async (conn) => {
     try {
       await api(`/integrations/connections/${conn.id}`, { method: 'DELETE' })
@@ -227,342 +234,161 @@ export default function SettingsApps({ onConnectedCountChange }) {
     }
   }
 
+  const primaryAction = (app, conn, connected) => {
+    const soon = !!app.coming_soon
+    if (connected) {
+      return (
+        <Space size={4} wrap>
+          <Button size="small" icon={<RobotOutlined />} onClick={() => openAllocate(conn)}>
+            Agents
+          </Button>
+          <Button size="small" onClick={() => openConnect(app)}>
+            Manage
+          </Button>
+          <Popconfirm title="Disconnect this app?" onConfirm={() => deleteConn(conn)}>
+            <Button size="small" danger icon={<DeleteOutlined />}>
+              Disconnect
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+    if (soon) {
+      return (
+        <Button size="small" disabled>
+          Coming soon
+        </Button>
+      )
+    }
+    if (app.supports_oauth && app.oauth_ready) {
+      return (
+        <Button
+          type="primary"
+          size="middle"
+          icon={GOOGLE_IDS.has(app.id) ? <GoogleOutlined /> : <LinkOutlined />}
+          loading={oauthStarting === app.id}
+          onClick={() => startOAuth(app)}
+        >
+          Connect{GOOGLE_IDS.has(app.id) ? ' with Google' : ''}
+        </Button>
+      )
+    }
+    return (
+      <Button type="primary" size="middle" onClick={() => openConnect(app)}>
+        Connect
+      </Button>
+    )
+  }
+
   return (
     <>
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Card
-          title={<Space><LinkOutlined /> OAuth & connections guide</Space>}
-          className="aba-soft-card"
-          type="inner"
-        >
+      <Card
+        className="aba-soft-card aba-settings-apps"
+        title={
+          <Space>
+            <LinkOutlined />
+            <span>Apps</span>
+            {connectedCount > 0 && (
+              <Tag color="success" icon={<CheckCircleOutlined />}>
+                {connectedCount} connected
+              </Tag>
+            )}
+          </Space>
+        }
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={loadApps} size="small" loading={appsLoading}>
+            Refresh
+          </Button>
+        }
+      >
+        {googleOauthOk && !googleOauthOk.ok && (
           <Alert
-            type={googleOauthOk?.ok ? 'success' : 'warning'}
+            type="warning"
             showIcon
-            style={{ marginBottom: 16 }}
-            message={
-              googleOauthOk?.ok
-                ? 'Google 1-click OAuth is configured on the server'
-                : 'Google OAuth needs Google Cloud redirect URI whitelist'
-            }
+            style={{ marginBottom: 12 }}
+            message="Google sign-in needs one setup step"
             description={
               <div>
-                <p style={{ marginBottom: 8 }}>
-                  <strong>Error 400: redirect_uri_mismatch</strong> means Google Console is missing this exact URI.
-                  Copy it into <em>APIs &amp; Services → Credentials → OAuth 2.0 Client ID (Web application) → Authorized redirect URIs</em>:
-                </p>
-                <Text code copyable style={{ display: 'block', marginBottom: 6, wordBreak: 'break-all' }}>
-                  {googleOauthOk?.redirect_uri
-                    || 'https://www.aibusinessagent.xyz/api/integrations/oauth/callback'}
+                <Paragraph style={{ marginBottom: 8 }}>
+                  In Google Cloud Console → Credentials → your <strong>Web</strong> OAuth client,
+                  add this exact Authorized redirect URI (copy-paste, no trailing slash):
+                </Paragraph>
+                <Text code copyable style={{ display: 'block', wordBreak: 'break-all', marginBottom: 8 }}>
+                  {redirectUri}
                 </Text>
-                <Text code copyable style={{ display: 'block', marginBottom: 8, wordBreak: 'break-all' }}>
-                  https://aibusinessagent.xyz/api/integrations/oauth/callback
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Also add JavaScript origins: https://www.aibusinessagent.xyz
                 </Text>
-                <p style={{ marginBottom: 4, fontSize: 12 }}>
-                  Also add <Text code>https://www.aibusinessagent.xyz</Text> and{' '}
-                  <Text code>https://aibusinessagent.xyz</Text> under <em>Authorized JavaScript origins</em>.
-                  No trailing slash. Use a <strong>Web</strong> client (not Android/iOS).
-                </p>
-                {!googleOauthOk?.ok && (
-                  <p style={{ marginBottom: 0, fontSize: 12 }}>
-                    Server also needs non-empty <Text code>GOOGLE_OAUTH_CLIENT_ID</Text> +{' '}
-                    <Text code>GOOGLE_OAUTH_CLIENT_SECRET</Text> in Vercel Production env.
-                  </p>
-                )}
               </div>
             }
           />
-          <Alert
-            type="info"
-            showIcon
-            message="Connections"
-            description={
-              <>
-                <strong>Live 1-click:</strong> Google Workspace, Gmail, Sheets, Business Profile, YouTube.{' '}
-                Other apps: use API keys when available, or Coming soon until OAuth env is set.
-              </>
-            }
-          />
-        </Card>
+        )}
 
-        <Card
-          title={
-            <Space>
-              <LinkOutlined />
-              Your connections
-              <Badge count={connectedCount} style={{ backgroundColor: '#52c41a' }} />
-            </Space>
-          }
-          className="aba-soft-card"
-          type="inner"
-          extra={
-            <Button icon={<ReloadOutlined />} onClick={loadApps} size="small">Refresh</Button>
-          }
-        >
-          {appsLoading ? <Spin /> : connections.length === 0 ? (
-            <Empty description="No apps connected yet — pick one below" />
-          ) : (
-            <List
-              dataSource={connections}
-              renderItem={(conn) => (
-                <List.Item
-                  actions={[
-                    <Button key="agents" type="link" icon={<RobotOutlined />} onClick={() => openAllocate(conn)}>
-                      Agents ({conn.agent_count || 0})
-                    </Button>,
-                    <Button key="test" type="link" icon={<ExperimentOutlined />} onClick={() => testConn(conn)}>
-                      Test
-                    </Button>,
-                    <Button
-                      key="edit"
-                      type="link"
-                      onClick={() => {
-                        const app = catalog.find((a) => a.id === conn.app_id)
-                        if (app) openConnect(app)
-                      }}
+        {appsLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+        ) : appRows.length === 0 ? (
+          <Empty description="No apps available" />
+        ) : (
+          <List
+            itemLayout="horizontal"
+            dataSource={appRows}
+            className="aba-apps-list"
+            renderItem={({ app, conn, connected }) => (
+              <List.Item
+                className="aba-apps-list__item"
+                actions={[primaryAction(app, conn, connected)]}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <div
+                      className="aba-apps-list__avatar"
+                      style={{ background: app.color || '#1677ff' }}
                     >
-                      Update
-                    </Button>,
-                    <Popconfirm key="del" title="Disconnect this app?" onConfirm={() => deleteConn(conn)}>
-                      <Button type="link" danger icon={<DeleteOutlined />}>Disconnect</Button>
-                    </Popconfirm>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <div
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          background: conn.color || '#1677ff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontWeight: 700,
-                          fontSize: 14,
-                        }}
-                      >
-                        {(conn.app_name || conn.app_id || '?').slice(0, 2).toUpperCase()}
-                      </div>
-                    }
-                    title={
-                      <Space wrap>
-                        <Text strong>{conn.display_name || conn.app_name}</Text>
+                      {(app.name || '?').slice(0, 2).toUpperCase()}
+                    </div>
+                  }
+                  title={
+                    <Space wrap size={[6, 4]}>
+                      <Text strong>{app.name}</Text>
+                      {connected && (
                         <Tag color={connStatusColor(conn.status)}>{conn.status}</Tag>
-                        <Tag>{conn.auth_mode}</Tag>
-                        {conn.meta?.shop_domain && <Tag>{conn.meta.shop_domain}</Tag>}
-                        {conn.meta?.shop_name && <Tag color="green">{conn.meta.shop_name}</Tag>}
-                      </Space>
-                    }
-                    description={
-                      <div>
-                        <div>
-                          {conn.agents?.length
-                            ? `Agents: ${conn.agents.map((a) => a.name).join(', ')}`
-                            : 'No agents allocated yet'}
-                        </div>
-                        {conn.last_error && (
-                          <Text type="danger" style={{ fontSize: 12 }}>{conn.last_error}</Text>
-                        )}
-                      </div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-
-        <Card
-          title={<Space><LinkOutlined /> 1-click OAuth (Google)</Space>}
-          className="aba-soft-card"
-          type="inner"
-          extra={
-            <Tag color={googleOauthOk?.ok ? 'success' : 'warning'}>
-              {googleOauthOk?.ok ? 'Server ready' : 'Needs env keys'}
-            </Tag>
-          }
-        >
-          {appsLoading ? <Spin /> : (
-            <List
-              dataSource={oneClickApps.length ? oneClickApps : catalog.filter((a) => a.one_click_oauth)}
-              locale={{ emptyText: 'No Google apps in catalog' }}
-              renderItem={(app, idx) => {
-                const conn = connectionByApp[app.id]
-                const connected = conn?.status === 'connected'
-                return (
-                  <List.Item
-                    actions={[
-                      connected ? (
-                        <Button key="m" size="small" onClick={() => openConnect(app)}>Manage</Button>
-                      ) : (
-                        <Button
-                          key="c"
-                          type="primary"
-                          size="small"
-                          icon={<LinkOutlined />}
-                          disabled={!app.oauth_ready}
-                          onClick={() => startOAuth(app)}
-                        >
-                          Connect with Google
-                        </Button>
-                      ),
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <div style={{
-                          width: 40, height: 40, borderRadius: 8, background: app.color || '#4285F4',
-                          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
-                        }}
-                        >
-                          {idx + 1}
-                        </div>
-                      }
-                      title={
-                        <Space wrap>
-                          <Text strong>{app.name}</Text>
-                          {connected && <Tag color="success">Connected</Tag>}
-                          <Tag color="blue">1-click OAuth</Tag>
-                        </Space>
-                      }
-                      description={app.description}
-                    />
-                  </List.Item>
-                )
-              }}
-            />
-          )}
-        </Card>
-
-        <Card
-          title={<Space><AppstoreOutlined /> All apps</Space>}
-          className="aba-soft-card"
-          type="inner"
-          extra={
-            <Select
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              style={{ width: 160 }}
-              options={[
-                { value: 'all', label: 'All categories' },
-                ...categories.map((c) => ({ value: c, label: c })),
-              ]}
-            />
-          }
-        >
-          {appsLoading ? <Spin /> : (
-            <Row gutter={[12, 12]}>
-              {filteredCatalog.map((app) => {
-                const conn = connectionByApp[app.id]
-                const connected = conn?.status === 'connected'
-                const soon = !!app.coming_soon
-                return (
-                  <Col xs={24} sm={12} lg={8} key={app.id}>
-                    <Card
-                      size="small"
-                      hoverable={!soon}
-                      styles={{ body: { minHeight: 160, opacity: soon && !connected ? 0.85 : 1 } }}
-                      title={
-                        <Space>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              background: app.color || '#999',
-                            }}
-                          />
-                          {app.name}
-                        </Space>
-                      }
-                      extra={
-                        connected
-                          ? <Tag color="success">Connected</Tag>
-                          : soon
-                            ? <Tag color="default">Coming soon</Tag>
-                            : <Tag color="blue">Live</Tag>
-                      }
-                    >
-                      <Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ minHeight: 44 }}>
-                        {app.description}
-                      </Paragraph>
-                      <Space wrap size={[4, 4]} style={{ marginBottom: 8 }}>
-                        {soon ? (
-                          <Tag>Coming soon</Tag>
-                        ) : (
-                          <>
-                            {app.one_click_oauth && <Tag color="blue">1-click OAuth</Tag>}
-                            {app.supports_oauth && (
-                              <Tag color={app.oauth_ready ? 'processing' : 'default'}>
-                                OAuth {app.oauth_ready ? 'ready' : 'needs keys'}
-                              </Tag>
-                            )}
-                          </>
-                        )}
-                      </Space>
-                      <Space wrap>
-                        {soon && !connected ? (
-                          <Button type="default" size="small" disabled>
-                            Coming soon
-                          </Button>
-                        ) : app.supports_oauth && app.oauth_ready ? (
-                          <Button
-                            type="primary"
-                            size="small"
-                            onClick={() => startOAuth(app)}
-                            icon={<LinkOutlined />}
-                          >
-                            Connect with Google
-                          </Button>
-                        ) : (
-                          <Button type="primary" size="small" onClick={() => openConnect(app)} disabled={soon}>
-                            {connected ? 'Manage' : 'Connect'}
-                          </Button>
-                        )}
-                        {app.docs_url && (
-                          <Button type="link" size="small" href={app.docs_url} target="_blank" rel="noreferrer">
-                            Docs
-                          </Button>
-                        )}
-                      </Space>
-                    </Card>
-                  </Col>
-                )
-              })}
-            </Row>
-          )}
-        </Card>
-      </Space>
+                      )}
+                      {app.coming_soon && !connected && <Tag>Coming soon</Tag>}
+                    </Space>
+                  }
+                  description={
+                    <Text type="secondary" ellipsis style={{ maxWidth: '100%', display: 'block' }}>
+                      {app.description}
+                      {connected && conn?.agents?.length
+                        ? ` · Agents: ${conn.agents.map((a) => a.name).join(', ')}`
+                        : ''}
+                    </Text>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        )}
+      </Card>
 
       <Modal
         title={connectModal ? `Connect ${connectModal.name}` : 'Connect app'}
         open={!!connectModal}
         onCancel={() => setConnectModal(null)}
         footer={null}
-        width={560}
+        width={480}
         destroyOnClose
       >
         {connectModal && (
           <>
-            <Paragraph type="secondary">{connectModal.description}</Paragraph>
-            {Array.isArray(connectModal.agent_capabilities) && connectModal.agent_capabilities.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <Text strong>What agents can do: </Text>
-                <Space wrap size={[4, 4]}>
-                  {connectModal.agent_capabilities.map((c) => (
-                    <Tag key={c}>{c}</Tag>
-                  ))}
-                </Space>
-              </div>
-            )}
+            <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+              {connectModal.description}
+            </Paragraph>
 
             {connectModal.supports_oauth && (
               <div style={{ marginBottom: 16 }}>
                 {connectModal.oauth_needs_shop && (
-                  <Form.Item label="Shop domain" style={{ marginBottom: 8 }}>
+                  <Form.Item label="Shop domain" style={{ marginBottom: 12 }}>
                     <Input
                       placeholder="your-store.myshopify.com"
                       value={shopDomain}
@@ -570,105 +396,91 @@ export default function SettingsApps({ onConnectedCountChange }) {
                     />
                   </Form.Item>
                 )}
-
                 <Button
                   type="primary"
                   size="large"
                   block
-                  loading={oauthStarting}
+                  loading={oauthStarting === connectModal.id}
                   disabled={connectModal.oauth_ready === false}
                   onClick={() => startOAuth(connectModal)}
-                  icon={<LinkOutlined />}
-                  style={{ height: 52, fontSize: 17, fontWeight: 600 }}
+                  icon={GOOGLE_IDS.has(connectModal.id) ? <GoogleOutlined /> : <LinkOutlined />}
+                  style={{ height: 48, fontWeight: 600 }}
                 >
                   {connectModal.oauth_ready
-                    ? `Connect with ${connectModal.id.includes('google') || connectModal.id.includes('gmail') || connectModal.id.includes('youtube') || connectModal.id.includes('google_business') || connectModal.id.includes('google_sheets') ? 'Google' :
-                       connectModal.id === 'meta' ? 'Facebook' :
-                       connectModal.id === 'instagram' ? 'Instagram' :
-                       connectModal.id === 'linkedin' ? 'LinkedIn' :
-                       connectModal.id === 'slack' ? 'Slack' :
-                       connectModal.id === 'microsoft' ? 'Microsoft' :
-                       connectModal.name}`
-                    : 'OAuth not configured on server'}
+                    ? `Connect with ${providerLabel(connectModal)}`
+                    : 'OAuth not ready on server'}
                 </Button>
-                <div style={{ textAlign: 'center', marginTop: 6, marginBottom: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Uses your existing login • works in browser and on mobile (no passwords or tokens to paste)
-                  </Text>
-                </div>
-                {!connectModal.oauth_ready && (
-                  <Paragraph type="secondary" style={{ marginTop: 4, fontSize: 12 }}>
-                    Server needs OAuth client keys (Platform tab or Vercel env).
-                  </Paragraph>
-                )}
-
-                {(connectModal.auth_modes || []).includes('api_key') && (
-                  <details style={{ marginTop: 10 }}>
-                    <summary style={{ cursor: 'pointer', color: '#666', fontSize: 13 }}>
-                      Advanced: Connect with API keys / manual tokens
-                    </summary>
-                    <div style={{ marginTop: 12, paddingLeft: 4 }}>
-                      <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
-                        <Form.Item name="display_name" label="Display name">
-                          <Input placeholder={connectModal.name} />
-                        </Form.Item>
-                        {(connectModal.fields || []).map((f) => (
-                          <Form.Item
-                            key={f.name}
-                            name={f.name}
-                            label={f.label}
-                            rules={f.required ? [{ required: true, message: `Required: ${f.label}` }] : []}
-                          >
-                            {f.secret ? (
-                              <Input.Password placeholder={f.placeholder} autoComplete="new-password" />
-                            ) : (
-                              <Input placeholder={f.placeholder} />
-                            )}
-                          </Form.Item>
-                        ))}
-                        <Form.Item
-                          name="agent_ids"
-                          label="Allocate to agents"
-                          extra="These agents will receive this app in their context"
-                        >
-                          <Select
-                            mode="multiple"
-                            allowClear
-                            placeholder="Select agents"
-                            options={agents.map((a) => ({ value: a.id, label: `${a.name} (${a.template_type})` }))}
-                          />
-                        </Form.Item>
-                        <Button type="default" htmlType="submit" block loading={connectSaving}>
-                          Save API credentials
-                        </Button>
-                      </Form>
-                    </div>
-                  </details>
-                )}
               </div>
             )}
 
-            {!(connectModal.auth_modes || []).includes('api_key') && (connectModal.fields || []).length > 0 && (
+            {(connectModal.auth_modes || []).includes('api_key') && (connectModal.fields || []).length > 0 && (
               <details style={{ marginTop: 8 }}>
                 <summary style={{ cursor: 'pointer', color: '#666', fontSize: 13 }}>
-                  Advanced: Paste tokens manually
+                  Or connect with API keys
                 </summary>
-                <div style={{ marginTop: 10, paddingLeft: 4 }}>
-                  <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
-                    {(connectModal.fields || []).map((f) => (
-                      <Form.Item key={f.name} name={f.name} label={f.label}>
-                        {f.secret ? <Input.Password placeholder={f.placeholder} /> : <Input placeholder={f.placeholder} />}
-                      </Form.Item>
-                    ))}
-                    <Form.Item name="agent_ids" label="Allocate to agents">
-                      <Select mode="multiple" allowClear options={agents.map((a) => ({ value: a.id, label: a.name }))} />
+                <Form
+                  form={connectForm}
+                  layout="vertical"
+                  onFinish={saveConnect}
+                  style={{ marginTop: 12 }}
+                >
+                  <Form.Item name="display_name" label="Display name">
+                    <Input placeholder={connectModal.name} />
+                  </Form.Item>
+                  {(connectModal.fields || []).map((f) => (
+                    <Form.Item
+                      key={f.name}
+                      name={f.name}
+                      label={f.label}
+                      rules={f.required ? [{ required: true, message: `Required: ${f.label}` }] : []}
+                    >
+                      {f.secret ? (
+                        <Input.Password placeholder={f.placeholder} autoComplete="new-password" />
+                      ) : (
+                        <Input placeholder={f.placeholder} />
+                      )}
                     </Form.Item>
-                    <Button type="default" htmlType="submit" block loading={connectSaving}>
-                      Save tokens manually
-                    </Button>
-                  </Form>
-                </div>
+                  ))}
+                  <Form.Item name="agent_ids" label="Allocate to agents">
+                    <Select
+                      mode="multiple"
+                      allowClear
+                      placeholder="Select agents"
+                      options={agents.map((a) => ({
+                        value: a.id,
+                        label: `${a.name} (${a.template_type})`,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Button type="default" htmlType="submit" block loading={connectSaving}>
+                    Save credentials
+                  </Button>
+                </Form>
               </details>
+            )}
+
+            {!connectModal.supports_oauth && (connectModal.fields || []).length > 0 && (
+              <Form form={connectForm} layout="vertical" onFinish={saveConnect}>
+                {(connectModal.fields || []).map((f) => (
+                  <Form.Item key={f.name} name={f.name} label={f.label}>
+                    {f.secret ? (
+                      <Input.Password placeholder={f.placeholder} />
+                    ) : (
+                      <Input placeholder={f.placeholder} />
+                    )}
+                  </Form.Item>
+                ))}
+                <Form.Item name="agent_ids" label="Allocate to agents">
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    options={agents.map((a) => ({ value: a.id, label: a.name }))}
+                  />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" block loading={connectSaving}>
+                  Save
+                </Button>
+              </Form>
             )}
           </>
         )}
@@ -686,7 +498,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
             <Form.Item
               name="agent_ids"
               label="Agents with access"
-              extra="Allocated agents see this app in chat and task prompts"
+              extra="These agents can use this app in chat and tasks"
             >
               <Select
                 mode="multiple"
@@ -708,7 +520,7 @@ export default function SettingsApps({ onConnectedCountChange }) {
               />
             </Form.Item>
             <Button type="primary" htmlType="submit" block loading={connectSaving} icon={<RobotOutlined />}>
-              Save agent allocation
+              Save
             </Button>
           </Form>
         )}
