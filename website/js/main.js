@@ -28,7 +28,8 @@
   // Same-origin path form (works even if host flips www↔apex mid-session)
   const APP_PATH = "/agents";
   const BAY_PATH = "/bay";
-  const SITE_NAME = "AI Business Agent";
+  // Must match Google OAuth consent screen app name exactly (verification).
+  const SITE_NAME = "Ai Business Agent";
 
   const path = (location.pathname.split("/").pop() || "index.html").toLowerCase();
 

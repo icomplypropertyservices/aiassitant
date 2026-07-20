@@ -34,15 +34,21 @@ Optional later:
 1. Switch Stripe to **Live mode**.
 2. Replace `STRIPE_SECRET_KEY` with `sk_live_…`.
 3. Add webhook endpoint: `https://YOUR_DOMAIN/api/billing/webhook`
-4. Event: `checkout.session.completed`
+4. Events:
+   - `checkout.session.completed` — activate plan / top-up / storage (`_activate_plan` + token pool)
+   - `customer.subscription.deleted` / `customer.subscription.updated` — cancel or re-open access
+   - `invoice.paid` (or `invoice.payment_succeeded`) — renew: re-activate + refresh token pool on cycle
 5. Set `STRIPE_WEBHOOK_SECRET=whsec_…`
+
+Checkout sessions must include `metadata.user_id` + `metadata.plan` (and `subscription_data.metadata` for the same) so cancel/renew can resolve the app user.
 
 ## API
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /billing/payment-options` | Stripe/crypto status + sandbox flag |
+| `GET /billing/meter` (also `/balance`) | Token pool + `needs_subscription` + `upgrade_cta_path` (`/subscribe` or `/billing`) for UI CTAs |
 | `POST /billing/topup` | Card top-up Checkout |
 | `POST /billing/plan` | Card subscription Checkout |
 | `POST /billing/checkout/confirm?session_id=` | Fulfill after redirect (sandbox-friendly) |
-| `POST /billing/webhook` | Stripe webhook fulfillment |
+| `POST /billing/webhook` | Stripe webhooks: `checkout.session.completed`, `customer.subscription.deleted` / `.updated`, `invoice.paid` |

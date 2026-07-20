@@ -19,11 +19,38 @@ from .pricing import (
 # Voice counts as normal metered tokens (included pool first). Media stays premium.
 _ALWAYS_CREDITS_PREFIX = ("premium-", "image", "video", "premium-comm")
 
+# Keep in sync with billing.TRIAL_ENDED_MSG / Subscribe.jsx
+TRIAL_ENDED_MSG = "Trial ended — subscribe to unlock full tool access"
+
+
+def subscription_is_live(user: models.User | None) -> bool:
+    """True when the user may use paid product features (agents, AI, plan pools).
+
+    Admins always live. Expired trial/window (subscription_expires_at in the past)
+    is NOT live even if the DB still has subscription_active=True (stale row).
+    """
+    if user is None:
+        return False
+    if getattr(user, "role", "") == "admin":
+        return True
+    if not getattr(user, "subscription_active", False):
+        return False
+    plan = (getattr(user, "plan", None) or "").strip()
+    if plan in ("", "none"):
+        return False
+    exp = getattr(user, "subscription_expires_at", None)
+    if exp is not None and exp < datetime.utcnow():
+        return False
+    return True
+
 
 def ensure_period(bal: models.Balance, user: models.User) -> bool:
     """Reset monthly counters if a new calendar month started.
-    Also heals missing included-token pools for active paid/trial plans
+    Also heals missing included-token pools for *live* paid/trial plans
     (e.g. plan marked business but tokens_included left at 0).
+
+    Critical: expired trials must NOT get a free monthly token refill just
+    because the DB flag subscription_active was left True.
     Returns True if bal was mutated.
     """
     changed = False
@@ -31,23 +58,27 @@ def ensure_period(bal: models.Balance, user: models.User) -> bool:
     start = bal.period_start or now
     limits = plan_limits(user.plan or "none")
     expected = int(limits.get("tokens_included") or 0)
+    # Live access only — never refill pools for expired trials / cancelled subs
+    live = subscription_is_live(user)
 
     if start.year != now.year or start.month != now.month:
         bal.period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        bal.tokens_used_period = 0
-        bal.tokens_included = expected
+        if live:
+            bal.tokens_used_period = 0
+            bal.tokens_included = expected
+        # Non-live: roll the period marker so we don't thrash, but do NOT
+        # restore tokens_included or wipe usage (no free refill after expiry).
         changed = True
     else:
-        # Heal zero pool when the active plan includes tokens
+        # Heal zero pool when the *live* plan includes tokens
         current = int(bal.tokens_included or 0)
-        active = bool(getattr(user, "subscription_active", False) or getattr(user, "role", "") == "admin")
-        if active and expected > 0 and current <= 0:
+        if live and expected > 0 and current <= 0:
             bal.tokens_included = expected
             if not bal.period_start:
                 bal.period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             changed = True
         # If plan was upgraded mid-period to a larger pool, raise included (never shrink mid-period)
-        elif active and expected > current > 0:
+        elif live and expected > current > 0:
             bal.tokens_included = expected
             changed = True
 
@@ -55,19 +86,39 @@ def ensure_period(bal: models.Balance, user: models.User) -> bool:
 
 
 def heal_subscription_flags(db: Session, user: models.User) -> bool:
-    """Clear trial-style expiry on paid plans that should not time out."""
+    """Keep User plan/flags consistent with real access.
+
+    - Paid plans: clear stray trial-style expiry stamps.
+    - Expired trial/window: flip subscription_active=False so gates that only
+      read the raw column stop treating the account as active.
+    """
     plan = (user.plan or "").strip()
     limits = plan_limits(plan)
     changed = False
+    now = datetime.utcnow()
+    exp = getattr(user, "subscription_expires_at", None)
+
     if (
         limits.get("requires_payment")
         and plan not in ("none", "", "trial", "pay_as_you_go")
         and getattr(user, "subscription_active", False)
-        and getattr(user, "subscription_expires_at", None) is not None
+        and exp is not None
     ):
         # Paid business/pro/starter: open-ended until cancelled (not a 14-day trial stamp)
         user.subscription_expires_at = None
         changed = True
+        exp = None
+
+    # Expired time box (trial or any stamped window) with stale active flag
+    if (
+        getattr(user, "role", "") != "admin"
+        and getattr(user, "subscription_active", False)
+        and exp is not None
+        and exp < now
+    ):
+        user.subscription_active = False
+        changed = True
+
     return changed
 
 
@@ -168,6 +219,11 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
         message = ""
 
     exp = getattr(user, "subscription_expires_at", None)
+    # Align with auth.user_out / subscription_is_live (expired trial → not live)
+    plan_id = (user.plan or "").strip() or "none"
+    exp_passed = bool(exp is not None and exp < datetime.utcnow() and user.role != "admin")
+    subscription_live = subscription_is_live(user)
+    needs_subscription = user.role != "admin" and not subscription_live
     # Training library storage quota (plan + purchased add-ons)
     storage = {}
     try:
@@ -191,26 +247,123 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
             sales_message = storage.get("upgrade_hint") or "Consider a storage add-on or plan upgrade."
             cta = "Get more storage"
 
+    # Trial-ended: free trial used/expired (not paid cancel). Accurate free-grant messaging.
+    # Paid cancel → needs_subscription without trial_ended (still "Subscribe").
+    trial_ended = bool(
+        needs_subscription
+        and (
+            plan_id == "trial"
+            or (exp_passed and plan_id in ("none", "", "trial", "pay_as_you_go"))
+            or (
+                exp is not None
+                and plan_id in ("none", "", "trial", "pay_as_you_go")
+                and not limits.get("requires_payment")
+            )
+        )
+    )
+    # Frontend CTA: no plan / expired trial → Subscribe; active but low → Billing top-up
+    if needs_subscription:
+        if trial_ended:
+            if not headline or headline == "Choose a plan to unlock agents & AI":
+                # Match billing.TRIAL_ENDED_MSG / Subscribe.jsx (402 detail + UI)
+                headline = "Trial ended — subscribe to unlock full tool access"
+            sales_message = sales_message or (
+                "Your free trial is no longer active. Choose Starter, Pro, or Business "
+                "(card or crypto). No free wallet credits — paid access unlocks after checkout."
+            )
+            cta = "Subscribe now"
+        elif not headline:
+            headline = "Choose a plan to unlock agents & AI"
+            sales_message = sales_message or (
+                f"Start free trial ({int(limits.get('agents') or 12)} agents · "
+                f"{int(limits.get('tokens_included') or 50_000):,} tokens) — no card — "
+                "or subscribe for a full monthly pool. Wallet credits are never free-granted in production."
+            )
+            cta = "Choose a plan"
+        if urgency == "ok":
+            urgency = "high"
+        upgrade_path = "/subscribe"
+        primary_cta = {"label": cta, "path": "/subscribe", "action": "subscribe"}
+        secondary_cta = None
+    elif hard_block or (included_exhausted and low_credits) or needs_topup:
+        # Low fuel: clear dual path — buy credits OR upgrade plan
+        if hard_block:
+            primary_cta = {
+                "label": f"Buy credits · top up ${int(auto_amt)}",
+                "path": "/billing",
+                "action": "topup",
+            }
+            secondary_cta = {
+                "label": "Upgrade plan",
+                "path": "/subscribe" if plan_id in ("trial", "starter", "pay_as_you_go", "none") else "/billing",
+                "action": "subscribe",
+            }
+            cta = primary_cta["label"]
+        else:
+            primary_cta = {
+                "label": f"Buy credits · top up ${int(auto_amt)}",
+                "path": "/billing",
+                "action": "topup",
+            }
+            secondary_cta = {
+                "label": "Upgrade plan",
+                "path": "/subscribe" if plan_id in ("trial", "starter", "pay_as_you_go") else "/billing",
+                "action": "subscribe",
+            }
+            if not cta or cta == "Top up":
+                cta = primary_cta["label"]
+        upgrade_path = (
+            "/subscribe"
+            if plan_id in ("trial", "starter", "pay_as_you_go") and (warn or hard_block or hard_block_soon)
+            else "/billing"
+        )
+    elif plan_id in ("trial", "starter", "pay_as_you_go") and (warn or hard_block or hard_block_soon):
+        upgrade_path = "/subscribe"
+        primary_cta = {"label": cta or "Upgrade plan", "path": "/subscribe", "action": "subscribe"}
+        secondary_cta = {"label": "Buy credits", "path": "/billing", "action": "topup"}
+    else:
+        upgrade_path = "/billing"
+        primary_cta = None
+        secondary_cta = None
+
+    # Null-safe numeric fields for UI formatters (never emit bare None that crashes .toFixed)
+    try:
+        agents_cap = int(limits.get("agents") or 0)
+    except (TypeError, ValueError):
+        agents_cap = 0
+    try:
+        tokens_cap = int(limits.get("tokens_included") or 0)
+    except (TypeError, ValueError):
+        tokens_cap = 0
+
     return {
-        "plan": user.plan,
-        "plan_name": limits.get("name"),
-        "subscription_active": bool(user.subscription_active or user.role == "admin"),
+        "plan": user.plan or "none",
+        "plan_name": limits.get("name") or "No plan",
+        "subscription_active": subscription_live,
         "subscription_expires_at": exp.isoformat() + "Z" if exp else None,
-        "credits": credits,
-        "tokens_included": included,
-        "tokens_used_period": used,
-        "tokens_remaining_included": remaining_included,
-        "usage_percent": pct,
-        "warn": warn or bool(storage.get("warn")),
-        "hard_block_soon": hard_block_soon,
-        "hard_block": hard_block,
-        "needs_topup": needs_topup and user.role != "admin",
-        "urgency": urgency,
-        "headline": headline,
-        "sales_message": sales_message,
-        "cta": cta,
-        "message": message,
-        "storage": storage,
+        "needs_subscription": needs_subscription,
+        "trial_ended": trial_ended,
+        "upgrade_cta_path": upgrade_path or "/subscribe",
+        # Structured CTAs for header meter + Billing page (buy credits / subscribe)
+        "primary_cta": primary_cta,
+        "secondary_cta": secondary_cta,
+        "cta_buy_credits_path": "/billing",
+        "cta_subscribe_path": "/subscribe",
+        "credits": float(credits) if credits is not None else 0.0,
+        "tokens_included": int(included or 0),
+        "tokens_used_period": int(used or 0),
+        "tokens_remaining_included": int(remaining_included or 0),
+        "usage_percent": float(pct) if pct is not None else 0.0,
+        "warn": bool(warn or storage.get("warn")),
+        "hard_block_soon": bool(hard_block_soon),
+        "hard_block": bool(hard_block),
+        "needs_topup": bool(needs_topup and user.role != "admin"),
+        "urgency": urgency or "ok",
+        "headline": headline or "",
+        "sales_message": sales_message or "",
+        "cta": cta or "Top up",
+        "message": message or "",
+        "storage": storage or {},
         "period_start": bal.period_start.isoformat() if bal.period_start else None,
         "auto_topup": {
             "enabled": auto_on,
@@ -242,14 +395,14 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
             )
         ),
         "limits": {
-            "agents": limits.get("agents", 0),
-            "companies": limits.get("companies", 0),
-            "projects": limits.get("projects", 0),
-            "skills_per_agent": limits.get("skills_per_agent", 0),
-            "skill_packs": limits.get("skill_packs", 0),
-            "prompt_skills": limits.get("prompt_skills", 0),
+            "agents": agents_cap,
+            "companies": int(limits.get("companies") or 0),
+            "projects": int(limits.get("projects") or 0),
+            "skills_per_agent": int(limits.get("skills_per_agent") or 0),
+            "skill_packs": int(limits.get("skill_packs") or 0),
+            "prompt_skills": int(limits.get("prompt_skills") or 0),
             "premium_skills": bool(limits.get("premium_skills")),
-            "tokens_included": limits.get("tokens_included", 0),
+            "tokens_included": tokens_cap,
         },
         "skills": {
             "enabled_cap": int(limits.get("skills_per_agent") or 0),
@@ -257,6 +410,25 @@ def meter_snapshot(db: Session, user: models.User) -> dict:
             "packs_total": 20,
             "catalog_target": 1250,
             "premium": bool(limits.get("premium_skills")),
+            # Fail-closed: premium skills never free-run when wallet/billing fails
+            "premium_fail_closed": True,
+            "premium_note": (
+                "Premium skills (email send, image/video, paid comms) charge wallet credits "
+                "before run. If billing fails or credits are insufficient, the skill returns "
+                "an error — it does not execute free."
+            ),
+        },
+        "billing_policy": {
+            "free_wallet_grants": False,  # production never mints free credits
+            "trial_agents": agents_cap if plan_id == "trial" else 12,
+            "trial_tokens": 50_000,
+            "premium_skills_fail_closed": True,
+            "premium_skills_fail_closed_note": (
+                "Premium skill execution is fail-closed: charge wallet first; on billing failure "
+                "or insufficient credits the skill aborts with an error (no free run)."
+            ),
+            "included_pool_first": True,
+            "media_always_wallet": True,
         },
     }
 

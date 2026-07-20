@@ -40,7 +40,7 @@ Local dev only (`APP_ENV` ≠ `production`): demo admin `admin@local` / `admin12
 cd website && npm start   # http://localhost:5174
 ```
 
-Domain setup: [docs/DOMAINS.md](docs/DOMAINS.md) · website: [website/README.md](website/README.md)
+Domain setup: [docs/DOMAINS.md](docs/DOMAINS.md) · agent tools/flows: [docs/AGENT_TOOLS_AND_FLOWS.md](docs/AGENT_TOOLS_AND_FLOWS.md) · growth / tool access: [docs/GROWTH_TOOL_ACCESS.md](docs/GROWTH_TOOL_ACCESS.md) · skill packs: [docs/SKILL_PACKS_OVERVIEW.md](docs/SKILL_PACKS_OVERVIEW.md) · auto-chain: [docs/AUTO_CHAIN.md](docs/AUTO_CHAIN.md) · ship notes / go-live: [docs/SQUAD_SHIP_NOTES.md](docs/SQUAD_SHIP_NOTES.md) · website: [website/README.md](website/README.md)
 
 ---
 

@@ -4,11 +4,30 @@ import {
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, CloudSyncOutlined, UserOutlined, BankOutlined,
+  CheckCircleOutlined, FilterOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { STATUS_COLOR } from './constants'
 
 const { Text } = Typography
+
+const LEAD_STATUS_OPTIONS = [
+  { value: 'new', label: 'New', color: 'default' },
+  { value: 'contacted', label: 'Contacted', color: 'blue' },
+  { value: 'nurturing', label: 'Nurturing', color: 'cyan' },
+  { value: 'qualified', label: 'Qualified', color: 'green' },
+  { value: 'disqualified', label: 'Disqualified', color: 'red' },
+  { value: 'converted', label: 'Converted', color: 'purple' },
+]
+
+const LEAD_CHIP_COLOR = {
+  new: 'default',
+  contacted: 'blue',
+  nurturing: 'cyan',
+  qualified: 'green',
+  disqualified: 'red',
+  converted: 'purple',
+}
 
 /**
  * Customers list tab for Business CRM (company-linked + Shopify tags).
@@ -21,6 +40,8 @@ export default function BusinessCustomersTab({
   setQ,
   statusFilter,
   setStatusFilter,
+  leadStatusFilter,
+  setLeadStatusFilter,
   loadCustomers,
   shopifySyncing,
   syncShopify,
@@ -62,6 +83,36 @@ export default function BusinessCustomersTab({
       render: (s) => <Tag color={STATUS_COLOR[s] || 'default'}>{s}</Tag>,
     },
     {
+      title: 'Lead',
+      key: 'lead',
+      width: 140,
+      render: (_, r) => {
+        const ls = (r.lead_status || '').trim()
+        const score = Number(r.lead_score || 0)
+        if (!ls && !(score > 0)) {
+          return (
+            <Tag
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                nav(`/business/customers/${r.id}`)
+              }}
+            >
+              Qualify…
+            </Tag>
+          )
+        }
+        return (
+          <Space size={4} wrap>
+            {ls ? (
+              <Tag color={LEAD_CHIP_COLOR[ls] || 'geekblue'}>{ls}</Tag>
+            ) : null}
+            {score > 0 ? <Text type="secondary" style={{ fontSize: 12 }}>{Math.round(score)}</Text> : null}
+          </Space>
+        )
+      },
+    },
+    {
       title: 'Tags',
       dataIndex: 'tags',
       render: (tags, r) => (
@@ -90,7 +141,16 @@ export default function BusinessCustomersTab({
     <Card
       type="inner"
       className="aba-soft-card"
-      title="Customer records"
+      title={(
+        <Space wrap>
+          <span>Customer records</span>
+          {leadStatusFilter && (
+            <Tag color={LEAD_CHIP_COLOR[leadStatusFilter] || 'geekblue'} icon={<FilterOutlined />}>
+              lead: {leadStatusFilter}
+            </Tag>
+          )}
+        </Space>
+      )}
       extra={(
         <Space wrap>
           <Button
@@ -115,29 +175,75 @@ export default function BusinessCustomersTab({
         style={{ marginBottom: 12 }}
         styles={{ body: { padding: '10px 12px' } }}
       >
-        <Space style={{ width: '100%' }} wrap>
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="Search name, email, account, tags…"
-            style={{ width: 280 }}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onPressEnter={loadCustomers}
-          />
-          <Select
-            allowClear
-            placeholder="Status"
-            style={{ width: 140 }}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-              { value: 'churned', label: 'Churned' },
-            ]}
-          />
-          <Button onClick={loadCustomers}>Search</Button>
+        <Space direction="vertical" size={10} style={{ width: '100%' }}>
+          <Space style={{ width: '100%' }} wrap>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="Search name, email, account, tags…"
+              style={{ width: 280 }}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onPressEnter={loadCustomers}
+            />
+            <Select
+              allowClear
+              placeholder="Account status"
+              style={{ width: 140 }}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'churned', label: 'Churned' },
+              ]}
+            />
+            <Select
+              allowClear
+              placeholder="Lead status"
+              style={{ width: 160 }}
+              value={leadStatusFilter}
+              onChange={(v) => {
+                setLeadStatusFilter(v)
+                loadCustomers({ lead_status: v || null })
+              }}
+              options={LEAD_STATUS_OPTIONS}
+            />
+            <Button type="primary" onClick={() => loadCustomers()} icon={<SearchOutlined />}>
+              Search
+            </Button>
+          </Space>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+              <CheckCircleOutlined /> Lead funnel:
+            </Text>
+            <Space size={[6, 6]} wrap>
+              <Tag
+                style={{ cursor: 'pointer' }}
+                color={!leadStatusFilter ? 'blue' : 'default'}
+                onClick={() => {
+                  setLeadStatusFilter(undefined)
+                  loadCustomers({ lead_status: null })
+                }}
+              >
+                All leads
+              </Tag>
+              {LEAD_STATUS_OPTIONS.map((opt) => (
+                <Tag
+                  key={opt.value}
+                  color={leadStatusFilter === opt.value ? (opt.color === 'default' ? 'blue' : opt.color) : 'default'}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    const next = leadStatusFilter === opt.value ? undefined : opt.value
+                    setLeadStatusFilter(next)
+                    loadCustomers({ lead_status: next || null })
+                  }}
+                >
+                  {opt.label}
+                </Tag>
+              ))}
+            </Space>
+          </div>
         </Space>
       </Card>
       <Table
@@ -151,7 +257,18 @@ export default function BusinessCustomersTab({
           onClick: () => nav(`/business/customers/${r.id}`),
           style: { cursor: 'pointer' },
         })}
-        locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No customers — add your first record" /> }}
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                leadStatusFilter
+                  ? `No customers with lead status “${leadStatusFilter}”`
+                  : 'No customers — add your first record or sync Shopify'
+              }
+            />
+          ),
+        }}
       />
     </Card>
   )

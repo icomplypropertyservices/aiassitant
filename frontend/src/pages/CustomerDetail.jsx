@@ -7,6 +7,7 @@ import {
   ArrowLeftOutlined, UserOutlined, MailOutlined, PhoneOutlined, GlobalOutlined,
   PlusOutlined, EditOutlined, ReloadOutlined, DollarOutlined, FunnelPlotOutlined,
   CalendarOutlined, ClockCircleOutlined, BankOutlined, TagsOutlined, CloudUploadOutlined,
+  CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
@@ -19,6 +20,15 @@ const { TextArea } = Input
 const STATUS_COLOR = {
   active: 'green', inactive: 'default', churned: 'red',
   open: 'processing', won: 'success', lost: 'error',
+}
+
+const LEAD_STATUS_COLOR = {
+  new: 'default',
+  contacted: 'blue',
+  nurturing: 'cyan',
+  qualified: 'green',
+  disqualified: 'red',
+  converted: 'purple',
 }
 
 export default function CustomerDetail() {
@@ -136,6 +146,30 @@ export default function CustomerDetail() {
     }
   }
 
+  /** Set lead funnel status via PUT (crm persists lead_status + qualified_at). */
+  const setLeadStatus = async (leadStatus, opts = {}) => {
+    setSaving(true)
+    try {
+      const body = { lead_status: leadStatus }
+      if (opts.score != null) body.lead_score = opts.score
+      const updated = await api(`/business/customers/${id}`, { method: 'PUT', body })
+      setC((prev) => ({ ...prev, ...updated }))
+      message.success(
+        leadStatus === 'qualified'
+          ? 'Lead qualified'
+          : leadStatus === 'disqualified'
+            ? 'Lead disqualified'
+            : `Lead status → ${leadStatus}`,
+      )
+      // Soft refresh so qualified_at / activity stay in sync without extra polling
+      load()
+    } catch (e) {
+      message.error(e.message || 'Could not update lead status')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading || !c) {
     return (
       <PageShell>
@@ -167,6 +201,14 @@ export default function CustomerDetail() {
             </Button>
             <span><UserOutlined /> {c.name}</span>
             <Tag color={STATUS_COLOR[c.status]}>{c.status}</Tag>
+            {c.lead_status ? (
+              <Tag color={LEAD_STATUS_COLOR[c.lead_status] || 'geekblue'}>
+                lead: {c.lead_status}
+              </Tag>
+            ) : null}
+            {c.lead_score != null && Number(c.lead_score) > 0 ? (
+              <Tag color="gold">score {Math.round(Number(c.lead_score))}</Tag>
+            ) : null}
             {(c.tags || []).map((t) => <Tag key={t}>{t}</Tag>)}
           </Space>
         )}
@@ -181,6 +223,8 @@ export default function CustomerDetail() {
                   ...c,
                   tags: c.tags || [],
                   company_id: c.company_id || undefined,
+                  lead_status: c.lead_status || undefined,
+                  lead_score: c.lead_score != null ? Number(c.lead_score) : undefined,
                 })
                 setEditOpen(true)
               }}
@@ -220,6 +264,90 @@ export default function CustomerDetail() {
       />
 
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        {/* Lead qualify bar — surface funnel actions without hunting in Edit */}
+        <Card
+          size="small"
+          className="aba-soft-card"
+          title={(
+            <Space wrap>
+              <ThunderboltOutlined />
+              <span>Lead status</span>
+              {c.lead_status ? (
+                <Tag color={LEAD_STATUS_COLOR[c.lead_status] || 'geekblue'}>{c.lead_status}</Tag>
+              ) : (
+                <Tag>not set</Tag>
+              )}
+              {c.lead_score != null && Number(c.lead_score) > 0 ? (
+                <Tag color="gold">score {Math.round(Number(c.lead_score))}</Tag>
+              ) : null}
+            </Space>
+          )}
+        >
+          <Space wrap>
+            <Button
+              size="small"
+              icon={<PhoneOutlined />}
+              loading={saving}
+              disabled={c.lead_status === 'contacted'}
+              onClick={() => setLeadStatus('contacted')}
+            >
+              Mark contacted
+            </Button>
+            <Button
+              size="small"
+              loading={saving}
+              disabled={c.lead_status === 'nurturing'}
+              onClick={() => setLeadStatus('nurturing')}
+            >
+              Nurturing
+            </Button>
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              loading={saving}
+              disabled={c.lead_status === 'qualified'}
+              onClick={() => setLeadStatus('qualified')}
+            >
+              Qualify
+            </Button>
+            <Button
+              size="small"
+              danger
+              icon={<CloseCircleOutlined />}
+              loading={saving}
+              disabled={c.lead_status === 'disqualified'}
+              onClick={() => setLeadStatus('disqualified')}
+            >
+              Disqualify
+            </Button>
+            <Button
+              size="small"
+              loading={saving}
+              disabled={c.lead_status === 'converted'}
+              onClick={() => setLeadStatus('converted')}
+            >
+              Converted
+            </Button>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => {
+                editForm.setFieldsValue({
+                  ...c,
+                  tags: c.tags || [],
+                  company_id: c.company_id || undefined,
+                  lead_status: c.lead_status || undefined,
+                  lead_score: c.lead_score != null ? Number(c.lead_score) : undefined,
+                })
+                setEditOpen(true)
+              }}
+            >
+              Edit score / details
+            </Button>
+          </Space>
+        </Card>
+
         {/* KPI stats */}
         <Row gutter={[16, 16]}>
           <Col xs={12} md={8}>
@@ -303,6 +431,25 @@ export default function CustomerDetail() {
                   </Descriptions.Item>
                   <Descriptions.Item label="Address">{c.address || '—'}</Descriptions.Item>
                   <Descriptions.Item label="Source">{c.source || '—'}</Descriptions.Item>
+                  {(c.lead_status || (c.lead_score != null && Number(c.lead_score) > 0)) ? (
+                    <Descriptions.Item label="Lead">
+                      <Space size={6} wrap>
+                        {c.lead_status ? (
+                          <Tag color={LEAD_STATUS_COLOR[c.lead_status] || 'geekblue'}>
+                            {c.lead_status}
+                          </Tag>
+                        ) : null}
+                        {c.lead_score != null && Number(c.lead_score) > 0 ? (
+                          <Text type="secondary">score {Math.round(Number(c.lead_score))}/100</Text>
+                        ) : null}
+                        {c.qualified_at ? (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            qualified {new Date(c.qualified_at).toLocaleDateString()}
+                          </Text>
+                        ) : null}
+                      </Space>
+                    </Descriptions.Item>
+                  ) : null}
                   <Descriptions.Item label="Owner (human)">{c.owner_human_name || '—'}</Descriptions.Item>
                   <Descriptions.Item label="Owner (agent)">{c.owner_agent_name || '—'}</Descriptions.Item>
                   <Descriptions.Item label="Last contacted">
@@ -475,6 +622,27 @@ export default function CustomerDetail() {
                 { value: 'churned', label: 'Churned' },
               ]} />
             </Form.Item></Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="lead_status" label="Lead status">
+                <Select
+                  allowClear
+                  placeholder="Funnel stage"
+                  options={[
+                    { value: 'new', label: 'New' },
+                    { value: 'contacted', label: 'Contacted' },
+                    { value: 'nurturing', label: 'Nurturing' },
+                    { value: 'qualified', label: 'Qualified' },
+                    { value: 'disqualified', label: 'Disqualified' },
+                    { value: 'converted', label: 'Converted' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item name="lead_score" label="Lead score (0–100)">
+                <InputNumber style={{ width: '100%' }} min={0} max={100} />
+              </Form.Item>
+            </Col>
             <Col xs={24} sm={12}><Form.Item name="source" label="Source"><Input /></Form.Item></Col>
             <Col xs={24} sm={12}><Form.Item name="owner_human_id" label="Owner (human)">
               <Select allowClear options={humans.map((h) => ({ value: h.id, label: h.name }))} />

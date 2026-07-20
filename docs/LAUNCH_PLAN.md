@@ -25,7 +25,7 @@ Until DNS is wired, app may still be at `https://aiassitant-nu.vercel.app` (then
 
 | Plan | Price | Included tokens / mo | Agents | Companies | Projects | Payment |
 |------|------:|---------------------:|-------:|----------:|---------:|---------|
-| **Free trial** | $0 | 50,000 | 10 | 2 | 2 | None |
+| **Free trial** | $0 | 50,000 | 12 | 2 | 2 | None |
 | **Starter** | **$39**/mo | 2,000,000 | 5 | 1 | 10 | Card or crypto |
 | **Pro** ⭐ | **$99**/mo | 10,000,000 | 20 | 3 | 50 | Card or crypto |
 | **Business** | **$249**/mo | 40,000,000 | 100 | 15 | 200 | Card or crypto |
@@ -45,7 +45,15 @@ Until DNS is wired, app may still be at `https://aiassitant-nu.vercel.app` (then
 | Freelancers / trades | Starter |
 | Agencies | Business |
 
-Source of truth in code: `backend/app/plans.py` · shown on login, subscribe, billing, and `website/pricing.html`.
+Source of truth in code: `backend/app/plans.py` (`TRIAL_AGENTS = 12`) · shown on login, subscribe, billing, and `website/pricing.html`.
+
+### Agent tool access readiness
+
+Before invitees run multi-agent workflows, confirm:
+
+- Skills / packs, CRM, meetings, media, integrations — [AGENT_TOOLS_AND_FLOWS.md](AGENT_TOOLS_AND_FLOWS.md)
+- Operator checklist (enable packs, apps, autonomy, credits) — [GROWTH_TOOL_ACCESS.md](GROWTH_TOOL_ACCESS.md)
+- Production: `CRON_SECRET` + autonomy tick-all; platform LLM keys (`XAI_API_KEY` / Anthropic) so premium tools do not fail closed
 
 ---
 

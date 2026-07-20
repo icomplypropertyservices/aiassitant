@@ -489,6 +489,7 @@ class AgentMessage(Base):
     thread_key = Column(String, index=True, default="")
     content = Column(Text, default="")
     status = Column(String, default="sent")  # sent | delivered | read | failed
+    meta_json = Column(Text, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -639,6 +640,17 @@ class Customer(Base):
     status = Column(String, default="active")  # active | inactive | churned
     source = Column(String, default="")  # website | referral | cold | import | agent
     tags = Column(String, default="")  # comma-separated
+    # Lead qualification (sales AI)
+    # new | contacted | nurturing | qualified | disqualified | converted
+    lead_status = Column(String, default="", index=True)
+    lead_score = Column(Float, default=0.0)
+    qualified_at = Column(DateTime, nullable=True)
+    # ICP / qualification enrichment
+    budget = Column(Float, default=0.0)  # stated or estimated deal budget (USD)
+    company_size = Column(String, default="")  # e.g. 1-10 | 11-50 | enterprise
+    linkedin_url = Column(String, default="")
+    icp_notes = Column(Text, default="")  # fit notes vs ideal customer profile
+    disqualified_reason = Column(Text, default="")
     owner_human_id = Column(Integer, ForeignKey("humans.id"), nullable=True, index=True)
     owner_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
     annual_value = Column(Float, default=0.0)

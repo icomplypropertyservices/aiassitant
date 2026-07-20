@@ -100,6 +100,9 @@ class CustomerUpdate(BaseModel):
     owner_agent_id: int | None = None
     annual_value: float | None = None
     notes: str | None = None
+    # Lead funnel (crm_update_customer_fields already persists these)
+    lead_status: str | None = None
+    lead_score: float | None = None
 
 
 
@@ -402,6 +405,7 @@ def list_customers(
     status: str | None = None,
     company_id: int | None = None,
     tag: str | None = None,
+    lead_status: str | None = None,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -409,6 +413,7 @@ def list_customers(
 ):
     rows, total = crm_list_customers(
         db, user, q=q, status=status, tag=tag, company_id=company_id,
+        lead_status=lead_status,
         limit=limit, offset=offset,
     )
     return {
@@ -633,37 +638,13 @@ async def move_deal(
         db, models.Deal, deal_id, user,
         user_field='owner_user_id', not_found="Deal not found",
     )
-    stage = db.get(models.PipelineStage, data.stage_id)
-    if not stage or stage.pipeline_id != d.pipeline_id:
-        raise HTTPException(400, "Stage not in this pipeline")
-    old_stage = db.get(models.PipelineStage, d.stage_id)
-    d.stage_id = stage.id
-    if data.position is not None:
-        d.position = data.position
-    # Auto status from stage type
-    if data.status:
-        d.status = data.status
-    elif stage.stage_type == "won":
-        d.status = "won"
-        d.closed_at = datetime.utcnow()
-    elif stage.stage_type == "lost":
-        d.status = "lost"
-        d.closed_at = datetime.utcnow()
-        d.lost_reason = data.lost_reason or d.lost_reason
-    else:
-        d.status = "open"
-        d.closed_at = None
-    d.updated_at = datetime.utcnow()
-    db.add(models.CustomerActivity(
-        customer_id=d.customer_id,
-        owner_user_id=user.id,
-        kind="stage",
-        title=f"Moved to {stage.name}",
-        body=f"From {old_stage.name if old_stage else '?'} → {stage.name}",
-        deal_id=d.id,
-    ))
-    db.commit()
-    db.refresh(d)
+    d, stage = crm_service.move_deal(
+        db, user, d,
+        stage_id=data.stage_id,
+        position=data.position,
+        status=data.status,
+        lost_reason=data.lost_reason,
+    )
     await emit_ops(
         user.id, kind="action", status="done",
         title=f"Deal moved: {d.title}",
@@ -774,55 +755,32 @@ def list_diary(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    q = db.query(models.DiaryEntry).filter_by(owner_user_id=user.id)
-    if customer_id is not None:
-        q = q.filter_by(customer_id=customer_id)
-    if status:
-        q = q.filter_by(status=status)
-    if upcoming:
-        now = datetime.utcnow()
-        q = q.filter(
-            models.DiaryEntry.status == "scheduled",
-            (models.DiaryEntry.start_at >= now) | (models.DiaryEntry.start_at.is_(None)),
-        )
-    rows = q.order_by(models.DiaryEntry.start_at.asc().nullslast(), models.DiaryEntry.id.desc()).limit(200).all()
+    rows = crm_service.list_diary(
+        db, user,
+        customer_id=customer_id,
+        status=status,
+        upcoming=upcoming,
+        limit=200,
+    )
     return {"diary": [_diary_out(d, db) for d in rows]}
 
 
 @router.post("/diary")
 async def create_diary(data: DiaryIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     cust = _owned_customer(db, data.customer_id, user)
-    start = _parse_dt(data.start_at)
-    end = _parse_dt(data.end_at)
     if not (data.title or "").strip():
         raise HTTPException(400, "title required")
-    d = models.DiaryEntry(
-        owner_user_id=user.id,
-        customer_id=cust.id,
-        deal_id=data.deal_id,
+    d = crm_service.schedule_meeting(
+        db, user, cust,
         title=data.title.strip(),
-        start_at=start,
-        end_at=end,
+        start_at=data.start_at,
+        end_at=data.end_at,
         location=(data.location or "").strip(),
         notes=(data.notes or "").strip(),
-        status="scheduled",
+        deal_id=data.deal_id,
         owner_human_id=data.owner_human_id,
         owner_agent_id=data.owner_agent_id,
     )
-    db.add(d)
-    db.flush()
-    # Log as activity too
-    db.add(models.CustomerActivity(
-        customer_id=cust.id,
-        owner_user_id=user.id,
-        kind="meeting",
-        title=f"Diary: {d.title}",
-        body=f"Scheduled {start.isoformat() if start else 'TBD'} @ {d.location or '—'}",
-        deal_id=d.deal_id,
-    ))
-    cust.last_contacted_at = datetime.utcnow()
-    db.commit()
-    db.refresh(d)
     await emit_ops(user.id, kind="action", status="info", title=f"Diary set: {d.title}", detail=cust.name, db=db)
     return _diary_out(d, db)
 

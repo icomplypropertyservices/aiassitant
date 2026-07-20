@@ -1,4 +1,9 @@
-"""Connected-app wrappers and use_app / _run_app skill handlers."""
+"""Connected-app wrappers and use_app / _run_app skill handlers.
+
+Integration skills must never crash when apps/keys are missing. Failures return
+structured dicts: ok=False, error, error_code, retryable=False (connect/configure
+is not a transient retry — human must connect the app in Settings).
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -7,6 +12,194 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..agent_roles import is_orchestrator
+
+# Requested skill app_id → connection app_ids to try (OAuth hubs share tokens).
+_APP_CONN_ALIASES: dict[str, tuple[str, ...]] = {
+    "gmail": ("gmail", "google"),
+    "google": ("google", "gmail", "google_calendar"),
+    "google_sheets": ("google_sheets", "google", "gmail"),
+    "calendar": ("google", "gmail", "google_calendar"),
+    "shopify": ("shopify",),
+    "slack": ("slack",),
+    "hubspot": ("hubspot",),
+    "notion": ("notion",),
+    "discord": ("discord",),
+    "mailchimp": ("mailchimp",),
+    "dropbox": ("dropbox",),
+    "x": ("x", "twitter"),
+    "twitter": ("twitter", "x"),
+    "facebook": ("facebook", "meta"),
+    "instagram": ("instagram", "meta"),
+    "linkedin": ("linkedin",),
+    "meta": ("meta", "facebook", "instagram"),
+}
+
+# Dispatch app_id when connection was found under an alias (e.g. gmail hub → google calendar).
+_DISPATCH_APP: dict[str, str] = {
+    "calendar": "google",
+}
+
+
+def _connected_app_ids(db: Session, user_id: int) -> list[str]:
+    rows = (
+        db.query(models.IntegrationConnection)
+        .filter_by(user_id=user_id, status="connected")
+        .all()
+    )
+    return sorted({(c.app_id or "") for c in rows if c.app_id})
+
+
+def _not_connected(
+    app_id: str,
+    *,
+    action: str = "",
+    available: list[str] | None = None,
+    allocated_hint: bool = False,
+) -> dict[str, Any]:
+    """Structured failure when OAuth/API key is missing — not retryable by autonomy."""
+    apps = available or []
+    if apps:
+        hint = f" Connected apps: {', '.join(apps)}."
+    else:
+        hint = " No apps connected yet (Settings → Connected apps)."
+    if allocated_hint:
+        msg = f"No connected '{app_id}' app allocated to this agent.{hint}"
+    else:
+        msg = (
+            f"No connected {app_id} app.{hint} "
+            "Connect under Settings → Connected apps (OAuth / API key), then retry."
+        )
+    return {
+        "ok": False,
+        "error": msg,
+        "error_code": "not_connected",
+        "retryable": False,
+        "app_id": app_id,
+        "action": action or None,
+        "available_apps": apps,
+        "guidance": (
+            "Do not retry this skill until the human connects the app. "
+            "Use draft_email / log_communication / local CRM skills as offline fallbacks."
+        ),
+    }
+
+
+def _normalize_app_result(
+    result: Any,
+    *,
+    app_id: str,
+    action: str,
+) -> dict[str, Any]:
+    """Ensure every integration result is a dict with error_code + retryable on failure."""
+    if not isinstance(result, dict):
+        return {
+            "ok": False,
+            "error": f"Integration {app_id}/{action} returned unexpected result",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": app_id,
+            "action": action,
+        }
+    out = dict(result)
+    out.setdefault("app_id", app_id)
+    out.setdefault("action", action)
+    if out.get("ok") is True:
+        return out
+
+    err = str(out.get("error") or out.get("message") or "Integration action failed")
+    out["ok"] = False
+    out["error"] = err
+
+    code = out.get("error_code")
+    if not code:
+        low = err.lower()
+        if any(
+            x in low
+            for x in (
+                "not connected",
+                "no connected",
+                "missing",
+                "token",
+                "oauth",
+                "reconnect",
+                "api key",
+                "not allocated",
+            )
+        ):
+            code = "not_connected"
+        elif any(x in low for x in ("required", "invalid", "must ", "missing ")):
+            code = "validation"
+        elif any(x in low for x in ("rate", "429", "timeout", "temporarily", "try again")):
+            code = "transient"
+        else:
+            code = "integration_error"
+        out["error_code"] = code
+
+    if out.get("retryable") is None:
+        # Credentials / config / validation: do not spin autonomy retries
+        out["retryable"] = out.get("error_code") == "transient"
+
+    if out.get("error_code") in ("not_connected", "validation") and not out.get("guidance"):
+        if out["error_code"] == "not_connected":
+            out["guidance"] = (
+                "Human must connect the app in Settings → Connected apps. "
+                "Do not retry until connected; use offline draft/CRM skills instead."
+            )
+        else:
+            out["guidance"] = "Fix required args and call the skill again once."
+
+    return out
+
+
+def _find_connection(
+    db: Session,
+    user: models.User,
+    agent: models.Agent,
+    app_id: str,
+    *,
+    agent_allocated_first: bool = False,
+) -> models.IntegrationConnection | None:
+    """Resolve IntegrationConnection for app_id (with Google hub aliases)."""
+    app_id = (app_id or "").strip().lower()
+    candidates = _APP_CONN_ALIASES.get(app_id) or (app_id,)
+
+    if agent_allocated_first:
+        links = db.query(models.AgentIntegration).filter_by(agent_id=agent.id).all()
+        for want in candidates:
+            for link in links:
+                c = db.get(models.IntegrationConnection, link.connection_id)
+                if (
+                    c
+                    and c.user_id == user.id
+                    and (c.status or "") == "connected"
+                    and (c.app_id or "") == want
+                ):
+                    return c
+
+    for want in candidates:
+        conn = (
+            db.query(models.IntegrationConnection)
+            .filter_by(user_id=user.id, app_id=want, status="connected")
+            .order_by(models.IntegrationConnection.id.desc())
+            .first()
+        )
+        if conn:
+            return conn
+
+    # Agent-linked last (if not already preferred)
+    if not agent_allocated_first:
+        links = db.query(models.AgentIntegration).filter_by(agent_id=agent.id).all()
+        for want in candidates:
+            for link in links:
+                c = db.get(models.IntegrationConnection, link.connection_id)
+                if (
+                    c
+                    and c.user_id == user.id
+                    and (c.status or "") == "connected"
+                    and (c.app_id or "") == want
+                ):
+                    return c
+    return None
 
 
 async def _skill_use_app(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
@@ -21,12 +214,16 @@ async def _skill_use_app(db: Session, agent: models.Agent, user: models.User, ar
         or ""
     )
     app_id = str(app_id).strip().lower()
-    action = (args.get("action") or args.get("operation") or "status").strip().lower()
+    action = (args.get("action") or args.get("operation") or "status")
+    action = str(action).strip().lower()
     payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
     if not app_id:
         return {
             "ok": False,
             "error": "app_id required (e.g. gmail, slack, shopify, hubspot — not a connection numeric id)",
+            "error_code": "validation",
+            "retryable": False,
+            "guidance": "Pass app_id as the app key string, then action + payload.",
         }
     # Numeric-only "app_id" is almost always a mistaken connection id
     if app_id.isdigit():
@@ -36,84 +233,71 @@ async def _skill_use_app(db: Session, agent: models.Agent, user: models.User, ar
                 f"app_id '{app_id}' looks like a connection id. "
                 "Pass the app key string (gmail, slack, shopify, …)."
             ),
+            "error_code": "validation",
+            "retryable": False,
         }
 
-    # Must be allocated to this agent
-    links = db.query(models.AgentIntegration).filter_by(agent_id=agent.id).all()
-    conn = None
-    for link in links:
-        c = db.get(models.IntegrationConnection, link.connection_id)
-        if c and c.app_id == app_id and c.user_id == user.id:
-            conn = c
-            break
+    # Prefer agent-allocated connection; orchestrator may use any workspace connection
+    conn = _find_connection(db, user, agent, app_id, agent_allocated_first=True)
+    if not conn and is_orchestrator(agent):
+        conn = _find_connection(db, user, agent, app_id, agent_allocated_first=False)
     if not conn:
-        # Fall back to any connected app of that type for orchestrators
-        if is_orchestrator(agent):
-            conn = (
-                db.query(models.IntegrationConnection)
-                .filter_by(user_id=user.id, app_id=app_id, status="connected")
-                .order_by(models.IntegrationConnection.id.desc())
-                .first()
-            )
-    if not conn:
-        # List available apps so the agent can recover
-        connected = (
-            db.query(models.IntegrationConnection)
-            .filter_by(user_id=user.id, status="connected")
-            .all()
-        )
-        available = sorted({(c.app_id or "") for c in connected if c.app_id})
-        hint = f" Connected apps: {', '.join(available)}." if available else " No apps connected yet (Settings → Connected apps)."
-        return {"ok": False, "error": f"No connected '{app_id}' app allocated to this agent.{hint}"}
+        available = _connected_app_ids(db, user.id)
+        return _not_connected(app_id, action=action, available=available, allocated_hint=True)
 
-    result = await run_app_action(conn, action, payload, app_id=app_id)
-    return result
-
-async def _run_app(db, agent, user, app_id: str, action: str, payload: dict) -> dict:
-    from .. import models as _m
-    from ..integration_actions import run_app_action
-    app_id = (app_id or "").strip().lower()
-    # Prefer exact app, then agent-linked, then Google hub token for gmail actions
-    conn = (
-        db.query(_m.IntegrationConnection)
-        .filter_by(user_id=user.id, app_id=app_id, status="connected")
-        .order_by(_m.IntegrationConnection.id.desc())
-        .first()
-    )
-    if not conn:
-        links = db.query(_m.AgentIntegration).filter_by(agent_id=agent.id).all()
-        for link in links:
-            c = db.get(_m.IntegrationConnection, link.connection_id)
-            if c and c.user_id == user.id and c.status == "connected" and c.app_id == app_id:
-                conn = c
-                break
-    if not conn and app_id == "gmail":
-        conn = (
-            db.query(_m.IntegrationConnection)
-            .filter(
-                _m.IntegrationConnection.user_id == user.id,
-                _m.IntegrationConnection.status == "connected",
-                _m.IntegrationConnection.app_id.in_(("gmail", "google")),
-            )
-            .order_by(_m.IntegrationConnection.id.desc())
-            .first()
-        )
-    if not conn:
+    dispatch = _DISPATCH_APP.get(app_id, app_id)
+    try:
+        result = await run_app_action(conn, action, payload, app_id=dispatch)
+    except Exception as e:
         return {
             "ok": False,
-            "error": (
-                f"No connected {app_id} app. "
-                "Connect it under Settings → Connected apps (Gmail one-click OAuth)."
-            ),
+            "error": f"{app_id}/{action} failed: {e}",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": app_id,
+            "action": action,
+            "guidance": "Check Connected apps credentials; do not spin retries without a human fix.",
         }
-    # Dispatch by requested skill app (not connection label) — never mutate conn.app_id
-    result = await run_app_action(conn, action, payload or {}, app_id=app_id)
     if isinstance(result, dict) and result.get("token_refreshed"):
         try:
             db.commit()
         except Exception:
             db.rollback()
-    return result
+    return _normalize_app_result(result, app_id=app_id, action=action)
+
+
+async def _run_app(db, agent, user, app_id: str, action: str, payload: dict) -> dict:
+    from ..integration_actions import run_app_action
+
+    app_id = (app_id or "").strip().lower()
+    action = (action or "status").strip().lower()
+    conn = _find_connection(db, user, agent, app_id, agent_allocated_first=False)
+    if not conn:
+        available = _connected_app_ids(db, user.id)
+        return _not_connected(app_id, action=action, available=available)
+
+    dispatch = _DISPATCH_APP.get(app_id, app_id)
+    # Gmail skills keep dispatch=gmail even if connection is google hub
+    if app_id == "gmail":
+        dispatch = "gmail"
+    try:
+        result = await run_app_action(conn, action, payload or {}, app_id=dispatch)
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"{app_id}/{action} failed: {e}",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": app_id,
+            "action": action,
+            "guidance": "Check Connected apps credentials; do not spin retries without a human fix.",
+        }
+    if isinstance(result, dict) and result.get("token_refreshed"):
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+    return _normalize_app_result(result, app_id=app_id, action=action)
 
 async def _skill_facebook_post(db, agent, user, args):
     return await _run_app(db, agent, user, "facebook", "post", {
@@ -282,16 +466,17 @@ async def _skill_slack_get_messages(db, agent, user, args):
     return await _run_app(db, agent, user, "slack", "get_messages", args)
 
 async def _skill_calendar_create_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "create_event", args)
+    # Resolve google/gmail hub connection; dispatch create_event on google handler
+    return await _run_app(db, agent, user, "calendar", "create_event", args)
 
 async def _skill_calendar_list_events(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "list_events", args)
+    return await _run_app(db, agent, user, "calendar", "list_events", args)
 
 async def _skill_calendar_update_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "update_event", args)
+    return await _run_app(db, agent, user, "calendar", "update_event", args)
 
 async def _skill_calendar_delete_event(db, agent, user, args):
-    return await _run_app(db, agent, user, "google", "delete_event", args)
+    return await _run_app(db, agent, user, "calendar", "delete_event", args)
 
 async def _skill_sheets_append(db, agent, user, args):
     return await _run_app(db, agent, user, "google_sheets", "append", args)
@@ -314,28 +499,76 @@ async def _skill_shopify_sync(db, agent, user, args):
 
     what = (args.get("what") or "all").lower().strip()
     company_id = args.get("company_id") or getattr(agent, "company_id", None)
-    limit = int(args.get("limit") or 50)
-    if what == "products":
-        return await sync_shopify_products(db, user, company_id=company_id, limit=limit)
-    if what == "customers":
-        return await sync_shopify_customers(db, user, company_id=company_id, limit=limit)
-    return await sync_all_shopify(db, user, company_id=company_id, limit=limit)
+    try:
+        limit = int(args.get("limit") or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        if what == "products":
+            result = await sync_shopify_products(db, user, company_id=company_id, limit=limit)
+        elif what == "customers":
+            result = await sync_shopify_customers(db, user, company_id=company_id, limit=limit)
+        else:
+            result = await sync_all_shopify(db, user, company_id=company_id, limit=limit)
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"shopify sync failed: {e}",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": "shopify",
+            "action": f"sync_{what}",
+            "guidance": "Connect Shopify under Settings → Connected apps; ensure a company exists.",
+        }
+    return _normalize_app_result(result, app_id="shopify", action=f"sync_{what}")
 
 async def _skill_shopify_push_product(db, agent, user, args):
     from ..shopify_sync import push_product_tags_to_shopify
 
     pid = args.get("product_id") or args.get("id")
     if not pid:
-        return {"ok": False, "error": "product_id required (local Business product id)"}
-    return await push_product_tags_to_shopify(db, user, int(pid))
+        return {
+            "ok": False,
+            "error": "product_id required (local Business product id)",
+            "error_code": "validation",
+            "retryable": False,
+            "app_id": "shopify",
+        }
+    try:
+        result = await push_product_tags_to_shopify(db, user, int(pid))
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"shopify push product failed: {e}",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": "shopify",
+        }
+    return _normalize_app_result(result, app_id="shopify", action="push_product")
 
 async def _skill_shopify_push_customer(db, agent, user, args):
     from ..shopify_sync import push_customer_tags_to_shopify
 
     cid = args.get("customer_id") or args.get("id")
     if not cid:
-        return {"ok": False, "error": "customer_id required (local Business customer id)"}
-    return await push_customer_tags_to_shopify(db, user, int(cid))
+        return {
+            "ok": False,
+            "error": "customer_id required (local Business customer id)",
+            "error_code": "validation",
+            "retryable": False,
+            "app_id": "shopify",
+        }
+    try:
+        result = await push_customer_tags_to_shopify(db, user, int(cid))
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"shopify push customer failed: {e}",
+            "error_code": "integration_error",
+            "retryable": False,
+            "app_id": "shopify",
+        }
+    return _normalize_app_result(result, app_id="shopify", action="push_customer")
 
 async def _skill_hubspot_action(db, agent, user, subaction, args):
     return await _run_app(db, agent, user, "hubspot", subaction, args)
@@ -360,6 +593,8 @@ async def _skill_dropbox_action(db, agent, user, subaction, args):
 __all__ = [
     '_skill_use_app',
     '_run_app',
+    '_not_connected',
+    '_normalize_app_result',
     '_skill_facebook_post',
     '_skill_facebook_reply_comment',
     '_skill_facebook_reply_message',

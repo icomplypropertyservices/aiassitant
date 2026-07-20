@@ -577,3 +577,90 @@ async def complete_with_usage(
         out += c
     usage = get_last_completion_usage()
     return out.strip(), usage
+
+
+# Unrecoverable provider / billing failures — task_runner should fail the task
+# on turn 1 instead of burning max_turns + auto-requeue loops.
+_TERMINAL_LLM_MARKERS = (
+    "grok is not available",
+    "grok not available",
+    "llm unavailable",
+    "not available right now",
+    "no backend configured",
+    "xai_api_key",
+    "xai http 401",
+    "xai http 403",
+    "xai http 429",
+    "ollama unavailable",
+    "permission denied",
+    "permission-denied",
+    "spending limit",
+    "spending_limit",
+    "rate limit",
+    "rate_limit",
+    "insufficient_quota",
+    "insufficient credits",
+    "insufficient_funds",
+    "ai_fuel_empty",
+    "credit wallet is empty",
+    "credits are empty",
+    "ran out of fuel",
+    "ai is paused",
+    "included tokens are used up",
+    "authentication failed",
+    "invalid api key",
+    "invalid_api_key",
+    "unauthorized",
+    "[llm_unavailable]",
+    "[credits_exhausted]",
+    "[llm_permission_denied]",
+)
+
+
+def is_terminal_llm_failure(text: str | None) -> bool:
+    """True when model/provider output or error is a hard stop (not agent prose).
+
+    Used by task_runner (fail-fast) and autonomy (skip inventing self-run work).
+    """
+    if not text:
+        return False
+    low = str(text).lower()
+    if any(m in low for m in _TERMINAL_LLM_MARKERS):
+        return True
+    # Provider HTTP errors that will not recover within this run
+    if "xai http" in low or "ollama http" in low or "openai-compat http" in low:
+        for code in (" 401", " 402", " 403", " 429", " 500", " 502", " 503"):
+            if code in low:
+                return True
+    return False
+
+
+def classify_terminal_llm_failure(text: str | None) -> str | None:
+    """Return a short reason code, or None if not terminal.
+
+    Codes used by task_runner fail-fast (never requeue):
+      credits | spending_limit | permission_denied | llm_unavailable
+    """
+    if not is_terminal_llm_failure(text):
+        return None
+    low = str(text or "").lower()
+    # Spending / org budget caps (xAI etc.) — distinct from empty wallet
+    if any(k in low for k in ("spending limit", "spending_limit", "spend limit", "budget limit")):
+        return "spending_limit"
+    if any(
+        k in low
+        for k in (
+            "credit", "fuel", "ai_fuel", "ai is paused", "insufficient_quota",
+            "insufficient_funds", "402",
+        )
+    ):
+        return "credits"
+    if any(
+        k in low
+        for k in (
+            "403", "permission denied", "permission-denied", "unauthorized", "401",
+            "invalid api key", "invalid_api_key", "authentication failed",
+        )
+    ):
+        return "permission_denied"
+    return "llm_unavailable"

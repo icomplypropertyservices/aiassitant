@@ -27,7 +27,7 @@
 | Legal pages | **100** | terms, privacy, support; footer links; robots/sitemap |
 | Domain/path config | **100** | vercel rewrites `/agents` `/bay` `/api`; Vite base; DOMAINS.md |
 | GDPR delete/export | **100** | `GET /auth/export`, `POST /auth/delete-account`, Settings UI |
-| Ops docs | **100** | PRODUCTION_APIS, DOMAINS, AUDIT_FIXES, audit_smoke.py, .env.example |
+| Ops docs | **100** | PRODUCTION_APIS, DOMAINS, AUDIT_FIXES, audit_smoke.py, .env.example; tool access: [AGENT_TOOLS_AND_FLOWS.md](AGENT_TOOLS_AND_FLOWS.md), [GROWTH_TOOL_ACCESS.md](GROWTH_TOOL_ACCESS.md) |
 | Frontend launch UX | **100** | Forgot/reset/verify pages; trial expiry UI; WS first-message auth; privacy settings |
 
 ---

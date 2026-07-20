@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   TeamOutlined, CrownOutlined, RobotOutlined, ReloadOutlined, ApartmentOutlined,
-  CommentOutlined, RocketOutlined,
+  CommentOutlined, RocketOutlined, ThunderboltOutlined, AppstoreOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -300,6 +300,7 @@ export default function Hierarchy() {
   const [selected, setSelected] = useState(null)
   const [checkedKeys, setCheckedKeys] = useState([])
   const [actionBusy, setActionBusy] = useState(false)
+  const [ensuring, setEnsuring] = useState(false)
   const [form] = Form.useForm()
 
   const load = () => {
@@ -310,7 +311,27 @@ export default function Hierarchy() {
       .finally(() => setLoading(false))
   }
 
+  // One load only — no interval poll
   useEffect(() => { load() }, [])
+
+  /** Same ensure path as CoreTeam — spawn standing org when hierarchy is empty. */
+  const ensureCoreTeam = async () => {
+    setEnsuring(true)
+    try {
+      const r = await api('/agents/core-team/ensure', { method: 'POST' })
+      const n = r?.created_ids?.length || (r?.agents || []).length || 0
+      message.success(n ? `Core team ready (${n} agents)` : 'Core team ready')
+      load()
+    } catch (e) {
+      const msg = e?.message || 'Could not set up core team'
+      message.error(msg)
+      if (e?.status === 402 || /plan|subscription|billing/i.test(msg)) {
+        message.info('Activate a plan on Billing to create your team')
+      }
+    } finally {
+      setEnsuring(false)
+    }
+  }
 
   const openEdit = (agentId) => {
     const a = (data?.flat || []).find(x => x.id === agentId)
@@ -418,9 +439,42 @@ export default function Hierarchy() {
   }
 
   const flat = data?.flat || []
+  const isEmpty = !flat.length && !(data?.tree || []).length
   const leadCount = flat.filter(a => a.is_lead || a.hierarchy_role === 'lead').length
   const memberCount = flat.length - leadCount
   const selectedCount = checkedKeys.length
+
+  const emptyTeamCta = (
+    <Empty
+      image={Empty.PRESENTED_IMAGE_SIMPLE}
+      description={(
+        <span>
+          No agents yet — start with a <strong>template</strong> (sales, support, ops)
+          and turn on CRM + workflow skills so tools are ready to use.
+        </span>
+      )}
+    >
+      <Space wrap style={{ justifyContent: 'center' }}>
+        <Button
+          type="primary"
+          icon={<AppstoreOutlined />}
+          onClick={() => nav('/templates')}
+        >
+          Browse templates
+        </Button>
+        <Button icon={<TeamOutlined />} onClick={() => nav('/console')}>
+          Open console
+        </Button>
+        <Button
+          icon={<ThunderboltOutlined />}
+          loading={ensuring}
+          onClick={ensureCoreTeam}
+        >
+          Set up Core Team
+        </Button>
+      </Space>
+    </Empty>
+  )
 
   /** Standup / goal / clear — shown in tree + flat Card extras */
   const selectionControls = (
@@ -458,23 +512,75 @@ export default function Hierarchy() {
             Agent hierarchy
           </span>
         )}
-        subtitle="Lead agents orchestrate the team. Assign reports and set who reports to whom."
+        subtitle="Org tree · assign reports · run goals. Power comes from skills & workflows on each agent."
         extra={(
           <Space wrap>
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
+            {isEmpty && (
+              <Button
+                type="primary"
+                icon={<AppstoreOutlined />}
+                onClick={() => nav('/templates')}
+              >
+                Templates
+              </Button>
+            )}
+            {isEmpty && (
+              <Button
+                icon={<ThunderboltOutlined />}
+                loading={ensuring}
+                onClick={ensureCoreTeam}
+              >
+                Set up Core Team
+              </Button>
+            )}
             <Button onClick={() => nav('/console')}>Open console</Button>
           </Space>
         )}
       />
 
-      <div className="aba-box" style={{ marginBottom: 16 }}>
-        <Alert
-          type="info"
-          showIcon
-          message="How hierarchy works"
-          description="Main AI Orchestrator is always at the top (gold). Check agents in the tree or flat list, then use Standup or Run goal in the card header. Click a name to edit hierarchy."
-        />
-      </div>
+      {isEmpty ? (
+        <div className="aba-box" style={{ marginBottom: 16 }}>
+          <Alert
+            type="info"
+            showIcon
+            message="Get tools working first"
+            description="Pick a role template, then enable the recommended CRM + workflow pack on Skills. Hierarchy is for reporting lines — not a separate product to ‘spawn managers’."
+            action={(
+              <Space direction="vertical" size={6}>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<AppstoreOutlined />}
+                  onClick={() => nav('/templates')}
+                >
+                  Browse templates
+                </Button>
+                <Button size="small" onClick={() => nav('/console')}>
+                  Console
+                </Button>
+                <Button
+                  size="small"
+                  icon={<ThunderboltOutlined />}
+                  loading={ensuring}
+                  onClick={ensureCoreTeam}
+                >
+                  Set up Core Team
+                </Button>
+              </Space>
+            )}
+          />
+        </div>
+      ) : (
+        <div className="aba-box" style={{ marginBottom: 16 }}>
+          <Alert
+            type="info"
+            showIcon
+            message="How hierarchy works"
+            description="Main AI Orchestrator is at the top (gold). Check agents, then Standup or Run goal. Open an agent → Skills to enable CRM, workflows, and media tools."
+          />
+        </div>
+      )}
 
       <OrchestratorBanner orchestrator={data?.orchestrator} onChanged={load} />
 
@@ -521,9 +627,7 @@ export default function Hierarchy() {
               Nested cards by reporting line · check agents for standup / goal · click name to edit
             </Typography.Text>
             {!data?.tree?.length ? (
-              <Empty description="No agents yet — create a Lead Agent from Agents or Templates">
-                <Button type="primary" onClick={() => nav('/console')}>Create agents</Button>
-              </Empty>
+              emptyTeamCta
             ) : (
               <HierarchyTreeCards
                 nodes={data.tree}
@@ -545,7 +649,7 @@ export default function Hierarchy() {
                 {flat.length > 0 && <Tag style={{ marginInlineStart: 4 }}>{flat.length}</Tag>}
               </Space>
             )}
-            extra={selectionControls}
+            extra={isEmpty ? null : selectionControls}
             styles={{
               header: { textAlign: 'center' },
               body: { paddingTop: flat.length ? 12 : 24 },
@@ -565,7 +669,7 @@ export default function Hierarchy() {
                 ))}
               </div>
             ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No agents yet" />
+              emptyTeamCta
             )}
           </Card>
         </Col>

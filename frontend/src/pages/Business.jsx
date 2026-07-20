@@ -44,6 +44,7 @@ export default function Business() {
   const [pipelineId, setPipelineId] = useState(null)
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState(undefined)
+  const [leadStatusFilter, setLeadStatusFilter] = useState(undefined)
   const [productQ, setProductQ] = useState('')
   const [productStatus, setProductStatus] = useState(undefined)
   const [humans, setHumans] = useState([])
@@ -131,10 +132,16 @@ export default function Business() {
     }
   }
 
-  const loadCustomers = async () => {
+  const loadCustomers = async (overrides = {}) => {
     const qs = new URLSearchParams()
-    if (q) qs.set('q', q)
-    if (statusFilter) qs.set('status', statusFilter)
+    const qq = overrides.q !== undefined ? overrides.q : q
+    const sf = overrides.status !== undefined ? overrides.status : statusFilter
+    const ls = Object.prototype.hasOwnProperty.call(overrides, 'lead_status')
+      ? overrides.lead_status
+      : leadStatusFilter
+    if (qq) qs.set('q', qq)
+    if (sf) qs.set('status', sf)
+    if (ls) qs.set('lead_status', ls)
     const r = await api(`/business/customers?${qs.toString()}`)
     setCustomers(r.customers || [])
     setTotal(r.total || 0)
@@ -423,6 +430,8 @@ export default function Business() {
                     setQ={setQ}
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
+                    leadStatusFilter={leadStatusFilter}
+                    setLeadStatusFilter={setLeadStatusFilter}
                     loadCustomers={loadCustomers}
                     shopifySyncing={shopifySyncing}
                     syncShopify={syncShopify}

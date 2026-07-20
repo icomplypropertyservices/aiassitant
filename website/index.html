@@ -1,11 +1,16 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Business Agent — Console for teams &amp; agents</title>
-  <meta name="description" content="AI Business Agent: multi-company workspaces, agent console, AgentBay marketplace, training, and clear billing. Try the interactive product demo — no login required." />
+  <!-- App name must match Google OAuth consent screen exactly: Ai Business Agent -->
+  <title>Ai Business Agent — AI workspaces for companies, agents &amp; teams</title>
+  <meta name="description" content="Ai Business Agent is an AI operations application for real businesses. Purpose: run AI agents for your company — multi-company workspaces, agent console, training, Gmail and app connections, tasks, AgentBay marketplace, and token billing." />
+  <meta name="application-name" content="Ai Business Agent" />
+  <meta name="apple-mobile-web-app-title" content="Ai Business Agent" />
   <meta name="theme-color" content="#0b1f3a" />
+  <!-- Search Console / domain ownership (same token as verification file) -->
+  <meta name="google-site-verification" content="Mh4pdyTv_kb4PLxitTjzZxeDSwUQHkcu3PlMVv7PS04" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -13,10 +18,34 @@
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <meta property="og:title" content="AI Business Agent — Console for teams" />
-  <meta property="og:description" content="Workspaces, agent console, AgentBay marketplace, fair token billing. Browse free." />
-  <meta property="og:url" content="https://aibusinessagent.xyz/" />
+  <meta property="og:site_name" content="Ai Business Agent" />
+  <meta property="og:title" content="Ai Business Agent — AI workspaces for companies &amp; agents" />
+  <meta property="og:description" content="Purpose of Ai Business Agent: help businesses run AI agents with workspaces, training, optional Gmail/Google connections, tasks, marketplace, and clear token billing." />
+  <meta property="og:url" content="https://www.aibusinessagent.xyz/" />
   <meta property="og:type" content="website" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Ai Business Agent",
+    "alternateName": ["AI Business Agent", "AiBusinessAgent"],
+    "url": "https://www.aibusinessagent.xyz/",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web, iOS, Android",
+    "description": "Ai Business Agent is an AI operations console for businesses. Its purpose is to let operators create multi-company workspaces, run and organise AI agents, train agents on company files, optionally connect Google services such as Gmail, manage tasks, use the AgentBay marketplace, and pay with a transparent token meter.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "description": "Free trial available"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Ai Business Agent",
+      "url": "https://www.aibusinessagent.xyz/"
+    }
+  }
+  </script>
 </head>
 <body>
   <header class="nav" data-site-header></header>
@@ -25,17 +54,23 @@
     <div class="container hero-grid">
       <div>
         <div class="pill-row" style="margin-bottom: 16px">
+          <span class="pill">Ai Business Agent</span>
           <span class="pill">Browse free</span>
           <span class="pill">AgentBay marketplace</span>
-          <span class="pill">Card &amp; crypto</span>
         </div>
-        <h1>Your AI agent console for real businesses.</h1>
+        <h1>Ai Business Agent</h1>
+        <p class="lead" style="font-size:1.25rem;font-weight:600;margin-bottom:12px">
+          Purpose of Ai Business Agent: an AI operations application for real businesses —
+          so you can run AI agents for your company, not only chat in a box.
+        </p>
         <p class="lead">
-          One place for companies, projects, and agents — with a clear token meter and a marketplace
-          you can browse without signing in. Open the console when you’re ready to work.
+          <strong>Ai Business Agent</strong> helps you create multi-company workspaces, hire and organise AI agents,
+          train them on your files, connect tools like Gmail (when you choose to), track tasks, browse the AgentBay marketplace,
+          and pay with a clear monthly token meter (card or crypto). Google Sign-In is used so you can access your
+          Ai Business Agent account and, if you opt in, connect Google services you select.
         </p>
         <div class="hero-actions">
-          <a class="btn btn-primary btn-lg" data-app-href="/login" href="/agents/login">Open app →</a>
+          <a class="btn btn-primary btn-lg" data-app-href="/login" href="/agents/login">Open Ai Business Agent →</a>
           <a class="btn btn-ghost btn-lg" data-bay-href="/browse" href="/bay/browse" style="background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.25)">Browse AgentBay free</a>
           <a class="btn btn-ghost btn-lg" href="/demo.html" style="background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)">Try demo</a>
         </div>
@@ -46,7 +81,7 @@
         </div>
       </div>
       <div class="hero-card" aria-hidden="true">
-        <!-- Marketing mock only — never real customer data -->
+        <div class="row"><span class="muted">Product</span><strong>Ai Business Agent</strong></div>
         <div class="row"><span class="muted">Workspace</span><strong>Your company</strong></div>
         <div class="row"><span class="muted">Agents online</span><strong>Orchestrator · specialists</strong></div>
         <div class="row" style="flex-direction:column;align-items:stretch">
@@ -59,12 +94,67 @@
     </div>
   </section>
 
-  <section>
+  <!-- Static purpose block for Google OAuth brand verification crawlers -->
+  <section id="purpose" aria-labelledby="purpose-heading">
+    <div class="container">
+      <p class="section-kicker">What is Ai Business Agent?</p>
+      <h2 class="section-title" id="purpose-heading">Purpose of this application</h2>
+      <p class="section-sub" style="max-width:860px">
+        The purpose of <strong>Ai Business Agent</strong> is to provide businesses with an AI agent operations platform.
+        Operators use Ai Business Agent to staff their company with AI agents, train those agents, connect productivity tools,
+        and measure usage — under one login at <strong>aibusinessagent.xyz</strong>.
+      </p>
+      <div class="card" style="max-width:860px;margin:0 auto 28px;border:2px solid var(--primary-soft)">
+        <h3 style="margin-top:0">What Ai Business Agent does</h3>
+        <ul style="margin:0;padding-left:1.2rem;line-height:1.6">
+          <li><strong>AI agent console</strong> — create companies and projects; run a Main AI Orchestrator and specialist agents.</li>
+          <li><strong>Training</strong> — upload files and programs so agents work with your business knowledge.</li>
+          <li><strong>Integrations</strong> — optionally connect Gmail and other apps so agents can act with your permission.</li>
+          <li><strong>Google Sign-In</strong> — authenticate your Ai Business Agent account; connect Google APIs only when you choose Connect.</li>
+          <li><strong>Marketplace (AgentBay)</strong> — browse and hire agents and skills.</li>
+          <li><strong>Billing</strong> — monthly token meter; pay by card (Stripe) or crypto.</li>
+        </ul>
+        <p style="margin:16px 0 0">
+          Product home: <a href="https://www.aibusinessagent.xyz/">https://www.aibusinessagent.xyz/</a> ·
+          App: <a href="https://www.aibusinessagent.xyz/agents">/agents</a> ·
+          <a href="/privacy.html">Privacy Policy</a> ·
+          <a href="/terms.html">Terms</a> ·
+          <a href="/support.html">Support</a>
+        </p>
+      </div>
+      <div class="grid-3" style="gap: 20px; margin-bottom: 28px">
+        <article class="card" style="border: 2px solid var(--primary-soft)">
+          <h3>Run AI agents for your business</h3>
+          <p>
+            Create companies and projects, assign a Main AI Orchestrator and specialist agents,
+            and delegate real work (email, CRM, research, ops) under one login.
+          </p>
+        </article>
+        <article class="card" style="border: 2px solid var(--primary-soft)">
+          <h3>Connect tools you already use</h3>
+          <p>
+            Optionally connect Gmail and other apps so agents can send, read, and act on your behalf
+            with permissions you control. Google Sign-In authenticates your Ai Business Agent account
+            and, when you choose, links Google services.
+          </p>
+        </article>
+        <article class="card" style="border: 2px solid var(--primary-soft)">
+          <h3>Train, measure, and pay clearly</h3>
+          <p>
+            Upload training files, track a live token meter, subscribe or top up with card or crypto,
+            and hire extra agents or skills from the AgentBay marketplace.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
     <div class="container">
       <p class="section-kicker">One apex domain · three paths</p>
       <h2 class="section-title">Landing · App · AgentBay</h2>
       <p class="section-sub">
-        All on <strong>aibusinessagent.xyz</strong> —
+        All on <strong>aibusinessagent.xyz</strong> for <strong>Ai Business Agent</strong> —
         <code>/</code> marketing ·
         <code>/agents</code> product app ·
         <code>/bay</code> marketplace.
@@ -179,7 +269,7 @@
         <div class="price-card">
           <div class="name">Trial</div>
           <div class="price">$0 <span>/mo</span></div>
-          <p class="blurb">50k tokens · 10 agents · 2 companies · try the product</p>
+          <p class="blurb">50k tokens · 12 agents · 2 companies · try the product</p>
           <a class="btn btn-ghost" data-app-href="/login" href="/agents/login">Start free</a>
         </div>
         <div class="price-card">
@@ -207,8 +297,8 @@
 
   <div class="container">
     <div class="cta-band">
-      <h2>Ready when you are</h2>
-      <p>Try the interactive demo, browse AgentBay free, or open the console and create your first company.</p>
+      <h2>Ready to use Ai Business Agent?</h2>
+      <p>Try the interactive demo, browse AgentBay free, or open the Ai Business Agent console and create your first company.</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
         <a class="btn btn-primary btn-lg" href="/demo.html" style="background:#fff;color:#0b1f3a">Try product demo</a>
         <a class="btn btn-ghost btn-lg" data-bay-href="/browse" href="/bay/browse" style="border-color:rgba(255,255,255,0.4);color:#fff">Browse AgentBay</a>

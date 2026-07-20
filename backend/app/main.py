@@ -165,7 +165,12 @@ async def lifespan(app: FastAPI):
         try:
             Base.metadata.create_all(bind=engine)
         except Exception as e2:
-            print(f"[startup] create_all failed: {e2}")
+            # Concurrent cold-start race on Postgres: peer already created tables
+            msg = str(e2).lower()
+            if "already exists" in msg or "duplicatetable" in msg or "duplicate table" in msg:
+                print(f"[startup] create_all race (already exists) — continuing: {e2}")
+            else:
+                print(f"[startup] create_all failed: {e2}")
     try:
         seed_db()
     except Exception as e:
@@ -297,7 +302,8 @@ def system_status(user=Depends(get_current_user)):
     llm.pop("xai_via_super_session", None)
     llm.pop("xai_auth_source", None)
     llm.pop("using_super_session", None)
-    # Only expose high-level "is configured" booleans
+    # Only expose high-level "is configured" booleans (never secret values)
+    st["cron_secret_configured"] = bool(config.CRON_SECRET)
     return st
 
 

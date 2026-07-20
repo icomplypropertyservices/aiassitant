@@ -220,7 +220,10 @@ PLANS = {
         "name": "Free trial",
         "price": 0,
         "currency": "usd",
-        "blurb": "Try multi-agent ops + skill packs — no card required to start.",
+        "blurb": (
+            f"Try multi-agent ops — {TRIAL_AGENTS} agents, "
+            f"{TRIAL_TOKENS_INCLUDED:,} tokens, no card. Token pool only (no free wallet credits)."
+        ),
         "tokens_included": TRIAL_TOKENS_INCLUDED,
         "agents": TRIAL_AGENTS,
         "companies": TRIAL_COMPANIES,
@@ -238,11 +241,13 @@ PLANS = {
             f"Up to 120 skills enabled per agent (of ~{CATALOG_SKILL_TARGET:,} catalog)",
             f"{6} of {SKILL_PACKS_TOTAL} domain skill packs",
             f"{TRIAL_STORAGE_GB} GB training storage",
+            f"{TRIAL_DAYS}-day one-shot trial — no card",
+            "Token pool only — wallet credits not free-granted",
             "Managed Fast & Quality models",
             "Live chat, hierarchy, meetings",
         ],
         "teasers": [
-            "See real agents + skill packs before you pay",
+            f"Up to {TRIAL_AGENTS} agents + skill packs before you pay",
             "Upgrade anytime — tokens reset monthly on paid plans",
         ],
         "public": True,
@@ -254,6 +259,14 @@ PLANS = {
         "upgrade_teaser": "Starter: 2M tokens, 15 agents, 200 skills/agent, 12 packs.",
         "next_plan": "starter",
         "sort": 0,
+        # Explicit free-grant policy for UI/API (token pool only)
+        "free_grant": {
+            "tokens": TRIAL_TOKENS_INCLUDED,
+            "agents": TRIAL_AGENTS,
+            "days": TRIAL_DAYS,
+            "wallet_credits": 0,
+            "note": "Trial grants included tokens + agent seats only. No free wallet credits in production.",
+        },
     },
     "starter": {
         "name": "Starter",

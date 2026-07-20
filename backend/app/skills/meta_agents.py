@@ -506,12 +506,24 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
 
     target = db.get(models.Agent, agent_id)
     if not target or target.user_id != user.id:
-        return {"ok": False, "error": "agent not found"}
+        return {
+            "ok": False,
+            "error": "agent not found",
+            "error_code": "not_found",
+            "retryable": False,
+            "skill": "create_task",
+        }
 
     if human_id is not None:
         human = db.get(models.Human, human_id)
         if not human or human.owner_user_id != user.id:
-            return {"ok": False, "error": "human not found"}
+            return {
+                "ok": False,
+                "error": "human not found",
+                "error_code": "not_found",
+                "retryable": False,
+                "skill": "create_task",
+            }
 
     # Status: human → todo; active agent (and run_now) → queued for autonomy; else todo
     from ..task_status import initial_task_status
@@ -571,7 +583,13 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
         if parent_id is not None:
             parent = db.get(models.Task, parent_id)
             if not parent or parent.user_id != user.id:
-                return {"ok": False, "error": "parent_task not found"}
+                return {
+                    "ok": False,
+                    "error": "parent_task not found",
+                    "error_code": "not_found",
+                    "retryable": False,
+                    "skill": "create_task",
+                }
             parent_labels = (parent.labels or "")
             chain_parent = (
                 "goal" in parent_labels
@@ -637,6 +655,8 @@ async def _skill_create_task(db: Session, agent: models.Agent, user: models.User
 
     return {
         "ok": True,
+        "skill": "create_task",
+        "mode": "task_write",
         "message": (
             f"Task #{t.id} created → {target.name} [{t.status}]"
             + (" · run started" if kicked else "")
@@ -740,6 +760,86 @@ async def _skill_create_workflow(db: Session, agent: models.Agent, user: models.
         pattern_name=str(args.get("pattern_name") or ""),
         category=str(args.get("category") or "custom"),
     )
+
+
+async def _skill_run_workflow(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Launch a named platform workflow preset (sales targets→CRM→outreach, etc.)."""
+    from ..workflows import start_workflow, get_preset, list_workflow_presets
+
+    list_only = args.get("list") or args.get("action") in ("list", "catalog", "presets")
+    if isinstance(list_only, str):
+        list_only = list_only.strip().lower() in ("1", "true", "yes", "on", "list")
+    wid = (
+        args.get("workflow_id")
+        or args.get("id")
+        or args.get("workflow")
+        or args.get("name")
+        or args.get("preset")
+    )
+    if list_only or not wid:
+        presets = list_workflow_presets()
+        if not wid:
+            return {
+                "ok": True if list_only else False,
+                "error": None if list_only else (
+                    "workflow_id required — pass list=true to discover presets, "
+                    "e.g. sales_targets_crm_outreach"
+                ),
+                "skill": "run_workflow",
+                "workflows": [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "description": (p.get("description") or "")[:200],
+                        "category": p.get("category"),
+                        "default_count": p.get("default_count"),
+                    }
+                    for p in presets
+                ],
+                "count": len(presets),
+            }
+
+    wid = str(wid).strip()
+    if not get_preset(wid):
+        presets = list_workflow_presets()
+        return {
+            "ok": False,
+            "error": f"Unknown workflow: {wid}",
+            "skill": "run_workflow",
+            "workflows": [{"id": p["id"], "name": p["name"]} for p in presets[:30]],
+        }
+
+    count = args.get("count")
+    try:
+        count = int(count) if count not in (None, "") else None
+    except (TypeError, ValueError):
+        count = None
+
+    params = args.get("params")
+    if not isinstance(params, dict):
+        params = {}
+    # Flatten common top-level knobs into params
+    for k in ("batch", "topic", "audience", "channel", "focus"):
+        if args.get(k) not in (None, "") and k not in params:
+            params[k] = args.get(k)
+
+    result = await start_workflow(
+        db,
+        user,
+        agent,
+        wid,
+        count=count,
+        niche=str(args.get("niche") or args.get("icp") or ""),
+        extra=str(args.get("extra") or args.get("brief") or args.get("notes") or ""),
+        params=params,
+        company_id=args.get("company_id") or agent.company_id,
+        project_id=args.get("project_id") or agent.project_id,
+        priority=str(args.get("priority") or "high"),
+    )
+    if isinstance(result, dict):
+        result.setdefault("skill", "run_workflow")
+        result.setdefault("mode", "workflow_preset")
+    return result
 
 
 async def _skill_run_pattern(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
@@ -1438,6 +1538,7 @@ __all__ = [
     '_skill_get_pattern',
     '_skill_delete_pattern',
     '_skill_create_workflow',
+    '_skill_run_workflow',
     '_skill_run_pattern',
     '_skill_review_task',
     '_skill_announce_plan',

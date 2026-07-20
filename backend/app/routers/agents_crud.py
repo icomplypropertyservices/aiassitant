@@ -150,7 +150,15 @@ async def duplicate_agent(agent_id: int, db: Session = Depends(get_db), user=Dep
 
 @router.post("/")
 async def create_agent(data: AgentIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    if user.role != "admin" and (not user.subscription_active or user.plan in (None, "", "none")):
+    from ..usage_billing import heal_subscription_flags, subscription_is_live
+
+    if heal_subscription_flags(db, user):
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+    if user.role != "admin" and not subscription_is_live(user):
         raise HTTPException(402, "Choose a subscription plan to create agents")
     ensure_credits(db, user.id)
     count = db.query(models.Agent).filter_by(user_id=user.id).count()

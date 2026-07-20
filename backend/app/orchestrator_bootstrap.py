@@ -193,10 +193,13 @@ def bootstrap_workspace(
         db.flush()
     limits = plan_limits(user.plan or "none")
     expected = int(limits.get("tokens_included") or 0)
-    if user.subscription_active and expected > 0 and int(bal.tokens_included or 0) <= 0:
+    from .usage_billing import subscription_is_live
+
+    # Heal expired-trial flags first so we never refill pools for dead trials
+    heal_subscription_flags(db, user)
+    if subscription_is_live(user) and expected > 0 and int(bal.tokens_included or 0) <= 0:
         bal.tokens_included = expected
     ensure_period(bal, user)
-    heal_subscription_flags(db, user)
     db.commit()
 
     orch = ensure_main_orchestrator(db, user)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert free-trial plan caps: 10 agents, 2 companies (local + optional prod).
+"""Assert free-trial plan caps: 12 agents, 2 companies (local + optional prod).
 
 Usage:
   python scripts/assert_trial_plan.py
@@ -19,9 +19,9 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 # Expected product caps (must match plans.TRIAL_*)
-EXPECT_AGENTS = 10
+EXPECT_AGENTS = 12
 EXPECT_COMPANIES = 2
-EXPECT_PROJECTS = 2
+EXPECT_PROJECTS = 3
 EXPECT_TOKENS = 50_000
 
 
@@ -63,10 +63,9 @@ def _check_local() -> dict:
         errs.append(f"public_plans trial companies={pub.get('companies')}")
 
     features = " ".join(str(x) for x in (t.get("features") or []))
-    if "10" not in features and "Up to 10" not in features:
-        # features use f-string from constants — still require agent copy
-        if f"Up to {EXPECT_AGENTS}" not in features:
-            errs.append(f"trial features missing agent copy: {features!r}")
+    # features use f-string from constants — require agent + company copy
+    if f"{EXPECT_AGENTS} agents" not in features and f"Up to {EXPECT_AGENTS}" not in features:
+        errs.append(f"trial features missing agent copy: {features!r}")
     if f"{EXPECT_COMPANIES} companies" not in features:
         errs.append(f"trial features missing companies copy: {features!r}")
 

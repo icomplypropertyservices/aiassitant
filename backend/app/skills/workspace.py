@@ -197,16 +197,30 @@ def _query_tasks(
 
 
 async def _skill_list_tasks(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Offline task board read — autonomy invent path always uses this before inventing work."""
     args = dict(args or {})
     mine = args.get("mine")
     if isinstance(mine, str):
         mine = mine.strip().lower() in ("1", "true", "yes", "on")
     if mine or (args.get("scope") or "").strip().lower() in ("self", "me", "my"):
         args["agent_id"] = agent.id
-    rows, meta = _query_tasks(db, user, args)
-    out = [_task_row(t) for t in rows]
+    try:
+        rows, meta = _query_tasks(db, user, args)
+        out = [_task_row(t) for t in rows]
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"list_tasks failed: {e}",
+            "error_code": "task_error",
+            "retryable": False,
+            "skill": "list_tasks",
+            "tasks": [],
+            "count": 0,
+        }
     return {
         "ok": True,
+        "skill": "list_tasks",
+        "mode": "task_read",
         "count": len(out),
         "tasks": out,
         "filters": meta,
@@ -438,7 +452,24 @@ async def _skill_complete_task(db: Session, agent: models.Agent, user: models.Us
         tid = int(args.get("task_id") or args.get("id"))
     except (TypeError, ValueError):
         tid = None
+    if tid is None:
+        return {
+            "ok": False,
+            "error": "task_id required",
+            "error_code": "validation",
+            "retryable": False,
+            "skill": "complete_task",
+            "guidance": "Pass task_id from list_tasks / create_task before completing.",
+        }
     t_pre = db.get(models.Task, tid) if tid else None
+    if t_pre is None or t_pre.user_id != user.id:
+        return {
+            "ok": False,
+            "error": "task not found",
+            "error_code": "not_found",
+            "retryable": False,
+            "skill": "complete_task",
+        }
     is_lead = (
         is_orchestrator(agent)
         or is_lead_agent(agent)
@@ -464,7 +495,13 @@ async def _skill_complete_task(db: Session, agent: models.Agent, user: models.Us
         args["status"] = "completed"
 
     out = await _skill_update_task(db, agent, user, args)
+    if isinstance(out, dict):
+        out.setdefault("skill", "complete_task")
+        if out.get("ok") is False and out.get("retryable") is None:
+            out.setdefault("error_code", "validation")
+            out["retryable"] = False
     if out.get("ok"):
+        out["mode"] = "task_write"
         if needs_lead:
             out["message"] = (
                 f"Task #{args.get('task_id') or args.get('id')} submitted for lead review. "

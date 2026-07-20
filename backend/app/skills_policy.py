@@ -123,6 +123,7 @@ _ID_CATEGORY: dict[str, str] = {
     "run_pattern": "core",
     "apply_pattern": "core",
     "create_workflow": "core",
+    "run_workflow": "core",
     "review_task": "core",
     "reject_task": "core",
     "request_changes": "core",
@@ -188,6 +189,12 @@ _ID_CATEGORY: dict[str, str] = {
     "lose_deal": "crm",
     "pipeline_summary": "crm",
     "ensure_sales_pipeline": "crm",
+    "qualify_lead": "crm",
+    "list_leads": "crm",
+    "list_qualified_leads": "crm",
+    "set_lead_status": "crm",
+    "disqualify_lead": "crm",
+    "score_lead": "crm",
     "list_tasks": "ops",
     "search_tasks": "ops",
     "get_task": "ops",
@@ -227,9 +234,13 @@ _ID_CATEGORY: dict[str, str] = {
     "send_whatsapp": "comms",
     "make_voice_call": "comms",
     "send_message": "comms",
-    # media
+    # media (xAI Imagine when configured; generate_* premium, check_video free poll)
     "generate_image": "media",
+    "edit_image": "media",
+    "generate_ad_creative": "media",
+    "generate_product_shot": "media",
     "generate_video": "media",
+    "check_video": "media",
     # content / research
     "generate_content": "content",
     "research": "content",
@@ -433,7 +444,8 @@ _META_DANGEROUS = frozenset({
     "update_agent",
 })
 
-# Core free pack for every role — read + comment across the workspace
+# Core free pack for every role — CRM + workflows + meetings + safe integrations.
+# Always re-attached on save so plan caps / UI never strip the agent work surface.
 _CORE_ALWAYS = frozenset({
     "message_agent",
     "save_memory",
@@ -452,13 +464,22 @@ _CORE_ALWAYS = frozenset({
     "get_pattern",
     "run_pattern",
     "create_workflow",
+    "run_workflow",
     "review_task",
+    # CRM + diary + lead funnel (market-leading always-on sales board)
     "list_customers",
     "get_customer",
     "create_customer",
     "update_customer",
     "delete_customer",
     "log_customer_activity",
+    "qualify_lead",
+    "list_leads",
+    "list_qualified_leads",
+    "set_lead_status",
+    "disqualify_lead",
+    "score_lead",
+    "schedule_meeting",
     "list_diary",
     "list_pipelines",
     "get_pipeline",
@@ -484,6 +505,7 @@ _CORE_ALWAYS = frozenset({
     "set_product_offer",
     "archive_product",
     "duplicate_product",
+    # Tasks + workspace
     "list_tasks",
     "search_tasks",
     "get_task",
@@ -497,6 +519,7 @@ _CORE_ALWAYS = frozenset({
     "invite_to_meeting",
     "list_activity",
     "list_humans",
+    "assign_human",
     "read_workspace",
     "comment",
     "draft_email",
@@ -538,6 +561,19 @@ _CORE_ALWAYS = frozenset({
     "run_meeting_round",
     "close_meeting",
     "extract_meeting_tasks",
+    # Integrations gateway + safe read/draft (live send stays opt-in / plan-gated)
+    "use_app",
+    "gmail_list",
+    "gmail_search",
+    "gmail_draft",
+    "gmail_get_thread",
+    "sheets_read",
+    "calendar_list_events",
+    "slack_list_channels",
+    "slack_get_messages",
+    "x_search",
+    "x_get_mentions",
+    "x_get_timeline",
     # Agents invent skills + optional AgentBay listing
     "create_skill",
     "list_created_skills",
@@ -545,6 +581,30 @@ _CORE_ALWAYS = frozenset({
     "share_skill",
     # Gate for auto-generated per-field CRUD (add_*/change_*/delete_*)
     "db_field_ops",
+})
+
+# Lead / orchestrator always-on extras (premium OK; plan caps may still drop premium)
+_LEAD_ALWAYS = frozenset({
+    "generate_image",
+    "generate_video",
+    "send_email",
+    "send_sms",
+    "send_message",
+    "send_whatsapp",
+    "make_voice_call",
+    "gmail_send",
+    "gmail_reply",
+    "gmail_archive",
+    "calendar_create_event",
+    "calendar_update_event",
+    "sheets_append",
+    "sheets_update",
+    "reject_task",
+    "request_changes",
+    "spawn_specialist",
+    "clone_agent",
+    "enable_skills_on",
+    "skill_recommend",
 })
 
 # Mega domain packs (20×50) — stay in SKILL_CATALOG for search/opt-in, never default-on.
@@ -659,7 +719,7 @@ SKILL_PACKS = (
 )
 
 _TEMPLATE_TO_PACK: dict[str, str] = {
-    # sales
+    # sales / CRM
     "sales": "sales",
     "outreach": "sales",
     "sdr": "sales",
@@ -667,6 +727,10 @@ _TEMPLATE_TO_PACK: dict[str, str] = {
     "pipeline": "sales",
     "lead_qualifier": "sales",
     "qualifier": "sales",
+    "crm": "sales",
+    "booking": "sales",
+    "lead_gen": "sales",
+    "account": "sales",
     # marketing / content
     "marketing": "marketing",
     "content": "marketing",
@@ -675,13 +739,17 @@ _TEMPLATE_TO_PACK: dict[str, str] = {
     "social": "marketing",
     "brand": "marketing",
     "designer": "marketing",
-    # support
+    "product": "marketing",
+    "catalog": "marketing",
+    # support / ops
     "support": "support",
     "customer": "support",
     "success": "support",
     "cx": "support",
     "reviews": "support",
     "cs": "support",
+    "ops": "support",
+    "operations": "support",
     # coding / eng
     "coding": "coding",
     "code": "coding",
@@ -691,11 +759,15 @@ _TEMPLATE_TO_PACK: dict[str, str] = {
     "dev": "coding",
     "qa": "coding",
     "devops": "coding",
-    # research / analysis
+    "fullstack": "coding",
+    # research / analysis / finance
     "research": "research",
     "analyst": "research",
     "analysis": "research",
     "data": "research",
+    "finance": "research",
+    "bookkeep": "research",
+    "billing": "research",
     # hierarchy
     "orchestrator": "orchestrator",
     "staff_orchestrator": "orchestrator",
@@ -707,6 +779,8 @@ _TEMPLATE_TO_PACK: dict[str, str] = {
 _PACK_KEYWORDS: dict[str, tuple[str, ...]] = {
     "sales": (
         "sales", "lead", "proposal", "outreach", "cold", "book_meeting", "qualif",
+        "qualify_lead", "list_leads", "list_qualified_leads", "set_lead_status",
+        "disqualify_lead", "score_lead", "lead_status", "lead_score",
         "close", "churn", "upsell", "deal", "pipeline", "objection", "follow_up",
         "pricing", "qbr", "enrich_lead", "customer", "invoice", "payment",
         "hubspot", "draft_email", "draft_sms", "send_email", "send_sms",
@@ -718,6 +792,9 @@ _PACK_KEYWORDS: dict[str, tuple[str, ...]] = {
         "brand", "social", "generate_content", "mailchimp", "facebook", "instagram",
         "x_post", "x_reply", "illustration", "ui_copy", "case_study", "sms_campaign",
         "product", "offer",
+        # media (premium) — images / video / ads for marketing pack
+        "generate_image", "generate_video", "check_video", "edit_image", "generate_ad_creative",
+        "generate_product_shot", "image", "media", "creative", "poster", "product_shot",
     ),
     "support": (
         "support", "ticket", "triage", "refund", "escalat", "onboard", "knowledge",
@@ -738,13 +815,76 @@ _PACK_KEYWORDS: dict[str, tuple[str, ...]] = {
     "lead": (
         "spawn", "list_team", "message_agent", "create_task", "execute_goal",
         "announce_plan", "create_pattern", "list_patterns", "run_pattern",
-        "create_workflow", "review_task", "reject_task", "request_changes",
+        "create_workflow", "run_workflow", "review_task", "reject_task", "request_changes",
         "configure", "enable_skills", "promote", "status",
         "weekly", "okr", "prioritize", "meeting", "action_items", "decision",
-        "standup", "runbook",
+        "standup", "runbook", "generate_image", "use_app",
+        "qualify_lead", "move_deal", "win_deal", "lose_deal", "pipeline",
     ),
     "orchestrator": (),  # full catalog via pack handler
 }
+
+# Explicit domain skills always layered for template packs (keyword match alone can miss).
+# Never auto field flood — these are real LLM tools agents use on day one.
+_PACK_EXPLICIT: dict[str, tuple[str, ...]] = {
+    "sales": (
+        "qualify_lead", "list_leads", "list_qualified_leads", "set_lead_status",
+        "disqualify_lead", "score_lead", "write_proposal",
+        "cold_outreach", "enrich_lead", "build_sales_script",
+        "proposal_pricing", "close_plan", "upsell_crosssell", "churn_risk",
+        "create_invoice_draft", "chase_payment", "schedule_meeting",
+        "list_customers", "get_customer", "create_deal", "list_deals",
+        "move_deal", "win_deal", "lose_deal", "pipeline_summary",
+        "ensure_sales_pipeline", "run_workflow", "execute_goal",
+        "draft_email", "log_communication",
+    ),
+    "marketing": (
+        "generate_content", "ad_copy", "twitter_thread", "video_script", "seo_article",
+        "case_study", "content_calendar", "landing_page_copy", "influencer_pitch",
+        "webinar_outline", "brand_voice_guide", "brand_guidelines", "ui_copy",
+        "illustration_brief", "social_asset_pack", "personalised_video_script",
+        "generate_image", "generate_video", "check_video", "edit_image",
+        "generate_ad_creative", "generate_product_shot",
+        "research", "summarize", "mailchimp_add_subscriber", "mailchimp_create_campaign",
+    ),
+    "support": (
+        "escalate_to_human", "triage_ticket", "refund_or_credit", "onboarding_flow",
+        "onboarding_plan", "ticket_root_cause", "sla_breach_risk", "cancel_save",
+        "support_macro", "list_customers", "get_customer", "log_customer_activity",
+        "schedule_meeting", "draft_email", "search_knowledge",
+    ),
+    "coding": (
+        "write_api_endpoint", "write_tests", "refactor_code", "debug_error",
+        "docker_setup", "ci_pipeline", "code_review", "architecture_review",
+        "openapi_spec", "sql_optimise", "load_test_plan", "tech_debt_audit",
+        "pair_debug", "sdk_client", "webhook_design", "write_zapier_webhook",
+        "ab_test_ideas",
+    ),
+    "research": (
+        "research", "summarize", "generate_report", "analyze_metrics", "forecast",
+        "build_dashboard_query", "metric_definition", "cohort_analysis",
+        "funnel_report", "anomaly_detect", "experiment_design", "enrich_lead",
+        "cashflow_forecast", "search_knowledge", "search_memory",
+    ),
+    "lead": (
+        "create_workflow", "run_workflow", "execute_goal", "create_pattern", "run_pattern",
+        "review_task", "reject_task", "request_changes", "announce_plan",
+        "spawn_agent", "list_team", "message_agent", "open_meeting",
+        "qualify_lead", "move_deal", "win_deal", "lose_deal", "pipeline_summary",
+        "generate_image", "use_app",
+    ),
+}
+
+# Bill-per-use media skills — safe to enable on marketing/content templates even for members
+# (plan premium flag still enforced in set_enabled_skills).
+_MEDIA_FOR_DOMAIN = frozenset({
+    "generate_image",
+    "generate_video",
+    "check_video",
+    "edit_image",
+    "generate_ad_creative",
+    "generate_product_shot",
+})
 
 
 def skill_pack_for_template(template_type: str | None) -> str:
@@ -852,32 +992,51 @@ def skills_for_pack(
         extra = [
             s["id"] for s in catalog
             if not is_mega_catalog_skill(s)
+            and not is_auto_field_skill(s)
             and role_matches_skill(use_role if use_role != "member" else "lead", s.get("roles"))
-            and (_matches_pack_keywords(s["id"], "lead") or s["id"] in _CORE_ALWAYS)
+            and (
+                _matches_pack_keywords(s["id"], "lead")
+                or s["id"] in _CORE_ALWAYS
+                or s["id"] in _LEAD_ALWAYS
+                or s["id"] in (_PACK_EXPLICIT.get("lead") or ())
+            )
         ]
-        return list(dict.fromkeys([*base, *extra]))
+        return list(dict.fromkeys([*base, *extra, *(_LEAD_ALWAYS & set(by_id))]))
 
-    # Domain packs: role free/premium base + domain keyword hits + core always.
-    # Mega 1000-skill dump stays opt-in/search only — templates layer non-mega domain skills.
+    # Domain packs: role free/premium base + explicit domain skills + keyword hits.
+    # Mega 1000-skill dump + auto field flood stay opt-in/search only.
     use_role = role
     role_base = set(default_enabled_for_role(use_role, catalog))
     domain: list[str] = []
-    if pack in _PACK_KEYWORDS:
+    explicit = set(_PACK_EXPLICIT.get(pack) or ())
+    allow_media = pack in ("marketing", "lead") or use_role in ("lead", "orchestrator")
+
+    def _domain_ok(sid: str, s: dict) -> bool:
+        if is_mega_catalog_skill(s) or is_auto_field_skill(s):
+            return False
+        if not role_matches_skill(use_role, s.get("roles")):
+            return False
+        if sid in premium and not include_premium:
+            # Marketing templates may enable bill-per-use media for members
+            if not (allow_media and sid in _MEDIA_FOR_DOMAIN):
+                return False
+        if use_role in ("member", "specialist") and sid in _META_DANGEROUS:
+            return False
+        if use_role in ("member", "specialist") and not _filter_live_sends_for_member(sid):
+            return False
+        return True
+
+    if pack in _PACK_KEYWORDS or explicit:
         for s in catalog:
             sid = s["id"]
-            if is_mega_catalog_skill(s):
-                continue
-            if not _matches_pack_keywords(sid, pack):
-                continue
-            if not role_matches_skill(use_role, s.get("roles")):
-                continue
-            if sid in premium and not include_premium:
-                continue
-            if use_role in ("member", "specialist") and sid in _META_DANGEROUS:
-                continue
-            if use_role in ("member", "specialist") and not _filter_live_sends_for_member(sid):
-                continue
-            domain.append(sid)
+            if sid in explicit or _matches_pack_keywords(sid, pack):
+                if _domain_ok(sid, s):
+                    domain.append(sid)
+        # Explicit ids may be missing from catalog loop order — force known ids
+        for sid in explicit:
+            s = by_id.get(sid)
+            if s and _domain_ok(sid, s) and sid not in domain:
+                domain.append(sid)
 
     out: list[str] = []
     for c in _CORE_ALWAYS:
@@ -952,10 +1111,14 @@ def default_enabled_for_role(role: str, catalog: list[dict]) -> list[str]:
         for c in _CORE_ALWAYS:
             if c in by_id and c not in out:
                 out.append(c)
+        for c in _LEAD_ALWAYS:
+            if c in by_id and c not in out:
+                out.append(c)
         return list(dict.fromkeys(out))
 
     if role == "lead":
         # Premium yes; mega no (opt-in); delete_agent no; field skills via ops gate
+        # Always include CRM / workflows / media / meetings / safe integrations.
         out = []
         for i in allowed:
             if i == "delete_agent":
@@ -967,6 +1130,9 @@ def default_enabled_for_role(role: str, catalog: list[dict]) -> list[str]:
                 continue
             out.append(i)
         for c in _CORE_ALWAYS:
+            if c in by_id and c not in out and role_matches_skill(role, by_id[c].get("roles")):
+                out.append(c)
+        for c in _LEAD_ALWAYS:
             if c in by_id and c not in out and role_matches_skill(role, by_id[c].get("roles")):
                 out.append(c)
         return list(dict.fromkeys(out))

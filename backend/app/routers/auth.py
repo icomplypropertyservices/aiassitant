@@ -295,14 +295,19 @@ class DeleteAccountIn(BaseModel):
 
 
 def _subscription_live(u: models.User) -> bool:
-    if u.role == "admin":
+    """Delegate to usage_billing.subscription_is_live (single source of truth)."""
+    try:
+        from ..usage_billing import subscription_is_live
+        return subscription_is_live(u)
+    except Exception:
+        if u.role == "admin":
+            return True
+        if not u.subscription_active or u.plan in (None, "", "none"):
+            return False
+        exp = getattr(u, "subscription_expires_at", None)
+        if exp is not None and exp < datetime.utcnow():
+            return False
         return True
-    if not u.subscription_active or u.plan in (None, "", "none"):
-        return False
-    exp = getattr(u, "subscription_expires_at", None)
-    if exp is not None and exp < datetime.utcnow():
-        return False
-    return True
 
 
 def user_out(u: models.User):
@@ -347,7 +352,7 @@ async def register(data: RegisterIn, request: Request, db: Session = Depends(get
     _validate_password(data.password)
     # Create account, then auto-activate Free trial so first login can create agents
     # (ensure-orchestrator / chat / meetings) without a separate Billing click.
-    # Limits: plans.PLANS["trial"] — 10 agents, 2 companies, 50k tokens, 14 days (one-shot).
+    # Limits: plans.PLANS["trial"] — 12 agents, 2 companies, 50k tokens, 14 days (one-shot).
     # Paid plans are NOT granted here; Stripe/crypto still required via /billing/plan.
     user = models.User(
         email=email,

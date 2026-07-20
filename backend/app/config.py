@@ -263,7 +263,9 @@ try:
 except ValueError:
     AUTONOMY_MAX_TASKS_PER_TICK = 3
 try:
-    AUTONOMY_MAX_IDLE_FEEDS = max(0, int(os.getenv("AUTONOMY_MAX_IDLE_FEEDS", "1") or "1"))
+    # Hard-capped low (0–2): never_idle self-runs must not flood the GPU.
+    # Default 1 feed/tick; set 0 to disable inventing/claiming idle work.
+    AUTONOMY_MAX_IDLE_FEEDS = max(0, min(2, int(os.getenv("AUTONOMY_MAX_IDLE_FEEDS", "1") or "1")))
 except ValueError:
     AUTONOMY_MAX_IDLE_FEEDS = 1
 try:

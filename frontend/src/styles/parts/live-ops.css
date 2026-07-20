@@ -42,6 +42,17 @@
   line-height: 18px;
 }
 
+/* Credits / terminal-fail pills — compact, dismissible */
+.aba-live-ops-health-tag.ant-tag {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 18px !important;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .aba-live-ops-track-wrap {
   flex: 1 1 auto;
   min-width: 0;

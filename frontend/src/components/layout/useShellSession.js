@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { api, getUser, getToken, setAuth, connectAuthedWs } from '../../api'
 
 const SNOOZE_KEY = 'topup_modal_snooze_until'
+/** Sparse background poll when WS is quiet (was 25s). */
+const METER_POLL_MS = 45000
+/** Debounce window for WS/aba-usage → REST reconcile (was immediate every event). */
+const METER_DEBOUNCE_MS = 3000
+/** Skip poll if a fetch ran more recently than this. */
+const METER_MIN_GAP_MS = 12000
 
 function isSnoozed() {
   try {
@@ -27,6 +33,10 @@ export function useShellSession() {
   const [meter, setMeter] = useState(null)
   const [topupOpen, setTopupOpen] = useState(false)
   const autoTrigRef = useRef(false)
+  const meterFetchTimer = useRef(null)
+  const meterInflight = useRef(null)
+  const lastMeterFetchAt = useRef(0)
+  const maybeOpenTopupRef = useRef(null)
 
   const maybeOpenTopup = useCallback((m) => {
     const u = getUser()
@@ -46,12 +56,42 @@ export function useShellSession() {
             setTopupOpen(true)
             setMeter((prev) => (prev ? { ...prev, auto_checkout_url: r.checkout_url } : prev))
           } else if (r.dev_mode) {
+            // One-off reconcile after dev auto-topup (not per usage tick)
+            if (!getToken()) return
             api('/billing/meter').then(setMeter).catch(() => {})
           }
         })
         .catch(() => {})
     }
   }, [])
+
+  maybeOpenTopupRef.current = maybeOpenTopup
+
+  // Coalesce meter REST calls: WS events used to fire /billing/meter on every token tick.
+  const fetchMeter = useCallback(() => {
+    if (!getToken()) return Promise.resolve(null)
+    if (meterInflight.current) return meterInflight.current
+    lastMeterFetchAt.current = Date.now()
+    meterInflight.current = api('/billing/meter')
+      .then((full) => {
+        setMeter(full)
+        maybeOpenTopupRef.current?.(full)
+        return full
+      })
+      .catch(() => null)
+      .finally(() => {
+        meterInflight.current = null
+      })
+    return meterInflight.current
+  }, [])
+
+  const scheduleMeterRefresh = useCallback((delayMs = METER_DEBOUNCE_MS) => {
+    if (meterFetchTimer.current) clearTimeout(meterFetchTimer.current)
+    meterFetchTimer.current = setTimeout(() => {
+      meterFetchTimer.current = null
+      fetchMeter()
+    }, delayMs)
+  }, [fetchMeter])
 
   useEffect(() => {
     api('/auth/me')
@@ -62,22 +102,12 @@ export function useShellSession() {
           setMeter(me.meter)
           maybeOpenTopup(me.meter)
         } else {
-          api('/billing/meter')
-            .then((m) => {
-              setMeter(m)
-              maybeOpenTopup(m)
-            })
-            .catch(() => {})
+          fetchMeter()
         }
         if (me.needs_subscription) nav('/subscribe', { replace: true })
       })
       .catch(() => {
-        api('/billing/meter')
-          .then((m) => {
-            setMeter(m)
-            maybeOpenTopup(m)
-          })
-          .catch(() => {})
+        fetchMeter()
       })
 
     const applyUsage = (m) => {
@@ -89,19 +119,19 @@ export function useShellSession() {
           setTimeout(() => maybeOpenTopup(next), 0)
           return next
         })
+        // Debounced reconcile only — do not double-fetch on every WS usage event
+        scheduleMeterRefresh(METER_DEBOUNCE_MS)
         return
       }
       setMeter((prev) => {
         if (!prev && m.meter) {
           setTimeout(() => maybeOpenTopup(m.meter), 0)
+          scheduleMeterRefresh(METER_DEBOUNCE_MS)
           return m.meter
         }
         if (!prev) {
-          // No prior meter — force a full fetch
-          api('/billing/meter').then((full) => {
-            setMeter(full)
-            maybeOpenTopup(full)
-          }).catch(() => {})
+          // No prior meter — one coalesced fetch (not per-event)
+          scheduleMeterRefresh(0)
           return prev
         }
         const used =
@@ -131,14 +161,9 @@ export function useShellSession() {
         setTimeout(() => maybeOpenTopup(next), 0)
         return next
       })
-      // Always reconcile with server so header never drifts after background runs
+      // Debounced server reconcile instead of immediate fetch on every usage tick
       if (m.tokens || m.meter || m.tokens_used_period != null) {
-        api('/billing/meter')
-          .then((full) => {
-            setMeter(full)
-            maybeOpenTopup(full)
-          })
-          .catch(() => {})
+        scheduleMeterRefresh(METER_DEBOUNCE_MS)
       }
     }
 
@@ -160,42 +185,38 @@ export function useShellSession() {
       }
     } catch { /* ignore */ }
 
-    // Poll meter so background agent runs (cron / offline autonomy) update the header
-    // even if the WebSocket drops (common on Vercel).
+    // Sparse poll so background agent runs update the header if WS drops.
     const poll = setInterval(() => {
       if (!getToken()) return
-      api('/billing/meter')
-        .then((full) => {
-          setMeter(full)
-          maybeOpenTopup(full)
-        })
-        .catch(() => {})
-    }, 25000)
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      // Skip if we just reconciled via WS debounce or focus
+      if (Date.now() - lastMeterFetchAt.current < METER_MIN_GAP_MS) return
+      fetchMeter()
+    }, METER_POLL_MS)
 
-    // Also refresh after tab focus (user returns after agents ran offline)
+    // Refresh when user returns after agents ran offline (coalesced)
     const onFocus = () => {
       if (!getToken()) return
-      api('/billing/meter')
-        .then((full) => {
-          setMeter(full)
-          maybeOpenTopup(full)
-        })
-        .catch(() => {})
+      if (Date.now() - lastMeterFetchAt.current < 5000) return
+      fetchMeter()
     }
     window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', () => {
+    const onVisibility = () => {
       if (document.visibilityState === 'visible') onFocus()
-    })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       window.removeEventListener('aba-usage', onAbaUsage)
       window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
       clearInterval(poll)
+      if (meterFetchTimer.current) clearTimeout(meterFetchTimer.current)
       try {
         ws?.close()
       } catch { /* ignore */ }
     }
-  }, [nav, maybeOpenTopup])
+  }, [nav, maybeOpenTopup, fetchMeter, scheduleMeterRefresh])
 
   return {
     user,

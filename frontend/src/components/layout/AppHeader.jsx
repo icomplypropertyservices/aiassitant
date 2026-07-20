@@ -96,15 +96,22 @@ export default function AppHeader({
           />
         </Tooltip>
         <TokenMeter
+          user={user}
           onClick={() => {
             hapticLight()
-            nav('/billing')
+            // Route from existing meter flags — no extra poll
+            const path =
+              meter?.upgrade_cta_path
+              || (meter?.needs_subscription || user?.needs_subscription ? '/subscribe' : '/billing')
+            nav(path)
           }}
           meter={
             meter
               ? {
                   ...meter,
                   plan: meter.plan || user?.plan,
+                  needs_subscription:
+                    meter.needs_subscription ?? user?.needs_subscription,
                   subscription_expires_at:
                     meter.subscription_expires_at || user?.subscription_expires_at,
                 }
@@ -115,7 +122,7 @@ export default function AppHeader({
           <Tag
             color="blue"
             className="aba-v2-header__plan aba-card-clickable"
-            onClick={() => nav('/billing')}
+            onClick={() => nav(user?.needs_subscription ? '/subscribe' : '/billing')}
           >
             {user.plan.replace(/_/g, ' ')}
           </Tag>

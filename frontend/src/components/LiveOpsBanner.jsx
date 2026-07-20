@@ -3,7 +3,7 @@ import { Tag, Typography, Space, Button, Tooltip } from 'antd'
 import {
   ThunderboltOutlined, RobotOutlined, UserOutlined, ApiOutlined,
   ClusterOutlined, CheckCircleOutlined, LoadingOutlined, CloseCircleOutlined,
-  RightOutlined,
+  RightOutlined, WarningOutlined, DollarOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, connectAuthedWs } from '../api'
@@ -28,6 +28,8 @@ const STATUS_COLOR = {
   info: 'blue',
 }
 
+const CREDIT_RE = /credit|top.?up|billing|hard.?block|insufficient|out of (fuel|balance)|spending.?limit|payment.?required|402/i
+
 function eventAgentId(e) {
   if (!e) return null
   const id = e.agent_id ?? e.payload?.agent_id ?? e.payload?.from_agent_id
@@ -47,22 +49,90 @@ function eventAgentLabel(e, nameMap) {
   )
 }
 
+function eventLooksLikeCredits(e) {
+  if (!e) return false
+  const blob = [
+    e.title, e.detail, e.message, e.status, e.kind,
+    e.reason, e.error, e.code,
+    e.payload?.error, e.payload?.message, e.payload?.reason,
+  ].filter(Boolean).join(' ')
+  return CREDIT_RE.test(blob)
+}
+
+/**
+ * Derive lightweight health from ops payload only (no extra meter polls).
+ * Prefer explicit snapshot.health / snapshot.credits when present.
+ */
+function deriveHealth(events, snapshot) {
+  const health = snapshot?.health || snapshot?.status || null
+  const credits = snapshot?.credits ?? snapshot?.billing ?? snapshot?.meter ?? null
+
+  const failed = (events || []).filter((e) => {
+    const st = String(e?.status || '').toLowerCase()
+    return st === 'failed' || st === 'error' || st === 'terminal'
+  })
+
+  const creditFromEvents = (events || []).some(eventLooksLikeCredits)
+  const creditFromSnap = !!(
+    health
+    && (
+      health.credits_issue
+      || health.needs_topup
+      || health.hard_block
+      || health.credits_exhausted
+      || CREDIT_RE.test(String(health.message || health.detail || health.reason || ''))
+    )
+  ) || !!(
+    credits
+    && (
+      credits.needs_topup
+      || credits.hard_block
+      || credits.hard_block_soon
+      || credits.credits_exhausted
+      || (typeof credits.credits === 'number' && credits.credits <= 0)
+      || (typeof credits.balance === 'number' && credits.balance <= 0)
+    )
+  )
+
+  const terminalFail = !!(
+    health?.terminal_fail
+    || health?.terminal
+    || (health?.status && /terminal|fatal|hard/i.test(String(health.status)))
+  ) || failed.some((e) => /terminal|fatal|hard.?fail/i.test(
+    [e.title, e.detail, e.message, e.kind].filter(Boolean).join(' '),
+  ))
+
+  return {
+    failedCount: failed.length,
+    latestFail: failed[0] || null,
+    creditsIssue: creditFromEvents || creditFromSnap,
+    terminalFail,
+    headline: health?.headline || health?.message || snapshot?.headline || null,
+  }
+}
+
 /**
  * Sticky real-time action/plan ticker under the app header.
  * - Horizontal scroll marquee that restarts on every new event
  * - Each chip opens that agent’s chat when agent_id is present
- * - Polls REST in production (WS often unavailable on serverless)
+ * - Polls REST sparingly in production (WS preferred; skip REST while WS healthy)
+ * - Surfaces terminal fail / credits from existing ops payload only
  */
 export default function LiveOpsBanner() {
   const nav = useNavigate()
   const [events, setEvents] = useState([])
   const [running, setRunning] = useState([])
+  const [snapshot, setSnapshot] = useState(null)
   const [agentNames, setAgentNames] = useState({})
   const [tickKey, setTickKey] = useState(0)
   const [paused, setPaused] = useState(false)
+  // Session dismiss so health pills don't thrash the bar after user acknowledges
+  const [dismissedCredits, setDismissedCredits] = useState(false)
+  const [dismissedFails, setDismissedFails] = useState(false)
   const scrollRef = useRef(null)
   const wsRef = useRef(null)
   const seenIds = useRef(new Set())
+  const inflight = useRef(false)
 
   const bumpTicker = useCallback(() => {
     setTickKey((k) => k + 1)
@@ -78,6 +148,9 @@ export default function LiveOpsBanner() {
       if (seenIds.current.size > 200) {
         seenIds.current = new Set([...seenIds.current].slice(-100))
       }
+      // Re-surface health if a new credit/fail event arrives after dismiss
+      if (eventLooksLikeCredits(entry)) setDismissedCredits(false)
+      if (String(entry.status || '').toLowerCase() === 'failed') setDismissedFails(false)
     }
 
     setEvents((prev) => {
@@ -135,10 +208,12 @@ export default function LiveOpsBanner() {
     )
   }, [bumpTicker])
 
-  // Load agent names so chips show "Sales Lead" not just titles
+  // Load agent names so chips show "Sales Lead" not just titles — once only
   useEffect(() => {
+    let cancelled = false
     api('/agents/')
       .then((list) => {
+        if (cancelled) return
         const map = {}
         for (const a of Array.isArray(list) ? list : []) {
           if (a?.id != null) map[a.id] = a.name || `Agent #${a.id}`
@@ -146,38 +221,81 @@ export default function LiveOpsBanner() {
         setAgentNames(map)
       })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
-  // Initial load + poll (prod WS is often a no-op on Vercel)
+  // Initial load + sparse poll. Prefer WS when connected; pause when tab hidden.
   useEffect(() => {
     let cancelled = false
+    let wsConnected = false
+    let lastWsAt = 0
+    // Sparse: was aggressive REST; keep ~18–20s and skip while WS is live
+    const pollMs = import.meta.env.PROD ? 20000 : 22000
+    const wsSkipMs = 28000
+
     const load = () => {
+      if (cancelled) return
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      if (wsConnected && Date.now() - lastWsAt < wsSkipMs) return
+      if (inflight.current) return
+      inflight.current = true
       api('/ops/live?limit=40')
         .then((r) => {
           if (cancelled) return
-          const list = r.events || []
+          const list = r?.events || []
           mergeList(list)
-          if (r.snapshot?.running) setRunning(r.snapshot.running)
+          if (r?.snapshot) {
+            setSnapshot(r.snapshot)
+            if (Array.isArray(r.snapshot.running)) setRunning(r.snapshot.running)
+          } else if (r?.snapshot?.running) {
+            setRunning(r.snapshot.running)
+          }
         })
-        .catch(() => {})
+        .catch(() => {
+          // Never crash the shell on ops poll failure
+        })
+        .finally(() => {
+          inflight.current = false
+        })
     }
     load()
-    const pollMs = import.meta.env.PROD ? 4000 : 8000
     const iv = setInterval(load, pollMs)
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     let ws
     try {
       ws = connectAuthedWs('/ops/ws')
+      ws.onopen = () => {
+        wsConnected = true
+        lastWsAt = Date.now()
+      }
+      ws.onclose = () => {
+        wsConnected = false
+      }
+      ws.onerror = () => {
+        wsConnected = false
+      }
       ws.onmessage = (ev) => {
         try {
           const m = JSON.parse(ev.data)
-          if (m.type === 'auth_ok') return
+          if (m.type === 'auth_ok') {
+            wsConnected = true
+            lastWsAt = Date.now()
+            return
+          }
+          wsConnected = true
+          lastWsAt = Date.now()
           if (m.event === 'ops' && m.entry) pushEntry(m.entry)
           if (m.event === 'snapshot' && m.snapshot) {
+            setSnapshot(m.snapshot)
             mergeList(m.snapshot.events || [])
             setRunning(m.snapshot.running || [])
           }
-        } catch { /* ignore */ }
+        } catch { /* ignore bad frames */ }
       }
       wsRef.current = ws
     } catch { /* WS optional */ }
@@ -185,6 +303,7 @@ export default function LiveOpsBanner() {
     return () => {
       cancelled = true
       clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVisibility)
       try { ws?.close() } catch { /* ignore */ }
     }
   }, [mergeList, pushEntry])
@@ -193,7 +312,6 @@ export default function LiveOpsBanner() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el || paused) return
-    // Smooth snap to start (newest on the left)
     try {
       el.scrollTo({ left: 0, behavior: 'smooth' })
     } catch {
@@ -201,7 +319,13 @@ export default function LiveOpsBanner() {
     }
   }, [events, tickKey, paused])
 
+  const health = useMemo(
+    () => deriveHealth(events, snapshot),
+    [events, snapshot],
+  )
+
   const openOps = () => nav('/ops')
+  const openBilling = () => nav('/billing')
 
   const openEvent = (e, ev) => {
     ev?.stopPropagation?.()
@@ -237,6 +361,10 @@ export default function LiveOpsBanner() {
 
   const useMarquee = chips.length >= 3 && !paused
 
+  const showCredits = health.creditsIssue && !dismissedCredits
+  const showFails = (health.terminalFail || health.failedCount > 0) && !dismissedFails
+    && !showCredits // credits take priority when both fire
+
   return (
     <div className="aba-live-ops-banner" aria-label="Live ops ticker">
       <Button
@@ -255,6 +383,57 @@ export default function LiveOpsBanner() {
           </Tag>
         ) : null}
       </Button>
+
+      {/* Health from ops payload only — dismissible, no extra polling */}
+      {showCredits && (
+        <Tooltip title={health.headline || 'Top up credits so agents can keep running tools and models'}>
+          <Tag
+            color="error"
+            icon={<DollarOutlined />}
+            className="aba-live-ops-health-tag"
+            style={{ cursor: 'pointer', margin: 0, flex: '0 0 auto' }}
+            onClick={openBilling}
+            closable
+            onClose={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setDismissedCredits(true)
+            }}
+          >
+            Credits
+          </Tag>
+        </Tooltip>
+      )}
+      {showFails && (
+        <Tooltip
+          title={
+            health.latestFail
+              ? `${health.latestFail.title || 'Failure'}${health.latestFail.detail ? `: ${String(health.latestFail.detail).slice(0, 120)}` : ''}`
+              : (health.headline || 'Recent agent step failed')
+          }
+        >
+          <Tag
+            color="error"
+            icon={<WarningOutlined />}
+            className="aba-live-ops-health-tag"
+            style={{ cursor: 'pointer', margin: 0, flex: '0 0 auto' }}
+            onClick={() => {
+              if (health.latestFail) openEvent(health.latestFail)
+              else openOps()
+            }}
+            closable
+            onClose={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setDismissedFails(true)
+            }}
+          >
+            {health.terminalFail
+              ? 'Terminal fail'
+              : `${health.failedCount} failed`}
+          </Tag>
+        </Tooltip>
+      )}
 
       <div
         className={`aba-live-ops-track-wrap${useMarquee ? ' is-marquee' : ''}`}
@@ -291,7 +470,7 @@ export default function LiveOpsBanner() {
                 >
                   <Tag
                     color={STATUS_COLOR[e.status] || 'default'}
-                    className={`aba-live-ops-chip status-${e.status || 'info'}${aid != null ? ' has-agent' : ''}`}
+                    className={`aba-live-ops-chip status-${e.status || 'info'}${aid != null ? ' has-agent' : ''}${e.status === 'failed' ? ' is-failed' : ''}`}
                     onClick={(ev) => openEvent(e, ev)}
                     icon={(
                       <span className="aba-live-ops-chip-icon">

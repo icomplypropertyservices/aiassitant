@@ -24,7 +24,13 @@ from ..plans import (
     normalize_billing_interval,
     enrich_plan_for_public,
 )
-from ..usage_billing import meter_snapshot, ensure_period
+from ..usage_billing import (
+    meter_snapshot,
+    ensure_period,
+    heal_subscription_flags,
+    subscription_is_live,
+    TRIAL_ENDED_MSG,
+)
 from .. import crypto_payments as crypto_pay
 from ..storage_quota import (
     storage_snapshot,
@@ -209,14 +215,31 @@ def _session_as_dict(session) -> dict:
         }
 
 
+def _meta_dict(raw) -> dict:
+    if hasattr(raw, "to_dict"):
+        raw = raw.to_dict()
+    return dict(raw or {})
+
+
+def _user_id_from_meta(meta: dict) -> int:
+    try:
+        return int(meta.get("user_id") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _fulfill_stripe_session(db: Session, session) -> dict:
-    """Apply top-up or plan from a completed Stripe Checkout session. Idempotent."""
+    """Apply top-up or plan from a completed Stripe Checkout session. Idempotent.
+
+    Plan checkouts call ``_activate_plan`` which sets:
+      - user.plan, user.subscription_active=True
+      - subscription_expires_at=None for paid plans
+      - Balance.tokens_included from plan pool + period reset
+    Never free-grants paid plans — only runs after Stripe marks the session paid.
+    """
     session = _session_as_dict(session)
-    meta = session.get("metadata") or {}
-    if hasattr(meta, "to_dict"):
-        meta = meta.to_dict()
-    meta = dict(meta or {})
-    user_id = int(meta.get("user_id", 0) or 0)
+    meta = _meta_dict(session.get("metadata"))
+    user_id = _user_id_from_meta(meta)
     if not user_id:
         raise HTTPException(400, "Session missing user_id metadata")
     kind = meta.get("kind") or ""
@@ -260,11 +283,19 @@ def _fulfill_stripe_session(db: Session, session) -> dict:
         u = db.get(models.User, user_id)
         if not u:
             raise HTTPException(404, "User not found")
-        plan = meta.get("plan") or "starter"
+        plan = (meta.get("plan") or "starter").strip()
+        # Paid activation only — never grant plan without a paid Checkout session
+        if plan in ("", "none", "trial"):
+            raise HTTPException(400, f"Invalid paid plan in checkout metadata: {plan!r}")
+        limits = plan_limits(plan)
+        if not limits.get("requires_payment") and plan != "pay_as_you_go":
+            raise HTTPException(400, f"Plan {plan!r} is not a paid checkout plan")
         _activate_plan(db, u, plan, meta.get("company_name") or None)
         u = db.get(models.User, user_id)
-        if u and hasattr(u, "subscription_expires_at"):
-            u.subscription_expires_at = None
+        if u:
+            u.subscription_active = True
+            if hasattr(u, "subscription_expires_at"):
+                u.subscription_expires_at = None
             db.flush()
         amount = float(session.get("amount_total") or 0) / 100.0
     elif kind == "storage":
@@ -294,6 +325,162 @@ def _fulfill_stripe_session(db: Session, session) -> dict:
     )
     db.commit()
     return {"kind": kind, "plan": plan or None, "amount": amount, "user_id": user_id}
+
+
+def _user_from_stripe_object(db: Session, obj: dict) -> models.User | None:
+    """Resolve app user from Stripe Checkout/Subscription/Invoice metadata or client_reference."""
+    meta = _meta_dict(obj.get("metadata"))
+    uid = _user_id_from_meta(meta)
+    if uid:
+        return db.get(models.User, uid)
+    # Nested subscription metadata (invoice.payment_succeeded often has parent subscription)
+    parent_meta = _meta_dict(obj.get("subscription_details") and {})
+    if not parent_meta and isinstance(obj.get("lines"), dict):
+        pass
+    # client_reference_id sometimes set to user id
+    try:
+        cref = obj.get("client_reference_id")
+        if cref:
+            return db.get(models.User, int(cref))
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _deactivate_paid_subscription(db: Session, user: models.User, *, reason: str = "cancelled") -> dict:
+    """Mark subscription inactive after Stripe cancel / unpaid. Keeps plan id for resubscribe UX.
+
+    Does not free-grant anything. Admins are never deactivated.
+    """
+    if not user or getattr(user, "role", "") == "admin":
+        return {"ok": False, "reason": "skip_admin_or_missing"}
+    plan = (user.plan or "").strip()
+    # Only touch paid / post-trial access — leave pure none alone
+    user.subscription_active = False
+    # Expired stamp so needs_subscription / _subscription_live are consistent
+    if plan not in ("none", "", "trial"):
+        user.subscription_expires_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    return {
+        "ok": True,
+        "user_id": user.id,
+        "plan": user.plan,
+        "subscription_active": False,
+        "reason": reason,
+    }
+
+
+def _reactivate_from_subscription(
+    db: Session,
+    user: models.User,
+    plan: str | None,
+    *,
+    reset_pool: bool = False,
+) -> dict:
+    """Renew / re-open paid access after invoice paid or subscription becomes active.
+
+    - reset_pool=True (invoice renewals): full _activate_plan → new period token pool
+    - reset_pool=False (subscription.updated active): only flip flags + heal included cap
+    Never activates trial via webhook. Never free-grants without a prior paid plan id.
+    """
+    if not user or getattr(user, "role", "") == "admin":
+        return {"ok": False, "reason": "skip"}
+    p = (plan or user.plan or "").strip()
+    if p in ("", "none", "trial"):
+        # Metadata missing — keep existing paid plan if any
+        p = (user.plan or "").strip()
+    if p in ("", "none", "trial"):
+        return {"ok": False, "reason": "no_paid_plan"}
+    limits = plan_limits(p)
+    if not limits.get("requires_payment"):
+        return {"ok": False, "reason": f"not_paid_plan:{p}"}
+
+    same_plan = (user.plan or "").strip() == p
+    already_live = bool(user.subscription_active) and same_plan
+    if reset_pool or not already_live or not same_plan:
+        _activate_plan(db, user, p, None)
+    u = db.get(models.User, user.id) or user
+    u.subscription_active = True
+    u.subscription_expires_at = None
+    # Heal included pool without wiping usage when only re-opening flags
+    if not reset_pool:
+        bal = db.query(models.Balance).filter_by(user_id=u.id).first()
+        if bal:
+            expected = int(limits.get("tokens_included") or 0)
+            if expected > int(bal.tokens_included or 0):
+                bal.tokens_included = expected
+            ensure_period(bal, u)
+    db.commit()
+    db.refresh(u)
+    return {
+        "ok": True,
+        "user_id": u.id,
+        "plan": p,
+        "subscription_active": True,
+        "pool_reset": bool(reset_pool or not already_live or not same_plan),
+    }
+
+
+def _handle_stripe_subscription_event(db: Session, etype: str, obj: dict) -> dict | None:
+    """Lifecycle: cancel / renew. Safe no-op when user cannot be resolved.
+
+    Events:
+      - customer.subscription.deleted → deactivate
+      - customer.subscription.updated → deactivate if canceled/unpaid; reactivate if active
+      - invoice.paid / invoice.payment_succeeded → reactivate + refresh pool (renewal)
+    """
+    if not obj:
+        return None
+    meta = _meta_dict(obj.get("metadata"))
+    user = _user_from_stripe_object(db, obj)
+    if not user and etype.startswith("invoice."):
+        # Invoice: metadata may be empty; try subscription metadata via lines/parent fields
+        sub = obj.get("subscription")
+        # When expanded as object
+        if isinstance(sub, dict):
+            user = _user_from_stripe_object(db, sub)
+            if not meta.get("plan"):
+                meta = {**_meta_dict(sub.get("metadata")), **meta}
+        # parent.subscription_details.metadata (API 2022+)
+        parent = obj.get("parent") if isinstance(obj.get("parent"), dict) else {}
+        sd = parent.get("subscription_details") if isinstance(parent, dict) else None
+        if isinstance(sd, dict):
+            sm = _meta_dict(sd.get("metadata"))
+            if not user:
+                uid = _user_id_from_meta(sm)
+                if uid:
+                    user = db.get(models.User, uid)
+            meta = {**sm, **meta}
+
+    if not user:
+        return {"ok": False, "reason": "user_not_found", "type": etype}
+
+    status = (obj.get("status") or "").lower()
+    plan = (meta.get("plan") or "").strip() or None
+
+    if etype == "customer.subscription.deleted":
+        return _deactivate_paid_subscription(db, user, reason="subscription_deleted")
+
+    if etype == "customer.subscription.updated":
+        if status in ("canceled", "unpaid", "incomplete_expired"):
+            return _deactivate_paid_subscription(db, user, reason=f"subscription_{status}")
+        if status in ("active", "trialing"):
+            # cancel_at_period_end still active until period ends — keep access; do not zero tokens
+            return _reactivate_from_subscription(db, user, plan, reset_pool=False)
+        return {"ok": True, "ignored_status": status, "user_id": user.id}
+
+    if etype in ("invoice.paid", "invoice.payment_succeeded"):
+        billing_reason = (obj.get("billing_reason") or "").lower()
+        # Only subscription invoices (not one-off top-ups without sub)
+        if obj.get("subscription") or billing_reason.startswith("subscription"):
+            # subscription_cycle = renew → refresh pool; subscription_create usually pairs
+            # with checkout.session.completed (idempotent activate).
+            renew = billing_reason in ("subscription_cycle", "subscription_update")
+            return _reactivate_from_subscription(db, user, plan, reset_pool=renew)
+        return {"ok": True, "ignored": "non_subscription_invoice", "user_id": user.id}
+
+    return None
 
 
 class TopupIn(BaseModel):
@@ -436,26 +623,116 @@ def preorder_status():
 
 @router.get("/rates")
 def rates():
-    """Public token rates ($ / 1M tokens) — neutral names only."""
-    rows = public_rates()
+    """Public token rates ($ / 1M tokens) — neutral names only.
+
+    Always returns a list of fully null-safe rows (usd_per_1m is float;
+    flat_usd is float or null). Never 500s the Billing UI.
+    """
+    try:
+        rows = public_rates() or []
+        if not isinstance(rows, list):
+            rows = []
+        # Harden each row so clients never Number(undefined).toFixed
+        safe = []
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            usd = r.get("usd_per_1m")
+            flat = r.get("flat_usd")
+            try:
+                usd_f = float(usd) if usd is not None else 0.0
+            except (TypeError, ValueError):
+                usd_f = 0.0
+            if flat is None:
+                flat_f = None
+            else:
+                try:
+                    flat_f = float(flat)
+                except (TypeError, ValueError):
+                    flat_f = None
+            safe.append({
+                "id": str(r.get("id") or "unknown"),
+                "label": str(r.get("label") or r.get("id") or "—"),
+                "blurb": str(r.get("blurb") or ""),
+                "usd_per_1m": usd_f,
+                "flat_usd": flat_f,
+                "group": str(r.get("group") or "managed"),
+            })
+        rows = safe
+    except Exception:
+        # Never 500 the Billing UI over a bad rate row / None format
+        rows = []
     return {
         "currency": "usd",
         "unit": "per_1m_tokens",
         "note": (
             "Included monthly tokens cover managed chat until the pool is used. "
-            "Overage and media bill your credit wallet at these rates."
+            "Overage and media bill your credit wallet at these rates. "
+            "Premium skills fail closed — they charge credits first and never free-run."
         ),
+        "billing_policy": {
+            "premium_skills_fail_closed": True,
+            "free_wallet_grants": False,
+            "included_pool_first": True,
+            "media_always_wallet": True,
+        },
         "rates": rows,
     }
 
 
 @router.get("/meter")
 def meter(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Clear customer-facing token + credit meter."""
-    snap = meter_snapshot(db, user)
-    snap["tokens_included_label"] = format_token_count(snap["tokens_included"])
-    snap["tokens_used_label"] = format_token_count(snap["tokens_used_period"])
-    snap["tokens_remaining_label"] = format_token_count(snap["tokens_remaining_included"])
+    """Clear customer-facing token + credit meter.
+
+    Always includes remaining pool + needs_subscription so the header TokenMeter
+    and Billing page can CTA upgrade/subscribe without a separate /auth/me round-trip.
+    All numeric labels are null-safe (format_token_count never raises on None).
+    """
+    snap = meter_snapshot(db, user) or {}
+    rem = int(snap.get("tokens_remaining_included") or 0)
+    used = int(snap.get("tokens_used_period") or 0)
+    included = int(snap.get("tokens_included") or 0)
+    credits = snap.get("credits")
+    try:
+        credits_f = float(credits) if credits is not None else 0.0
+    except (TypeError, ValueError):
+        credits_f = 0.0
+    snap["credits"] = credits_f
+    snap["tokens_included"] = included
+    snap["tokens_used_period"] = used
+    snap["tokens_remaining_included"] = rem
+    snap["tokens_included_label"] = format_token_count(included)
+    snap["tokens_used_label"] = format_token_count(used)
+    snap["tokens_remaining_label"] = format_token_count(rem)
+    # Explicit aliases for clients that expect short keys
+    snap["tokens_remaining"] = rem
+    snap["needs_subscription"] = bool(snap.get("needs_subscription"))
+    snap["trial_ended"] = bool(snap.get("trial_ended"))
+    snap["hard_block"] = bool(snap.get("hard_block"))
+    snap["needs_topup"] = bool(snap.get("needs_topup"))
+    snap["upgrade_cta_path"] = snap.get("upgrade_cta_path") or (
+        "/subscribe" if snap["needs_subscription"] else "/billing"
+    )
+    # Ensure structured CTAs for low credits / trial ended
+    if snap["needs_subscription"] and not snap.get("primary_cta"):
+        snap["primary_cta"] = {
+            "label": "Subscribe now" if snap["trial_ended"] else "Choose a plan",
+            "path": "/subscribe",
+            "action": "subscribe",
+        }
+    elif (snap["hard_block"] or snap["needs_topup"]) and not snap.get("primary_cta"):
+        snap["primary_cta"] = {
+            "label": "Buy credits",
+            "path": "/billing",
+            "action": "topup",
+        }
+        snap["secondary_cta"] = {
+            "label": "Upgrade plan",
+            "path": "/subscribe",
+            "action": "subscribe",
+        }
+    snap.setdefault("cta_buy_credits_path", "/billing")
+    snap.setdefault("cta_subscribe_path", "/subscribe")
     return snap
 
 
@@ -464,10 +741,11 @@ def reconcile_plan(db: Session = Depends(get_db), user=Depends(get_current_user)
     """
     Sync included token pool (and paid-plan expiry flags) from the user's plan.
     Fixes profiles that show plan=business but Tokens 0/0 after a partial activate.
+    Never restores token pools for expired trials (subscription_is_live gate).
     """
-    from ..usage_billing import ensure_period, heal_subscription_flags
-
     u = db.get(models.User, user.id) or user
+    # Expire stale trial flags before healing pool
+    heal_subscription_flags(db, u)
     bal = db.query(models.Balance).filter_by(user_id=u.id).first()
     if not bal:
         bal = models.Balance(user_id=u.id, credits=0.0)
@@ -476,15 +754,14 @@ def reconcile_plan(db: Session = Depends(get_db), user=Depends(get_current_user)
     limits = plan_limits(u.plan or "none")
     expected = int(limits.get("tokens_included") or 0)
     before = int(bal.tokens_included or 0)
-    # Force-apply plan pool for active subscriptions
-    if u.subscription_active or u.role == "admin":
+    # Force-apply plan pool only for *live* subscriptions (not expired trials)
+    if subscription_is_live(u) or u.role == "admin":
         if expected > 0:
             bal.tokens_included = expected
         if not bal.period_start:
             from datetime import datetime as _dt
             bal.period_start = _dt.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     ensure_period(bal, u)
-    heal_subscription_flags(db, u)
     db.commit()
     db.refresh(u)
     db.refresh(bal)
@@ -492,6 +769,8 @@ def reconcile_plan(db: Session = Depends(get_db), user=Depends(get_current_user)
     return {
         "ok": True,
         "plan": u.plan,
+        "subscription_active": bool(u.subscription_active),
+        "subscription_live": subscription_is_live(u),
         "tokens_included_before": before,
         "tokens_included_after": int(bal.tokens_included or 0),
         "expected_from_plan": expected,
@@ -669,8 +948,25 @@ def buy_storage_addon(
 
 @router.post("/topup")
 def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    if data.amount < 1 or data.amount > 1000:
+    """Credit wallet top-up via Stripe Checkout (mode=payment) or dev grant.
+
+    Fulfillment path (do not break):
+      1) POST /billing/topup → Checkout session metadata kind=topup, user_id, amount
+      2) success_url → /billing?checkout=success&session_id={CHECKOUT_SESSION_ID}
+      3) POST /billing/checkout/confirm OR webhook checkout.session.completed
+         → _fulfill_stripe_session adds amount to Balance.credits (idempotent)
+    """
+    try:
+        amount = float(data.amount)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Top-up amount must be a number") from None
+    if amount < 1 or amount > 1000:
         raise HTTPException(400, "Top-up must be between $1 and $1000")
+    # Stripe unit_amount is integer cents — never send 0
+    unit_amount = int(round(amount * 100))
+    if unit_amount < 100:
+        raise HTTPException(400, "Top-up must be at least $1.00")
+
     stripe = _stripe()
     if stripe:
         success, cancel = _checkout_urls("/billing", "/billing")
@@ -682,8 +978,11 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
                         "line_items": [{
                             "price_data": {
                                 "currency": "usd",
-                                "product_data": {"name": "AI Business Assistant credit top-up"},
-                                "unit_amount": int(round(data.amount * 100)),
+                                "product_data": {
+                                    "name": "AI Business Assistant credit top-up",
+                                    "description": f"Wallet refill ${amount:.2f} — overage, media, premium skills",
+                                },
+                                "unit_amount": unit_amount,
                             },
                             "quantity": 1,
                         }],
@@ -693,7 +992,7 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
                         "metadata": {
                             "kind": "topup",
                             "user_id": str(user.id),
-                            "amount": str(data.amount),
+                            "amount": str(amount),
                             "platform": (data.platform or "web")[:32],
                             "client": (data.client or "web")[:32],
                         },
@@ -703,11 +1002,18 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
             )
         except Exception as e:
             raise HTTPException(502, f"Stripe Checkout error: {e}") from e
+        url = getattr(session, "url", None) or (session.get("url") if isinstance(session, dict) else None)
+        sid = getattr(session, "id", None) or (session.get("id") if isinstance(session, dict) else None)
+        if not url or not sid:
+            raise HTTPException(502, "Stripe Checkout session missing url or id")
         return {
-            "checkout_url": session.url,
-            "session_id": session.id,
+            "checkout_url": url,
+            "session_id": sid,
             "provider": "stripe",
             "stripe_mode": _stripe_mode(),
+            "kind": "topup",
+            "amount": amount,
+            "message": f"Redirecting to Stripe to add ${amount:.2f} wallet credits.",
         }
     # Production never grants free credits without Stripe (crypto is separate endpoint)
     if config.IS_PRODUCTION:
@@ -720,9 +1026,17 @@ def topup(data: TopupIn, db: Session = Depends(get_db), user=Depends(get_current
     if not bal:
         bal = models.Balance(user_id=user.id, credits=0.0)
         db.add(bal)
-    bal.credits += data.amount
+        db.flush()
+    bal.credits = float(bal.credits or 0) + amount
     db.commit()
-    return {"credits": round(bal.credits, 4), "dev_mode": True}
+    db.refresh(bal)
+    return {
+        "credits": round(float(bal.credits or 0), 4),
+        "amount": amount,
+        "kind": "topup",
+        "dev_mode": True,
+        "message": f"Dev top-up +${amount:.2f}",
+    }
 
 
 @router.get("/auto-topup")
@@ -867,18 +1181,13 @@ def trigger_auto_topup(db: Session = Depends(get_db), user=Depends(get_current_u
     }
 
 
-# TRIAL_DAYS imported from plans (single source of truth with agent/company caps)
-TRIAL_ENDED_MSG = "Trial ended — choose a paid plan"
-
+# TRIAL_DAYS / TRIAL_ENDED_MSG: plans + usage_billing (Subscribe.jsx / TokenMeter)
 
 def _trial_live(user: models.User) -> bool:
     """True when user is on an unexpired free trial."""
-    if (user.plan or "") != "trial" or not user.subscription_active:
+    if (user.plan or "") != "trial":
         return False
-    exp = getattr(user, "subscription_expires_at", None)
-    if exp is None:
-        return False
-    return exp > datetime.utcnow()
+    return subscription_is_live(user)
 
 
 def _had_or_has_trial(db: Session, user: models.User) -> bool:
@@ -904,6 +1213,7 @@ def _had_or_has_trial(db: Session, user: models.User) -> bool:
 def _activate_plan(db: Session, user: models.User, plan: str, company_name: str | None = None):
     """Activate a plan (trial / paid post-checkout). Commits plan+balance first.
 
+    IS_PRODUCTION: paid plans only via Stripe/crypto fulfill — never call this for free paid grants.
     Company bootstrap is best-effort in a follow-up commit so a company table
     glitch cannot leave a new register stuck on plan=none (ensure-orchestrator 402).
     """
@@ -970,17 +1280,21 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
             u.subscription_expires_at = datetime.utcnow() + timedelta(days=TRIAL_DAYS)
             db.commit()
             db.refresh(u)
+            meter = meter_snapshot(db, u)
             out = {
                 "plan": u.plan,
                 "subscription_active": bool(u.subscription_active),
                 "subscription_expires_at": u.subscription_expires_at.isoformat() + "Z",
+                "needs_subscription": bool(meter.get("needs_subscription")),
+                "tokens_remaining_included": meter.get("tokens_remaining_included"),
                 "already_active": True,
-                "meter": meter_snapshot(db, u),
+                "meter": meter,
             }
             out["dev_mode"] = not config.IS_PRODUCTION
             return out
         if _trial_live(u):
             # Still in active trial — return current state, do not reset pool
+            meter = meter_snapshot(db, u)
             out = {
                 "plan": u.plan,
                 "subscription_active": bool(u.subscription_active),
@@ -989,8 +1303,10 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
                     if getattr(u, "subscription_expires_at", None)
                     else None
                 ),
+                "needs_subscription": bool(meter.get("needs_subscription")),
+                "tokens_remaining_included": meter.get("tokens_remaining_included"),
                 "already_active": True,
-                "meter": meter_snapshot(db, u),
+                "meter": meter,
             }
             out["dev_mode"] = not config.IS_PRODUCTION
             return out
@@ -998,6 +1314,7 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
             # Used or expired trial — refuse fresh 50k activation
             raise HTTPException(402, TRIAL_ENDED_MSG)
         u = _activate_plan(db, user, "trial", data.company_name)
+        meter = meter_snapshot(db, u)
         out = {
             "plan": u.plan,
             "subscription_active": True,
@@ -1006,8 +1323,10 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
                 if getattr(u, "subscription_expires_at", None)
                 else None
             ),
+            "needs_subscription": bool(meter.get("needs_subscription")),
+            "tokens_remaining_included": meter.get("tokens_remaining_included"),
             "already_active": False,
-            "meter": meter_snapshot(db, u),
+            "meter": meter,
         }
         out["dev_mode"] = not config.IS_PRODUCTION
         return out
@@ -1100,11 +1419,15 @@ def choose_plan(data: PlanIn, db: Session = Depends(get_db), user=Depends(get_cu
         )
 
     # Dev (or free plans e.g. trial): activate without Checkout
+    # Production never reaches here for requires_payment plans (blocked above).
     u = _activate_plan(db, user, data.plan, data.company_name)
+    meter = meter_snapshot(db, u)
     out = {
         "plan": u.plan,
         "subscription_active": True,
-        "meter": meter_snapshot(db, u),
+        "needs_subscription": bool(meter.get("needs_subscription")),
+        "tokens_remaining_included": meter.get("tokens_remaining_included"),
+        "meter": meter,
     }
     # Only mark dev_mode when this path actually free-granted without payment rails
     if not config.IS_PRODUCTION:
@@ -1148,9 +1471,31 @@ def confirm_checkout(
         u.subscription_expires_at = None
         db.commit()
         db.refresh(u)
+    kind = (result or {}).get("kind") or ""
+    amt = (result or {}).get("amount")
+    try:
+        amt_f = float(amt or 0)
+    except (TypeError, ValueError):
+        amt_f = 0.0
+    already = bool((result or {}).get("already_fulfilled"))
+    if kind == "topup":
+        if already:
+            msg = f"Top-up already applied (${amt_f:.2f})." if amt_f > 0 else "Top-up already applied."
+        else:
+            msg = f"Credits added — ${amt_f:.2f}. Wallet updated." if amt_f > 0 else "Credits added. Wallet updated."
+    elif kind == "storage":
+        msg = "Storage pack added to your account."
+    elif kind == "plan" and u and u.subscription_active:
+        msg = f"Subscription active: {plan_limits(u.plan).get('name') or u.plan}"
+    elif u and u.subscription_active:
+        msg = f"Payment recorded — {plan_limits(u.plan).get('name') or u.plan or 'account'} updated"
+    else:
+        msg = "Payment recorded"
     return {
         "ok": True,
         "result": result,
+        "kind": kind or None,
+        "amount": amt,
         "stripe_mode": _stripe_mode(),
         "plan": u.plan if u else None,
         "plan_name": (plan_limits(u.plan).get("name") if u else None),
@@ -1163,11 +1508,7 @@ def confirm_checkout(
             and getattr(u, "role", "") != "admin"
         ),
         "meter": meter_snapshot(db, u) if u else None,
-        "message": (
-            f"Subscription active: {plan_limits(u.plan).get('name') or u.plan}"
-            if u and u.subscription_active
-            else "Payment recorded"
-        ),
+        "message": msg,
     }
 
 
@@ -1246,7 +1587,16 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Stripe webhook (recommended for production).
     Sandbox can rely on /billing/checkout/confirm after redirect if webhook not set yet.
-    Endpoint: POST /api/billing/webhook  (events: checkout.session.completed)
+
+    Endpoint: POST /api/billing/webhook
+
+    Handled events:
+      - checkout.session.completed → _fulfill_stripe_session → _activate_plan
+        (sets plan, subscription_active, token pool; paid only)
+      - customer.subscription.deleted / .updated → cancel or re-open access
+      - invoice.paid / invoice.payment_succeeded → renew: re-activate + refresh pool
+
+    Dashboard: also subscribe the cancel/renew events above (not only checkout.completed).
     """
     payload = await request.body()
     stripe = _stripe()
@@ -1254,7 +1604,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(503, "Stripe not configured")
 
     etype = None
-    sess = None
+    obj = None
     if config.STRIPE_WEBHOOK_SECRET:
         sig = request.headers.get("stripe-signature", "")
         try:
@@ -1263,7 +1613,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(400, "Invalid webhook signature")
         etype = event["type"] if isinstance(event, dict) else event.type
         data_obj = event["data"]["object"] if isinstance(event, dict) else event.data.object
-        sess = _session_as_dict(data_obj)
+        obj = _session_as_dict(data_obj)
     elif config.IS_PRODUCTION and _stripe_mode() == "live":
         raise HTTPException(400, "Webhook not configured — set STRIPE_WEBHOOK_SECRET for live mode")
     else:
@@ -1277,37 +1627,89 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 "Invalid payload. Set STRIPE_WEBHOOK_SECRET or use Checkout confirm redirect for sandbox.",
             )
         etype = event.get("type")
-        sess = _session_as_dict((event.get("data") or {}).get("object") or {})
+        obj = _session_as_dict((event.get("data") or {}).get("object") or {})
 
-    if etype == "checkout.session.completed" and sess:
+    handled = None
+    # 1) New Checkout → activate plan / top-up / storage (idempotent)
+    if etype == "checkout.session.completed" and obj:
         try:
-            _fulfill_stripe_session(db, sess)
+            handled = _fulfill_stripe_session(db, obj)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(500, f"Fulfillment failed: {e}") from e
-    return {"received": True, "type": etype}
+    # 2) Cancel / renew lifecycle (requires subscription metadata.user_id from Checkout)
+    elif etype in (
+        "customer.subscription.deleted",
+        "customer.subscription.updated",
+        "invoice.paid",
+        "invoice.payment_succeeded",
+    ) and obj:
+        try:
+            handled = _handle_stripe_subscription_event(db, etype, obj)
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Soft-fail lifecycle so Stripe does not disable the endpoint on edge cases
+            handled = {"ok": False, "error": str(e), "type": etype}
+    # Other event types: acknowledge (Stripe retries only on non-2xx)
+    return {"received": True, "type": etype, "handled": handled}
 
 
 @router.get("/balance")
 def balance(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    snap = meter_snapshot(db, user)
+    snap = meter_snapshot(db, user) or {}
     mode = _stripe_mode()
+    rem = int(snap.get("tokens_remaining_included") or 0)
+    used = int(snap.get("tokens_used_period") or 0)
+    included = int(snap.get("tokens_included") or 0)
+    try:
+        credits_f = float(snap.get("credits") if snap.get("credits") is not None else 0.0)
+    except (TypeError, ValueError):
+        credits_f = 0.0
+    try:
+        pct = float(snap.get("usage_percent") if snap.get("usage_percent") is not None else 0.0)
+    except (TypeError, ValueError):
+        pct = 0.0
     return {
-        "credits": snap["credits"],
-        "plan": user.plan,
-        "subscription_active": snap["subscription_active"],
+        "credits": credits_f,
+        "plan": user.plan or "none",
+        "plan_name": snap.get("plan_name") or plan_limits(user.plan or "none").get("name"),
+        "subscription_active": bool(snap.get("subscription_active")),
+        "needs_subscription": bool(snap.get("needs_subscription")),
+        "trial_ended": bool(snap.get("trial_ended")),
+        "upgrade_cta_path": snap.get("upgrade_cta_path") or "/subscribe",
+        "primary_cta": snap.get("primary_cta"),
+        "secondary_cta": snap.get("secondary_cta"),
+        "cta_buy_credits_path": "/billing",
+        "cta_subscribe_path": "/subscribe",
+        "hard_block": bool(snap.get("hard_block")),
+        "needs_topup": bool(snap.get("needs_topup")),
         "stripe_live": _stripe_ready(),  # legacy name: means "stripe configured"
         "stripe_enabled": _stripe_ready(),
         "stripe_mode": mode,
         "stripe_sandbox": mode == "test",
         "crypto_enabled": crypto_pay.crypto_enabled(),
         "crypto_chains": [c["id"] for c in crypto_pay.available_chains()],
-        "tokens_included": snap["tokens_included"],
-        "tokens_used_period": snap["tokens_used_period"],
-        "tokens_remaining_included": snap["tokens_remaining_included"],
-        "usage_percent": snap["usage_percent"],
+        "tokens_included": included,
+        "tokens_used_period": used,
+        "tokens_remaining_included": rem,
+        "tokens_remaining": rem,
+        "tokens_remaining_label": format_token_count(rem),
+        "tokens_included_label": format_token_count(included),
+        "tokens_used_label": format_token_count(used),
+        "usage_percent": pct,
+        "cta": snap.get("cta") or "",
+        "headline": snap.get("headline") or "",
+        "urgency": snap.get("urgency") or "ok",
+        "sales_message": snap.get("sales_message") or "",
         "storage": snap.get("storage") or storage_snapshot(db, user),
+        "billing_policy": snap.get("billing_policy") or {
+            "premium_skills_fail_closed": True,
+            "free_wallet_grants": False,
+        },
+        "skills": snap.get("skills"),
+        "limits": snap.get("limits"),
         "subscription_expires_at": (
             user.subscription_expires_at.isoformat() + "Z"
             if getattr(user, "subscription_expires_at", None)
@@ -1622,17 +2024,17 @@ def usage(db: Session = Depends(get_db), user=Depends(get_current_user)):
             "tokens": sum(r.input_tokens + r.output_tokens for r in drows),
             "cost": round(sum(r.cost for r in drows), 6),
         })
-    meter = meter_snapshot(db, user)
+    meter = meter_snapshot(db, user) or {}
     return {
-        "total_tokens": total_tokens,
-        "total_cost": round(total_cost, 6),
+        "total_tokens": int(total_tokens or 0),
+        "total_cost": round(float(total_cost or 0), 6),
         "by_model": by_model,
         "daily": days,
         "meter": {
             **meter,
-            "tokens_included_label": format_token_count(meter["tokens_included"]),
-            "tokens_used_label": format_token_count(meter["tokens_used_period"]),
-            "tokens_remaining_label": format_token_count(meter["tokens_remaining_included"]),
+            "tokens_included_label": format_token_count(meter.get("tokens_included")),
+            "tokens_used_label": format_token_count(meter.get("tokens_used_period")),
+            "tokens_remaining_label": format_token_count(meter.get("tokens_remaining_included")),
         },
     }
 

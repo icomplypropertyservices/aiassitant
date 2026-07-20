@@ -40,7 +40,15 @@ async def ensure_core_team_api(db: Session = Depends(get_db), user=Depends(get_c
     Create the default Core Team if missing (orchestrator + key leads + My Human).
     Respects plan agent caps. Idempotent.
     """
-    if user.role != "admin" and (not user.subscription_active or user.plan in (None, "", "none")):
+    from ..usage_billing import heal_subscription_flags, subscription_is_live
+
+    if heal_subscription_flags(db, user):
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+    if user.role != "admin" and not subscription_is_live(user):
         raise HTTPException(402, "Choose a subscription plan to set up your Core Team")
     ensure_credits(db, user.id)
     from ..core_team import ensure_core_team

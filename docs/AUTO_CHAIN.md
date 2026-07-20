@@ -2,6 +2,8 @@
 
 Automatic multi-agent execution from a single human prompt (or agent skill).
 
+**Related:** [AGENT_TOOLS_AND_FLOWS.md](AGENT_TOOLS_AND_FLOWS.md) (skills, **24** workflows, tool-access API, CRM, media) · [GROWTH_TOOL_ACCESS.md](GROWTH_TOOL_ACCESS.md) · [SQUAD_SHIP_NOTES.md](SQUAD_SHIP_NOTES.md).
+
 **Product pipeline (must stay intact):**
 
 ```
@@ -376,7 +378,7 @@ or `POST /api/agents/{id}/skills/run`.
 | CRM / diary | `list_customers`, `get_customer`, `update_customer`, `log_customer_activity`, `create_deal`, `schedule_meeting`, `list_diary` |
 | Meetings | `open_meeting`, `post_to_meeting`, `run_meeting_round`, `close_meeting`, `extract_meeting_tasks` |
 | Comms (draft free / send premium) | `draft_email`, `send_email`, `draft_sms`, `send_sms`, `send_whatsapp`, `make_voice_call`, `send_message`, `log_communication` |
-| Media (premium) | `generate_image`, `generate_video` |
+| Media (premium, 5) | `generate_image`, `edit_image`, `generate_ad_creative`, `generate_product_shot`, `generate_video` |
 | Content / research | `generate_content`, `research`, `summarize` |
 | Team ops | `list_team`, `spawn_team`, `spawn_specialist`, `clone_agent`, `promote_to_lead`, `configure_agent`, … |
 | Domain packs | sales, support, marketing, eng, finance, legal, design, analytics, ops (150+ catalog entries) |
@@ -467,6 +469,15 @@ Also `tokens:{user_id}` for usage metering.
 | `delegated` | From HTTP delegate |
 | `autonomy,self-run` | never_idle proactive feed |
 | `escalated` / `child-failed` | Escalation markers |
+| `llm_unavailable` / `credits_exhausted` / `llm_permission_denied` / `spending_limit` | Terminal provider/billing fail — **never requeued** |
+
+### Fail-smart markers (`task_runner` + `autonomy`)
+
+- **Function:** `autonomy._is_terminal_provider_task` — stuck recovery and failed escalate **must not** requeue these tasks.
+- Labels: `llm_unavailable`, `credits_exhausted`, `llm_permission_denied`, `spending_limit`.
+- Result prefixes / phrases: `[LLM_UNAVAILABLE]`, `[CREDITS_EXHAUSTED]`, `[LLM_PERMISSION_DENIED]`, “spending limit”, “permission denied”, “credit wallet is empty”, “grok is not available”, plus `llm.is_terminal_llm_failure`.
+- Stalled requeue + failed escalate use `requeue=False` for terminal provider tasks; never_idle self-runs capped by `AUTONOMY_MAX_IDLE_FEEDS` (default 1, hard max 2).
+- Cron: `vercel.json` → `GET /api/ops/autonomy/tick-all` schedule `0 6 * * *` (`CRON_SECRET`).
 
 ---
 
@@ -491,16 +502,19 @@ Also `tokens:{user_id}` for usage metering.
 
 ---
 
-## Operator checklist
+## Operator checklist (go-live for chains)
+
+Full workspace go-live: [SQUAD_SHIP_NOTES.md](SQUAD_SHIP_NOTES.md#operator-go-live-checklist) · tool growth: [GROWTH_TOOL_ACCESS.md](GROWTH_TOOL_ACCESS.md).
 
 1. Ensure **Main AI Orchestrator** exists (`POST /agents/ensure-orchestrator` or CLI bootstrap).  
-2. Hierarchy: leads + specialists with `parent_id` / roles set.  
-3. Agents **active**, permissions that allow execute/delegate, relevant skills enabled.  
-4. Autonomy on: `PUT /ops/autonomy` `{ "autonomy_enabled": true }`.  
-5. Send a goal prompt to orchestrator/lead **or** run skill `execute_goal`.  
+2. Hierarchy: leads + specialists with `parent_id` / roles set (trial allows **12** agents).  
+3. Agents **active**, permissions that allow execute/delegate; skills via template pack or **Enable recommended pack**.  
+4. Autonomy on: `PUT /ops/autonomy` `{ "autonomy_enabled": true }` · prod: **`CRON_SECRET`** + daily `tick-all`.  
+5. Start work: goal prompt to orchestrator/lead, skill `execute_goal`, **or** `POST /agents/workflows/run` (24 presets).  
 6. Confirm parent + children on Tasks board; first step `queued`, rest `todo`.  
 7. Tick: UI Ops “Run tick”, `POST /ops/autonomy/tick`, or wait for cron `tick-all`.  
-8. Watch live ops + WebSocket progress until parent `completed` / `review` / `failed`.
+8. Watch live ops + WebSocket progress until parent `completed` / `review` / `failed`.  
+9. Fail-smart check: force or observe a credits/LLM terminal fail → stays **failed**, not requeued.
 
 ---
 
@@ -511,42 +525,20 @@ Also `tokens:{user_id}` for usage metering.
 - **Deterministic decompose** — no extra LLM call for step breakdown (numbered lines preferred).  
 - **Sequential children** — only step 1 is queued at start; later steps stay `todo` until the previous completes (queuing every child broke unlock / ran parallel).  
 - **Failed step stops the chain** — remaining `todo` siblings are skipped/failed so the parent can roll up.  
+- **Fail-smart provider errors** — spending limit / credits / LLM unavailable / permission denied are **terminal** (`_is_terminal_provider_task`); do not requeue.  
 - **Chat + skill can both fire** — chat auto-chain runs after skill parse; similar open chains dedupe on chat.  
 - **Cooldown still drains queue** — production cron and manual ticks keep chains moving even when idle feeds are skipped.  
 - **`announce_plan` vs `execute_goal`** — plan is ops-oriented DAG (string steps on announcer; dicts can hierarchy-route); execute_goal always creates a monitoring parent and **delegates across hierarchy** with sequential unlock.  
 - **Single-writer on finish** — task_runner passes `commit=False` into `on_task_finished` / escalate so billing + status + rollup share one commit.  
-- Scaffold/repair (`POST /ops/scaffold`) is **not** part of every tick — only explicit repair of team config.
+- Scaffold/repair (`POST /ops/scaffold`) is **not** part of every tick — only explicit repair of team config.  
+- **No in-app Grok Build manager spawn** — product multi-agent growth is hierarchy skills + workflows only. External repo operator scripts (if present under `scripts/`) are **not** SaaS product UI and must not be documented as in-app features.
 
 ---
 
-## Swarm monitor (operator) vs product `monitor` label
+## Product `monitor` label (only)
 
-Two different “monitor” concepts appear in this repo. Keep them separate:
+| Concept | What it is | Source of truth |
+|---------|------------|-----------------|
+| **Product parent `monitor`** | Parent task labels `goal,auto-chain,monitor` while children run; rollup via `on_task_finished` | This doc + `task_chain.py` |
 
-| Concept | What it is | Cadence | Source of truth |
-|---------|------------|---------|-----------------|
-| **Product parent `monitor`** | Parent task labels `goal,auto-chain,monitor` while children run; rollup via `on_task_finished` | Task/autonomy lifecycle | This doc + `task_chain.py` |
-| **Swarm monitor scheduler** | External durable job that keeps **20** coding subagents busy on the monorepo | **Every 2 minutes** (`2m`), `fire_immediately` on create | `scripts/swarm_backlog.json`, `scripts/swarm_monitor_status.md`, `scripts/swarm_monitor.log` |
-
-### Swarm scheduler facts
-
-- **Scheduler id:** `019f7a30d212`  
-- **Interval:** `2m` · **durable** · **fire_immediately**  
-- **Target concurrency:** `20` (`swarm_backlog.json` → `target`)  
-- **Refill rule:** when any subagent finishes, spawn replacements from `task_pool` until 20 are running  
-- **Hard product rule in backlog:** auto-chain **`prompt → task → delegate → monitor → complete` must stay intact** — UI, skills, and deploy work must not break hierarchy chain or rollup  
-
-### Backlog (`scripts/swarm_backlog.json`)
-
-Operator task pool for continuous work: deploy/health, Card/PageShell UI polish, TasksBoard goal-chain tags, `task_chain` / `execute_goal` verify, trial plan caps, browser e2e A/B, smoke, schema migrate checks, and **keep this `AUTO_CHAIN.md` accurate**.
-
-Full operator write-up: **`scripts/swarm_monitor_status.md`**.
-
-### Related status files
-
-| Path | Role |
-|------|------|
-| `scripts/swarm_monitor_status.md` | 2m monitor + backlog description |
-| `scripts/swarm_backlog.json` | Target 20, rules, task_pool |
-| `scripts/swarm_monitor.log` | Create / refill events |
-| `scripts/SWARM_STATUS.md` / `SWARM_20_STATUS.md` | Swarm inventory + live probe notes |
+Do **not** confuse product chain monitoring with external coding-swarm / Grok Build session schedulers. Those are out-of-band operator tooling and are **not** exposed as an in-app manager that spawns subagents.

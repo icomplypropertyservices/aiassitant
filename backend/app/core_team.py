@@ -120,7 +120,12 @@ def ensure_core_team(db: Session, user: models.User) -> dict[str, Any]:
     max_agents = int(plan_limits(user.plan or "none").get("agents") or 0)
     if user.role == "admin":
         max_agents = max(max_agents, 10_000)
-    if user.role != "admin" and (not user.subscription_active or user.plan in (None, "", "none")):
+    try:
+        from .usage_billing import subscription_is_live
+        _live = subscription_is_live(user)
+    except Exception:
+        _live = bool(user.subscription_active) and (user.plan or "") not in (None, "", "none")
+    if user.role != "admin" and not _live:
         # Still allow reading empty core team; create only orchestrator if they have access elsewhere
         pass
 

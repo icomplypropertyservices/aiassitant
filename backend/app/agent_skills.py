@@ -176,16 +176,35 @@ SKILL_CATALOG: list[dict] = [
         "id": "create_workflow",
         "name": "Create subagent workflow",
         "description": (
-            "LEAD: Create a multi-step workflow for subagents. Each step needs "
+            "Create a custom multi-step workflow for subagents. Each step needs "
             "title/description, agent_id or role, done_when, and checklist "
-            "(what you will check). Optional save_as_pattern=true to reuse later. "
-            "After steps finish, use review_task to approve or tell the agent what's wrong."
+            "(what the lead will verify). Optional save_as_pattern=true to reuse later. "
+            "Prefer run_workflow for named platform presets (sales targets→CRM→outreach); "
+            "use create_workflow when inventing a one-off chain. "
+            "After steps finish, use review_task to approve or reject with feedback."
         ),
         "args": [
             "title", "description", "steps", "checklist", "priority",
             "save_as_pattern", "pattern_name", "category",
         ],
         "roles": ["orchestrator", "lead", "member"],
+    },
+    {
+        "id": "run_workflow",
+        "name": "Run platform workflow",
+        "description": (
+            "Launch a named multi-agent platform workflow (presets: sales targets→CRM→outreach, "
+            "CRM outreach only, pipeline review, content campaign, support triage, etc.). "
+            "Pass workflow_id (or list=true to discover presets). Optional count, niche, "
+            "extra brief, company_id/project_id. Real side-effect: creates parent goal + "
+            "delegated tasks via the workflow engine — not a chat-only plan."
+        ),
+        "args": [
+            "workflow_id", "count", "niche", "extra", "params",
+            "company_id", "project_id", "priority", "list",
+        ],
+        "roles": ["orchestrator", "lead", "member"],
+        "category": "core",
     },
     {
         "id": "review_task",
@@ -215,8 +234,10 @@ SKILL_CATALOG: list[dict] = [
         "id": "execute_goal",
         "name": "Execute goal (auto chain)",
         "description": (
-            "From one prompt: create parent goal, break into steps, delegate down hierarchy, "
-            "set company/project targets, queue active agents, monitor completion."
+            "From one free-text goal: create parent goal, break into steps, delegate down the "
+            "hierarchy, set company/project targets, queue active agents, and monitor completion. "
+            "Use for ad-hoc multi-step work. For named sales/ops recipes prefer run_workflow; "
+            "for reusable step templates prefer run_pattern."
         ),
         "args": ["goal", "title", "priority", "steps", "company_id", "project_id", "max_steps"],
         "roles": ["orchestrator", "lead", "member"],
@@ -239,7 +260,10 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "create_customer",
         "name": "Create customer",
-        "description": "Add a new customer/contact to CRM (name required; email, phone, tags, notes optional).",
+        "description": (
+            "Add a new customer/contact to CRM (name required; email, phone, tags, notes optional). "
+            "After create_customer always run qualify_lead then create_deal on the same lead."
+        ),
         "args": [
             "name", "email", "phone", "account_name", "status", "tags", "notes",
             "source", "job_title", "website", "industry", "city", "country", "company_id",
@@ -278,15 +302,24 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "log_customer_activity",
         "name": "Log customer activity",
-        "description": "Record a note, call, email, or meeting against a customer (also updates last_contacted).",
-        "args": ["customer_id", "email", "kind", "title", "body"],
+        "description": (
+            "Record a note, call, email, or meeting against a customer (also updates last_contacted). "
+            "Offline CRM write — use kind=note and body/notes for free-text notes."
+        ),
+        "args": ["customer_id", "email", "name", "kind", "title", "body", "notes"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
     },
     {
         "id": "create_deal",
         "name": "Create deal",
-        "description": "Create a new opportunity/deal for an existing customer in a pipeline.",
-        "args": ["customer_id", "email", "title", "value", "priority", "expected_close", "pipeline_id", "stage_id"],
+        "description": (
+            "Create a new opportunity/deal for an existing customer in a pipeline. "
+            "After qualify_lead, pass stage_name=Qualified (or qualified=true) to land on the Qualified stage."
+        ),
+        "args": [
+            "customer_id", "email", "title", "value", "priority", "expected_close",
+            "pipeline_id", "stage_id", "stage_name", "qualified", "currency",
+        ],
         "roles": ["orchestrator", "lead", "member"],
     },
     {
@@ -440,23 +473,42 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "move_deal",
         "name": "Move deal to stage",
-        "description": "Move a deal to another stage (by stage_id or stage name).",
+        "description": (
+            "Advance or re-stage an open CRM deal on the pipeline board. "
+            "Pass deal_id plus stage_id or stage_name (e.g. Qualified, Proposal, Negotiation). "
+            "Optional notes are logged as activity. Offline CRM write — use after outreach "
+            "or qualify_lead when the opportunity should progress. "
+            "Prefer win_deal / lose_deal when closing."
+        ),
         "args": ["deal_id", "stage_id", "stage_name", "notes"],
         "roles": ["orchestrator", "lead", "member"],
+        "category": "crm",
     },
     {
         "id": "win_deal",
         "name": "Win deal",
-        "description": "Mark a deal as won and optionally set final value / notes.",
+        "description": (
+            "Close a CRM deal as won (status=won, stage → won). "
+            "Pass deal_id; optional value (final amount) and notes for the win reason. "
+            "Offline CRM write with activity log — use when the customer has signed / paid. "
+            "Do not use for stage hops mid-funnel (use move_deal)."
+        ),
         "args": ["deal_id", "value", "notes"],
         "roles": ["orchestrator", "lead", "member"],
+        "category": "crm",
     },
     {
         "id": "lose_deal",
         "name": "Lose deal",
-        "description": "Mark a deal as lost with a reason.",
+        "description": (
+            "Close a CRM deal as lost (status=lost). Pass deal_id and lost_reason "
+            "(competitor, no budget, timing, no response, etc.) plus optional notes. "
+            "Offline CRM write with activity log. Prefer disqualify_lead when the contact "
+            "itself is unfit; lose_deal when the opportunity died but the contact may return."
+        ),
         "args": ["deal_id", "lost_reason", "notes"],
         "roles": ["orchestrator", "lead", "member"],
+        "category": "crm",
     },
     {
         "id": "pipeline_summary",
@@ -830,26 +882,108 @@ SKILL_CATALOG: list[dict] = [
         "cost_credits": 0.02,
     },
 
-    # ── Image & Video (premium — always bill tokens) ─────────────
+    # ── Image & Video (premium — always bill tokens/credits) ─────
+    # Explicit category "media" for tool-access UI (also in skills_policy.category_for)
     {
         "id": "generate_image",
         "name": "Generate image (premium)",
-        "description": "Create an image from a text prompt. Bills image tokens/credits every time.",
+        "description": (
+            "Create a marketing/product/concept image from a text prompt "
+            "(xAI Grok Imagine when configured; offline SVG placeholder otherwise). "
+            "Args: prompt (required, descriptive), style (e.g. flat, photo, quality), size. "
+            "style=quality uses the higher-quality Imagine model. "
+            "PREMIUM: bills image tokens/credits every run (including placeholder). "
+            "On xAI 402/403 credits/auth: ok=false, retryable=false — do not re-call. "
+            "Use only when the human asks for visuals — prefer generate_ad_creative / "
+            "generate_product_shot for ads and catalog shots."
+        ),
         "args": ["prompt", "style", "size"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
         "premium": True,
         "cost_credits": 0.06,
         "meter_kind": "image",
+        "category": "media",
+    },
+    {
+        "id": "edit_image",
+        "name": "Edit image (premium)",
+        "description": (
+            "Edit an existing image with a natural-language instruction (xAI Imagine edits). "
+            "Requires image_url (public URL or data URI). "
+            "PREMIUM: bills image tokens/credits every run. "
+            "On xAI 402/403: stop — do not thrash edit_image."
+        ),
+        "args": ["prompt", "image_url", "style"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "premium": True,
+        "cost_credits": 0.08,
+        "meter_kind": "image",
+        "category": "media",
+    },
+    {
+        "id": "generate_ad_creative",
+        "name": "Generate ad creative (premium)",
+        "description": (
+            "Produce a marketing/ad visual from product, headline, audience, and channel. "
+            "Uses premium image generation (xAI Imagine when configured). "
+            "PREMIUM: bills image tokens/credits every run."
+        ),
+        "args": ["product", "headline", "audience", "channel", "style", "prompt", "size"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "premium": True,
+        "cost_credits": 0.08,
+        "meter_kind": "image",
+        "category": "media",
+    },
+    {
+        "id": "generate_product_shot",
+        "name": "Generate product shot (premium)",
+        "description": (
+            "Studio/catalog product photography from product name, angle, and background. "
+            "Uses premium image generation (xAI Imagine when configured). "
+            "PREMIUM: bills image tokens/credits every run."
+        ),
+        "args": ["product", "background", "angle", "style", "brand", "props", "prompt", "size"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "premium": True,
+        "cost_credits": 0.07,
+        "meter_kind": "image",
+        "category": "media",
     },
     {
         "id": "generate_video",
         "name": "Generate video (premium)",
-        "description": "Create a short video / motion concept from a prompt. Bills video tokens/credits every time.",
-        "args": ["prompt", "duration_sec", "style"],
+        "description": (
+            "Create a short marketing/product video from a text prompt via xAI Imagine video. "
+            "Async: may return pending + request_id + poster while still rendering — do not "
+            "re-submit the same brief while pending. When pending, call check_video with "
+            "request_id (or GET /media/video/{request_id}) to finish without a new charge. "
+            "Args: prompt (required), duration_sec, aspect_ratio, resolution, optional image_url "
+            "(image-to-video), style. PREMIUM: bills video tokens/credits every run, including "
+            "poster-only fallbacks. On xAI 402/403: ok=false, retryable=false. "
+            "Use only when the brief explicitly needs motion/video."
+        ),
+        "args": ["prompt", "duration_sec", "aspect_ratio", "resolution", "image_url", "style"],
         "roles": ["orchestrator", "lead", "member"],
         "premium": True,
         "cost_credits": 0.25,
         "meter_kind": "video",
+        "category": "media",
+    },
+    {
+        "id": "check_video",
+        "name": "Check video job",
+        "description": (
+            "Poll a pending generate_video job by request_id until ready/failed — does NOT start "
+            "a new video and does NOT bill premium video generation. "
+            "Args: request_id (required), optional wait_sec (0–90 brief poll), prompt_hint. "
+            "When status=pending, wait and call check_video again; never re-call generate_video "
+            "for the same brief."
+        ),
+        "args": ["request_id", "wait_sec", "prompt_hint"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "premium": False,
+        "category": "media",
     },
 
     # ── Content & Research ───────────────────────────────────────
@@ -1028,9 +1162,69 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "qualify_lead",
         "name": "Qualify lead",
-        "description": "Score and qualify a lead using ICP and budget signals.",
-        "args": ["customer_id", "notes"],
+        "description": (
+            "Score and qualify a CRM lead using ICP / budget / timeline / engagement signals. "
+            "Writes lead_score, lead_status, and qualified_at on the customer (creates a lead "
+            "when only free-text name/email is given). Offline CRM write — no LLM. "
+            "Sales flow: after create_customer always run qualify_lead then create_deal "
+            "(stage_name=Qualified). Pass notes, budget, timeline, annual_value for better scoring; "
+            "optional move_deal=true to stage open deals to Qualified."
+        ),
+        "args": [
+            "customer_id", "email", "lead", "name", "company", "notes",
+            "score", "lead_status", "budget", "timeline", "annual_value", "move_deal",
+        ],
         "roles": ["orchestrator", "lead", "member"],
+        "category": "sales",
+    },
+    {
+        "id": "list_leads",
+        "name": "List leads",
+        "description": (
+            "List CRM leads (customers in the lead funnel with lead_status / lead_score). "
+            "Filter by lead_status (new|contacted|nurturing|qualified|disqualified|converted), "
+            "min_score, free-text q, or all=true. Offline CRM read — use before outreach batches "
+            "or pipeline reviews. Prefer list_qualified_leads when you only need ready-to-sell."
+        ),
+        "args": ["q", "lead_status", "min_score", "limit", "all"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "category": "sales",
+    },
+    {
+        "id": "set_lead_status",
+        "name": "Set lead status",
+        "description": (
+            "Update a lead's funnel status without a full re-score: new | contacted | nurturing | "
+            "qualified | disqualified | converted. Optionally set lead_score and notes "
+            "(logged as activity). Offline CRM write. Use after a real touch (contacted), "
+            "nurture drip (nurturing), or conversion. Prefer qualify_lead for first-time ICP scoring; "
+            "disqualify_lead for a clear unfit mark."
+        ),
+        "args": ["customer_id", "email", "lead", "lead_status", "score", "notes"],
+        "roles": ["orchestrator", "lead", "member"],
+        "category": "sales",
+    },
+    {
+        "id": "list_qualified_leads",
+        "name": "List qualified leads",
+        "description": (
+            "List CRM customers with lead_status=qualified (or filter by min_score). "
+            "Offline CRM read — no LLM."
+        ),
+        "args": ["q", "min_score", "limit", "lead_status"],
+        "roles": ["orchestrator", "lead", "member", "specialist"],
+        "category": "sales",
+    },
+    {
+        "id": "disqualify_lead",
+        "name": "Disqualify lead",
+        "description": (
+            "Mark a CRM lead as disqualified (lead_status=disqualified). "
+            "Optional reason/notes and score. Offline CRM write."
+        ),
+        "args": ["customer_id", "email", "lead", "reason", "notes", "score"],
+        "roles": ["orchestrator", "lead", "member"],
+        "category": "sales",
     },
     {
         "id": "write_proposal",
@@ -1524,9 +1718,16 @@ SKILL_CATALOG: list[dict] = [
     {
         "id": "score_lead",
         "name": "Score lead",
-        "description": "Give a numeric + letter score and rationale for a lead.",
-        "args": ["customer_id", "email", "context"],
+        "description": (
+            "Return a numeric (0–100) + letter grade (A–F) and rationale for a lead "
+            "using offline ICP/budget/timeline heuristics. Does not change lead_status "
+            "unless you also call set_lead_status / qualify_lead. "
+            "Pass persist=true to write lead_score on the CRM customer. "
+            "Prefer qualify_lead when you want score + status + qualified_at in one step."
+        ),
+        "args": ["customer_id", "email", "lead", "context", "notes", "score", "persist"],
         "roles": ["orchestrator", "lead", "member", "specialist"],
+        "category": "sales",
     },
     {
         "id": "build_sales_script",
@@ -2732,6 +2933,7 @@ except Exception:
 
 # Finalize: dedupe + categories (skills_policy)
 from .skills_policy import (  # noqa: E402
+    CATEGORY_LABELS,
     dedupe_catalog,
     default_enabled_for_role,
     group_skills_by_category,
@@ -2867,10 +3069,11 @@ def list_skills_for_agent(agent: models.Agent, db: Session) -> list[dict]:
         app_ok, app_err = integration_skill_available(s["id"], agent.user_id, db, {})
         is_custom = bool(s.get("custom") or str(s["id"]).startswith("custom_"))
         en = (s["id"] in enabled and role_ok) or (is_custom and role_ok)
+        _cat = s.get("category") or category_for(s["id"])
         out.append({
             **{k: v for k, v in s.items() if k != "instructions"},
-            "category": s.get("category") or category_for(s["id"]),
-            "category_label": s.get("category_label"),
+            "category": _cat,
+            "category_label": s.get("category_label") or CATEGORY_LABELS.get(_cat, _cat),
             "enabled": en,
             "role_allowed": role_ok,
             "premium": bool(s.get("premium")),
@@ -2892,8 +3095,11 @@ def list_skills_grouped() -> list[dict]:
 
 
 # Lead multi-agent flow toolkit — always on for leads (cannot be stripped by plan UI saves)
+# Market-leading surface: workflows + full CRM pipeline + tasks + meetings + media.
 LEAD_FLOW_SKILLS = frozenset({
+    # Workflows / goals
     "create_workflow",
+    "run_workflow",
     "execute_goal",
     "announce_plan",
     "create_pattern",
@@ -2901,21 +3107,73 @@ LEAD_FLOW_SKILLS = frozenset({
     "get_pattern",
     "run_pattern",
     "review_task",
+    "reject_task",
+    "request_changes",
+    # Tasks + team
     "create_task",
+    "list_tasks",
+    "get_task",
+    "complete_task",
+    "claim_task",
     "message_agent",
     "status_update",
     "notify_human",
     "spawn_agent",
     "list_team",
+    # Meetings
+    "open_meeting",
+    "post_to_meeting",
+    "run_meeting_round",
+    "close_meeting",
+    "extract_meeting_tasks",
+    "schedule_meeting",
+    # CRM + lead funnel + pipeline (market-leading sales board)
+    "list_customers",
+    "get_customer",
+    "create_customer",
+    "log_customer_activity",
+    "qualify_lead",
+    "score_lead",
+    "list_leads",
+    "list_qualified_leads",
+    "set_lead_status",
+    "disqualify_lead",
+    "list_deals",
+    "create_deal",
+    "move_deal",
+    "win_deal",
+    "lose_deal",
+    "list_pipelines",
+    "pipeline_summary",
+    "ensure_sales_pipeline",
+    # Comms + media + integrations gateway
+    "use_app",
+    # Full media suite — tool-access category "media"
+    "generate_image",
+    "generate_video",
+    "check_video",
+    "edit_image",
+    "generate_ad_creative",
+    "generate_product_shot",
+    "send_email",
+    "draft_email",
 })
 
 
 def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
-    """Enabled skill set — always includes CORE free pack so agents never lose work tools."""
-    from .skills_policy import _CORE_ALWAYS
+    """Enabled skill set — always includes CORE free pack so agents never lose work tools.
+
+    Uses template-aware defaults (skills_for_template) so sales/marketing/coding agents
+    keep domain packs even when AgentSkillState is empty.
+    """
+    from .skills_policy import _CORE_ALWAYS, _LEAD_ALWAYS, skills_for_template
 
     role = normalize_role(agent)
-    defaults = set(default_enabled_for_role(role, SKILL_CATALOG))
+    tpl = getattr(agent, "template_type", None)
+    if tpl or role in ("orchestrator", "lead"):
+        defaults = set(skills_for_template(tpl, SKILL_CATALOG, role=role))
+    else:
+        defaults = set(default_enabled_for_role(role, SKILL_CATALOG))
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
     stored: set[str] = set()
     if row and (row.enabled_json or "").strip():
@@ -2925,15 +3183,16 @@ def enabled_skill_ids(agent: models.Agent, db: Session) -> set[str]:
                 stored = {str(x) for x in data}
         except Exception:
             stored = set()
-    base = set(_CORE_ALWAYS) & {s["id"] for s in SKILL_CATALOG}
+    catalog_ids = {s["id"] for s in SKILL_CATALOG}
+    base = set(_CORE_ALWAYS) & catalog_ids
     if not stored:
         out = defaults | base
     else:
-        # Merge core always — saved state must not strip task/meeting/log skills
+        # Merge core always — saved state must not strip task/meeting/CRM/integration tools
         out = stored | base | (defaults & base)
-    # Leads always keep flow skills even if plan UI capped the pack
+    # Leads always keep flow + media + CRM toolkit even if plan UI capped the pack
     if is_lead_agent(agent) or role in ("lead", "orchestrator"):
-        out |= LEAD_FLOW_SKILLS & {s["id"] for s in SKILL_CATALOG}
+        out |= (LEAD_FLOW_SKILLS | _LEAD_ALWAYS) & catalog_ids
     return out
 
 
@@ -2963,11 +3222,12 @@ def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -
             clean.insert(0, c)
             seen.add(c)
 
-    # Leads always keep multi-agent flow toolkit on save
+    # Leads always keep multi-agent flow + media + CRM toolkit on save
     lead_pack: set[str] = set()
     try:
+        from .skills_policy import _LEAD_ALWAYS
         if is_lead_agent(agent) or normalize_role(agent) in ("lead", "orchestrator"):
-            lead_pack = LEAD_FLOW_SKILLS & valid
+            lead_pack = (LEAD_FLOW_SKILLS | _LEAD_ALWAYS) & valid
             for c in sorted(lead_pack):
                 if c not in seen:
                     clean.append(c)
@@ -2993,11 +3253,17 @@ def set_enabled_skills(db: Session, agent: models.Agent, skill_ids: list[str]) -
             clean = [sid for sid in clean if not by_id.get(sid, {}).get("premium")]
         cap = int(caps.get("skills_per_agent") or 0)
         if cap > 0 and len(clean) > cap:
-            # Prefer core + lead flow skills so plan caps never strip work tools
+            # Prefer core + lead flow + template domain skills so caps never strip tools
+            from .skills_policy import skill_pack_for_template, _PACK_EXPLICIT, _MEDIA_FOR_DOMAIN
             protected = _CORE_ALWAYS | lead_pack
+            pack = skill_pack_for_template(getattr(agent, "template_type", None))
+            domain_pref = set(_PACK_EXPLICIT.get(pack) or ())
+            if pack in ("marketing", "lead"):
+                domain_pref |= set(_MEDIA_FOR_DOMAIN)
             core_on = [s for s in clean if s in protected]
-            rest = [s for s in clean if s not in protected]
-            clean = (core_on + rest)[: max(cap, len(core_on))]
+            domain_on = [s for s in clean if s in domain_pref and s not in protected]
+            rest = [s for s in clean if s not in protected and s not in domain_pref]
+            clean = (core_on + domain_on + rest)[: max(cap, len(core_on))]
 
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
     if not row:
@@ -3047,16 +3313,21 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
     priority_ids = [
         "create_task", "claim_task", "delete_task", "message_agent", "spawn_agent", "list_team",
         "list_customers", "create_customer", "update_customer", "delete_customer",
+        "qualify_lead", "score_lead", "list_leads", "list_qualified_leads",
+        "set_lead_status", "disqualify_lead",
         "list_products", "get_product", "read_product", "search_products",
         "create_product", "update_product", "write_product", "delete_product",
         "set_product_offer", "archive_product", "duplicate_product",
         "list_tasks", "search_tasks", "get_task", "update_task", "respond_to_task",
         "complete_task", "set_task_status", "list_activity", "create_deal", "update_deal", "delete_deal",
         "list_meetings", "invite_to_meeting", "open_meeting", "list_humans", "list_deals",
-        "list_pipelines", "get_pipeline", "move_deal", "win_deal", "pipeline_summary",
+        "list_pipelines", "get_pipeline", "move_deal", "win_deal", "lose_deal", "pipeline_summary",
         "read_workspace", "comment", "search_knowledge", "search_memory",
-        "save_memory", "save_training", "announce_plan", "execute_goal", "status_update",
-        "draft_email", "generate_content", "post_to_meeting", "run_meeting_round",
+        "save_memory", "save_training", "announce_plan", "execute_goal", "create_workflow",
+        "run_workflow", "run_pattern",
+        "status_update",
+        "draft_email", "generate_content", "generate_image", "generate_video",
+        "post_to_meeting", "run_meeting_round", "schedule_meeting",
         "research", "summarize", "get_time", "escalate_to_human",
         "log_customer_activity", "create_deal", "prioritize_list", "action_items",
         "skill_recommend", "enable_skills_on", "configure_agent",
@@ -3065,6 +3336,22 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
         "list_agent_custom_fields", "get_agent_custom_field", "set_agent_custom_field",
         "delete_agent_custom_field", "set_agent_custom_fields",
     ]
+    # Sales / CRM templates: put CRM + outreach tools at the very front of the prompt list
+    tpl = (getattr(agent, "template_type", None) or "").strip().lower().replace("-", "_")
+    sales_front = [
+        "create_customer", "qualify_lead", "score_lead", "list_leads", "list_qualified_leads",
+        "set_lead_status", "disqualify_lead", "create_deal", "move_deal", "win_deal", "lose_deal",
+        "list_customers", "get_customer", "list_deals",
+        "log_customer_activity", "draft_email", "send_email", "schedule_meeting",
+        "execute_goal", "run_workflow", "create_workflow", "pipeline_summary", "ensure_sales_pipeline",
+        "cold_outreach", "enrich_lead", "write_proposal", "build_sales_script",
+    ]
+    if tpl in (
+        "sales", "outreach", "sdr", "ae", "pipeline", "crm", "booking",
+        "lead_gen", "lead_qualifier", "qualifier", "account",
+    ):
+        priority_ids = sales_front + [p for p in priority_ids if p not in sales_front]
+
     by_id = {s["id"]: s for s in skills}
     ordered: list[dict] = []
     seen: set[str] = set()
@@ -3091,7 +3378,7 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
 
     lines = [
         "You have SKILLS. When you must ACT (create/complete tasks, invite to meetings, CRM, etc.),",
-        "emit skill blocks THEN write a short human reply that confirms what you did.",
+        "emit skill fences THEN write a short human reply that confirms what you did.",
         "CORRECT skill format (preferred — nested JSON is OK):",
         "```skill",
         '{"skill":"create_task","args":{"title":"...","description":"...","success_criteria":"..."}}',
@@ -3101,12 +3388,28 @@ def skills_prompt_block(agent: models.Agent, db: Session, *, max_skills: int | N
         "complete_task",
         '{"task_id":123,"result":"what was delivered"}',
         "```",
+        "CRM write example: ```skill {\"skill\":\"create_customer\",\"args\":{\"name\":\"…\",\"email\":\"…\"}} ```",
+        "Qualify: ```skill {\"skill\":\"qualify_lead\",\"args\":{\"customer_id\":1}} ``` "
+        "(or name/email). Pipeline: move_deal / win_deal / lose_deal. "
+        "Multi-step: run_workflow (presets) or execute_goal. Images: generate_image when needed.",
         "Rules: use real skill ids from the list; fill required args; after skills run the system",
         "appends results — still narrate outcomes in plain language for the human.",
         f"Catalog: {len(skills)} skills enabled. Showing top {len(ordered)} for context "
         "(★ = premium / costs credits). Prefer free skills unless paid delivery is required.",
         "Core / listed skills:",
     ]
+    if tpl in (
+        "sales", "outreach", "sdr", "ae", "pipeline", "crm", "booking",
+        "lead_gen", "lead_qualifier", "qualifier", "account",
+    ):
+        lines.insert(
+            -1,
+            "SALES template: after every create_customer always qualify_lead then create_deal "
+            "(stage_name=Qualified); then log_customer_activity → draft_email; "
+            "move_deal / win_deal / lose_deal for the board; "
+            "prefer run_workflow sales_targets_crm_outreach (or execute_goal) for "
+            "targets→CRM→outreach chains.",
+        )
     for s in ordered:
         prefix = "★" if s.get("premium") else ""
         args = s.get("args") or []
@@ -3285,6 +3588,7 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'run_pattern': ('_skill_run_pattern', 'std', ()),
     'apply_pattern': ('_skill_run_pattern', 'std', ()),
     'create_workflow': ('_skill_create_workflow', 'std', ()),
+    'run_workflow': ('_skill_run_workflow', 'std', ()),
     'review_task': ('_skill_review_task', 'std', ()),
     'reject_task': ('_skill_review_task', 'std', ()),
     'request_changes': ('_skill_review_task', 'std', ()),
@@ -3294,6 +3598,12 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'update_customer': ('_skill_update_customer', 'std', ()),
     'delete_customer': ('_skill_delete_customer', 'std', ()),
     'log_customer_activity': ('_skill_log_customer_activity', 'std', ()),
+    'qualify_lead': ('_skill_qualify_lead', 'std', ()),
+    'score_lead': ('_skill_score_lead', 'std', ()),
+    'list_leads': ('_skill_list_leads', 'std', ()),
+    'list_qualified_leads': ('_skill_list_qualified_leads', 'std', ()),
+    'set_lead_status': ('_skill_set_lead_status', 'std', ()),
+    'disqualify_lead': ('_skill_disqualify_lead', 'std', ()),
     'create_deal': ('_skill_create_deal', 'std', ()),
     'update_deal': ('_skill_update_deal', 'std', ()),
     'delete_deal': ('_skill_delete_deal', 'std', ()),
@@ -3354,8 +3664,13 @@ HANDLER_TABLE: dict[str, tuple[str, str, tuple]] = {
     'initiate_call': ('_skill_make_voice_call', 'std', ()),
     'log_communication': ('_skill_log_communication', 'std', ()),
     'generate_image': ('_skill_generate_image', 'std', ()),
+    'edit_image': ('_skill_edit_image', 'std', ()),
+    'generate_ad_creative': ('_skill_generate_ad_creative', 'std', ()),
+    'generate_product_shot': ('_skill_generate_product_shot', 'std', ()),
     'generate_video': ('_skill_generate_video', 'std', ()),
+    'check_video': ('_skill_check_video', 'std', ()),
     'generate_content': ('_skill_generate_content', 'std', ()),
+
     'research': ('_skill_research', 'std', ()),
     'summarize': ('_skill_summarize', 'std', ()),
     'get_time': ('_skill_get_time', 'std', ()),
@@ -3708,13 +4023,14 @@ async def execute_skill(
     ):
         return {"ok": False, "error": f"Permission '{perm}' cannot spawn — need operator or above"}
     # Core ops + lead flows (in _CORE_ALWAYS): any operator+ may run
-    # Leads must be able to create_workflow / execute_goal / review without admin perm
+    # Leads must be able to create_workflow / run_workflow / execute_goal / review without admin perm
     if skill_id in (
         "create_task", "message_agent", "execute_goal",
-        "create_workflow", "run_pattern", "create_pattern", "list_patterns",
+        "create_workflow", "run_workflow", "run_pattern", "create_pattern", "list_patterns",
         "get_pattern", "review_task", "announce_plan",
         "open_meeting", "run_meeting_round", "extract_meeting_tasks",
         "status_update", "action_items", "notify_human",
+        "qualify_lead", "move_deal", "win_deal", "lose_deal", "create_deal", "create_customer",
     ) and not (
         can_execute(perm) or can_delegate(perm) or is_orchestrator(agent) or is_lead_agent(agent)
     ):

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Statistic, List, Tag, Space, Typography, Button, Spin, Empty,
   Alert, InputNumber, Input, message, Progress, Modal, Form, Switch, Select,
@@ -7,12 +7,13 @@ import {
   RobotOutlined, ThunderboltOutlined, CheckSquareOutlined, ReloadOutlined,
   MessageOutlined, SettingOutlined, PlayCircleOutlined, ApartmentOutlined,
   RocketOutlined, WarningOutlined, DashboardOutlined, PlusOutlined,
-  NodeIndexOutlined,
+  NodeIndexOutlined, AppstoreOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import PageShell from '../components/PageShell'
 import ModelSelect from '../components/ModelSelect'
+import { RECOMMENDED_CRM_WORKFLOW_SKILLS } from '../components/AgentSkillsPanel'
 import { modelLabel } from '../models'
 import { isLead, isOrchestrator } from '../agents/roles'
 
@@ -46,29 +47,59 @@ export default function AgentHome() {
   const [flowOpen, setFlowOpen] = useState(false)
   const [flowBusy, setFlowBusy] = useState(false)
   const [teamAgents, setTeamAgents] = useState([])
+  const [showAllWorkflows, setShowAllWorkflows] = useState(false)
   const [flowForm] = Form.useForm()
 
-  const load = useCallback(() => {
-    setLoading(true)
-    setError(null)
+  const load = useCallback((opts = {}) => {
+    const quiet = !!opts.quiet
+    if (!quiet) {
+      setLoading(true)
+      setError(null)
+    }
     api(`/agents/${id}/dashboard`)
       .then((d) => {
         setData(d)
         setModelPick(d?.settings?.model || d?.agent?.model || 'quality')
         const init = {}
-        for (const w of d?.workflows || d?.all_workflows || []) {
-          init[w.id] = w.default_count || 50
+        // Seed from dashboard + tool_access (same payload — no extra fetch)
+        const ta = d?.tool_access || {}
+        for (const w of [
+          ...(d?.workflows || []),
+          ...(d?.all_workflows || []),
+          ...(ta.workflows || []),
+          ...(ta.all_workflows || []),
+        ]) {
+          if (!w?.id) continue
+          const def = w.default_count
+            ?? w.params?.find?.((p) => p.key === 'count' || p.key === 'batch')?.default
+            ?? 50
+          init[w.id] = def
         }
         setCounts((prev) => ({ ...init, ...prev }))
       })
-      .catch((e) => setError(e?.message || 'Failed to load agent dashboard'))
-      .finally(() => setLoading(false))
+      .catch((e) => {
+        if (!quiet) setError(e?.message || 'Failed to load agent dashboard')
+      })
+      .finally(() => {
+        if (!quiet) setLoading(false)
+      })
   }, [id])
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 15000)
-    return () => clearInterval(t)
+    // Sparse refresh: 30s+ when tab visible only — quiet so UI doesn't flash
+    const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      load({ quiet: true })
+    }, 30000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load({ quiet: true })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [load])
 
   const saveModel = async (value) => {
@@ -97,25 +128,33 @@ export default function AgentHome() {
   const runWorkflow = async (workflowId) => {
     setWfBusy(workflowId)
     try {
+      const n = counts[workflowId]
       const body = {
         workflow_id: workflowId,
         agent_id: Number(id),
-        count: counts[workflowId] || undefined,
+        count: n != null ? Number(n) : undefined,
         niche: niches[workflowId] || '',
         priority: 'high',
+        // Some presets use params.batch (outreach / product offer); backend also reads count
+        params: n != null ? { batch: Number(n), count: Number(n) } : {},
       }
       const r = await api('/agents/workflows/run', { method: 'POST', body })
       const parentId = r?.parent_task_id || r?.task_id || r?.parent?.id
-      const n = (r?.children || r?.steps || []).length
+      const stepN = (r?.children || r?.steps || []).length
       message.success(
         parentId
-          ? `Workflow started — goal #${parentId}${n ? ` with ${n} steps` : ''}`
+          ? `Workflow started — goal #${parentId}${stepN ? ` with ${stepN} steps` : ''}`
           : 'Workflow started',
       )
-      load()
+      load({ quiet: true })
       nav('/tasks')
     } catch (e) {
-      message.error(e.message || 'Workflow failed to start')
+      const msg = e?.message || 'Workflow failed to start'
+      message.error(msg)
+      // Missing skills / pack — point user at one-click enable
+      if (/skill|pack|enable|not allowed|forbidden|tool/i.test(msg)) {
+        message.info('Enable the recommended CRM + workflow pack under Skills, then try again')
+      }
     } finally {
       setWfBusy(null)
     }
@@ -225,6 +264,25 @@ export default function AgentHome() {
     }
   }
 
+  // Hooks must run before early returns (keep dashboard discovery light — no extra polls)
+  // Prefer tool_access.workflows (role-suggested) then top-level dashboard fields
+  const suggestedWorkflows = useMemo(() => {
+    const ta = data?.tool_access || {}
+    if (Array.isArray(ta.workflows) && ta.workflows.length) return ta.workflows
+    if (Array.isArray(data?.workflows) && data.workflows.length) return data.workflows
+    if (Array.isArray(ta.all_workflows) && ta.all_workflows.length) return ta.all_workflows
+    if (Array.isArray(data?.all_workflows)) return data.all_workflows
+    return []
+  }, [data])
+  const allWorkflows = useMemo(() => {
+    const ta = data?.tool_access || {}
+    if (Array.isArray(ta.all_workflows) && ta.all_workflows.length) return ta.all_workflows
+    if (Array.isArray(data?.all_workflows) && data.all_workflows.length) return data.all_workflows
+    return suggestedWorkflows
+  }, [data, suggestedWorkflows])
+  const workflows = showAllWorkflows ? allWorkflows : suggestedWorkflows
+  const hasMoreWorkflows = allWorkflows.length > suggestedWorkflows.length
+
   if (loading && !data) {
     return (
       <PageShell title="Agent dashboard" showBack backTo="/agent-dash">
@@ -252,12 +310,31 @@ export default function AgentHome() {
   const agent = data?.agent || {}
   const settings = data?.settings || {}
   const stats = data?.stats || {}
-  const workflows = Array.isArray(data?.workflows)
-    ? data.workflows
-    : (Array.isArray(data?.all_workflows) ? data.all_workflows : [])
   const patterns = Array.isArray(data?.patterns) ? data.patterns : []
   const tasks = Array.isArray(data?.tasks) ? data.tasks : []
   const activity = Array.isArray(data?.activity) ? data.activity : []
+  const leadFlowSkills = Array.isArray(data?.lead_flow_skills) ? data.lead_flow_skills : []
+  // From existing dashboard payload only (tool_access / top-level) — no extra fetch
+  const toolAccess = data?.tool_access || {}
+  const enabledSkillIds = Array.isArray(toolAccess.enabled_skills)
+    ? toolAccess.enabled_skills
+    : (Array.isArray(data?.enabled_skills) ? data.enabled_skills : [])
+  const enabledSkillsCount = Number(
+    toolAccess.enabled_count
+    ?? data?.enabled_skills_count
+    ?? enabledSkillIds.length
+    ?? 0,
+  )
+  const skillPackLabel = toolAccess.skill_pack || data?.skill_pack || null
+  const enabledByCategory = toolAccess.enabled_by_category || data?.enabled_by_category || {}
+  const workflowCount = showAllWorkflows
+    ? allWorkflows.length
+    : (suggestedWorkflows.length || allWorkflows.length)
+  const enabledSet = new Set(enabledSkillIds)
+  const recommendedOn = RECOMMENDED_CRM_WORKFLOW_SKILLS.filter((sid) => enabledSet.has(sid)).length
+  const recommendedTotal = RECOMMENDED_CRM_WORKFLOW_SKILLS.length
+  // Heuristic: pack incomplete if fewer than half of CRM+workflow core skills are on
+  const packIncomplete = recommendedOn < Math.max(8, Math.floor(recommendedTotal * 0.45))
   const canCreateFlows = !!(
     data?.can_create_flows
     || isLead(agent)
@@ -266,19 +343,41 @@ export default function AgentHome() {
   const openPct = stats.total
     ? Math.round(((stats.completed || 0) / Math.max(stats.total, 1)) * 100)
     : 0
+  const goSkills = () => nav(`/agents/${id}/manage`)
+  const goWorkflows = () => {
+    const el = document.getElementById('agent-workflows')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <PageShell
       title={agent?.name || 'Agent'}
-      subtitle="Dashboard · model · workflows · tasks"
+      subtitle="Tools · workflows · CRM · tasks"
       showBack
       backTo="/agent-dash"
       extra={(
         <Space wrap>
+          <Tag
+            color={enabledSkillsCount > 0 ? 'blue' : 'default'}
+            icon={<ThunderboltOutlined />}
+            style={{ cursor: 'pointer', marginInlineEnd: 0 }}
+            onClick={goSkills}
+          >
+            {enabledSkillsCount} skills on
+            {skillPackLabel ? ` · ${skillPackLabel}` : ''}
+          </Tag>
+          <Tag
+            color={workflowCount > 0 ? 'geekblue' : 'default'}
+            icon={<RocketOutlined />}
+            style={{ cursor: 'pointer', marginInlineEnd: 0 }}
+            onClick={goWorkflows}
+          >
+            {workflowCount} workflows
+          </Tag>
           <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>Refresh</Button>
           <Button icon={<MessageOutlined />} onClick={() => nav(`/agents/${id}`)}>Chat</Button>
-          <Button icon={<SettingOutlined />} onClick={() => nav(`/agents/${id}/manage`)}>
-            Full settings
+          <Button icon={<SettingOutlined />} onClick={goSkills}>
+            Skills & tools
           </Button>
         </Space>
       )}
@@ -292,6 +391,90 @@ export default function AgentHome() {
             action={<Button size="small" onClick={load}>Retry</Button>}
           />
         )}
+
+        {/* Tool-access summary — find skills/workflows without hunting */}
+        <Card
+          className="aba-soft-card"
+          size="small"
+          title={(
+            <Space wrap>
+              <ThunderboltOutlined />
+              <span>Tool access</span>
+              {skillPackLabel && <Tag color="purple">{skillPackLabel} pack</Tag>}
+            </Space>
+          )}
+          extra={(
+            <Space wrap size={6}>
+              <Button size="small" type="primary" icon={<AppstoreOutlined />} onClick={goSkills}>
+                Open skills
+              </Button>
+              <Button size="small" icon={<RocketOutlined />} onClick={goWorkflows}>
+                Workflows
+              </Button>
+              <Button size="small" icon={<ApartmentOutlined />} onClick={() => nav('/business')}>
+                CRM
+              </Button>
+            </Space>
+          )}
+        >
+          <Row gutter={[12, 12]} align="middle">
+            <Col xs={12} sm={8} md={5}>
+              <Statistic
+                title="Skills enabled"
+                value={enabledSkillsCount}
+                prefix={<ThunderboltOutlined />}
+                valueStyle={{ color: enabledSkillsCount ? '#1668dc' : undefined }}
+              />
+            </Col>
+            <Col xs={12} sm={8} md={5}>
+              <Statistic
+                title="Workflows ready"
+                value={workflowCount}
+                prefix={<RocketOutlined />}
+                valueStyle={{ color: workflowCount ? '#16a34a' : undefined }}
+              />
+            </Col>
+            <Col xs={12} sm={8} md={5}>
+              <Statistic
+                title="CRM pack core"
+                value={recommendedOn}
+                suffix={<Text type="secondary" style={{ fontSize: 14 }}>/ {recommendedTotal}</Text>}
+              />
+            </Col>
+            <Col xs={24} md={9}>
+              <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                {packIncomplete ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 0 }}
+                    message="Recommended CRM + workflow pack not fully on"
+                    description="Enable customers, deals, pipelines, create_workflow, and outreach drafts in one click."
+                    action={(
+                      <Button type="primary" size="small" icon={<RocketOutlined />} onClick={goSkills}>
+                        Enable recommended pack
+                      </Button>
+                    )}
+                  />
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    CRM + multi-agent pack looks ready. Run a workflow below or open Skills to tune media & integrations.
+                  </Text>
+                )}
+                {Object.keys(enabledByCategory).length > 0 && (
+                  <Space size={[4, 4]} wrap>
+                    {Object.entries(enabledByCategory)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([cat, n]) => (
+                        <Tag key={cat} style={{ margin: 0 }}>{cat}: {n}</Tag>
+                      ))}
+                  </Space>
+                )}
+              </Space>
+            </Col>
+          </Row>
+        </Card>
 
         {settings.model_upgrade_suggested && (
           <Alert
@@ -379,6 +562,14 @@ export default function AgentHome() {
                     {settings.hierarchy_role && <Tag>{settings.hierarchy_role}</Tag>}
                     {settings.template_type && <Tag color="blue">{settings.template_type}</Tag>}
                     {settings.never_idle && <Tag color="purple">never idle</Tag>}
+                    <Tag
+                      color={enabledSkillsCount > 0 ? 'cyan' : 'default'}
+                      icon={<ThunderboltOutlined />}
+                      style={{ cursor: 'pointer' }}
+                      onClick={goSkills}
+                    >
+                      {enabledSkillsCount} tools
+                    </Tag>
                   </div>
                 </div>
                 <div>
@@ -427,9 +618,9 @@ export default function AgentHome() {
                   </Button>
                   <Button
                     icon={<SettingOutlined />}
-                    onClick={() => nav(`/agents/${id}/manage`)}
+                    onClick={goSkills}
                   >
-                    Skills & config
+                    Skills & tools
                   </Button>
                   <Button
                     icon={<ApartmentOutlined />}
@@ -444,15 +635,37 @@ export default function AgentHome() {
 
           <Col xs={24} lg={14}>
             <Card
+              id="agent-workflows"
               className="aba-soft-card"
               title={(
-                <Space>
+                <Space wrap>
                   <RocketOutlined />
                   <span>Multi-agent workflows</span>
+                  {workflows.length > 0 && (
+                    <Tag color="blue">{workflows.length} ready</Tag>
+                  )}
                 </Space>
               )}
               extra={(
                 <Space size="small" wrap>
+                  {hasMoreWorkflows && (
+                    <Button
+                      size="small"
+                      type="link"
+                      onClick={() => setShowAllWorkflows((v) => !v)}
+                    >
+                      {showAllWorkflows
+                        ? 'Show suggested'
+                        : `Show all (${allWorkflows.length})`}
+                    </Button>
+                  )}
+                  <Button
+                    size="small"
+                    icon={<AppstoreOutlined />}
+                    onClick={goSkills}
+                  >
+                    Skills
+                  </Button>
                   {canCreateFlows && (
                     <Button
                       type="primary"
@@ -463,25 +676,45 @@ export default function AgentHome() {
                       Create flow
                     </Button>
                   )}
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Hand off between agents automatically
-                  </Text>
                 </Space>
               )}
             >
               <Paragraph type="secondary" style={{ marginTop: 0 }}>
-                Example: <Text strong>get 50 sales targets → save in CRM</Text>
-                {' → '}
-                <Text strong>second agent emails, calls, updates pipeline</Text>.
-                Autonomy runs each step in order.
+                One-click multi-agent runs for this role
+                {skillPackLabel ? <> · pack <Text code>{skillPackLabel}</Text></> : null}.
+                Example: <Text strong>targets → CRM → outreach → pipeline</Text>.
                 {canCreateFlows && (
                   <>
                     {' '}
-                    As a <Text strong>lead</Text>, use <Text code>Create flow</Text>
-                    {' '}or chat skills <Text code>create_workflow</Text> / <Text code>execute_goal</Text>.
+                    Leads: <Text code>Create flow</Text> or chat{' '}
+                    <Text code>create_workflow</Text> / <Text code>execute_goal</Text>.
                   </>
                 )}
               </Paragraph>
+              {packIncomplete && workflows.length > 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="CRM + workflow skills look incomplete"
+                  description="Runs may fail if customers/deals/create_workflow tools are off. Enable the recommended pack first."
+                  action={(
+                    <Button type="primary" size="small" icon={<RocketOutlined />} onClick={goSkills}>
+                      Enable pack
+                    </Button>
+                  )}
+                />
+              )}
+              {leadFlowSkills.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+                    Lead toolkit:
+                  </Text>
+                  {leadFlowSkills.slice(0, 8).map((sid) => (
+                    <Tag key={sid} style={{ marginBottom: 4 }}>{sid}</Tag>
+                  ))}
+                </div>
+              )}
               {canCreateFlows && (
                 <Alert
                   type="info"
@@ -491,81 +724,139 @@ export default function AgentHome() {
                   message="Lead multi-agent flows"
                   description="Build sequential steps for subagents, optional checklist for review, and save as a reusable pattern."
                   action={(
-                    <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openCreateFlow}>
-                      New flow
-                    </Button>
+                    <Space direction="vertical" size={4}>
+                      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openCreateFlow}>
+                        New flow
+                      </Button>
+                      <Button size="small" onClick={goSkills}>
+                        Skills
+                      </Button>
+                    </Space>
                   )}
                 />
               )}
               {workflows.length === 0 ? (
-                <Empty description="No workflows for this role" />
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={(
+                    <span>
+                      {allWorkflows.length
+                        ? 'No suggested workflows for this role — browse the full catalog or enable the CRM pack so sales/ops runs show up.'
+                        : 'No workflow presets loaded yet. Enable skills so this agent can run multi-step goals.'}
+                    </span>
+                  )}
+                >
+                  <Space wrap>
+                    {packIncomplete && (
+                      <Button type="primary" icon={<RocketOutlined />} onClick={goSkills}>
+                        Enable recommended pack
+                      </Button>
+                    )}
+                    <Button
+                      type={packIncomplete ? 'default' : 'primary'}
+                      onClick={() => setShowAllWorkflows(true)}
+                      disabled={!allWorkflows.length}
+                    >
+                      Browse all presets{allWorkflows.length ? ` (${allWorkflows.length})` : ''}
+                    </Button>
+                    <Button icon={<AppstoreOutlined />} onClick={goSkills}>
+                      Open skills
+                    </Button>
+                  </Space>
+                </Empty>
               ) : (
                 <List
                   dataSource={workflows}
-                  renderItem={(w) => (
-                    <List.Item
-                      key={w.id}
-                      actions={[
-                        <Button
-                          key="run"
-                          type="primary"
-                          size="small"
-                          icon={<PlayCircleOutlined />}
-                          loading={wfBusy === w.id}
-                          onClick={() => runWorkflow(w.id)}
-                        >
-                          Run
-                        </Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={(
-                          <Space wrap>
-                            <Text strong>{w.name}</Text>
-                            {w.category && <Tag color="geekblue">{w.category}</Tag>}
-                          </Space>
-                        )}
-                        description={(
-                          <div>
-                            <Paragraph type="secondary" style={{ marginBottom: 8, fontSize: 13 }}>
-                              {w.description}
-                            </Paragraph>
-                            {(w.steps_preview || []).length > 0 && (
-                              <div style={{ marginBottom: 8 }}>
-                                {(w.steps_preview || []).map((s, i) => (
-                                  <Tag key={i} style={{ marginBottom: 4 }}>{i + 1}. {s}</Tag>
-                                ))}
-                              </div>
-                            )}
-                            {(w.params || []).some((p) => p.key === 'count' || p.key === 'batch') && (
-                              <Space wrap size="middle">
-                                <span>
-                                  <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
-                                    Targets / batch
+                  renderItem={(w) => {
+                    const countParam = (w.params || []).find((p) => p.key === 'count' || p.key === 'batch')
+                    const nicheParam = (w.params || []).some((p) => p.key === 'niche')
+                    const minN = countParam?.min ?? 1
+                    const maxN = countParam?.max ?? 100
+                    const steps = Array.isArray(w.steps_preview) ? w.steps_preview : []
+                    return (
+                      <List.Item
+                        key={w.id}
+                        actions={[
+                          <Button
+                            key="run"
+                            type="primary"
+                            size="middle"
+                            icon={<PlayCircleOutlined />}
+                            loading={wfBusy === w.id}
+                            onClick={() => runWorkflow(w.id)}
+                          >
+                            Run
+                          </Button>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={(
+                            <Space wrap>
+                              <Text strong>{w.name || w.id}</Text>
+                              {w.category && <Tag color="geekblue">{w.category}</Tag>}
+                              {steps.length > 0 && (
+                                <Tag color="purple">{steps.length} steps</Tag>
+                              )}
+                              <Tag style={{ fontSize: 11 }}>{w.id}</Tag>
+                            </Space>
+                          )}
+                          description={(
+                            <div>
+                              {w.description && (
+                                <Paragraph type="secondary" style={{ marginBottom: 8, fontSize: 13 }}>
+                                  {w.description}
+                                </Paragraph>
+                              )}
+                              {steps.length > 0 && (
+                                <div style={{ marginBottom: 10 }}>
+                                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                                    Steps
                                   </Text>
-                                  <InputNumber
-                                    min={5}
-                                    max={100}
-                                    value={counts[w.id] ?? w.default_count ?? 50}
-                                    onChange={(v) => setCounts((c) => ({ ...c, [w.id]: v }))}
-                                  />
-                                </span>
-                                {(w.params || []).some((p) => p.key === 'niche') && (
-                                  <Input
-                                    placeholder="Niche / ICP (optional)"
-                                    style={{ maxWidth: 260 }}
-                                    value={niches[w.id] || ''}
-                                    onChange={(e) => setNiches((n) => ({ ...n, [w.id]: e.target.value }))}
-                                    allowClear
-                                  />
-                                )}
-                              </Space>
-                            )}
-                          </div>
-                        )}
-                      />
-                    </List.Item>
-                  )}
+                                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                                    {steps.map((s, i) => (
+                                      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                        <Tag
+                                          color="blue"
+                                          style={{ margin: 0, minWidth: 28, textAlign: 'center' }}
+                                        >
+                                          {i + 1}
+                                        </Tag>
+                                        <Text style={{ fontSize: 13 }}>{s}</Text>
+                                      </div>
+                                    ))}
+                                  </Space>
+                                </div>
+                              )}
+                              {countParam && (
+                                <Space wrap size="middle">
+                                  <span>
+                                    <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
+                                      {countParam.label || 'Targets / batch'}
+                                    </Text>
+                                    <InputNumber
+                                      min={minN}
+                                      max={maxN}
+                                      value={counts[w.id] ?? w.default_count ?? countParam.default ?? 50}
+                                      onChange={(v) => setCounts((c) => ({ ...c, [w.id]: v }))}
+                                    />
+                                  </span>
+                                  {nicheParam && (
+                                    <Input
+                                      placeholder="Niche / ICP (optional)"
+                                      style={{ maxWidth: 260 }}
+                                      value={niches[w.id] || ''}
+                                      onChange={(e) => setNiches((n) => ({ ...n, [w.id]: e.target.value }))}
+                                      allowClear
+                                    />
+                                  )}
+                                </Space>
+                              )}
+                            </div>
+                          )}
+                        />
+                      </List.Item>
+                    )
+                  }}
                 />
               )}
             </Card>

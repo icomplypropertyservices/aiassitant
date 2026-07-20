@@ -18,6 +18,9 @@ log = logging.getLogger("schema_migrate")
 # Types are portable-ish: INTEGER/BIGINT, TEXT, REAL/FLOAT, BOOLEAN, TIMESTAMP
 COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
     "users": [
+        # Billing / access (used by auth_utils, core_team, autonomy, billing routers).
+        # Trial is plan='trial' (not a separate column) + subscription_expires_at window.
+        # Values: none | trial | starter | pro | business | pay_as_you_go
         ("subscription_active", "BOOLEAN DEFAULT FALSE"),
         ("subscription_expires_at", "TIMESTAMP"),
         ("plan", "TEXT DEFAULT 'none'"),
@@ -29,6 +32,7 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("twofa_enabled", "BOOLEAN DEFAULT FALSE"),
         ("api_key_hash", "TEXT"),
         ("api_key_prefix", "TEXT"),
+        ("created_at", "TIMESTAMP"),
     ],
     # Auth token tables (create_all creates them; COLUMN_ADDS covers partial older schemas)
     "email_tokens": [
@@ -205,8 +209,73 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("read_at", "TIMESTAMP"),
         ("created_at", "TIMESTAMP"),
     ],
+    # Training library (create_all makes tables; COLUMN_ADDS for partial older schemas)
+    "knowledge_folders": [
+        ("user_id", "INTEGER"),
+        ("parent_id", "INTEGER"),
+        ("name", "TEXT"),
+        ("description", "TEXT DEFAULT ''"),
+        ("created_at", "TIMESTAMP"),
+    ],
+    "knowledge_files": [
+        ("user_id", "INTEGER"),
+        ("folder_id", "INTEGER"),
+        ("name", "TEXT"),
+        ("description", "TEXT DEFAULT ''"),
+        ("tags", "TEXT DEFAULT ''"),
+        ("kind", "TEXT DEFAULT 'upload'"),
+        ("storage", "TEXT DEFAULT 'local'"),
+        ("storage_path", "TEXT DEFAULT ''"),
+        ("connection_id", "INTEGER"),
+        ("mime_type", "TEXT DEFAULT 'text/plain'"),
+        ("size_bytes", "INTEGER DEFAULT 0"),
+        ("content_text", "TEXT DEFAULT ''"),
+        ("status", "TEXT DEFAULT 'ready'"),
+        ("created_at", "TIMESTAMP"),
+        ("updated_at", "TIMESTAMP"),
+    ],
+    "agent_knowledge_access": [
+        ("agent_id", "INTEGER"),
+        ("resource_type", "TEXT DEFAULT 'file'"),
+        ("resource_id", "INTEGER"),
+        ("permission", "TEXT DEFAULT 'read'"),
+        ("created_at", "TIMESTAMP"),
+    ],
+    # Per-agent skill enablement
+    "agent_skill_states": [
+        ("agent_id", "INTEGER"),
+        ("enabled_json", "TEXT DEFAULT '[]'"),
+        ("updated_at", "TIMESTAMP"),
+    ],
+    # Autonomy / escalation (WorkspaceSettings, EscalationLog)
+    "workspace_settings": [
+        ("user_id", "INTEGER"),
+        ("autonomy_enabled", "BOOLEAN DEFAULT TRUE"),
+        ("autonomy_interval_sec", "INTEGER DEFAULT 45"),
+        ("task_stuck_minutes", "INTEGER DEFAULT 30"),
+        ("last_autonomy_run", "TIMESTAMP"),
+        ("last_autonomy_summary", "TEXT DEFAULT ''"),
+        ("policy_json", "TEXT DEFAULT '{}'"),
+        ("updated_at", "TIMESTAMP"),
+        ("created_at", "TIMESTAMP"),
+    ],
+    "escalation_logs": [
+        ("user_id", "INTEGER"),
+        ("task_id", "INTEGER"),
+        ("from_agent_id", "INTEGER"),
+        ("from_human_id", "INTEGER"),
+        ("to_agent_id", "INTEGER"),
+        ("to_human_id", "INTEGER"),
+        ("reason_code", "TEXT DEFAULT 'custom'"),
+        ("reason_text", "TEXT DEFAULT ''"),
+        ("status", "TEXT DEFAULT 'open'"),
+        ("created_at", "TIMESTAMP"),
+    ],
     "diary_entries": [
+        ("owner_user_id", "INTEGER"),
+        ("customer_id", "INTEGER"),
         ("deal_id", "INTEGER"),
+        ("title", "TEXT DEFAULT ''"),
         ("owner_human_id", "INTEGER"),
         ("owner_agent_id", "INTEGER"),
         ("completed_at", "TIMESTAMP"),
@@ -235,7 +304,9 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("note", "TEXT DEFAULT ''"),
     ],
     "customers": [
+        ("owner_user_id", "INTEGER"),
         ("company_id", "INTEGER"),
+        ("name", "TEXT DEFAULT ''"),
         ("email", "TEXT DEFAULT ''"),
         ("phone", "TEXT DEFAULT ''"),
         ("job_title", "TEXT DEFAULT ''"),
@@ -248,6 +319,16 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("status", "TEXT DEFAULT 'active'"),
         ("source", "TEXT DEFAULT ''"),
         ("tags", "TEXT DEFAULT ''"),
+        # Lead qualification (sales AI). Model indexes lead_status (see INDEX_HINTS).
+        # new | contacted | nurturing | qualified | disqualified | converted
+        ("lead_status", "TEXT DEFAULT ''"),
+        ("lead_score", "DOUBLE PRECISION DEFAULT 0"),
+        ("qualified_at", "TIMESTAMP"),
+        ("budget", "DOUBLE PRECISION DEFAULT 0"),
+        ("company_size", "TEXT DEFAULT ''"),
+        ("linkedin_url", "TEXT DEFAULT ''"),
+        ("icp_notes", "TEXT DEFAULT ''"),
+        ("disqualified_reason", "TEXT DEFAULT ''"),
         ("owner_human_id", "INTEGER"),
         ("owner_agent_id", "INTEGER"),
         ("annual_value", "DOUBLE PRECISION DEFAULT 0"),
@@ -256,10 +337,16 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("external_id", "TEXT DEFAULT ''"),
         ("meta_json", "TEXT DEFAULT '{}'"),
         ("last_contacted_at", "TIMESTAMP"),
+        ("created_at", "TIMESTAMP"),
         ("updated_at", "TIMESTAMP"),
     ],
     "deals": [
+        ("owner_user_id", "INTEGER"),
+        ("pipeline_id", "INTEGER"),
+        ("stage_id", "INTEGER"),
+        ("customer_id", "INTEGER"),
         ("company_id", "INTEGER"),
+        ("title", "TEXT DEFAULT ''"),
         ("value", "DOUBLE PRECISION DEFAULT 0"),
         ("currency", "TEXT DEFAULT 'USD'"),
         ("status", "TEXT DEFAULT 'open'"),
@@ -270,8 +357,40 @@ COLUMN_ADDS: dict[str, list[tuple[str, str]]] = {
         ("position", "INTEGER DEFAULT 0"),
         ("description", "TEXT DEFAULT ''"),
         ("lost_reason", "TEXT DEFAULT ''"),
+        # Wave-1: older Neon deals rows must get created_at via ADD COLUMN
+        ("created_at", "TIMESTAMP"),
         ("updated_at", "TIMESTAMP"),
         ("closed_at", "TIMESTAMP"),
+    ],
+    # CRM pipeline / activity stack (create_all makes tables; COLUMN_ADDS for partial older schemas)
+    "pipelines": [
+        ("owner_user_id", "INTEGER"),
+        ("company_id", "INTEGER"),
+        ("name", "TEXT DEFAULT ''"),
+        ("description", "TEXT DEFAULT ''"),
+        ("kind", "TEXT DEFAULT 'sales'"),
+        ("is_default", "BOOLEAN DEFAULT FALSE"),
+        ("created_at", "TIMESTAMP"),
+        ("updated_at", "TIMESTAMP"),
+    ],
+    "pipeline_stages": [
+        ("pipeline_id", "INTEGER"),
+        ("name", "TEXT DEFAULT ''"),
+        ("stage_type", "TEXT DEFAULT 'open'"),
+        ("color", "TEXT DEFAULT '#1668dc'"),
+        ("position", "INTEGER DEFAULT 0"),
+        ("probability", "INTEGER DEFAULT 0"),
+    ],
+    "customer_activities": [
+        ("customer_id", "INTEGER"),
+        ("owner_user_id", "INTEGER"),
+        ("kind", "TEXT DEFAULT 'note'"),
+        ("title", "TEXT DEFAULT ''"),
+        ("body", "TEXT DEFAULT ''"),
+        ("deal_id", "INTEGER"),
+        ("agent_id", "INTEGER"),
+        ("human_id", "INTEGER"),
+        ("created_at", "TIMESTAMP"),
     ],
     "products": [
         ("owner_user_id", "INTEGER"),
@@ -303,6 +422,41 @@ def _is_postgres(engine: Engine) -> bool:
 
 def _is_sqlite(engine: Engine) -> bool:
     return engine.dialect.name == "sqlite"
+
+
+def _is_already_exists_error(exc: BaseException) -> bool:
+    """
+    Concurrent serverless cold-starts race on create_all / CREATE TABLE.
+    Postgres often raises DuplicateTable (42P07) or 'relation … already exists';
+    SQLite may raise 'table … already exists' / 'duplicate column name'.
+    Treat these as soft success so column ALTERs still run.
+    """
+    msg = str(exc).lower()
+    needles = (
+        "already exists",
+        "duplicate table",
+        "duplicatetable",
+        "duplicate column",
+        "duplicatecolumn",
+        "duplicate key value",  # rare: concurrent index/type create
+    )
+    if any(n in msg for n in needles):
+        return True
+    # Walk SQLAlchemy → DBAPI exception chain for PG SQLSTATE
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        pgcode = getattr(cur, "pgcode", None) or getattr(cur, "sqlstate", None)
+        if pgcode in ("42P07", "42701", "23505"):  # duplicate_table, duplicate_column, unique_violation
+            return True
+        # psycopg2/psycopg3: orig.pgcode
+        orig = getattr(cur, "orig", None)
+        if orig is not None and orig is not cur:
+            cur = orig if isinstance(orig, BaseException) else None
+            continue
+        cur = getattr(cur, "__cause__", None) or getattr(cur, "__context__", None)
+    return False
 
 
 def _existing_columns(engine: Engine, table: str) -> set[str]:
@@ -342,11 +496,83 @@ MEETING_TABLES = (
     "meeting_messages",
 )
 
+# CRM tables (pipelines / stages / customers / deals / activities / diary / products)
+CRM_TABLES = (
+    "pipelines",
+    "pipeline_stages",
+    "customers",
+    "deals",
+    "customer_activities",
+    "diary_entries",
+    "products",
+)
+
+# Training library stack (folders / files / agent access)
+KNOWLEDGE_TABLES = (
+    "knowledge_folders",
+    "knowledge_files",
+    "agent_knowledge_access",
+)
+
 # Task columns linking DAG + meeting origin (added after tables may already exist)
 TASK_MEETING_COLS = (
     "parent_task_id",
     "meeting_id",
 )
+
+# Critical columns used heavily at runtime (re-check after ALTERs)
+CRITICAL_COLS: dict[str, tuple[str, ...]] = {
+    # Billing: plan + trial window (plan='trial') gate access in auth_utils / core_team
+    "users": ("plan", "subscription_active", "subscription_expires_at"),
+    "agents": ("permission_level", "hierarchy_role", "is_lead", "company_id"),
+    "tasks": ("human_id", "assignee_type", "project_id", "parent_task_id", "meeting_id"),
+    "humans": ("permission_level", "is_my_human"),
+    "customers": (
+        "owner_human_id",
+        "owner_agent_id",
+        "owner_user_id",
+        # lead_status: filtered heavily; model has index=True (INDEX_HINTS)
+        "lead_status",
+        "lead_score",
+        "qualified_at",
+        "budget",
+        "company_size",
+        "linkedin_url",
+        "icp_notes",
+        "disqualified_reason",
+    ),
+    # created_at required for deal list ordering / CRM activity timelines
+    "deals": ("pipeline_id", "stage_id", "customer_id", "owner_human_id", "created_at"),
+    "knowledge_files": ("user_id", "folder_id", "storage", "storage_path", "size_bytes", "status"),
+    "knowledge_folders": ("user_id", "parent_id", "name"),
+    "agent_knowledge_access": ("agent_id", "resource_type", "resource_id"),
+}
+
+# Documented secondary indexes expected on fresh create_all (SQLAlchemy index=True).
+# COLUMN_ADDS only ADDs columns — it does not create indexes on older DBs.
+# Operators may CREATE INDEX CONCURRENTLY if lead-qualification filters are slow.
+INDEX_HINTS: dict[str, tuple[str, ...]] = {
+    "customers": ("lead_status", "owner_user_id", "email", "external_source", "external_id"),
+    "users": ("email", "api_key_hash", "api_key_prefix"),
+    "deals": ("pipeline_id", "stage_id", "customer_id", "status", "owner_user_id"),
+    "knowledge_files": ("user_id", "folder_id"),
+    "knowledge_folders": ("user_id", "parent_id"),
+    "agent_knowledge_access": ("agent_id", "resource_id"),
+}
+
+
+def _soft_create(engine: Engine, table_obj, report: dict, label: str) -> None:
+    """Idempotent table create; swallow concurrent already-exists races."""
+    try:
+        table_obj.create(bind=engine, checkfirst=True)
+    except Exception as e:
+        if _is_already_exists_error(e):
+            report.setdefault("soft_races", []).append(f"{label}: {e}")
+            log.info("%s already exists (race) — continuing", label)
+        else:
+            msg = f"create {label}: {e}"
+            report["errors"].append(msg)
+            log.warning("Could not ensure table %s: %s", label, e)
 
 
 def _ensure_meeting_tables(engine: Engine, report: dict) -> None:
@@ -359,12 +585,35 @@ def _ensure_meeting_tables(engine: Engine, report: dict) -> None:
         models.MeetingMessage.__table__,
     )
     for tbl in table_objs:
-        try:
-            tbl.create(bind=engine, checkfirst=True)
-        except Exception as e:
-            msg = f"create {tbl.name}: {e}"
-            report["errors"].append(msg)
-            log.warning("Could not ensure table %s: %s", tbl.name, e)
+        _soft_create(engine, tbl, report, tbl.name)
+
+
+def _ensure_crm_tables(engine: Engine, report: dict) -> None:
+    """Ensure CRM stack exists (pipelines through products/diary)."""
+    from . import models  # noqa: F401
+
+    for tbl in (
+        models.Pipeline.__table__,
+        models.PipelineStage.__table__,
+        models.Customer.__table__,
+        models.Deal.__table__,
+        models.CustomerActivity.__table__,
+        models.DiaryEntry.__table__,
+        models.Product.__table__,
+    ):
+        _soft_create(engine, tbl, report, tbl.name)
+
+
+def _ensure_knowledge_tables(engine: Engine, report: dict) -> None:
+    """Ensure training library stack exists (folders / files / agent access)."""
+    from . import models  # noqa: F401
+
+    for tbl in (
+        models.KnowledgeFolder.__table__,
+        models.KnowledgeFile.__table__,
+        models.AgentKnowledgeAccess.__table__,
+    ):
+        _soft_create(engine, tbl, report, tbl.name)
 
 
 def ensure_schema(engine: Engine) -> dict:
@@ -376,29 +625,46 @@ def ensure_schema(engine: Engine) -> dict:
         "created_tables": False,
         "added": [],
         "errors": [],
+        "soft_races": [],
         "auth_tables": [],
         "auth_missing": [],
         "meeting_tables": [],
         "meeting_missing": [],
+        "crm_tables": [],
+        "crm_missing": [],
+        "knowledge_tables": [],
+        "knowledge_missing": [],
         "task_meeting_cols": [],
         "task_meeting_missing": [],
+        "critical_missing": [],
     }
     try:
         # Creates password_reset_tokens, email_verification_tokens, email_tokens,
-        # meeting_rooms, meeting_participants, meeting_messages, etc.
+        # meeting_rooms, meeting_participants, meeting_messages, CRM, knowledge, etc.
         Base.metadata.create_all(bind=engine)
         report["created_tables"] = True
     except Exception as e:
-        report["errors"].append(f"create_all: {e}")
-        log.exception("create_all failed")
+        if _is_already_exists_error(e):
+            # Concurrent create_all on Postgres: peer won the race — continue to ALTERs
+            report["created_tables"] = True
+            report["soft_races"].append(f"create_all: {e}")
+            log.info("create_all race (already exists) — continuing: %s", e)
+        else:
+            report["errors"].append(f"create_all: {e}")
+            log.exception("create_all failed")
 
-    # Explicit checkfirst create for meeting stack (idempotent; no-op if present)
+    # Explicit checkfirst create for meeting + CRM + knowledge stacks (idempotent; soft on race)
     _ensure_meeting_tables(engine, report)
+    _ensure_crm_tables(engine, report)
+    _ensure_knowledge_tables(engine, report)
     try:
         from . import models as _m
-        _m.CreatedSkill.__table__.create(bind=engine, checkfirst=True)
+        _soft_create(engine, _m.CreatedSkill.__table__, report, "created_skills")
     except Exception as e:
-        report["errors"].append(f"created_skills table: {e}")
+        if _is_already_exists_error(e):
+            report["soft_races"].append(f"created_skills table: {e}")
+        else:
+            report["errors"].append(f"created_skills table: {e}")
 
     insp = inspect(engine)
     tables = set(insp.get_table_names())
@@ -423,11 +689,30 @@ def ensure_schema(engine: Engine) -> dict:
             report["meeting_missing"].append(name)
             log.warning("Meeting table missing after ensure: %s", name)
 
+    for name in CRM_TABLES:
+        if name in tables:
+            report["crm_tables"].append(name)
+        else:
+            report["crm_missing"].append(name)
+            log.warning("CRM table missing after ensure: %s", name)
+
+    for name in KNOWLEDGE_TABLES:
+        if name in tables:
+            report["knowledge_tables"].append(name)
+        else:
+            report["knowledge_missing"].append(name)
+            log.warning("Knowledge table missing after ensure: %s", name)
+
     for table, cols in COLUMN_ADDS.items():
         if table not in tables:
-            # Table absent: create_all / _ensure_meeting_tables should have made it;
+            # Table absent: create_all / _ensure_* should have made it;
             # skip ALTERs (cannot ALTER a missing table).
-            if table in MEETING_TABLES or table == "tasks":
+            if (
+                table in MEETING_TABLES
+                or table in CRM_TABLES
+                or table in KNOWLEDGE_TABLES
+                or table == "tasks"
+            ):
                 log.warning("Skip COLUMN_ADDS for missing table: %s", table)
             continue
         existing = _existing_columns(engine, table)
@@ -447,9 +732,13 @@ def ensure_schema(engine: Engine) -> dict:
                 report["added"].append(f"{table}.{col}")
                 log.info("Added column %s.%s", table, col)
             except Exception as e:
-                msg = f"{table}.{col}: {e}"
-                report["errors"].append(msg)
-                log.warning("Could not add %s: %s", f"{table}.{col}", e)
+                if _is_already_exists_error(e):
+                    report["soft_races"].append(f"{table}.{col}: {e}")
+                    log.info("Column %s.%s already exists (race) — continuing", table, col)
+                else:
+                    msg = f"{table}.{col}: {e}"
+                    report["errors"].append(msg)
+                    log.warning("Could not add %s: %s", f"{table}.{col}", e)
 
     # Widen storage_bonus_bytes if it was created as 32-bit INTEGER (Postgres)
     if pg and "balances" in tables:
@@ -468,8 +757,11 @@ def ensure_schema(engine: Engine) -> dict:
                     report["added"].append("balances.storage_bonus_bytes->BIGINT")
                     log.info("Widened balances.storage_bonus_bytes to BIGINT")
         except Exception as e:
-            report["errors"].append(f"balances.storage_bonus_bytes widen: {e}")
-            log.warning("Could not widen storage_bonus_bytes: %s", e)
+            if _is_already_exists_error(e):
+                report["soft_races"].append(f"balances.storage_bonus_bytes widen: {e}")
+            else:
+                report["errors"].append(f"balances.storage_bonus_bytes widen: {e}")
+                log.warning("Could not widen storage_bonus_bytes: %s", e)
 
     # Re-check users auth columns after ALTERs (for reporting)
     if "users" in tables:
@@ -489,6 +781,18 @@ def ensure_schema(engine: Engine) -> dict:
                 report["task_meeting_missing"].append(col)
                 report["errors"].append(f"tasks.{col} still missing after migrate")
                 log.error("tasks.%s still missing after migrate", col)
+
+    # Re-check critical runtime columns (permission_level, human_id, assignee_type, CRM FKs)
+    for ctable, ccols in CRITICAL_COLS.items():
+        if ctable not in tables:
+            continue
+        have = _existing_columns(engine, ctable)
+        for col in ccols:
+            if col not in have:
+                key = f"{ctable}.{col}"
+                report["critical_missing"].append(key)
+                report["errors"].append(f"{key} still missing after migrate")
+                log.error("%s still missing after migrate", key)
 
     # Re-check meeting table columns still aligned with models (report only)
     for mtable in MEETING_TABLES:

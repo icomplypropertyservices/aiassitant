@@ -53,6 +53,7 @@ def _meeting_room(db: Session, user: models.User, meeting_id: int | None) -> mod
     return room
 
 async def _skill_open_meeting(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Open a multi-agent meeting room (offline DB write — no external keys)."""
     title = (args.get("title") or "Meeting").strip()[:200] or "Meeting"
     purpose = (args.get("purpose") or args.get("description") or "").strip()[:4000]
     room_type = (args.get("room_type") or "brainstorm").strip()[:40] or "brainstorm"
@@ -92,6 +93,40 @@ async def _skill_open_meeting(db: Session, agent: models.Agent, user: models.Use
         seen.add(aid)
         ordered.append(aid)
 
+    try:
+        return await _open_meeting_room(
+            db, agent, user,
+            title=title, purpose=purpose, room_type=room_type,
+            task_id=task_id, project_id=project_id, company_id=company_id,
+            ordered=ordered,
+        )
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {
+            "ok": False,
+            "error": f"open_meeting failed: {e}",
+            "error_code": "meeting_error",
+            "retryable": False,
+            "skill": "open_meeting",
+        }
+
+
+async def _open_meeting_room(
+    db: Session,
+    agent: models.Agent,
+    user: models.User,
+    *,
+    title: str,
+    purpose: str,
+    room_type: str,
+    task_id: int | None,
+    project_id: int | None,
+    company_id: int | None,
+    ordered: list[int],
+) -> dict:
     room = models.MeetingRoom(
         user_id=user.id,
         company_id=company_id,
@@ -173,13 +208,28 @@ async def _skill_post_to_meeting(db: Session, agent: models.Agent, user: models.
     meeting_id = _parse_meeting_id(args)
     room = _meeting_room(db, user, meeting_id)
     if not room:
-        return {"ok": False, "error": "meeting_id required or meeting not found"}
+        return {
+            "ok": False,
+            "error": "meeting_id required or meeting not found",
+            "error_code": "validation",
+            "retryable": False,
+        }
     if (room.status or "").lower() == "closed":
-        return {"ok": False, "error": "meeting is closed"}
+        return {
+            "ok": False,
+            "error": "meeting is closed",
+            "error_code": "meeting_closed",
+            "retryable": False,
+        }
 
     content = (args.get("content") or args.get("message") or args.get("body") or "").strip()
     if not content:
-        return {"ok": False, "error": "content required"}
+        return {
+            "ok": False,
+            "error": "content required",
+            "error_code": "validation",
+            "retryable": False,
+        }
 
     msg_type = (args.get("msg_type") or args.get("type") or "chat").strip()[:40] or "chat"
     if msg_type not in ("chat", "decision", "task_created", "system"):
@@ -228,12 +278,27 @@ async def _skill_run_meeting_round(db: Session, agent: models.Agent, user: model
     """Delegate to meeting_runner.run_meeting_round (skill path → dict result)."""
     meeting_id = _parse_meeting_id(args)
     if not meeting_id:
-        return {"ok": False, "error": "meeting_id required"}
+        return {
+            "ok": False,
+            "error": "meeting_id required",
+            "error_code": "validation",
+            "retryable": False,
+        }
     room = _meeting_room(db, user, meeting_id)
     if not room:
-        return {"ok": False, "error": "meeting not found"}
+        return {
+            "ok": False,
+            "error": "meeting not found",
+            "error_code": "not_found",
+            "retryable": False,
+        }
     if (room.status or "").lower() == "closed":
-        return {"ok": False, "error": "meeting is closed"}
+        return {
+            "ok": False,
+            "error": "meeting is closed",
+            "error_code": "meeting_closed",
+            "retryable": False,
+        }
 
     from ..meeting_runner import run_meeting_round
 
@@ -247,15 +312,30 @@ async def _skill_run_meeting_round(db: Session, agent: models.Agent, user: model
     prompt = (args.get("prompt") or args.get("focus") or args.get("instruction") or "").strip()
 
     # Skill path: (db, user, room_id, *, prompt, max_agents, chair_only) → dict
-    result = await run_meeting_round(
-        db,
-        user,
-        meeting_id,
-        prompt=prompt,
-        max_agents=max_agents,
-        chair_only=chair_only,
-    )
+    try:
+        result = await run_meeting_round(
+            db,
+            user,
+            meeting_id,
+            prompt=prompt,
+            max_agents=max_agents,
+            chair_only=chair_only,
+        )
+    except Exception as e:
+        # Safe degrade — never crash autonomy on LLM/provider blips
+        return {
+            "ok": False,
+            "error": f"Meeting round failed: {e}",
+            "error_code": "meeting_round_failed",
+            "retryable": True,
+            "meeting_id": meeting_id,
+            "guidance": "Retry once, or post_to_meeting with a summary if the provider is down.",
+        }
     if isinstance(result, dict):
+        if result.get("ok") is False and result.get("retryable") is None:
+            result = dict(result)
+            result.setdefault("error_code", "meeting_round_failed")
+            result.setdefault("retryable", True)
         return result
     # Defensive: router-style list return should not happen on skill path
     msgs = result or []
@@ -272,7 +352,12 @@ async def _skill_close_meeting(db: Session, agent: models.Agent, user: models.Us
     meeting_id = _parse_meeting_id(args)
     room = _meeting_room(db, user, meeting_id)
     if not room:
-        return {"ok": False, "error": "meeting_id required or meeting not found"}
+        return {
+            "ok": False,
+            "error": "meeting_id required or meeting not found",
+            "error_code": "validation",
+            "retryable": False,
+        }
     if (room.status or "").lower() == "closed":
         return {
             "ok": True,
@@ -543,15 +628,26 @@ async def _skill_extract_meeting_tasks(db: Session, agent: models.Agent, user: m
     }
 
 async def _skill_list_meetings(db: Session, agent: models.Agent, user: models.User, args: dict) -> dict:
+    """Offline list of workspace meeting rooms — always safe without external keys."""
     try:
         limit = min(40, int(args.get("limit") or 20))
     except Exception:
         limit = 20
     status = (args.get("status") or "").strip() or None
-    query = db.query(models.MeetingRoom).filter_by(user_id=user.id)
-    if status:
-        query = query.filter(models.MeetingRoom.status == status)
-    rows = query.order_by(models.MeetingRoom.id.desc()).limit(limit).all()
+    try:
+        query = db.query(models.MeetingRoom).filter_by(user_id=user.id)
+        if status:
+            query = query.filter(models.MeetingRoom.status == status)
+        rows = query.order_by(models.MeetingRoom.id.desc()).limit(limit).all()
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"list_meetings failed: {e}",
+            "error_code": "meeting_error",
+            "retryable": False,
+            "meetings": [],
+            "count": 0,
+        }
     return {
         "ok": True,
         "count": len(rows),
@@ -567,6 +663,7 @@ async def _skill_list_meetings(db: Session, agent: models.Agent, user: models.Us
             }
             for r in rows
         ],
+        "message": f"Found {len(rows)} meeting(s)",
     }
 
 
@@ -575,9 +672,19 @@ async def _skill_invite_to_meeting(db: Session, agent: models.Agent, user: model
     meeting_id = _parse_meeting_id(args)
     room = _meeting_room(db, user, meeting_id)
     if not room:
-        return {"ok": False, "error": "meeting_id required or meeting not found"}
+        return {
+            "ok": False,
+            "error": "meeting_id required or meeting not found",
+            "error_code": "validation",
+            "retryable": False,
+        }
     if (room.status or "").lower() == "closed":
-        return {"ok": False, "error": "meeting is closed"}
+        return {
+            "ok": False,
+            "error": "meeting is closed",
+            "error_code": "meeting_closed",
+            "retryable": False,
+        }
 
     ids = _parse_id_list(args.get("agent_ids") or args.get("agents") or [])
     single = args.get("agent_id")
@@ -595,7 +702,12 @@ async def _skill_invite_to_meeting(db: Session, agent: models.Agent, user: model
         seen.add(aid)
         ordered.append(aid)
     if not ordered:
-        return {"ok": False, "error": "agent_ids or agent_id required"}
+        return {
+            "ok": False,
+            "error": "agent_ids or agent_id required",
+            "error_code": "validation",
+            "retryable": False,
+        }
 
     role = (args.get("role") or "member").strip().lower()
     if role not in ("chair", "member", "observer"):

@@ -14,13 +14,94 @@ from .database import SessionLocal
 from .agent_scaffold import map_model, resolve_runtime, repair_agent
 from .agent_skills import run_skills_from_text
 from .agent_prompts import build_task_prompt
-from .llm import complete_with_usage
+from .llm import (
+    complete_with_usage,
+    is_terminal_llm_failure,
+    classify_terminal_llm_failure,
+)
 from .pricing import estimate_tokens, estimate_messages_tokens
 from .usage_billing import charge_usage, bill_llm_turn
 from .user_keys import credentials_for_user
 from .ws import manager
 
 log = logging.getLogger("app.task_runner")
+
+
+def _looks_terminal_provider(task: models.Task | None) -> bool:
+    """True for credits / spending-limit / 403 / LLM-down — never requeue."""
+    if not task:
+        return False
+    labels = (task.labels or "").lower()
+    for tag in (
+        "llm_unavailable",
+        "credits_exhausted",
+        "llm_permission_denied",
+        "spending_limit",
+    ):
+        if tag in labels:
+            return True
+    res = task.result or ""
+    if is_terminal_llm_failure(res):
+        return True
+    low = res.lower()
+    return any(
+        p in low
+        for p in (
+            "spending limit",
+            "spending_limit",
+            "permission-denied",
+            "[llm_unavailable]",
+            "[credits_exhausted]",
+            "[llm_permission_denied]",
+        )
+    )
+
+
+def _stamp_terminal_label(task: models.Task, label: str = "llm_unavailable") -> None:
+    lab = (label or "llm_unavailable").strip().lower() or "llm_unavailable"
+    existing = [x.strip() for x in (task.labels or "").split(",") if x.strip()]
+    if lab not in {x.lower() for x in existing}:
+        existing.append(lab)
+        task.labels = ",".join(existing)[:500]
+
+
+async def _mark_task_failed_fast(
+    task_id: int,
+    reason: str,
+    *,
+    marker: str = "[LLM_UNAVAILABLE]",
+    label: str = "llm_unavailable",
+) -> None:
+    """Terminal fail + chain rollup — do not leave in_progress / requeue."""
+    db = SessionLocal()
+    try:
+        t = db.get(models.Task, task_id)
+        if not t:
+            return
+        cur = (t.status or "").lower()
+        if cur in ("completed", "failed", "review"):
+            return
+        body = f"{marker} {reason}".strip()
+        t.status = "failed"
+        t.result = body[:12000]
+        t.completed_at = datetime.utcnow()
+        t.updated_at = datetime.utcnow()
+        # Stamp label so autonomy stalled-requeue never picks this up again
+        _stamp_terminal_label(t, label)
+        try:
+            from .task_chain import on_task_finished
+            await on_task_finished(db, t, final_status="failed", commit=False)
+        except Exception as chain_err:
+            log.warning("task_chain on fail-fast failed: %s", chain_err)
+        db.commit()
+    except Exception as e:
+        log.warning("mark_task_failed_fast task=%s: %s", task_id, e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 async def kick_queued_task(
@@ -126,13 +207,30 @@ async def kick_queued_task(
         log.info("kicked task_id=%s agent_id=%s budget=%s", tid, a_id, budget)
         # If the runner timed out mid-flight, put work back on the queue so the
         # next offline tick continues (owner does not need to be logged in).
+        # Never requeue terminal provider/billing failures (credits / 403 / spend cap).
         db3 = SessionLocal()
         try:
             t3 = db3.get(models.Task, tid)
             if t3 and (t3.status or "") == "in_progress":
-                # incomplete — leave markers so requeue / next tick continues
                 res = (t3.result or "")
-                if "complete_task" not in res.lower() and "[AUTO-REQUEUE]" not in res:
+                if _looks_terminal_provider(t3):
+                    t3.status = "failed"
+                    t3.completed_at = t3.completed_at or datetime.utcnow()
+                    t3.updated_at = datetime.utcnow()
+                    _stamp_terminal_label(t3, "llm_unavailable")
+                    if not (res or "").strip().startswith("["):
+                        t3.result = (
+                            f"[LLM_UNAVAILABLE] Provider/billing failure after budget — not requeued.\n"
+                            f"{res}"
+                        )[:12000]
+                    try:
+                        from .task_chain import on_task_finished
+                        await on_task_finished(db3, t3, final_status="failed", commit=False)
+                    except Exception as chain_err:
+                        log.warning("chain on terminal budget fail: %s", chain_err)
+                    db3.commit()
+                    log.info("terminal fail (no requeue) task_id=%s after budget", tid)
+                elif "complete_task" not in res.lower() and "[AUTO-REQUEUE]" not in res:
                     t3.status = "queued"
                     t3.updated_at = datetime.utcnow()
                     t3.result = (
@@ -151,17 +249,43 @@ async def kick_queued_task(
         return True
     except Exception as e:
         log.warning("kick_queued_task schedule failed task=%s: %s", task_id, e)
-        # Re-queue so autonomy can retry offline
+        # Re-queue recoverable work only — never credits/403/spending-limit loops
         db2 = SessionLocal()
         try:
             t2 = db2.get(models.Task, tid)
             if t2 and (t2.status or "") == "in_progress":
-                t2.status = "queued"
-                t2.updated_at = datetime.utcnow()
-                t2.result = (
-                    ((t2.result or "").rstrip() + f"\n\n[AUTO-REQUEUE] kick failed: {e}")[:12000]
-                )
-                db2.commit()
+                if _looks_terminal_provider(t2) or is_terminal_llm_failure(str(e)):
+                    kind = classify_terminal_llm_failure(str(e)) or "llm_unavailable"
+                    marker = {
+                        "credits": "[CREDITS_EXHAUSTED]",
+                        "spending_limit": "[LLM_PERMISSION_DENIED]",
+                        "permission_denied": "[LLM_PERMISSION_DENIED]",
+                    }.get(kind, "[LLM_UNAVAILABLE]")
+                    fail_label = {
+                        "credits": "credits_exhausted",
+                        "spending_limit": "spending_limit",
+                        "permission_denied": "llm_permission_denied",
+                    }.get(kind, "llm_unavailable")
+                    t2.status = "failed"
+                    t2.completed_at = t2.completed_at or datetime.utcnow()
+                    t2.updated_at = datetime.utcnow()
+                    _stamp_terminal_label(t2, fail_label)
+                    t2.result = (
+                        f"{marker} kick failed (not requeued): {e}"
+                    )[:12000]
+                    try:
+                        from .task_chain import on_task_finished
+                        await on_task_finished(db2, t2, final_status="failed", commit=False)
+                    except Exception:
+                        pass
+                    db2.commit()
+                else:
+                    t2.status = "queued"
+                    t2.updated_at = datetime.utcnow()
+                    t2.result = (
+                        ((t2.result or "").rstrip() + f"\n\n[AUTO-REQUEUE] kick failed: {e}")[:12000]
+                    )
+                    db2.commit()
         except Exception:
             try:
                 db2.rollback()
@@ -361,6 +485,61 @@ async def run_agent_task(
             # Keep background prompts short to cut tokens / GPU time
             if is_autonomy and len(prompt) > 6000:
                 prompt = prompt[:6000] + "\n\n[truncated for GPU budget]"
+
+            # Fail fast when wallet/plan cannot fund LLM work — do not burn turns.
+            try:
+                from .usage_billing import meter_snapshot
+                if user and user.role != "admin":
+                    meter_pre = meter_snapshot(db, user)
+                    if meter_pre.get("hard_block"):
+                        reason = (
+                            "AI fuel empty (included tokens exhausted and credits below minimum). "
+                            "Top up on Billing to run agents again."
+                        )
+                        t_block = db.get(models.Task, task_id)
+                        if t_block and (t_block.status or "").lower() not in (
+                            "completed", "failed", "review",
+                        ):
+                            t_block.status = "failed"
+                            t_block.result = f"[CREDITS_EXHAUSTED] {reason}"[:12000]
+                            t_block.completed_at = datetime.utcnow()
+                            t_block.updated_at = datetime.utcnow()
+                            labs = [
+                                x.strip()
+                                for x in (t_block.labels or "").split(",")
+                                if x.strip()
+                            ]
+                            for tag in ("llm_unavailable", "credits_exhausted"):
+                                if tag not in {x.lower() for x in labs}:
+                                    labs.append(tag)
+                            t_block.labels = ",".join(labs)[:500]
+                            try:
+                                from .task_chain import on_task_finished
+                                await on_task_finished(
+                                    db, t_block, final_status="failed", commit=False,
+                                )
+                            except Exception as chain_err:
+                                log.warning(
+                                    "task_chain on credits fail-fast: %s", chain_err,
+                                )
+                            db.commit()
+                        await log_activity(
+                            agent_id, user_id, "info",
+                            f"Task failed (credits): {reason[:120]}",
+                        )
+                        await manager.broadcast(
+                            f"agents:{user_id}",
+                            {
+                                "event": "task_done",
+                                "agent_id": agent_id,
+                                "task_id": task_id,
+                                "status": "failed",
+                                "reason": "credits",
+                            },
+                        )
+                        return
+            except Exception as meter_err:
+                log.warning("pre-run meter check failed: %s", meter_err)
         finally:
             db.close()
 
@@ -374,6 +553,7 @@ async def run_agent_task(
         charged: dict = {"tokens": 0, "cost": 0.0, "tokens_used_period": None, "credits": None}
         final_status = "in_progress"
         final_reason = "started"
+        terminal_llm_fail = False
 
         for turn in range(max_turns):
             turn_n = turn + 1
@@ -381,11 +561,70 @@ async def run_agent_task(
                 agent_id, user_id, "thinking",
                 f"Task #{task_id} turn {turn_n}/{max_turns}",
             )
-            turn_out, turn_usage = await complete_with_usage(
-                messages, model, mode, credentials=creds,
-            )
+            try:
+                turn_out, turn_usage = await complete_with_usage(
+                    messages, model, mode, credentials=creds,
+                )
+            except Exception as llm_exc:
+                # Provider raised — fail immediately (no more turns / requeue)
+                fail_text = str(llm_exc)
+                kind = classify_terminal_llm_failure(fail_text) or "llm_unavailable"
+                marker = {
+                    "credits": "[CREDITS_EXHAUSTED]",
+                    "spending_limit": "[LLM_PERMISSION_DENIED]",
+                    "permission_denied": "[LLM_PERMISSION_DENIED]",
+                }.get(kind, "[LLM_UNAVAILABLE]")
+                fail_label = {
+                    "credits": "credits_exhausted",
+                    "spending_limit": "spending_limit",
+                    "permission_denied": "llm_permission_denied",
+                }.get(kind, "llm_unavailable")
+                log.error(
+                    "task=%s terminal LLM exception turn=%s kind=%s: %s",
+                    task_id, turn_n, kind, fail_text[:200],
+                )
+                await _mark_task_failed_fast(
+                    task_id,
+                    f"{kind}: {fail_text}"[:800],
+                    marker=marker,
+                    label=fail_label,
+                )
+                final_status = "failed"
+                final_reason = kind
+                terminal_llm_fail = True
+                output = f"{marker} {fail_text}"[:2000]
+                break
+
             turn_out = turn_out or ""
             output = turn_out
+
+            # Soft error strings from stream_completion (prod) — fail on turn 1
+            if is_terminal_llm_failure(turn_out):
+                kind = classify_terminal_llm_failure(turn_out) or "llm_unavailable"
+                marker = {
+                    "credits": "[CREDITS_EXHAUSTED]",
+                    "spending_limit": "[LLM_PERMISSION_DENIED]",
+                    "permission_denied": "[LLM_PERMISSION_DENIED]",
+                }.get(kind, "[LLM_UNAVAILABLE]")
+                fail_label = {
+                    "credits": "credits_exhausted",
+                    "spending_limit": "spending_limit",
+                    "permission_denied": "llm_permission_denied",
+                }.get(kind, "llm_unavailable")
+                log.error(
+                    "task=%s terminal LLM response turn=%s kind=%s: %s",
+                    task_id, turn_n, kind, (turn_out or "")[:200],
+                )
+                await _mark_task_failed_fast(
+                    task_id,
+                    f"{kind}: {(turn_out or 'provider unavailable')[:700]}",
+                    marker=marker,
+                    label=fail_label,
+                )
+                final_status = "failed"
+                final_reason = kind
+                terminal_llm_fail = True
+                break
 
             turn_skills: list[dict] = []
             db = SessionLocal()
@@ -552,16 +791,67 @@ async def run_agent_task(
             if len(messages) > 8:
                 messages = [messages[0]] + messages[-6:]
 
-        # If still open after all turns, re-queue so the agent stays busy until done
+        # If still open after all turns, re-queue so the agent stays busy until done.
+        # Never re-queue after terminal LLM/credits/403 failures (already status=failed).
+        # Close-skill success must not leave in_progress zombies (chain unlock + terminal).
         db = SessionLocal()
         try:
             t = db.get(models.Task, task_id)
-            if t and (t.status or "").lower() == "in_progress":
+            closed_any = skill_closed_task(all_skill_results)
+            if terminal_llm_fail or (t and _looks_terminal_provider(t)):
+                # Ensure status stayed failed even if a race re-opened it
+                if t and (t.status or "").lower() not in ("failed", "completed", "review"):
+                    t.status = "failed"
+                    t.completed_at = t.completed_at or datetime.utcnow()
+                    t.updated_at = datetime.utcnow()
+                    _stamp_terminal_label(t, "llm_unavailable")
+                    if not is_terminal_llm_failure(t.result or ""):
+                        t.result = (
+                            f"[LLM_UNAVAILABLE] {final_reason}: {(output or '')[:700]}"
+                        )[:12000]
+                    try:
+                        from .task_chain import on_task_finished
+                        await on_task_finished(db, t, final_status="failed", commit=False)
+                    except Exception as chain_err:
+                        log.warning("task_chain terminal post-loop: %s", chain_err)
+                    db.commit()
+                    final_status = "failed"
+                    final_reason = final_reason or "terminal_provider"
+            elif t and (t.status or "").lower() == "in_progress" and closed_any:
+                # complete_task / set_task_status reported ok but row stuck open —
+                # force terminal so chain unlock runs and autonomy never requeues forever.
+                closed_fail = any(
+                    r.get("ok")
+                    and str(r.get("skill") or "").lower() == "set_task_status"
+                    and "fail" in str(r.get("message") or r.get("status") or "").lower()
+                    for r in (all_skill_results or [])
+                )
+                term = "failed" if closed_fail else "completed"
+                t.status = term
+                t.completed_at = t.completed_at or datetime.utcnow()
+                t.updated_at = datetime.utcnow()
+                if output and not (t.result or "").strip():
+                    t.result = (output or "")[:12000]
+                note = (
+                    f"\n\n[CLOSE-SKILL FINALIZE] Close skill succeeded; "
+                    f"forced {term} so chain does not zombie."
+                )
+                t.result = ((t.result or "") + note)[:12000]
+                try:
+                    from .task_chain import on_task_finished
+                    await on_task_finished(db, t, final_status=term, commit=False)
+                except Exception as chain_err:
+                    log.warning("task_chain close-skill zombie fix: %s", chain_err)
+                db.commit()
+                final_status = term
+                final_reason = "close_skill_forced_terminal"
+                log.info("task=%s close-skill zombie → %s", task_id, term)
+            elif t and (t.status or "").lower() == "in_progress":
                 prior_requeues = (t.result or "").count("[AUTO-REQUEUE]")
                 # Cap requeues to avoid infinite GPU burn; stuck escalator handles longer stalls
                 if (
                     all_skill_results
-                    and not skill_closed_task(all_skill_results)
+                    and not closed_any
                     and prior_requeues < 2
                 ):
                     t.status = "queued"

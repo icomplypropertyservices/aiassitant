@@ -107,6 +107,16 @@ export default function AppShell() {
     meter && (meter.warn || (meter.usage_percent != null && meter.usage_percent >= 80 && meter.usage_percent < 100))
   const showTokenHard =
     meter && (meter.hard_block || (meter.usage_percent != null && meter.usage_percent >= 100))
+  // From existing meter snapshot (useShellSession) — no new poll
+  const upgradePath =
+    meter?.upgrade_cta_path
+    || (meter?.needs_subscription || user?.needs_subscription ? '/subscribe' : '/billing')
+  const upgradeLinkLabel =
+    meter?.needs_subscription || user?.needs_subscription
+      ? 'Choose a plan'
+      : upgradePath === '/subscribe'
+        ? 'Upgrade plan'
+        : 'Top up / upgrade'
 
   return (
     <Layout
@@ -136,28 +146,37 @@ export default function AppShell() {
 
         <LiveOpsBanner />
 
-        {(showTokenHard || showTokenWarn) && (
+        {(showTokenHard || showTokenWarn || meter?.needs_subscription) && (
           <Alert
-            type={showTokenHard ? 'error' : 'warning'}
+            type={showTokenHard || meter?.needs_subscription ? 'error' : 'warning'}
             showIcon
             banner
             className="aba-v2-banner"
             message={
-              showTokenHard ? (
+              meter?.needs_subscription ? (
+                <>
+                  No active plan — agents and AI need a subscription.{' '}
+                  <Link to={upgradePath}>{upgradeLinkLabel}</Link>
+                </>
+              ) : showTokenHard ? (
                 <>
                   AI paused (tokens/credits empty) — you can still use the rest of the app.{' '}
-                  <Link to="/billing">Top up to chat again</Link>
+                  <Link to={upgradePath}>{upgradeLinkLabel}</Link>
                 </>
               ) : (
                 <>
-                  Included tokens running low — <Link to="/billing">top up</Link>
+                  Included tokens running low
+                  {meter?.tokens_remaining_included != null && (
+                    <> ({Number(meter.tokens_remaining_included).toLocaleString()} left)</>
+                  )}
+                  {' '}— <Link to={upgradePath}>{upgradeLinkLabel.toLowerCase()}</Link>
                 </>
               )
             }
           />
         )}
 
-        {user?.plan === 'trial' && !showTokenHard && (
+        {user?.plan === 'trial' && !showTokenHard && !meter?.needs_subscription && (
           <Alert
             type={(() => {
               const exp = user?.subscription_expires_at
@@ -170,7 +189,7 @@ export default function AppShell() {
             className="aba-v2-banner"
             message={
               <>
-                Free trial · 50k tokens · 10 agents
+                Free trial · 50k tokens · 12 agents
                 {user?.subscription_expires_at && (() => {
                   const d = new Date(user.subscription_expires_at)
                   if (Number.isNaN(d.getTime())) return null
@@ -179,7 +198,7 @@ export default function AppShell() {
                   if (days === 0) return <> · ends today</>
                   return <> · {days} day{days === 1 ? '' : 's'} left</>
                 })()}
-                {' '}— <Link to="/billing">Upgrade →</Link>
+                {' '}— <Link to="/subscribe">Upgrade →</Link>
               </>
             }
           />

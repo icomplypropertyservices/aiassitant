@@ -212,7 +212,21 @@ export default function Subscribe() {
     } catch (e) {
       const msg = String(e.message || '')
       const isFreePlan = planKey === 'trial' || !(plans[planKey]?.price > 0)
-      if (!isFreePlan && (msg.toLowerCase().includes('crypto') || e.status === 402)) {
+      // Trial re-POST after one-shot → 402 with TRIAL_ENDED_MSG (must match backend)
+      const trialEnded402 =
+        isFreePlan
+        && (e.status === 402 || /trial ended/i.test(msg))
+      if (trialEnded402) {
+        message.error(
+          msg || 'Trial ended — subscribe to unlock full tool access',
+        )
+        // Scroll to paid plan cards so CTA is obvious
+        try {
+          const el = document.querySelector('.aba-billing-plans-box')
+            || document.querySelector('.aba-billing-plans-inner')
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } catch { /* ignore */ }
+      } else if (!isFreePlan && (msg.toLowerCase().includes('crypto') || e.status === 402)) {
         setCryptoPlan(planKey)
         setCryptoOpen(true)
       } else {
@@ -353,22 +367,23 @@ export default function Subscribe() {
 
           {trialEnded && (
             <Alert
-              type="warning"
+              type="error"
               showIcon
               className="aba-auth-alert"
-              message="Subscription required"
+              message="Trial ended — subscribe to unlock full tool access"
               description={
                 <>
                   Free trial access is no longer active
                   {expiresMeta ? ` (ended ${expiresMeta.date.toLocaleDateString()})` : ''}.
-                  Select a paid plan below (card or crypto) to restore full access. Trial free tier is
-                  not available again after expiry.
+                  {' '}Select <strong>Starter</strong>, <strong>Pro</strong>, or <strong>Business</strong> below
+                  (card / Apple Pay / Google Pay / crypto) to restore agents, skills, and AI.
+                  Free trial is one-shot — not available again after expiry. No free wallet credits.
                 </>
               }
             />
           )}
 
-          {/* Primary free-trial CTA — centered Ant Design Card */}
+          {/* Primary free-trial CTA — accurate grant: 50k tokens · 12 agents · no card · no free wallet */}
           {!trialEnded && (
             <Card
               className="aba-soft-card aba-auth-card aba-trial-cta-card"
@@ -382,8 +397,8 @@ export default function Subscribe() {
                 </Typography.Title>
                 <Typography.Paragraph type="secondary" className="aba-trial-cta-blurb">
                   {trialPlan
-                    ? `${(trialPlan.tokens_included || 50000).toLocaleString()} tokens · up to ${trialPlan.agents || 10} agents · ${trialPlan.companies || 2} companies. Activate instantly — upgrade anytime from Billing.`
-                    : '50,000 tokens · up to 10 agents · 2 companies. Activate instantly — upgrade anytime from Billing.'}
+                    ? `${(trialPlan.tokens_included || 50000).toLocaleString()} tokens / mo · up to ${trialPlan.agents || 12} agents · ${trialPlan.companies || 2} companies · ${trialPlan.trial_days || 14} days. No card. Token pool only (wallet credits not free-granted) — upgrade anytime from Billing.`
+                    : '50,000 tokens / mo · up to 12 agents · 2 companies · 14 days. No card. Token pool only — upgrade anytime from Billing.'}
                 </Typography.Paragraph>
                 <Button
                   type="primary"
@@ -396,7 +411,7 @@ export default function Subscribe() {
                   Start free trial — no card
                 </Button>
                 <Typography.Paragraph type="secondary" className="aba-trial-cta-foot">
-                  Or pick a paid plan below (card or crypto)
+                  Or subscribe below for full access (card or crypto). Premium skills need wallet credits and fail closed if empty.
                 </Typography.Paragraph>
               </div>
             </Card>
@@ -436,11 +451,13 @@ export default function Subscribe() {
             type="info"
             showIcon
             className="aba-auth-alert aba-auth-alert--last"
-            message="How tokens work"
+            message="How tokens & premium tools work"
             description={
               <>
                 Each plan includes a monthly token pool for managed chat. When the pool is used, usage
-                draws from your credit wallet at transparent rates. Image/video always use the wallet.
+                draws from your credit wallet at transparent rates. Image/video and premium skills always
+                use the wallet and <strong>fail closed</strong> (error, no free run) if credits are too low
+                or billing fails. Free trial grants the token pool + up to 12 agents — not free wallet credits.
               </>
             }
           />

@@ -5,6 +5,7 @@ import {
 import {
   TeamOutlined, RobotOutlined, CrownOutlined, UserOutlined,
   MessageOutlined, SettingOutlined, ThunderboltOutlined, ReloadOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -127,11 +128,27 @@ export default function CoreTeam({
       ) : !agents.length && !human ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No Core Team yet — set up your standing agents and My Human"
+          description={(
+            <span>
+              No agents yet — start from <strong>templates</strong> and enable CRM + workflow skills
+              so each agent has real tools (customers, deals, multi-step goals).
+            </span>
+          )}
         >
-          <Button type="primary" loading={ensuring} onClick={ensure} icon={<TeamOutlined />}>
-            Set up Core Team
-          </Button>
+          <Space wrap style={{ justifyContent: 'center' }}>
+            <Button type="primary" icon={<AppstoreOutlined />} onClick={() => nav('/templates')}>
+              Browse templates
+            </Button>
+            <Button loading={ensuring} onClick={ensure} icon={<ThunderboltOutlined />}>
+              Set up Core Team
+            </Button>
+            <Button onClick={() => nav('/console')}>
+              Open console
+            </Button>
+            <Button type="link" onClick={() => nav('/hierarchy')}>
+              Hierarchy
+            </Button>
+          </Space>
         </Empty>
       ) : (
         <Row gutter={[12, 12]}>
@@ -197,7 +214,7 @@ export default function CoreTeam({
                         icon={<SettingOutlined />}
                         onClick={(e) => { e.stopPropagation(); nav(`/console/${a.id}/manage`) }}
                       >
-                        Manage
+                        Skills
                       </Button>
                     </Space>
                   </div>

@@ -105,6 +105,66 @@ def chat_voice_extra() -> str:
     return f"{CHAT_ADDRESS_RULE}\n\n{HUMAN_VOICE_RULE}"
 
 
+# Compact fence reminder — keep short; full catalog is in skills_prompt_block.
+SKILL_FENCE_RULE = (
+    "SKILL FENCES (required for real actions — prose does NOT write to the DB):\n"
+    "```skill\n"
+    '{"skill":"create_customer","args":{"name":"...","email":"..."}}\n'
+    "```\n"
+    "CRM: create_customer, qualify_lead, score_lead, list_leads, set_lead_status, "
+    "create_deal, move_deal, win_deal, lose_deal, log_customer_activity, list_customers.\n"
+    "After every create_customer always run qualify_lead then create_deal (same lead).\n"
+    "Workflows: run_workflow (named presets), execute_goal, create_workflow, "
+    "create_task, complete_task.\n"
+    "Media when asked for images/video/ads: generate_image, generate_video "
+    "(premium — use only when needed). If generate_video returns pending + request_id, "
+    "call check_video with that request_id — do not resubmit generate_video.\n"
+    "Always emit the fence, then a short human reply confirming what you did."
+)
+
+
+def template_action_hints(template_type: str | None, hierarchy_role: str | None = None) -> str:
+    """1–3 line template-specific action cues (no catalog dump)."""
+    tpl = (template_type or "").strip().lower().replace("-", "_").replace(" ", "_")
+    role = (hierarchy_role or "").strip().lower()
+    # Sales / CRM family
+    if tpl in (
+        "sales", "outreach", "sdr", "ae", "pipeline", "crm", "booking",
+        "lead_gen", "lead_qualifier", "qualifier", "account",
+    ) or (role == "member" and "sales" in tpl):
+        return (
+            "SALES FOCUS: Prefer skill fences — create_customer + qualify_lead + create_deal "
+            "for every real lead; score_lead / set_lead_status / list_leads for funnel hygiene; "
+            "move_deal / win_deal / lose_deal on the board; draft_email / log_customer_activity "
+            "for outreach; run_workflow sales_targets_crm_outreach (or execute_goal) for "
+            "targets→CRM→outreach end-to-end. After create_customer always qualify_lead then "
+            "create_deal. Never leave targets as chat-only lists."
+        )
+    if tpl in ("marketing", "content", "growth", "seo", "social", "brand", "designer", "product", "catalog"):
+        return (
+            "MARKETING FOCUS: generate_content for copy; generate_image / generate_ad_creative / "
+            "generate_product_shot / generate_video for assets when the human wants them; "
+            "if video is pending, check_video(request_id) — never resubmit generate_video; "
+            "save_memory or create_task to keep deliverables on the board."
+        )
+    if tpl in ("coding", "code", "engineer", "engineering", "developer", "dev", "qa", "devops", "fullstack"):
+        return (
+            "ENGINEERING FOCUS: use write_api_endpoint / write_tests / code_review / debug_error skill "
+            "fences for deliverables; complete_task with concrete result text."
+        )
+    if tpl in ("support", "customer", "success", "cx", "ops", "operations"):
+        return (
+            "SUPPORT FOCUS: triage_ticket / escalate_to_human / log_customer_activity skill fences; "
+            "search_knowledge before inventing policy answers."
+        )
+    if role in ("lead", "orchestrator") or tpl in ("lead", "manager", "orchestrator", "staff_orchestrator"):
+        return (
+            "LEAD/ORCH FOCUS: multi-step asks → run_workflow (presets), execute_goal, or "
+            "create_workflow; hire/spawn when the team is short; review_task on subagent completions."
+        )
+    return ""
+
+
 def build_agent_system_prompt(
     db: Session,
     agent: models.Agent,
@@ -183,11 +243,11 @@ def build_agent_system_prompt(
         "Never leave work as vague advice — always a board row with measurable done-when, then complete it. "
         "Run the sales board with create_deal, move_deal, win_deal, lose_deal, update_pipeline. "
         "MULTI-AGENT SALES PIPELINE: when asked for N sales targets → CRM → outreach, "
-        "use execute_goal (or the platform auto-chain). Typical handoff: "
-        "(1) sales agent generates N targets, (2) sales agent create_customer + create_deal for each, "
+        "prefer run_workflow workflow_id=sales_targets_crm_outreach (or execute_goal). Typical handoff: "
+        "(1) sales agent generates N targets, (2) sales agent create_customer + qualify_lead + create_deal, "
         "(3) outreach agent draft_email/send_email + calls + log_customer_activity, "
-        "(4) sales agent move_deal / pipeline_summary, (5) status_update the human. "
-        "Never stop after listing targets in chat — always persist CRM rows with skills. "
+        "(4) sales agent move_deal / win_deal / lose_deal / pipeline_summary, (5) status_update the human. "
+        "Never stop after listing targets in chat — always persist CRM rows with skill fences. "
         "You may COMMENT / note on records with the comment skill (target_type + target_id + body) "
         "or post_to_meeting / log_customer_activity / message_agent / Human messages. "
         "Always inform the human owner of progress: use notify_human or status_update so they get "
@@ -200,12 +260,13 @@ def build_agent_system_prompt(
         "Also accepted: skill id on its own line then args JSON. "
         "Always pair actions with a clear human-facing reply of what happened. "
         "Key skills: hire_agent, spawn_agent, spawn_team, sort_late_projects, list_projects, "
-        "create_project, create_company, execute_goal, create_task, create_workflow, create_pattern, "
-        "run_pattern, review_task, claim_task, list_tasks, complete_task, "
+        "create_project, create_company, execute_goal, run_workflow, create_task, create_workflow, "
+        "create_pattern, run_pattern, review_task, claim_task, list_tasks, complete_task, "
         "list_activity, invite_to_meeting, open_meeting, message_agent, save_memory, "
-        "list_customers, create_customer, list_products, search_products, read_product, "
+        "list_customers, create_customer, qualify_lead, score_lead, list_leads, set_lead_status, "
+        "create_deal, move_deal, win_deal, lose_deal, list_products, search_products, read_product, "
         "write_product, create_product, update_product, set_product_offer, archive_product, "
-        "comment, draft_email, status_update, "
+        "comment, draft_email, status_update, generate_image, generate_video, "
         "list_agent_custom_fields, set_agent_custom_field, get_agent_custom_field. "
         "Use custom fields for free-form agent metadata (territory, quota, niche notes). "
         "After every skill, explain the result in plain language (names, ids, offers, prices). "
@@ -216,11 +277,15 @@ def build_agent_system_prompt(
         "You may respond and act on your own between human messages. "
         "Escalate only on failure or missing credentials. Prefer action over advice."
     )
+    tpl_hint = template_action_hints(agent.template_type, getattr(agent, "hierarchy_role", None))
     # System "You" = this agent. Human chat partners are clarified via CHAT_ADDRESS_RULE on chat routes.
     base = (
         f"You are {agent.name}, an AI business agent. "
         f"Personality: {agent.personality}. "
-        f"Template type: {agent.template_type}.{cfg} {team}{policy}{autonomy}\n{train}"
+        f"Template type: {agent.template_type}.{cfg} {team}{policy}{autonomy}\n"
+        f"{SKILL_FENCE_RULE}"
+        + (f"\n{tpl_hint}" if tpl_hint else "")
+        + f"\n{train}"
     )
     if skills:
         base = f"{base}\n\n{skills}"
@@ -309,15 +374,20 @@ STEP 1 — PLAN:
 
 STEP 2 — EXECUTE (do real work now — stay busy until finished):
   - You remain IN PROGRESS until complete_task (or failed). Do not stop after a plan-only reply.
-  - Drafts, CRM, research, generate_content, deals, emails (draft), meeting rounds, etc.
-  - Sales/CRM steps: emit create_customer / create_deal skill blocks (not just a list in prose).
-  - Persist data with skills: save_memory, create_customer, create_deal, set_agent_custom_field,
-    write_product / create_product / update_product / set_product_offer,
-    log_customer_activity, update_task — prose does NOT save to the database.
+  - Emit ```skill fences for every DB write — prose alone does nothing.
+  - CRM: create_customer, qualify_lead, score_lead, list_leads, set_lead_status, create_deal,
+    move_deal, win_deal, lose_deal, log_customer_activity, schedule_meeting.
+  - Workflows: run_workflow for named presets; execute_goal for ad-hoc multi-step goals;
+    create_workflow / create_task for handoffs.
+  - Media when the brief needs visuals: generate_image or generate_video (premium).
+  - Drafts, research, generate_content, meeting rounds, etc. via skills.
+  - Sales/CRM steps: after create_customer always qualify_lead then create_deal (not chat-only lists).
+  - Persist: save_memory, set_agent_custom_field, write_product / create_product / update_product /
+    set_product_offer, update_task.
   - Product catalogue: list_products / search_products / read_product first, then write_product
-    (upsert) or create_product; use set_product_offer for promos; archive_product not hard-delete.
-  - Outreach steps: draft_email, send_email, log_customer_activity; then move_deal.
-  - Use update_task to leave progress notes mid-flight (status stays in_progress).
+    (upsert) or create_product; set_product_offer for promos; archive_product not hard-delete.
+  - Outreach: draft_email, send_email, log_customer_activity; then move_deal / win_deal / lose_deal.
+  - Use update_task for mid-flight notes (status stays in_progress).
   - If description contains WHAT'S WRONG / lead feedback: fix those issues first
 
 STEP 3 — PROVE & CLOSE{success_hint}:

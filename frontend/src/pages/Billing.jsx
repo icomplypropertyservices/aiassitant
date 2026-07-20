@@ -100,7 +100,15 @@ export default function Billing() {
             const r = await api(`/billing/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
               method: 'POST',
             })
-            message.success(r?.message || 'Payment received — subscription active')
+            const kind = r?.kind || r?.result?.kind
+            message.success(
+              r?.message
+              || (kind === 'topup'
+                ? 'Credits added — wallet updated'
+                : kind === 'storage'
+                  ? 'Storage pack added'
+                  : 'Payment received — subscription active'),
+            )
           } else {
             message.success('Payment received — refreshing your account…')
           }
@@ -364,6 +372,81 @@ export default function Billing() {
         />
       )}
 
+      {/* From /billing/balance — never free-grants; clear CTAs for trial ended / low fuel */}
+      {(balance?.needs_subscription || balance?.trial_ended || user?.needs_subscription) && (
+        <Alert
+          type={balance?.trial_ended ? 'error' : 'warning'}
+          showIcon
+          icon={<CrownOutlined />}
+          style={{ marginBottom: 16, borderRadius: 12 }}
+          message={
+            balance?.trial_ended || balance?.headline?.toLowerCase?.().includes('trial ended')
+              ? 'Trial ended — subscribe to unlock full tool access'
+              : 'No active subscription'
+          }
+          description={
+            <Space wrap>
+              <Typography.Text>
+                {balance?.sales_message
+                  || (balance?.trial_ended
+                    ? 'Free trial is no longer active. Choose Starter, Pro, or Business (card / crypto). Paid access unlocks after checkout — no free wallet credits.'
+                    : 'Start free trial (50,000 tokens · up to 12 agents · no card) or pick a paid plan below. Paid plans unlock only after checkout.')}
+              </Typography.Text>
+              <Button type="primary" size="small" onClick={() => nav('/subscribe')}>
+                {balance?.primary_cta?.label || (balance?.trial_ended ? 'Subscribe now' : 'Open Subscribe')}
+              </Button>
+            </Space>
+          }
+        />
+      )}
+      {!balance?.needs_subscription && !user?.needs_subscription && (
+        (balance?.tokens_remaining_included != null && Number(balance.tokens_remaining_included) <= 0)
+        || (meter?.hard_block)
+        || (meter?.needs_topup)
+        || (meter?.warn)
+        || (Number(balance?.credits ?? meter?.credits ?? 0) < 5 && Number(balance?.tokens_remaining_included ?? 1) <= 0)
+      ) && (
+        <Alert
+          type={meter?.hard_block || Number(balance?.tokens_remaining_included) <= 0 ? 'error' : 'warning'}
+          showIcon
+          style={{ marginBottom: 16, borderRadius: 12 }}
+          message={
+            meter?.hard_block || Number(balance?.tokens_remaining_included) <= 0
+              ? 'AI paused — buy credits or upgrade'
+              : Number(balance?.credits ?? meter?.credits ?? 0) < 5
+                ? 'Credits running low'
+                : 'Tokens running low'
+          }
+          description={
+            <Space wrap>
+              <Typography.Text>
+                {(Number(balance?.tokens_remaining_included ?? meter?.tokens_remaining_included) || 0).toLocaleString()}
+                {' '}included remaining · wallet $
+                {Number(balance?.credits ?? meter?.credits ?? 0).toFixed(2)}.
+                {' '}Buy credits to keep chat & agents running, or upgrade for a larger monthly pool.
+                Premium skills fail closed without wallet credits — no free runs.
+              </Typography.Text>
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => {
+                  const el = document.querySelector('[title="Credit wallet"], .aba-stat-card')
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  else setAmount(meter?.auto_topup?.amount || 25)
+                }}
+              >
+                {balance?.primary_cta?.action === 'topup' || meter?.primary_cta?.action === 'topup'
+                  ? (balance?.primary_cta?.label || meter?.primary_cta?.label || 'Buy credits')
+                  : 'Buy credits'}
+              </Button>
+              <Button size="small" icon={<CrownOutlined />} onClick={() => nav('/subscribe')}>
+                {balance?.secondary_cta?.label || meter?.secondary_cta?.label || 'Upgrade plan'}
+              </Button>
+            </Space>
+          }
+        />
+      )}
+
       {payOpts?.stripe?.sandbox && (
         <Alert
           type="info"
@@ -519,11 +602,16 @@ export default function Billing() {
       >
         <div className="aba-billing-meter-body">
           <TokenMeter
+            user={user}
             meter={
               meter
                 ? {
                     ...meter,
                     plan: meter.plan || currentPlan,
+                    needs_subscription:
+                      meter.needs_subscription ?? balance?.needs_subscription ?? user?.needs_subscription,
+                    upgrade_cta_path:
+                      meter.upgrade_cta_path || balance?.upgrade_cta_path,
                     subscription_expires_at:
                       meter.subscription_expires_at || expiresAt,
                   }
@@ -534,7 +622,9 @@ export default function Billing() {
           <Typography.Paragraph type="secondary" className="aba-billing-meter-blurb">
             <strong>How billing works:</strong> your plan includes a monthly token pool for managed chat
             (Fast / Quality / Reasoning / Large). When the pool is used, usage draws from your credit wallet
-            at the public rates below. Image and video are always wallet events.
+            at the public rates below. Image, video, and premium skills always use the wallet —
+            premium actions <strong>fail closed</strong> (error, no free run) if billing fails or credits are too low.
+            Free trial: 50k tokens · up to 12 agents · no card; wallet credits are never free-granted in production.
           </Typography.Paragraph>
           {meter?.tokens_included > 0 && (
             <div className="aba-billing-meter-progress">
@@ -810,31 +900,43 @@ export default function Billing() {
         <Table
           size="small"
           pagination={false}
-          rowKey="id"
-          dataSource={rates}
+          rowKey={(r) => r?.id || r?.label || 'row'}
+          dataSource={Array.isArray(rates) ? rates : []}
           columns={[
-            { title: 'Tier', dataIndex: 'label', width: 140 },
+            { title: 'Tier', dataIndex: 'label', width: 140, render: (v) => v || '—' },
             {
               title: 'Best for',
               dataIndex: 'blurb',
               ellipsis: true,
-              render: (v, r) => v || (r.flat_usd != null ? `$${Number(r.flat_usd).toFixed(2)} each` : '—'),
+              render: (v, r) => {
+                if (v) return v
+                const flat = r?.flat_usd
+                if (flat != null && Number.isFinite(Number(flat))) {
+                  return `$${Number(flat).toFixed(2)} each`
+                }
+                return '—'
+              },
             },
             {
               title: 'Wallet rate',
               dataIndex: 'usd_per_1m',
               width: 140,
-              render: (v, r) => (
-                r.flat_usd != null
-                  ? `$${Number(r.flat_usd).toFixed(2)} / use`
-                  : `$${Number(v).toFixed(2)} / 1M tokens`
-              ),
+              render: (v, r) => {
+                const flat = r?.flat_usd
+                if (flat != null && Number.isFinite(Number(flat))) {
+                  return `$${Number(flat).toFixed(2)} / use`
+                }
+                const rate = Number(v)
+                if (!Number.isFinite(rate)) return 'Pool / token meter'
+                return `$${rate.toFixed(2)} / 1M tokens`
+              },
             },
           ]}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0, fontSize: 12 }}>
           Included pool tokens are not charged again while remaining. After the pool is empty, chat uses wallet credits
-          at the rates above. Media always uses the wallet.
+          at the rates above. Media always uses the wallet. Premium skills charge credits first and fail closed on
+          billing errors — they never free-run.
         </Typography.Paragraph>
       </Card>
     </PageShell>

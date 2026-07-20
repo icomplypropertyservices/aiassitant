@@ -320,22 +320,30 @@ async def run_custom_workflow(
     return result
 
 
-@router.get("/{agent_id}/dashboard")
-def agent_dashboard(
+@router.get("/{agent_id}/tool-access")
+def agent_tool_access(
     agent_id: int,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     """
-    Per-agent dashboard payload: identity/settings summary, task stats,
-    recent tasks + activity, and suggested workflows for this role.
+    Single payload: available workflows + enabled skills for an agent.
+
+    Lightweight endpoint for the agent tasks/dashboard UI and LLM tool surface.
     """
-    from ..workflows import list_workflow_presets
-    from ..patterns import list_patterns
-    from ..agent_scaffold import recommended_model, map_model
-    from ..agent_roles import is_lead_agent, is_orchestrator
+    from ..workflows import list_workflow_presets, workflows_for_template
+    from ..agent_skills import enabled_skill_ids, LEAD_FLOW_SKILLS, SKILL_CATALOG
+    from ..agent_roles import is_lead_agent, is_orchestrator, normalize_role
+    from ..skills_policy import (
+        skill_pack_for_template,
+        category_for,
+        _CORE_ALWAYS,
+        _LEAD_ALWAYS,
+    )
+    from ..plans import plan_skill_caps
 
     a = _get_owned(agent_id, user, db)
+    role = normalize_role(a)
     reports_n = (
         db.query(models.Agent)
         .filter_by(user_id=user.id, parent_id=a.id)
@@ -344,7 +352,75 @@ def agent_dashboard(
     can_create_flows = bool(
         is_orchestrator(a)
         or is_lead_agent(a, reports_count=reports_n)
-        or (a.hierarchy_role or "").lower() in ("lead", "orchestrator")
+        or role in ("lead", "orchestrator")
+        or (a.permission_level or "").lower() in ("lead", "admin")
+    )
+
+    enabled = sorted(enabled_skill_ids(a, db))
+    by_id = {s["id"]: s for s in SKILL_CATALOG}
+    categories: dict[str, int] = {}
+    for sid in enabled:
+        cat = (by_id.get(sid) or {}).get("category") or category_for(sid)
+        categories[cat] = categories.get(cat, 0) + 1
+
+    all_wf = list_workflow_presets()
+    suggested = workflows_for_template(
+        a.template_type,
+        hierarchy_role=a.hierarchy_role,
+        agent_name=a.name,
+    )
+    pack = skill_pack_for_template(a.template_type)
+    caps = plan_skill_caps(user.plan)
+    catalog_ids = {s["id"] for s in SKILL_CATALOG}
+    lead_skills = sorted((LEAD_FLOW_SKILLS | _LEAD_ALWAYS) & catalog_ids)
+
+    return {
+        "agent_id": a.id,
+        "name": a.name,
+        "hierarchy_role": role,
+        "template_type": a.template_type,
+        "skill_pack": pack or ("orchestrator" if role == "orchestrator" else "core"),
+        "enabled_skills": enabled,
+        "enabled_skills_count": len(enabled),
+        "enabled_by_category": categories,
+        "core_skills_count": len(set(enabled) & _CORE_ALWAYS),
+        "workflows": suggested,
+        "all_workflows": all_wf,
+        "can_create_flows": can_create_flows,
+        "lead_flow_skills": lead_skills if can_create_flows else [],
+        "plan_caps": caps,
+    }
+
+
+@router.get("/{agent_id}/dashboard")
+def agent_dashboard(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """
+    Per-agent dashboard payload: identity/settings summary, task stats,
+    recent tasks + activity, workflows, and enabled skills (tool access).
+    """
+    from ..workflows import list_workflow_presets, workflows_for_template
+    from ..patterns import list_patterns
+    from ..agent_scaffold import recommended_model, map_model
+    from ..agent_roles import is_lead_agent, is_orchestrator, normalize_role
+    from ..agent_skills import enabled_skill_ids, LEAD_FLOW_SKILLS, SKILL_CATALOG
+    from ..skills_policy import skill_pack_for_template, category_for, _LEAD_ALWAYS
+    from ..plans import plan_skill_caps
+
+    a = _get_owned(agent_id, user, db)
+    role = normalize_role(a)
+    reports_n = (
+        db.query(models.Agent)
+        .filter_by(user_id=user.id, parent_id=a.id)
+        .count()
+    )
+    can_create_flows = bool(
+        is_orchestrator(a)
+        or is_lead_agent(a, reports_count=reports_n)
+        or role in ("lead", "orchestrator")
         or (a.permission_level or "").lower() in ("lead", "admin")
     )
     tasks = (
@@ -372,28 +448,28 @@ def agent_dashboard(
         .all()
     )
 
-    tpl = (a.template_type or "").lower()
-    role = (a.hierarchy_role or "").lower()
-    # Suggest workflows by role/template (sales, support, product, lead)
+    # Suggest multi-agent workflows by template / hierarchy (sales, support, marketing, coding, ops, …)
     all_wf = list_workflow_presets()
-    name_l = (a.name or "").lower()
-    if (
-        tpl in ("product", "catalog", "marketing", "content")
-        or "product" in name_l
-        or "catalog" in name_l
-    ):
-        suggested = [w for w in all_wf if w.get("category") == "product"] or all_wf[:3]
-    elif tpl in ("sales", "outreach", "lead_gen", "crm") or "sales" in name_l:
-        suggested = [w for w in all_wf if w.get("category") in ("sales", "product")]
-    elif tpl in ("support", "booking") or "support" in name_l:
-        suggested = [w for w in all_wf if w.get("category") == "support"]
-    elif role in ("orchestrator", "lead") or tpl in ("orchestrator", "lead"):
-        suggested = all_wf
-    else:
-        suggested = all_wf[:3]
+    suggested = workflows_for_template(
+        a.template_type,
+        hierarchy_role=a.hierarchy_role,
+        agent_name=a.name,
+    )
 
     rec_model = recommended_model(a.template_type, a.hierarchy_role)
     current_model = map_model(a.model)
+
+    # Tool access: enabled skills + pack alongside workflows
+    enabled = sorted(enabled_skill_ids(a, db))
+    by_id = {s["id"]: s for s in SKILL_CATALOG}
+    categories: dict[str, int] = {}
+    for sid in enabled:
+        cat = (by_id.get(sid) or {}).get("category") or category_for(sid)
+        categories[cat] = categories.get(cat, 0) + 1
+    pack = skill_pack_for_template(a.template_type)
+    catalog_ids = {s["id"] for s in SKILL_CATALOG}
+    lead_skills = sorted((LEAD_FLOW_SKILLS | _LEAD_ALWAYS) & catalog_ids)
+    caps = plan_skill_caps(user.plan)
 
     return {
         "agent": agent_out(a, db, activity_limit=0),
@@ -431,10 +507,22 @@ def agent_dashboard(
         "all_workflows": all_wf,
         "patterns": (list_patterns(db, user, limit=20).get("patterns") or []),
         "can_create_flows": can_create_flows,
-        "lead_flow_skills": [
-            "create_workflow", "execute_goal", "create_pattern", "run_pattern",
-            "review_task", "announce_plan", "create_task", "message_agent",
-        ] if can_create_flows else [],
+        "lead_flow_skills": lead_skills if can_create_flows else [],
+        "enabled_skills": enabled,
+        "enabled_skills_count": len(enabled),
+        "enabled_by_category": categories,
+        "skill_pack": pack or ("orchestrator" if role == "orchestrator" else "core"),
+        "plan_caps": caps,
+        "tool_access": {
+            "enabled_skills": enabled,
+            "enabled_count": len(enabled),
+            "enabled_by_category": categories,
+            "skill_pack": pack or ("orchestrator" if role == "orchestrator" else "core"),
+            "workflows": suggested,
+            "all_workflows": all_wf,
+            "can_create_flows": can_create_flows,
+            "lead_flow_skills": lead_skills if can_create_flows else [],
+        },
     }
 
 

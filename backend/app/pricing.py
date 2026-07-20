@@ -190,7 +190,12 @@ def estimate_messages_tokens(messages: list[dict] | None) -> int:
     return max(1, total) if messages else 0
 
 
-def format_token_count(n: int) -> str:
+def format_token_count(n) -> str:
+    """Human label for token counts. Never raises on None/invalid."""
+    try:
+        n = int(n or 0)
+    except (TypeError, ValueError):
+        n = 0
     if n >= 1_000_000:
         return f"{n / 1_000_000:.2f}M"
     if n >= 1_000:
@@ -198,39 +203,66 @@ def format_token_count(n: int) -> str:
     return str(n)
 
 
+def _safe_rate(value) -> float:
+    """Coerce a pricing value to float; never raise on None/invalid."""
+    if value is None:
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def public_rates() -> list[dict]:
-    """Transparent rates table for Billing UI."""
-    out = []
+    """Transparent rates table for Billing UI.
+
+    Hardened so missing labels/prices or EVENT_PRICING usd=None never
+    format-raise (avoids 500 on GET /billing/rates). Every numeric field is
+    float or explicit null — clients can render without Number(null) crashes.
+    """
+    out: list[dict] = []
     for mid in _ORDER:
         if mid in ("image", "video"):
             continue
+        if mid not in PRICING and mid not in MODEL_LABELS:
+            continue
+        rate = _safe_rate(PRICING.get(mid))
         out.append({
-            "id": mid,
-            "label": MODEL_LABELS[mid],
-            "blurb": MODEL_BLURBS.get(mid, ""),
-            "usd_per_1m": PRICING[mid],
+            "id": mid or "unknown",
+            "label": MODEL_LABELS.get(mid) or str(mid or "Unknown").replace("-", " ").title(),
+            "blurb": MODEL_BLURBS.get(mid) or "",
+            "usd_per_1m": rate,
+            "flat_usd": None,
             "group": "managed",
         })
-    # Event pricing summary rows
+    # Event pricing summary rows (media + skills; voice/premium-comm stay internal)
     for kind, row in EVENT_PRICING.items():
-        if kind.startswith("voice") or kind == "premium-comm":
+        if not kind or kind.startswith("voice") or kind == "premium-comm":
             continue
-        usd = row.get("usd") if isinstance(row, dict) else None
-        meter_tok = int(row.get("meter_tokens") or 0) if isinstance(row, dict) else 0
-        if usd is None:
+        usd_raw = row.get("usd") if isinstance(row, dict) else None
+        meter_tok = 0
+        if isinstance(row, dict):
+            try:
+                meter_tok = int(row.get("meter_tokens") or 0)
+            except (TypeError, ValueError):
+                meter_tok = 0
+        # Skills use usd=None (pool-metered only) — never f-format None
+        if usd_raw is None:
+            flat_usd = None
             blurb = (
                 f"Token-metered skill action (~{meter_tok} tokens from included pool)"
                 if meter_tok
                 else "Token-metered action (included pool first)"
             )
         else:
-            blurb = f"Flat ${float(usd):.2f} per generation"
+            flat_usd = _safe_rate(usd_raw)
+            blurb = f"Flat ${flat_usd:.2f} per generation"
         out.append({
-            "id": kind,
-            "label": MODEL_LABELS.get(kind, kind.replace("-", " ").title()),
+            "id": str(kind),
+            "label": MODEL_LABELS.get(kind) or str(kind).replace("-", " ").title(),
             "blurb": blurb,
-            "usd_per_1m": PRICING.get(kind, 0),
-            "flat_usd": usd,
-            "group": "media" if usd is not None else "skills",
+            "usd_per_1m": _safe_rate(PRICING.get(kind, 0)),
+            "flat_usd": flat_usd,
+            "group": "media" if flat_usd is not None else "skills",
         })
     return out

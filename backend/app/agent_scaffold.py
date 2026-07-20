@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from . import models
-from .agent_roles import find_orchestrator, is_orchestrator, normalize_role
+from .agent_roles import find_orchestrator, is_lead_agent, is_orchestrator, normalize_role
 from .agent_skills import DEFAULT_ENABLED, SKILL_CATALOG, set_enabled_skills, PREMIUM_SKILL_IDS
 from .skills_policy import (
     default_enabled_for_role as _policy_default_enabled,
@@ -160,16 +160,17 @@ def role_allowed_skill_ids(role: str, agent: models.Agent | None = None) -> list
 def default_enabled_skills_for_role(role: str, agent: models.Agent | None = None) -> list[str]:
     """
     Role packs + optional template_type domain pack (skills_policy):
-      member/specialist — free toolkit, no premium, no destructive meta
-      lead — + premium + spawn (not delete)
+      member/specialist — free toolkit + domain pack when template is set
+      lead — CRM + workflows + media + meetings + integrations (+ domain)
       orchestrator — full
-    When agent.template_type maps to sales/marketing/support/coding/research,
-    domain skills are layered on the complete role pack (never partial-only).
+    When agent.template_type maps to sales/marketing/support/coding/research/crm/…
+    real domain skills are layered on the complete role pack (never empty lean only).
     """
     r = (role or "member").lower()
     if agent and is_orchestrator(agent):
         r = "orchestrator"
     tpl = getattr(agent, "template_type", None) if agent else None
+    # Always prefer template-aware pack when we have a template OR lead/orch role
     if tpl or r in ("orchestrator", "lead"):
         return skills_for_template(tpl, SKILL_CATALOG, role=r)
     return _policy_default_enabled(r, SKILL_CATALOG)
@@ -183,27 +184,39 @@ def ensure_agent_skills(db: Session, agent: models.Agent) -> list[str]:
       (create_task, execute_goal, message_agent, status_update, open_meeting, …)
     - Existing state → expand/merge so new core + domain skills turn ON without
       stripping skills the user already enabled
+    - Always force market-leading core (CRM + workflows + tasks) via
+      _CORE_ALWAYS; leads also re-attach LEAD_FLOW_SKILLS (pipeline + media)
 
     Call from create / spawn / ensure-orchestrator / repair (expand_skills).
     Safe no-op when agent has no id yet.
     """
     if not agent or not getattr(agent, "id", None):
         return []
+    from .agent_skills import LEAD_FLOW_SKILLS, SKILL_CATALOG
+    from .skills_policy import _CORE_ALWAYS, _LEAD_ALWAYS
+
     role = normalize_role(agent)
-    wanted = list(default_enabled_skills_for_role(role, agent))
+    catalog_ids = {s["id"] for s in SKILL_CATALOG}
+    wanted = set(default_enabled_skills_for_role(role, agent))
+    # Market-leading core always attached (CRM funnel, workflows, tasks, meetings)
+    wanted |= _CORE_ALWAYS & catalog_ids
+    if is_orchestrator(agent) or is_lead_agent(agent) or role in ("lead", "orchestrator"):
+        wanted |= (LEAD_FLOW_SKILLS | _LEAD_ALWAYS) & catalog_ids
+    wanted_list = list(wanted)
+
     row = db.query(models.AgentSkillState).filter_by(agent_id=agent.id).first()
     if not row:
-        return set_enabled_skills(db, agent, wanted)
+        return set_enabled_skills(db, agent, wanted_list)
     try:
         raw = json.loads(row.enabled_json or "[]")
         existing = {str(x) for x in raw} if isinstance(raw, list) else set()
     except Exception:
         existing = set()
     if not existing:
-        return set_enabled_skills(db, agent, wanted)
-    missing = set(wanted) - existing
+        return set_enabled_skills(db, agent, wanted_list)
+    missing = wanted - existing
     if missing:
-        merged = sorted(existing | set(wanted))
+        merged = sorted(existing | wanted)
         return set_enabled_skills(db, agent, merged)
     return sorted(existing)
 

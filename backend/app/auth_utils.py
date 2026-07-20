@@ -175,14 +175,55 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
     Browsing the app (agents list, settings, CRM, billing, hierarchy) does **not**
     call this. When tokens+wallet are empty, raise 402 with a clear AI-only message
     so the client can keep the rest of the site usable.
+
+    Critical: uses subscription_is_live (honours trial expiry), not the raw
+    subscription_active column alone — expired trials must not use AI free.
     """
-    from .usage_billing import ensure_period
+    from .usage_billing import (
+        ensure_period,
+        heal_subscription_flags,
+        subscription_is_live,
+        TRIAL_ENDED_MSG,
+    )
 
     user = db.get(models.User, user_id)
     if user and user.role == "admin":
         return 999.0
     if user:
-        if not user.subscription_active or user.plan in (None, "", "none"):
+        # Persist expired-trial deactivation so later raw-flag checks match reality
+        if heal_subscription_flags(db, user):
+            try:
+                db.commit()
+                db.refresh(user)
+            except Exception:
+                db.rollback()
+        if not subscription_is_live(user):
+            plan = (user.plan or "").strip()
+            exp = getattr(user, "subscription_expires_at", None)
+            expired = exp is not None and exp < datetime.utcnow()
+            if expired and plan in ("trial", "none", "", "pay_as_you_go"):
+                raise HTTPException(
+                    402,
+                    detail={
+                        "code": "trial_ended",
+                        "ai_only": True,
+                        "message": TRIAL_ENDED_MSG,
+                        "cta_path": "/subscribe",
+                    },
+                )
+            if expired:
+                raise HTTPException(
+                    402,
+                    detail={
+                        "code": "plan_expired",
+                        "ai_only": True,
+                        "message": (
+                            "Your plan period ended — renew on Billing or Subscribe to use AI again. "
+                            "The rest of the site stays available."
+                        ),
+                        "cta_path": "/billing",
+                    },
+                )
             raise HTTPException(
                 402,
                 detail={
@@ -191,30 +232,19 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
                     "message": (
                         "Choose a plan to use AI. You can still browse the app and open Billing."
                     ),
-                },
-            )
-        exp = getattr(user, "subscription_expires_at", None)
-        if exp is not None and exp < datetime.utcnow():
-            raise HTTPException(
-                402,
-                detail={
-                    "code": "plan_expired",
-                    "ai_only": True,
-                    "message": (
-                        "Your plan period ended — renew on Billing to use AI again. "
-                        "The rest of the site stays available."
-                    ),
+                    "cta_path": "/subscribe",
                 },
             )
     bal = db.query(models.Balance).filter_by(user_id=user_id).first()
     if not bal:
-        # Active subscribers must be able to spawn agents even if Balance row
+        # Live subscribers must be able to spawn agents even if Balance row
         # was never created (race on register / plan change). Create a zero
         # wallet + plan token pool so spawn/create is not a dead end.
         from .plans import plan_limits
         tokens = 0
         try:
-            tokens = int(plan_limits(user.plan if user else "none").get("tokens_included") or 0)
+            if user and subscription_is_live(user):
+                tokens = int(plan_limits(user.plan or "none").get("tokens_included") or 0)
         except Exception:
             tokens = 0
         bal = models.Balance(
@@ -259,6 +289,7 @@ def ensure_credits(db: Session, user_id: int, min_credits: float | None = None) 
                     "Top up on Billing to chat or run agents again. "
                     "You can still use the rest of the site (agents, CRM, settings, billing)."
                 ),
+                "cta_path": "/billing",
             },
         )
     return credits

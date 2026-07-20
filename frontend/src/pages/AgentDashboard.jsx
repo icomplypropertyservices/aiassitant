@@ -80,8 +80,19 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 12000)
-    return () => clearInterval(t)
+    // 30s+ when tab visible only — was 12s always (3 parallel API calls each tick)
+    const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      load()
+    }, 30000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [load])
 
   const columns = board?.columns || {}
@@ -210,8 +221,14 @@ export default function AgentDashboard() {
               )}
             >
               {filteredAgents.length === 0 ? (
-                <Empty description="No agents yet" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                  <Button type="primary" onClick={() => nav('/console')}>Open console</Button>
+                <Empty
+                  description="No agents yet — pick a template and enable CRM + workflow skills"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                >
+                  <Space wrap>
+                    <Button type="primary" onClick={() => nav('/templates')}>Browse templates</Button>
+                    <Button onClick={() => nav('/console')}>Open console</Button>
+                  </Space>
                 </Empty>
               ) : (
                 <List
@@ -247,7 +264,7 @@ export default function AgentDashboard() {
                             icon={<ApartmentOutlined />}
                             onClick={() => nav(`/agents/${a.id}/manage`)}
                           >
-                            Settings
+                            Skills
                           </Button>,
                         ]}
                       >
@@ -295,7 +312,7 @@ export default function AgentDashboard() {
                               <Text type="secondary" style={{ fontSize: 12 }}>
                                 {openN
                                   ? `${openN} open task${openN === 1 ? '' : 's'}`
-                                  : 'Idle — no open board tasks'}
+                                  : 'Idle — open dashboard for workflows & tools'}
                                 {a.model ? ` · model ${a.model}` : ''}
                               </Text>
                               {tasks.slice(0, 3).map((t) => (
@@ -332,7 +349,7 @@ export default function AgentDashboard() {
             <Card
               className="aba-soft-card"
               title={<Space><ThunderboltOutlined /><span>Live activity</span></Space>}
-              extra={<Text type="secondary" style={{ fontSize: 12 }}>Auto-refresh 12s</Text>}
+              extra={<Text type="secondary" style={{ fontSize: 12 }}>Auto-refresh 30s</Text>}
               styles={{ body: { maxHeight: 520, overflowY: 'auto' } }}
             >
               {events.length === 0 ? (
@@ -423,9 +440,10 @@ export default function AgentDashboard() {
           <Space wrap>
             <Text type="secondary">Tip:</Text>
             <Text type="secondary">
-              Agents create products with <Text code>create_product</Text> / special offers with{' '}
-              <Text code>set_product_offer</Text>. Custom metadata via{' '}
-              <Text code>set_agent_custom_field</Text>. After skills run, chat shows a full “What I just did” summary.
+              Open an agent <Text strong>Dashboard</Text> for one-click workflows, or{' '}
+              <Text strong>Skills</Text> for the recommended CRM pack (customers, deals,{' '}
+              <Text code>create_workflow</Text>). Products via <Text code>create_product</Text> /{' '}
+              <Text code>set_product_offer</Text>. After skills run, chat shows a full “What I just did” summary.
             </Text>
           </Space>
         </Card>

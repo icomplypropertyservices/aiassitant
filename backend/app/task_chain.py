@@ -189,9 +189,9 @@ def decompose_sales_pipeline(prompt: str, *, max_steps: int = 6) -> list[dict[st
     """
     Multi-agent sales handoff:
       1) Sales lead — generate N targets
-      2) Sales lead — save customers + deals in CRM
-      3) Outreach — emails / calls / log activity
-      4) Outreach — move pipeline stages
+      2) Sales lead — save customers + deals in CRM + qualify_lead
+      3) Outreach — emails / calls / log activity (prefer qualified)
+      4) Sales — move pipeline stages + re-qualify
       5) Lead/orchestrator — rollup + notify human
     """
     n = _extract_count(prompt, default=50)
@@ -204,18 +204,19 @@ def decompose_sales_pipeline(prompt: str, *, max_steps: int = 6) -> list[dict[st
                 f"You are the sales research / lead gen agent.\n"
                 f"Produce a list of exactly {n} sales targets (ICP-fit companies or contacts).\n"
                 f"For EACH target include: full name, company, role/title, email (realistic placeholder "
-                f"if unknown), phone if known, niche/notes, priority (high/med/low).\n"
+                f"if unknown), phone if known, niche/notes, priority (high/med/low), and a rough "
+                f"ICP fit note (budget/timeline/authority signals if known).\n"
                 f"Write the full list in your reply (table or numbered).\n"
                 f"Save a compact summary with save_memory key=sales_targets_batch.\n"
-                f"Do NOT email yet — next agent will outreach.\n\n"
+                f"Do NOT email yet — next agent will CRM-import and qualify_lead, then outreach.\n\n"
                 f"DONE WHEN: {n} named targets with company + contact details in the task result.\n"
-                f"TARGET: {n} sales targets ready for CRM import."
+                f"TARGET: {n} sales targets ready for CRM import + qualify_lead."
             ),
             "role_hint": "sales",
             "done_when": f"{n} sales targets listed with company and contact details",
         },
         {
-            "title": f"Save {n} targets into CRM",
+            "title": f"Save {n} targets into CRM + qualify",
             "description": (
                 f"GOAL CONTEXT: {short}\n\n"
                 f"You own the CRM step. Read parent goal / prior step results (list_tasks, get_task, "
@@ -224,27 +225,41 @@ def decompose_sales_pipeline(prompt: str, *, max_steps: int = 6) -> list[dict[st
                 f'(name, email, phone, tags=["sales-target","auto-chain"], notes).\n'
                 f"Then create_deal for each new customer (title like '{{Company}} — outreach', "
                 f"priority from target, value if known).\n"
+                f"Then call qualify_lead for each new customer (customer_id or email; notes with ICP "
+                f"signals; score 0–100; lead_status e.g. new/nurturing/qualified). "
+                f"Use score_lead if you only need a score pass. Real skill blocks required — "
+                f"prose alone is NOT enough.\n"
                 f"Batch: aim for all {n} (or as many as listed). Use list_pipelines / get_pipeline "
                 f"if you need stage ids.\n"
-                f"Emit one ```skill block per create_customer and create_deal.\n\n"
-                f"DONE WHEN: ≥{max(1, n // 2)} customers created in CRM with open deals "
-                f"(ideally all {n}).\n"
-                f"TARGET: CRM populated; deals on sales pipeline."
+                f"Emit one ```skill block per create_customer, create_deal, and qualify_lead.\n\n"
+                f"DONE WHEN: ≥{max(1, n // 2)} customers created in CRM with open deals and "
+                f"qualify_lead (or score_lead) run on them (ideally all {n}).\n"
+                f"TARGET: CRM populated; deals on sales pipeline; lead_score/lead_status set."
             ),
             "role_hint": "sales",
-            "done_when": f"At least half of {n} targets saved as CRM customers with deals",
+            "done_when": (
+                f"At least half of {n} targets saved as CRM customers with deals and qualify_lead"
+            ),
+            "checklist": [
+                "create_customer used for targets",
+                "create_deal used for targets",
+                "qualify_lead (or score_lead) used on new customers",
+            ],
         },
         {
             "title": "Outreach: emails and calls",
             "description": (
                 f"GOAL CONTEXT: {short}\n\n"
                 f"You are the outreach specialist. Pull fresh CRM rows: list_customers, list_deals, "
-                f"get_pipeline.\n"
-                f"For each new sales-target customer (tag sales-target or recent):\n"
+                f"get_pipeline, list_qualified_leads (and list_leads if needed).\n"
+                f"Prioritise customers with higher lead_score / lead_status=qualified from "
+                f"qualify_lead; still cover other sales-target tags if capacity remains.\n"
+                f"For each target customer:\n"
                 f"  1) draft_email personalized pitch\n"
                 f"  2) send_email when credentials allow (else leave draft + log)\n"
                 f"  3) log_customer_activity (email/call note)\n"
                 f"  4) If phone present, prepare call script; use call skill if available\n"
+                f"  5) Optionally set_lead_status to contacted after a real touch\n"
                 f"Do real skill calls — do not only describe outreach.\n"
                 f"Cover as many CRM targets as practical this run (batch ≥10 or all open).\n\n"
                 f"DONE WHEN: Outreach attempted for a clear batch of CRM targets with activity logs.\n"
@@ -257,30 +272,35 @@ def decompose_sales_pipeline(prompt: str, *, max_steps: int = 6) -> list[dict[st
             "title": "Update sales pipeline stages",
             "description": (
                 f"GOAL CONTEXT: {short}\n\n"
-                f"Update the board after outreach: list_pipelines, get_pipeline, list_deals.\n"
+                f"Update the board after outreach: list_pipelines, get_pipeline, list_deals, "
+                f"list_qualified_leads.\n"
                 f"move_deal / update_deal for contacts contacted → next stage "
                 f"(e.g. Contacted / Qualified).\n"
-                f"win_deal / lose_deal only with evidence.\n"
+                f"Re-run qualify_lead (or set_lead_status) when a lead shows real interest — "
+                f"raise score / set lead_status=qualified with notes.\n"
+                f"win_deal / lose_deal only with evidence; disqualify_lead only when clearly unfit.\n"
                 f"pipeline_summary at the end.\n\n"
-                f"DONE WHEN: Pipeline reflects outreach progress; summary in task result.\n"
-                f"TARGET: Deals moved; pipeline_summary numbers match reality."
+                f"DONE WHEN: Pipeline reflects outreach progress; qualified leads updated; "
+                f"summary in task result.\n"
+                f"TARGET: Deals moved; qualify_lead/list_qualified_leads consistent with board."
             ),
             "role_hint": "sales",
-            "done_when": "Pipeline stages updated after outreach",
+            "done_when": "Pipeline stages updated after outreach; leads re-qualified where earned",
         },
         {
             "title": "Report results to human",
             "description": (
                 f"GOAL CONTEXT: {short}\n\n"
-                f"Roll up: how many targets generated, CRM customers/deals created, emails/calls, "
-                f"pipeline value. Use list_customers, pipeline_summary, list_activity.\n"
+                f"Roll up: how many targets generated, CRM customers/deals created, "
+                f"qualify_lead counts (qualified vs nurturing), emails/calls, pipeline value. "
+                f"Use list_customers, list_qualified_leads, pipeline_summary, list_activity.\n"
                 f"status_update or notify_human with a short owner brief.\n"
                 f"save_memory key=sales_pipeline_run_summary.\n\n"
-                f"DONE WHEN: Human notified with counts and next recommended actions.\n"
+                f"DONE WHEN: Human notified with counts (incl. qualified leads) and next actions.\n"
                 f"TARGET: Clear status_update delivered."
             ),
             "role_hint": "orchestrator",
-            "done_when": "Human has status update with CRM and outreach counts",
+            "done_when": "Human has status update with CRM, qualify_lead, and outreach counts",
         },
     ]
     return steps[:max_steps]
@@ -670,12 +690,16 @@ async def on_task_finished(
     # include it so rollup/next-sibling see the terminal state before commit.
     open_kids, done, failed = _partition(siblings)
 
-    # Sequential unlock: queue the next todo sibling after a completed step
+    # Sequential unlock: queue the next todo sibling after a completed step.
+    # Skip chain-skipped / terminal-labeled rows so fail-smart never revives them.
     if final_status == "completed" and open_kids:
         for s in siblings:
             if s.id == task.id:
                 continue
             st = (s.status or "")
+            sl = (s.labels or "").lower()
+            if "chain-skipped" in sl:
+                continue
             if st == "todo" and s.agent_id:
                 agent = db.get(models.Agent, s.agent_id)
                 if agent and agent.status == "active":
@@ -693,12 +717,19 @@ async def on_task_finished(
     # In-flight (queued/in_progress) siblings are left alone.
     # Tag chain-skipped + escalated so autonomy will not re-queue them
     # (failed scan + high-priority escalate would otherwise revive the chain).
+    # Also clear any already-queued next sibling so close-skill + fail-fast
+    # cannot leave a half-alive chain zombie running after a hard fail.
     if final_status == "failed":
         skipped: list[int] = []
         for s in siblings:
             if s.id == task.id:
                 continue
-            if (s.status or "") == "todo":
+            st = (s.status or "")
+            if st == "todo" or (
+                st == "queued"
+                and "auto-chain" in (s.labels or "").lower()
+                and s.id > task.id
+            ):
                 s.status = "failed"
                 s.result = (
                     f"Skipped: prior chain step #{task.id} failed"
@@ -707,6 +738,7 @@ async def on_task_finished(
                 extras = [x for x in ("chain-skipped", "escalated") if x not in sl]
                 if extras:
                     s.labels = (f"{sl},{','.join(extras)}".strip(",") if sl else ",".join(extras))
+                s.completed_at = s.completed_at or datetime.utcnow()
                 s.updated_at = datetime.utcnow()
                 skipped.append(s.id)
         if skipped:
